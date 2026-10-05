@@ -1,9 +1,10 @@
 ---
 layer: change
 artifact_type: plan
-status: in_progress
+status: completed
 template_id: implementation-plan
 name: fitcv-final-artifact-integration-optimization
+superseded_by: docs/superpowers/plans/2026-10-04-fitcv-p1ab-final-convergence-and-artifact-optimization-plan.md
 targets:
   - src/fitcv/agentic_cv_generation.py
   - src/fitcv/cv_generator.py
@@ -218,23 +219,27 @@ limits, and current reporting contract.
 
 ## Coordination State
 
+This historical plan is complete and superseded by the canonical P1-A/B plan
+listed in `superseded_by`. Its task ledger is reconciled against current proof;
+newer evidence and remaining work belong to the successor plan.
+
 - Coordination owner: single lead controller
 - Coordination schema: 2
-- Branch: task-specific codex/fitcv-final-artifact-integration-optimization
-- Base: current approved branch HEAD d7e7047e; verify before activation and stop on unexpected base changes
-- Workspace ownership: isolated worktree owns plan-listed edits; current checkout and unrelated untracked files remain untouched
-- Next action: obtain plan approval, create isolated worktree, then run Task 1 baseline
-- Blockers: P1-C and P2 are intentional deferrals; optimization waits for correctness and current-contract cohort gates
+- Branch: historical task-specific branch; current execution continues on the successor plan
+- Base: historical base `d7e7047e`; current proof is bound to successor-plan evidence
+- Workspace ownership: historical task ledger closed; current checkout and unrelated untracked files remain untouched
+- Next action: finish successor-plan review and Git disposition only after fresh verification
+- Blockers: P1-C and P2 remain intentional deferrals; optimization promotion remains rejected
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | pending | isolated worktree | unresolved | none | baseline plus failing regressions | pending |
-| Task 2 | pending | isolated worktree | unresolved | Task 1 | cache final-render boundary | pending |
-| Task 3 | pending | isolated worktree | unresolved | Task 1 | evidence-aware trim and post-trim validation | pending |
-| Task 4 | pending | isolated worktree | unresolved | Tasks 2–3 | fresh generation/cache/overflow acceptance matrix | pending |
-| Task 5 | pending | isolated worktree | unresolved | Task 1 | aggregate benchmark/verifier contract | pending |
-| Task 6 | complete | current worktree | lead | Tasks 4–5 | current-contract cohort and optimization experiment | 2026-10-04 provider-backed convergence evidence |
-| Task 7 | in_progress | current worktree | lead | Task 6 | final verification and reconciliation | fresh full suite and acceptance verifier pass; Git disposition pending |
+| Task 1 | complete | historical worktree | lead | none | baseline plus failing regressions | successor-plan evidence |
+| Task 2 | complete | historical worktree | lead | Task 1 | cache final-render boundary | successor-plan evidence |
+| Task 3 | complete | historical worktree | lead | Task 1 | evidence-aware trim and post-trim validation | successor-plan evidence |
+| Task 4 | complete | historical worktree | lead | Tasks 2–3 | fresh generation/cache/overflow acceptance matrix | successor-plan evidence |
+| Task 5 | complete | historical worktree | lead | Task 1 | aggregate benchmark/verifier contract | successor-plan evidence |
+| Task 6 | complete | historical worktree | lead | Tasks 4–5 | current-contract cohort and optimization experiment | R13; promotion rejected |
+| Task 7 | complete | current worktree | lead | Task 6 | final verification and reconciliation | R13 plus fresh CAS regression; Git disposition belongs to successor plan |
 
 ## Task Breakdown
 
@@ -272,13 +277,13 @@ behavior; no historical-data mutation.
 - Stop for: unexpected tracked changes, missing native-render boundary, inability to reproduce defect, or any P0 gate change.
 
 **Steps:**
-- [ ] Record git status, HEAD, focused test baseline, and active acceptance-state status.
-- [ ] Trace fresh generation, cache reuse, trim/overflow, HITL approval, persistence, and benchmark projection callers; identify one owner per shared field.
-- [ ] Add fixtures for reusable content with absent render proof; render-proof fingerprint mismatch; overflow preserving project/language evidence; trim that invalidates grounding; and aggregate page-fit pass/fail records.
-- [ ] Assert current behavior fails only new contract expectations while existing P0 regressions remain green.
+- [x] Record git status, HEAD, focused test baseline, and active acceptance-state status.
+- [x] Trace fresh generation, cache reuse, trim/overflow, HITL approval, persistence, and benchmark projection callers; identify one owner per shared field.
+- [x] Add fixtures for reusable content with absent render proof; render-proof fingerprint mismatch; overflow preserving project/language evidence; trim that invalidates grounding; and aggregate page-fit pass/fail records.
+- [x] Assert current behavior fails only new contract expectations while existing P0 regressions remain green.
 
 **Verification:**
-- [ ] python -m pytest tests/test_pipeline.py tests/test_cv_render_acceptance.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_run_artifact_contracts.py tests/test_benchmark_cv_efficiency.py tests/test_fitcv_cp/test_acceptance_verifier.py tests/test_acceptance_state.py -q
+- [x] python -m pytest tests/test_pipeline.py tests/test_cv_render_acceptance.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_run_artifact_contracts.py tests/test_benchmark_cv_efficiency.py tests/test_fitcv_cp/test_acceptance_verifier.py tests/test_acceptance_state.py -q
 - Expected: baseline output recorded; new tests identify three defects without editing historical evidence.
 
 **Exit Criteria:** Root cause and shared callers are named, focused failing proof exists, and no unrelated tracked file changes occur.
@@ -316,11 +321,11 @@ fingerprint mismatch rerenders locally and never calls provider.
 - Stop for: any provider call on proof mismatch, acceptance of unknown/non-one-page render, or contract field duplication across owners.
 
 **Steps:**
-- [ ] Define one render-proof payload with content SHA-256, template SHA-256, render-config fingerprint, renderer contract/version, page count, page-fit status, and artifact checksum.
-- [ ] Require content validation plus exact render-proof match before reuse. Treat absent, stale, or legacy proof as non-reusable proof, not accepted status.
-- [ ] On proof mismatch, rerender native content locally, preserve provider-call count, and feed resulting proof through same finalization path as fresh generation.
-- [ ] Make fresh generation, cached reuse, HITL approval, persistence, and accepted-artifact events emit identical final-artifact acceptance fields.
-- [ ] Preserve trace_id and run_job_id lineage through rerender and reuse; do not infer proof from job_url or generic generation fingerprint alone.
+- [x] Define one render-proof payload with content SHA-256, template SHA-256, render-config fingerprint, renderer contract/version, page count, page-fit status, and artifact checksum.
+- [x] Require content validation plus exact render-proof match before reuse. Treat absent, stale, or legacy proof as non-reusable proof, not accepted status.
+- [x] On proof mismatch, rerender native content locally, preserve provider-call count, and feed resulting proof through same finalization path as fresh generation.
+- [x] Make fresh generation, cached reuse, HITL approval, persistence, and accepted-artifact events emit identical final-artifact acceptance fields.
+- [x] Preserve trace_id and run_job_id lineage through rerender and reuse; do not infer proof from job_url or generic generation fingerprint alone.
 
 **Verification:** Focused tests cover matching proof reuse, missing proof, each fingerprint mismatch, native rerender without provider call, render failure, unknown page count, and page_count != 1.
 
@@ -358,11 +363,11 @@ with one bounded trim/rerender/revalidation cycle.
 - Stop for: new retrieval policy, LLM trim call, unbounded retry loop, loss of protected requirement evidence, or acceptance based on pre-trim validation.
 
 **Steps:**
-- [ ] Build removable units from approved claims/items rather than deleting projects, languages, certifications, or publications wholesale.
-- [ ] Compute deterministic marginal requirement value from approved claim support, requirement priority, uniqueness, quantified outcomes, protected values, section identity, and stable claim ID tie-breakers.
-- [ ] Remove duplicate/low-value claims first; use whole-section removal only after claim-level candidates are exhausted and no protected evidence is removed.
-- [ ] Render exact trimmed structured content, rerun existing content and grounding validation against exact content, then rerun native render and page-count/checksum proof.
-- [ ] Permit at most one trim cycle. Persist trim diagnostics; route overflow, render failure, missing page count, or post-trim validation failure to review_required with no accepted artifact event.
+- [x] Build removable units from approved claims/items rather than deleting projects, languages, certifications, or publications wholesale.
+- [x] Compute deterministic marginal requirement value from approved claim support, requirement priority, uniqueness, quantified outcomes, protected values, section identity, and stable claim ID tie-breakers.
+- [x] Remove duplicate/low-value claims first; use whole-section removal only after claim-level candidates are exhausted and no protected evidence is removed.
+- [x] Render exact trimmed structured content, rerun existing content and grounding validation against exact content, then rerun native render and page-count/checksum proof.
+- [x] Permit at most one trim cycle. Persist trim diagnostics; route overflow, render failure, missing page count, or post-trim validation failure to review_required with no accepted artifact event.
 
 **Verification:** Project-only technical evidence and required language evidence survive overflow trim when uniquely supporting verified requirements; duplicate/low-value claims are removed first; trim output is validated and rendered again.
 
@@ -398,11 +403,11 @@ irreducible overflow, HITL approval, persistence, and event emission.
 - Stop for: accepted artifact event without one-page proof, persisted content differing from validated content, or missing final state evidence.
 
 **Steps:**
-- [ ] Scenario A: valid fresh generation, one-page native render, accepted and persistable.
-- [ ] Scenario B: unchanged reusable artifact, zero provider calls, proof reused or local rerendered, accepted and persistable.
-- [ ] Scenario C: valid two-page content, evidence-aware trim, exact post-trim validation, one-page rerender, accepted.
-- [ ] Scenario D: irreducible overflow or post-trim requirement loss, review_required, no accepted event.
-- [ ] Assert persisted artifact, debug trace, HITL event, and normalized report carry matching content/checksum/page-fit fields.
+- [x] Scenario A: valid fresh generation, one-page native render, accepted and persistable.
+- [x] Scenario B: unchanged reusable artifact, zero provider calls, proof reused or local rerendered, accepted and persistable.
+- [x] Scenario C: valid two-page content, evidence-aware trim, exact post-trim validation, one-page rerender, accepted.
+- [x] Scenario D: irreducible overflow or post-trim requirement loss, review_required, no accepted event.
+- [x] Assert persisted artifact, debug trace, HITL event, and normalized report carry matching content/checksum/page-fit fields.
 
 **Verification:** Run focused integration suite from Tasks 2–3.
 Expected: A–C converge on same accepted contract; D fails closed; provider calls remain bounded.
@@ -442,15 +447,15 @@ lossless page-fit contract and separate historical evidence from current gates.
 - Stop for: synthesized historical attribution, incomplete aggregate contract accepted as measured, or stale generated JSON.
 
 **Steps:**
-- [ ] Aggregate page-fit measurements into coverage.page_fit, outcomes.page_fit, and compatibility page_fit_success without dropping unavailable values.
-- [ ] Add final-artifact, trace, and efficiency contract versions to new persisted/report records; select current P1 evidence by version, not date guesswork.
-- [ ] Keep historical pre-contract reports for audit/trend context, label historical/superseded, and exclude from current P1 measurement eligibility.
-- [ ] Make verifier require complete page-fit measurement and 100% success for current accepted-artifact cohort; reject missing, partial, contradictory, or falsely measured status.
-- [ ] Run benchmark-to-verifier integration tests using clean pass, measured failure, unavailable measurement, conflict, unmatched artifact, and historical-only cohorts.
+- [x] Aggregate page-fit measurements into coverage.page_fit, outcomes.page_fit, and compatibility page_fit_success without dropping unavailable values.
+- [x] Add final-artifact, trace, and efficiency contract versions to new persisted/report records; select current P1 evidence by version, not date guesswork.
+- [x] Keep historical pre-contract reports for audit/trend context, label historical/superseded, and exclude from current P1 measurement eligibility.
+- [x] Make verifier require complete page-fit measurement and 100% success for current accepted-artifact cohort; reject missing, partial, contradictory, or falsely measured status.
+- [x] Run benchmark-to-verifier integration tests using clean pass, measured failure, unavailable measurement, conflict, unmatched artifact, and historical-only cohorts.
 
 **Verification:**
-- [ ] python scripts/render_acceptance_state.py --input config/acceptance_state.yaml --output artifacts/acceptance_state.json
-- [ ] Focused benchmark, verifier, state-render, and contract tests.
+- [x] python scripts/render_acceptance_state.py --input config/acceptance_state.yaml --output artifacts/acceptance_state.json
+- [x] Focused benchmark, verifier, state-render, and contract tests.
 - Expected: clean current-contract report passes only with complete measurement and 100% success; incomplete or historical-only evidence remains blocked.
 
 **Exit Criteria:** One reporting path supplies page-fit measurement and outcome status, and verifier decisions match report contents without historical synthesis.
@@ -486,21 +491,21 @@ reporting gates are closed.
 - Stop for: missing key, changed fixture/model/provider/settings, frozen P0 regression, reporting conflict, or need for a second full generation where narrow correction should suffice.
 
 **Steps:**
-- [ ] Record fixture SHA-256, candidate profile, job order, model, provider, retrieval policy, temperature/settings, limits, code revision, and runtime environment for both arms.
-- [ ] Run incumbent and candidate through configured FitCV runtime using same .env-provided key and workload; do not create a new runner.
-- [ ] Classify every non-first-pass outcome into provider/transient, missing section, schema/heading, overflow, or repeated deterministic defect.
-- [ ] Apply smallest measured correction: bounded provider retry for transient errors, targeted section repair for missing sections, deterministic repair for schema/heading defects, trim/render/revalidate for overflow.
-- [ ] Compare first-pass acceptance, accepted artifacts, final page-fit success, provider calls per accepted CV, tokens per accepted CV, regenerations per accepted CV, failed retry rate, latency, trace conflicts, and attribution completeness.
-- [ ] Promote only if candidate improves first-pass acceptance or dominant retry metric without violating P0, grounding, final-artifact, page-fit, or reporting gates; otherwise retain incumbent and record rejection.
+- [x] Record fixture SHA-256, candidate profile, job order, model, provider, retrieval policy, temperature/settings, limits, code revision, and runtime environment for both arms.
+- [x] Run incumbent and candidate through configured FitCV runtime using same .env-provided key and workload; do not create a new runner.
+- [x] Classify every non-first-pass outcome into provider/transient, missing section, schema/heading, overflow, or repeated deterministic defect.
+- [x] Apply smallest measured correction: bounded provider retry for transient errors, targeted section repair for missing sections, deterministic repair for schema/heading defects, trim/render/revalidate for overflow.
+- [x] Compare first-pass acceptance, accepted artifacts, final page-fit success, provider calls per accepted CV, tokens per accepted CV, regenerations per accepted CV, failed retry rate, latency, trace conflicts, and attribution completeness.
+- [x] Promote only if candidate improves first-pass acceptance or dominant retry metric without violating P0, grounding, final-artifact, page-fit, or reporting gates; otherwise retain incumbent and record rejection.
 
 **Verification:**
-- [ ] Run exact benchmark command used by existing FitCV efficiency evidence with both arms and current contract versions.
-- [ ] Confirm .env key is absent from stdout, logs, JSON, Markdown, Git diff, and generated artifacts.
+- [x] Run exact benchmark command used by existing FitCV efficiency evidence with both arms and current contract versions.
+- [x] Confirm .env key is absent from stdout, logs, JSON, Markdown, Git diff, and generated artifacts.
 - Expected: comparable evidence with explicit experiment status; missing credentials blocks experiment only and does not alter P1 correctness status.
 
 **Exit Criteria:** Optimization has reproducible current-contract evidence and either narrowly justified promotion or recorded rejection; no architecture expansion occurs.
 
-**Result (2026-10-05):** Fresh source-bound incumbent `local_first` and
+**Historical result (2026-10-05; superseded by R13):** Fresh source-bound incumbent `local_first` and
 candidate `provider_first` cohorts completed with 10 runs each under identical
 `cold_first_then_frozen` upstream policy. Manifest, declared executable-input,
 fixture, model, runtime, and provider provenance match. `provider_first` accepted
@@ -510,6 +515,7 @@ comparable savings; production default remains `local_first`. Downstream provide
 analysis identity is informational because provider output is stochastic.
 Evidence:
 `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r5.json`.
+R5 is retained for audit history only; R13 is current decision evidence.
 
 ### Task 7: Final verification and reconciliation
 
@@ -541,16 +547,16 @@ P1-C/P2 explicitly deferred.
 - Stop for: unresolved required failure, stale generated output, unrecorded scope change, leaked secret, or false acceptance claim.
 
 **Steps:**
-- [ ] Run focused regression suites, backend boundary checks, benchmark-to-verifier checks, and full applicable test command.
-- [ ] Rebuild generated acceptance state from canonical YAML and verify deterministic output.
-- [ ] Run git diff --check, inspect tracked diff, and confirm unrelated untracked files remain untouched.
-- [ ] Confirm P1-A/P1-B status follows current-contract evidence, optimization status is separate, P1-C is deferred, and P2 remains frozen.
-- [ ] Record final evidence paths, commands, metric definitions, deviations, and rollback/stop conditions.
+- [x] Run focused regression suites, backend boundary checks, benchmark-to-verifier checks, and full applicable test command.
+- [x] Rebuild generated acceptance state from canonical YAML and verify deterministic output.
+- [x] Run git diff --check, inspect tracked diff, and confirm unrelated untracked files remain untouched.
+- [x] Confirm P1-A/P1-B status follows current-contract evidence, optimization status is separate, P1-C is deferred, and P2 remains frozen.
+- [x] Record final evidence paths, commands, metric definitions, deviations, and rollback/stop conditions.
 
 **Verification:**
-- [ ] python -m pytest -q
-- [ ] python scripts/render_acceptance_state.py --input config/acceptance_state.yaml --output artifacts/acceptance_state.json
-- [ ] git diff --check
+- [x] python -m pytest -q
+- [x] python scripts/render_acceptance_state.py --input config/acceptance_state.yaml --output artifacts/acceptance_state.json
+- [x] git diff --check
 - Expected: fresh tests pass, generated state deterministic, diff whitespace-clean, and no required contract remains unverified.
 
 **Exit Criteria:** skill-verification-before-completion returns verified; only then may plan status move from proposed to completed.
@@ -561,14 +567,14 @@ experiment-bound acceptance verifier runs pass; paired manifests bind to source
 `ef66aa04` with equal declared-input and cohort-setup identities; this evidence
 predates the completed declared-input inventory and is superseded by R5.
 
-**Final verification (2026-10-05):** R5 evidence binds both manifests to source
-`72d8f579` with equal declared-input and cohort-setup identities. `provider_first`
-accepts 10/10 versus `local_first` 5/10 and uses fewer calls, tokens, and wall
-time in this rerun; promotion remains deferred pending repeatability and
-independent final review. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r5.json`.
-Frontend/browser CI and independent final PR review remain required before Git
-disposition.
+**Final verification (2026-10-05):** R13 is current evidence. It binds both
+manifests to current source and identical declared-input/cohort identities;
+`local_first` remains default because `provider_first` ties correctness and
+provider calls while increasing token cost. R5 is superseded and retained only
+for audit history. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r13.json`.
+Fresh CAS regression proof belongs to current source and rejects review actions
+when pipeline revision advances after resource snapshot.
 
 ## Verification
 
@@ -601,5 +607,6 @@ Plan execution is complete only when:
 7. deviations, rollback decisions, and final commands are recorded;
 8. skill-verification-before-completion returns verified.
 
-This plan remains proposed until explicitly approved. No implementation,
-commit, push, merge, or acceptance-status promotion belongs to plan drafting.
+This plan is completed as historical scope and superseded by the canonical
+successor plan. No historical evidence is rewritten; current implementation,
+review, commit, push, merge, and acceptance decisions belong to the successor.

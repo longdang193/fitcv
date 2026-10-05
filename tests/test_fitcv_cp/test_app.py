@@ -6731,6 +6731,101 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     )
 
 
+def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_snapshot() -> None:
+    from fitcv_cp import app as app_module
+
+    run = PipelineRun(
+        run_id="run-canonical-review-pipeline-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-race",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-race",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-race",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+
+    original_queue_builder = app_module._build_hitl_review_queue
+    snapshot_calls = 0
+
+    def advance_pipeline_after_snapshot(current_run: PipelineRun) -> dict[str, Any]:
+        nonlocal snapshot_calls
+        queue = original_queue_builder(current_run)
+        if snapshot_calls == 0:
+            with sqlite3.connect(database_path) as connection:
+                connection.execute(
+                    "UPDATE pipeline_runs SET row_revision=row_revision+1 WHERE run_id=?",
+                    (run.run_id,),
+                )
+                connection.commit()
+        snapshot_calls += 1
+        return queue
+
+    with patch("fitcv_cp.app._build_hitl_review_queue", side_effect=advance_pipeline_after_snapshot), \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "pipeline-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    assert sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-race",
+        candidate_profile_revision="1",
+        source_profile_fingerprint="profile-race",
+    ) == []
+    enqueue.assert_not_called()
+
+
 def test_canonical_cv_review_action_rejects_stale_revision_and_resolved_uncertainty() -> None:
     run = PipelineRun(
         run_id="run-canonical-review-actionability",

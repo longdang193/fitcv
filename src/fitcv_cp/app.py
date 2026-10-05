@@ -12152,6 +12152,7 @@ def create_app(
                     retryable=True,
                     action="Retry after the earlier review action completes.",
                 )
+            expected_pipeline_row_revision = sqlite_store_module.get_pipeline_run_row_revision(run_id)
             resource = _canonical_cv_review_resource(run_id, run_job_id)
             if body.review_item_id and resource.get("review_item_id") != body.review_item_id:
                 raise ApiError(409, "review_resource_stale", "Review item changed.", action="Refresh CV review.")
@@ -12239,7 +12240,7 @@ def create_app(
                         "run_job_id": run_job_id,
                         "run_id": run_id,
                         "expected_row_revision": job.get("row_revision"),
-                        "expected_pipeline_row_revision": sqlite_store_module.get_pipeline_run_row_revision(run_id),
+                        "expected_pipeline_row_revision": expected_pipeline_row_revision,
                         **resolution_identity,
                         "resolution_action": body.action,
                         "resolution_payload": requested_payload,
