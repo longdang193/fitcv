@@ -504,11 +504,12 @@ reporting gates are closed.
 candidate `provider_first` cohorts completed with 10 runs each under identical
 `cold_first_then_frozen` upstream policy. Manifest, declared executable-input,
 fixture, model, runtime, and provider provenance match. `provider_first` accepted
-10 / 10 versus `local_first` 5 / 10, used equal provider calls and fewer tokens,
-but more wall time. Candidate promotion is rejected; production default remains
-`local_first`. Downstream provider analysis identity is informational because
-provider output is stochastic. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r4.json`.
+10 / 10 versus `local_first` 5 / 10, used fewer provider calls, tokens, and wall
+time in this rerun. Candidate promotion remains deferred pending repeatable
+comparable savings; production default remains `local_first`. Downstream provider
+analysis identity is informational because provider output is stochastic.
+Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r5.json`.
 
 ### Task 7: Final verification and reconciliation
 
@@ -558,13 +559,14 @@ P1-C/P2 explicitly deferred.
 8 skipped`; focused verifier tests pass; both fresh current-source
 experiment-bound acceptance verifier runs pass; paired manifests bind to source
 `ef66aa04` with equal declared-input and cohort-setup identities; this evidence
-predates the completed declared-input inventory and is superseded by R4.
+predates the completed declared-input inventory and is superseded by R5.
 
-**Final verification (2026-10-05):** R4 evidence binds both manifests to source
-`0e09ade4` with equal declared-input and cohort-setup identities. `provider_first`
-accepts 10/10 versus `local_first` 5/10, uses equal calls and fewer tokens, but
-adds end-to-end wall time; `local_first` remains default. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r4.json`.
+**Final verification (2026-10-05):** R5 evidence binds both manifests to source
+`72d8f579` with equal declared-input and cohort-setup identities. `provider_first`
+accepts 10/10 versus `local_first` 5/10 and uses fewer calls, tokens, and wall
+time in this rerun; promotion remains deferred pending repeatability and
+independent final review. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r5.json`.
 Frontend/browser CI and independent final PR review remain required before Git
 disposition.
 
