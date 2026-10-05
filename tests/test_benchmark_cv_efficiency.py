@@ -5,6 +5,8 @@ from scripts.benchmark_cv_efficiency import (
     _markdown,
     build_canonical_evidence,
     build_baseline,
+    build_failure_pareto,
+    evaluate_promotion_gate,
     material_report_digest,
     material_report_metrics,
     _load_run_manifest,
@@ -471,6 +473,33 @@ def test_material_report_digest_binds_analysis_input_identity() -> None:
     }
 
     assert material_report_digest(first) != material_report_digest(changed)
+
+
+def test_failure_pareto_keeps_missing_costs_unavailable() -> None:
+    rows = build_failure_pareto({
+        "optimization_scorecard": {"regeneration_causes": {"render_failure": 3}},
+    })
+    assert rows[0]["category"] == "render_failure"
+    assert rows[0]["ranking_status"] == "unavailable"
+    assert rows[0]["weighted_score"] is None
+
+
+def test_promotion_gate_rejects_non_identical_or_incomplete_cohort() -> None:
+    result = evaluate_promotion_gate(
+        {"source_commit": "a", "cohort_id": "same"},
+        {"source_commit": "b", "cohort_id": "same"},
+    )
+    assert result["promotion"] == "rejected"
+    assert "identity_mismatch:source_commit" in result["reasons"]
+    assert "metric_unavailable:correctness" in result["reasons"]
+
+
+def test_markdown_exposes_same_gold_metric_and_material_digest_as_json() -> None:
+    report = build_baseline([])
+    report["material_metrics_sha256"] = material_report_digest(report)
+    markdown = _markdown(report)
+    assert "Gold effort digest source: `gold_cv_effort`" in markdown
+    assert f"Material metrics SHA-256: `{report['material_metrics_sha256']}`" in markdown
 
 
 def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:

@@ -1,0 +1,147 @@
+schema_version: fitcv.evidence_registry.v1
+records:
+  - evidence_id: p1ab-current-contract-r5-current-v1
+    claim: p1b_current_contract_measurement
+    schema_version: fitcv.p1_ab.current_contract.v1
+    source_commit: 7277df153afd17e69418f3018f744e9a7a10091f
+    declared_inputs:
+      - scripts/benchmark_cv_efficiency.py
+      - scripts/fitcv_analytics.py
+      - src/fitcv_cp/run_artifact_contracts.py
+      - tests/fixtures/fitcv-p1ab-repair-experiment.json
+    declared_input_fingerprint: 96d6f6619cea9bcf1cf0c2d43a76016ef325aca627823c78f3c0fb2162d41f41
+    fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
+    cohort_id: p1ab-current-contract-r5
+    cohort_type: retained_fixture_rebuild
+    material_metrics_sha256: f51aeefd6c291d880db2b80072b8661b7180b8950a52ab221dc824a4f4ce58b5
+    artifact_paths:
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.sha256
+    status: current
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: p1ab-current-contract-r4-historical-v1
+    claim: p1b_current_contract_measurement
+    schema_version: fitcv.p1_ab.current_contract.v1
+    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    declared_inputs:
+      - scripts/benchmark_cv_efficiency.py
+      - scripts/fitcv_analytics.py
+      - src/fitcv_cp/run_artifact_contracts.py
+      - tests/fixtures/fitcv-p1ab-repair-experiment.json
+    declared_input_fingerprint: 29b6cf71c41d72f3948bbf6dac338aea3ffea9eb466c558cb64c0c4679457e66
+    fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
+    cohort_id: p1ab-current-contract-r4
+    cohort_type: retained_fixture_rebuild
+    material_metrics_sha256: 03f12bcc800f6baddb7b23fe20b20a48ee1c9afcd361f840e1b7b7b1fc10fa11
+    artifact_paths:
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r4.json
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r4.md
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r4.sha256
+    status: historical
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: p1ab-current-contract-r3-historical-v1
+    claim: p1b_current_contract_measurement
+    schema_version: fitcv.p1_ab.current_contract.v1
+    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    declared_inputs:
+      - scripts/benchmark_cv_efficiency.py
+      - scripts/fitcv_analytics.py
+      - src/fitcv_cp/run_artifact_contracts.py
+      - tests/fixtures/fitcv-p1ab-repair-experiment.json
+    declared_input_fingerprint: 3369cbec1aca12dd708f3dfb8dc578193445103d211e456706983facca3c148d
+    fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
+    cohort_id: p1ab-current-contract-r3
+    cohort_type: retained_fixture_rebuild
+    material_metrics_sha256: 4eef1340a57a961fa1dee7c026db5de255f749425e040a13c61243fb682dd021
+    artifact_paths:
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.json
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.md
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.sha256
+    status: historical
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: acceptance-scope-p0-current-v1
+    claim: p0_acceptance_scope
+    schema_version: fitcv.acceptance_state.v2
+    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    declared_inputs:
+      - config/acceptance_state.yaml
+    declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
+    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    cohort_id: acceptance-state-head
+    cohort_type: acceptance_fixture
+    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    artifact_paths:
+      - config/acceptance_state.yaml
+    status: current
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: acceptance-scope-p1-current-v1
+    claim: p1_acceptance_scope
+    schema_version: fitcv.acceptance_state.v2
+    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    declared_inputs:
+      - config/acceptance_state.yaml
+    declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
+    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    cohort_id: acceptance-state-head
+    cohort_type: acceptance_fixture
+    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    artifact_paths:
+      - config/acceptance_state.yaml
+    status: current
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: optimization-default-local-first-v1
+    claim: optimization_production_default
+    schema_version: fitcv.acceptance_state.v2
+    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    declared_inputs:
+      - config/acceptance_state.yaml
+    declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
+    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    cohort_id: acceptance-state-head
+    cohort_type: acceptance_fixture
+    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    artifact_paths:
+      - config/acceptance_state.yaml
+    status: current
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: p1ab-current-contract-r2-historical-v1
+    claim: p1b_current_contract_measurement
+    schema_version: fitcv.p1_ab.current_contract.v1
+    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    declared_inputs:
+      - scripts/benchmark_cv_efficiency.py
+      - src/fitcv_cp/run_artifact_contracts.py
+    declared_input_fingerprint: "0000000000000000000000000000000000000000000000000000000000000000"
+    fixture_sha256: c3b2ad78b13f222539606654680ae00734e8e2f893e3c0767e75d16283603b6b
+    cohort_id: p1ab-current-contract-r2
+    cohort_type: historical_replay
+    material_metrics_sha256: c3b2ad78b13f222539606654680ae00734e8e2f893e3c0767e75d16283603b6b
+    artifact_paths:
+      - docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.json
+    status: historical
+    generated_at: 2026-10-04T00:00:00Z
+    last_refresh: 2026-10-04T00:00:00Z
+  - evidence_id: p1ab-provider-backed-r15-historical-v1
+    claim: p1b_provider_comparison_measurement
+    schema_version: fitcv.p1_ab.provider_backed_convergence.v2
+    source_commit: 71cb62ac0928eff89c27515d5cd2ec9c00089754
+    declared_inputs:
+      - scripts/run_fitcv_repair_experiment.py
+      - scripts/benchmark_cv_efficiency.py
+    declared_input_fingerprint: 9eb8e8d3afd839f2d18b105185901b6918f09b468fdb1c879e13814d271889d0
+    fixture_sha256: 6588e5e284331b349de884f70ff1afd26f413b2fc6fbee3145238288351c888d
+    cohort_id: p1ab-provider-backed-r15
+    cohort_type: paired_experiment
+    material_metrics_sha256: 6588e5e284331b349de884f70ff1afd26f413b2fc6fbee3145238288351c888d
+    artifact_paths:
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r15.json
+    status: historical
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z

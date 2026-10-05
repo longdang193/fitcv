@@ -222,6 +222,19 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       await loadJobs(jobsPage, jobsPageSize, true);
       setCvReviewAnswer("");
     } catch (err: any) {
+      if (err?.status === 409 && cvReviewJob) {
+        try {
+          const current = await fetchCvReviewResource(runId, cvReviewJob.run_job_id);
+          setCvReview(current);
+          setCvReviewUncertaintyId(getPendingCvReviewUncertainty(current.uncertainties)?.uncertainty_id || null);
+          setCvReviewAnswer("");
+          setCvReviewError("Review changed in another tab. Current review state loaded.");
+          return;
+        } catch (refreshErr: any) {
+          setCvReviewError(refreshErr.message || err.message || "CV review action failed.");
+          return;
+        }
+      }
       setCvReviewError(err.message || "CV review action failed.");
     } finally {
       setCvReviewSubmitting(false);
@@ -1371,6 +1384,11 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                         jobs.map((item) => {
                           const appUrl = getJobApplicationUrl(item);
                           const hasCv = Boolean(item.current_cv_version_id || (item.cv_versions_count && item.cv_versions_count > 0));
+                          const reviewAvailable = Boolean(
+                            item.capabilities?.review_cv
+                              ?? item.review_capability?.available
+                              ?? false
+                          );
                           const currentRating = typeof item.rating === "number" ? item.rating : item.interest_rating || 0;
                           const isBookmarked = Boolean(item.bookmarked);
                           const cvCanRegenerate = Boolean(item.capabilities?.regenerate_cv ?? hasCv);
@@ -1436,7 +1454,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                                     >
                                       Evidence
                                     </Button>
-                                    {hasCv && (
+                                    {reviewAvailable && (
                                       <Button
                                         size="compact"
                                         variant="secondary"

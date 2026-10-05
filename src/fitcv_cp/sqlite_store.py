@@ -13693,6 +13693,11 @@ def _hydrate_run_job_ids(
                 is not None,
                 "download_cv": run_job_id in usable_cv_job_ids,
                 "regenerate_cv": bool(job_row["current_cv_version_id"]),
+                "review_cv": str(selected_result["status"] if selected_result is not None else "").strip() == "review_required",
+            },
+            "review_capability": {
+                "available": str(selected_result["status"] if selected_result is not None else "").strip() == "review_required",
+                "pending_count": 1 if str(selected_result["status"] if selected_result is not None else "").strip() == "review_required" else 0,
             },
         })
     return projected

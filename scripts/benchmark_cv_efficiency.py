@@ -283,6 +283,57 @@ def _optimization_scorecard(snapshots: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def build_failure_pareto(report: dict[str, Any]) -> list[dict[str, Any]]:
+    counts = dict(dict(report.get("optimization_scorecard") or {}).get("regeneration_causes") or {})
+    costs = dict(report.get("failure_costs") or {})
+    rows: list[dict[str, Any]] = []
+    for category, count in sorted(counts.items(), key=lambda item: (-int(item[1]), item[0])):
+        cost = costs.get(category)
+        row = {
+            "category": category,
+            "count": int(count),
+            "provider_call_cost": cost.get("provider_call_cost") if isinstance(cost, dict) else None,
+            "token_cost": cost.get("token_cost") if isinstance(cost, dict) else None,
+            "latency_cost_ms": cost.get("latency_cost_ms") if isinstance(cost, dict) else None,
+            "deterministic_repair_likelihood": cost.get("deterministic_repair_likelihood") if isinstance(cost, dict) else None,
+        }
+        row["ranking_status"] = "measured" if all(
+            row[field] is not None
+            for field in ("provider_call_cost", "token_cost", "latency_cost_ms", "deterministic_repair_likelihood")
+        ) else "unavailable"
+        row["weighted_score"] = (
+            row["count"]
+            * row["provider_call_cost"]
+            * row["token_cost"]
+            * row["latency_cost_ms"]
+            * row["deterministic_repair_likelihood"]
+            if row["ranking_status"] == "measured"
+            else None
+        )
+        rows.append(row)
+    return sorted(rows, key=lambda row: (-row["count"], row["category"]))
+
+
+def evaluate_promotion_gate(baseline: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    identity_fields = ("source_commit", "declared_input_fingerprint", "fixture_sha256", "cohort_id", "runtime", "repeat_id")
+    identity_failures = [
+        field for field in identity_fields
+        if not baseline.get(field) or baseline.get(field) != candidate.get(field)
+    ]
+    metric_failures = [
+        field for field in ("correctness", "page_fit", "first_pass", "total_calls", "tokens", "human_effort")
+        if baseline.get(field) is None or candidate.get(field) is None
+    ]
+    reasons = [f"identity_mismatch:{field}" for field in identity_failures]
+    reasons.extend(f"metric_unavailable:{field}" for field in metric_failures)
+    return {
+        "status": "rejected" if reasons else "eligible",
+        "promotion": "rejected" if reasons else "not_run",
+        "reasons": reasons,
+        "identity_fields": list(identity_fields),
+    }
+
+
 def _attempted_outcomes(
     traces: list[dict[str, Any]],
     projected_records: list[dict[str, Any]],
@@ -610,7 +661,7 @@ def _run_job_types(traces: Iterable[dict[str, Any]], run_jobs: Iterable[Any]) ->
     return job_types
 
 
-def build_baseline(
+def _build_baseline(
     runs: Iterable[Any],
     *,
     run_jobs_by_run_id: dict[str, Iterable[Any]] | None = None,
@@ -957,6 +1008,37 @@ def build_baseline(
     }
 
 
+def build_baseline(
+    runs: Iterable[Any],
+    *,
+    run_jobs_by_run_id: dict[str, Iterable[Any]] | None = None,
+) -> dict[str, Any]:
+    report = _build_baseline(runs, run_jobs_by_run_id=run_jobs_by_run_id)
+    workload = dict(report.get("workload") or {})
+    accepted = dict(report.get("accepted_cv") or {})
+    accepted_count = int(accepted.get("count") or 0)
+    report["gold_cv_effort"] = {
+        "schema_version": "fitcv.analytics.v1",
+        "metric": "gold_cv_effort",
+        "cohort_id": ",".join(str(value) for value in report.get("selection", {}).get("run_ids", [])),
+        "accepted_artifact_count": accepted_count,
+        "attempted_generation_job_count": workload.get("attempted_generation_job_count"),
+        "provider_call_count": workload.get("provider_call_count"),
+        "token_total": workload.get("token_total"),
+        "regeneration_count": workload.get("regeneration_count"),
+        "failed_work_included": True,
+        "per_accepted_artifact": (
+            dict(accepted.get("total_workload_cost_per_accepted_cv") or {})
+            if accepted_count
+            else None
+        ),
+        "unavailable_reason": None if accepted_count else "accepted_artifact_count_zero",
+    }
+    report["failure_pareto"] = build_failure_pareto(report)
+    report["optimization_gate"] = evaluate_promotion_gate({}, {})
+    return report
+
+
 def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
     return {
         field: report.get(field)
@@ -978,6 +1060,9 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "attempted_outcomes",
             "input_manifest",
             "analysis_input_identity",
+            "gold_cv_effort",
+            "failure_pareto",
+            "optimization_gate",
         )
     }
 
@@ -1027,6 +1112,7 @@ def _markdown(report: dict[str, Any]) -> str:
     attribution = dict(report.get("attribution") or {})
     timing = dict(report.get("timing") or {})
     scorecard = dict(report.get("optimization_scorecard") or {})
+    gold_effort = dict(report.get("gold_cv_effort") or {})
     sections = dict(scorecard.get("sections") or {})
     return "\n".join(
         [
@@ -1037,6 +1123,7 @@ def _markdown(report: dict[str, Any]) -> str:
             f"- Source commit: `{report.get('source_commit', 'not_recorded')}`",
             f"- Fixture SHA-256: `{report.get('fixture_sha256', 'not_recorded')}`",
             f"- Source fixture SHA-256: `{report.get('source_fixture_sha256', 'not_recorded')}`",
+            f"- Material metrics SHA-256: `{report.get('material_metrics_sha256', 'not_recorded')}`",
             f"- Status: `{report.get('status')}`",
             f"- Persisted ordinary runs: `{report.get('selection', {}).get('run_count', 0)}`",
             f"- Accepted CVs: `{accepted.get('count', 0)}`",
@@ -1046,6 +1133,7 @@ def _markdown(report: dict[str, Any]) -> str:
             f"- Provider calls: `{workload.get('provider_call_count', 0)}`",
             f"- Tokens: `{workload.get('token_total', 0)}`",
             f"- Regenerations: `{workload.get('regeneration_count', 0)}`",
+            f"- Gold effort digest source: `{gold_effort.get('metric', 'unavailable')}`",
             f"- Render retries: `{workload.get('render_retry_count', 0)}`",
             f"- Unmatched traces: `{attribution.get('unmatched_trace_count', 0)}`",
             f"- Unattributed accepted artifacts: `{attribution.get('unattributed_accepted_artifact_count', 0)}`",

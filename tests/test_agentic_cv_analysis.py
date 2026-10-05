@@ -134,6 +134,36 @@ def test_analyze_ranked_job_emits_extended_analysis_fields(
     assert result["section_confidence_hints"]["experience"] in {"medium", "high"}
 
 
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_analyze_ranked_job_accepts_prior_review_fit_without_ranking_score(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+) -> None:
+    mock_fingerprint.return_value = {"fingerprint": "analysis::review"}
+    mock_bundle.return_value = {
+        "selected_evidence": [],
+        "channel_counts": {},
+        "merged_pool_size": 0,
+        "deduped_pool_size": 0,
+        "effective_channel_pool_size": 0,
+    }
+    mock_gap.return_value = {"matched": [], "missing": []}
+    job = {"job_url": "https://example.com/review", "required_skills": []}
+
+    result = analyze_ranked_job(
+        job,
+        _profile(),
+        _config(),
+        fit_classification_override="stretch",
+    )
+
+    assert result["fit_classification"] == "stretch"
+    assert result["status"] != "blocked_by_reranker_fit"
+
+
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")

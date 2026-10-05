@@ -25,6 +25,7 @@ TERMINAL_REVIEW_RESOLUTION_STATUSES = {
     "regenerated_and_accepted",
     "regenerated_and_rejected",
     "resolved_with_answer",
+    "resolved",
     "confirmed_omit",
     "override_block",
 }

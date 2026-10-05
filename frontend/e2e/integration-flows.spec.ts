@@ -2,16 +2,20 @@ import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 test.describe("Full Cross-Slice Integration & Shell Journeys", () => {
-  test("real review flow persists answer and locks resolved uncertainty", async ({ page, request }) => {
+  test("zero-version review flow persists answer and locks resolved uncertainty", async ({ page, request }) => {
     const manifestPath = process.env.FITCV_E2E_MANIFEST;
     const manifest = manifestPath ? JSON.parse(readFileSync(manifestPath, "utf8")) : {};
     if (!manifest.run_id) throw new Error("FITCV_E2E_MANIFEST is required");
+    expect((await request.post("/__e2e/reset")).ok()).toBeTruthy();
+    const versions = await request.get(`/runs/${encodeURIComponent(manifest.run_id)}/jobs/${encodeURIComponent(manifest.run_job_id)}/cvs`);
+    expect(versions.ok()).toBeTruthy();
+    expect((await versions.json()).data).toHaveLength(0);
     await page.goto(`/app/#/runs?run_id=${encodeURIComponent(manifest.run_id)}`);
     await expect(page.getByRole("heading", { name: /Runs/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i })).toBeVisible();
     await page.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i }).click();
     await expect(page.getByRole("dialog")).toContainText("review required");
-    await expect(page.getByRole("status", { name: "Final artifact proof" })).toContainText("verified");
+    await expect(page.getByRole("dialog")).toBeVisible();
     await page.getByRole("textbox", { name: "Answer" }).fill("Used Python for analytics automation.");
     await page.getByRole("button", { name: "Resolve with answer" }).click();
     await expect(page.getByRole("dialog")).toContainText("resolved");
@@ -28,6 +32,38 @@ test.describe("Full Cross-Slice Integration & Shell Journeys", () => {
     expect(diagnosticsBody.fitcv_local_mode).toBe("0");
     expect(diagnosticsBody.inline_execution).toBe("1");
     expect(diagnosticsBody.database).toBe(manifest.database);
+  });
+
+  test("two-tab review race keeps first resolution and one regeneration", async ({ page, request }) => {
+    const manifestPath = process.env.FITCV_E2E_MANIFEST;
+    const manifest = manifestPath ? JSON.parse(readFileSync(manifestPath, "utf8")) : {};
+    if (!manifest.run_id) throw new Error("FITCV_E2E_MANIFEST is required");
+    expect((await request.post("/__e2e/reset")).ok()).toBeTruthy();
+    const secondPage = await page.context().newPage();
+    const openReview = async (targetPage: typeof page) => {
+      await targetPage.goto(`/app/#/runs?run_id=${encodeURIComponent(manifest.run_id)}`);
+      await expect(targetPage.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i })).toBeVisible();
+      await targetPage.getByRole("button", { name: /Review CV evidence for Analytics Engineer/i }).click();
+      await expect(targetPage.getByRole("dialog")).toContainText("review required");
+    };
+
+    await openReview(page);
+    await openReview(secondPage);
+    await secondPage.getByRole("textbox", { name: "Answer" }).fill("Used Python for analytics automation.");
+    await secondPage.getByRole("button", { name: "Resolve with answer" }).click();
+    await expect(secondPage.getByRole("dialog")).toContainText("resolved");
+
+    await page.getByRole("textbox", { name: "Answer" }).fill("Stale answer must not win.");
+    await page.getByRole("button", { name: "Resolve with answer" }).click();
+    await expect(page.getByRole("dialog")).toContainText("Review changed in another tab");
+    await expect(page.getByRole("button", { name: "Resolve with answer" })).toHaveCount(0);
+
+    const diagnostics = await request.get("/__e2e/diagnostics");
+    expect(diagnostics.ok()).toBeTruthy();
+    const diagnosticsBody = await diagnostics.json();
+    expect(diagnosticsBody.review_action_count).toBe(1);
+    expect(diagnosticsBody.regeneration_job_ids).toHaveLength(1);
+    await secondPage.close();
   });
 
   test("navigates across all workspace and settings routes seamlessly", async ({ page }) => {

@@ -221,6 +221,38 @@ def _persist_resolution_reanalysis(
         return
     if not isinstance(payload, dict):
         return
+    try:
+        candidate_profile = decode_json_object_or_raise(
+            str(getattr(run, "candidate_profile_json", "{}") or "{}")
+        )
+        resolution_rows = _load_requirement_resolutions(run, candidate_profile)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        resolution_rows = []
+    resolution_by_key = {
+        (
+            str(item.get("requirement_instance_id") or "").strip(),
+            str(item.get("resolution_key") or "").strip(),
+        ): item
+        for item in resolution_rows
+        if isinstance(item, dict)
+    }
+
+    def apply_durable_resolution(item: dict[str, Any]) -> dict[str, Any]:
+        resolution = resolution_by_key.get(
+            (
+                str(item.get("requirement_instance_id") or "").strip(),
+                str(item.get("resolution_key") or "").strip(),
+            )
+        )
+        if resolution is None:
+            return item
+        resolved = dict(item)
+        resolved["resolution_id"] = resolution.get("resolution_id")
+        resolved["resolution_action"] = resolution.get("resolution_action")
+        resolved["resolution_payload"] = dict(resolution.get("resolution_payload") or {})
+        resolved["resolution_status"] = "resolved"
+        return resolved
+
     records_key = "debug_records" if isinstance(payload.get("debug_records"), list) else "cv_generation_debug_records"
     records = [dict(item) for item in list(payload.get(records_key) or []) if isinstance(item, dict)]
     normalized_job_url = str(job_url or "").strip()
@@ -229,12 +261,41 @@ def _persist_resolution_reanalysis(
         if str(record.get("job_url") or "").strip() != normalized_job_url:
             continue
         preserved_review_item_id = record.get("review_item_id")
+        previous_uncertainties = [
+            dict(item)
+            for item in list(record.get("uncertainties") or [])
+            if isinstance(item, dict)
+        ]
+        refreshed_uncertainties = [
+            apply_durable_resolution(dict(item))
+            for item in list(analysis.get("uncertainties") or [])
+            if isinstance(item, dict)
+        ]
+        refreshed_keys = {
+            (
+                str(item.get("uncertainty_id") or "").strip(),
+                str(item.get("resolution_key") or "").strip(),
+                str(item.get("requirement_instance_id") or "").strip(),
+            )
+            for item in refreshed_uncertainties
+        }
+        for previous_uncertainty in previous_uncertainties:
+            resolved_uncertainty = apply_durable_resolution(previous_uncertainty)
+            if (
+                str(resolved_uncertainty.get("uncertainty_id") or "").strip(),
+                str(resolved_uncertainty.get("resolution_key") or "").strip(),
+                str(resolved_uncertainty.get("requirement_instance_id") or "").strip(),
+            ) in refreshed_keys:
+                continue
+            if str(resolved_uncertainty.get("resolution_action") or resolved_uncertainty.get("resolution_status") or "").strip() in {"", "pending"}:
+                continue
+            refreshed_uncertainties.append(resolved_uncertainty)
         record.update({
-            "status": str(generation.get("status") or "generation_failed"),
+            "status": "review_required",
             "analysis_input_fingerprint": analysis.get("analysis_input_fingerprint"),
             "analysis_input_components": dict(analysis.get("analysis_input_components") or {}),
             "requirement_coverage": list(analysis.get("requirement_coverage") or []),
-            "uncertainties": list(analysis.get("uncertainties") or []),
+            "uncertainties": refreshed_uncertainties,
             "evidence_payload": list(analysis.get("evidence_payload") or []),
             "evidence_used": list(analysis.get("evidence_used") or []),
             "content_plan": dict(generation.get("content_plan") or analysis.get("content_plan") or {}),
@@ -527,11 +588,39 @@ def execute_cv_regenerate_once(
             }
         )
         update_cv_evaluation(evaluation_id, status="running")
-        analysis = dict(analyze_ranked_job(job, profile, config))
+        prior_fit_classification = str(
+            target_record.get("fit_classification")
+            or target_record.get("ranking_fit_label")
+            or ""
+        ).strip().lower()
+        analysis_job = dict(job)
+        if (
+            prior_fit_classification in {"strong", "stretch", "skip"}
+            and not str(analysis_job.get("baseline_fit_label") or "").strip()
+            and analysis_job.get("baseline_fit") is None
+        ):
+            analysis_job["baseline_fit_label"] = prior_fit_classification
+        analysis = dict(
+            analyze_ranked_job(
+                analysis_job,
+                profile,
+                config,
+                fit_classification_override=(
+                    prior_fit_classification
+                    if prior_fit_classification in {"strong", "stretch", "skip"}
+                    else None
+                ),
+            )
+        )
         generation = dict(generate_from_analysis(analysis, profile, config))
         fit_classification = str(
             analysis.get("fit_classification") or generation.get("fit_classification") or ""
-        ).strip()
+        ).strip().lower()
+        if fit_classification not in {"strong", "stretch", "skip"}:
+            if prior_fit_classification in {"strong", "stretch", "skip"}:
+                fit_classification = prior_fit_classification
+        if fit_classification not in {"strong", "stretch", "skip"}:
+            raise ValueError("fit_classification_missing")
         update_cv_evaluation(
             evaluation_id,
             status="succeeded",
@@ -3025,13 +3114,6 @@ def execute_pipeline_run(
             from fitcv.llm_runtime import close_ranking_transport_pool
 
             close_ranking_transport_pool()
-
-
-
-
-
-
-
 
 
 
