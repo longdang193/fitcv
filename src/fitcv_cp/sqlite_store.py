@@ -14439,6 +14439,20 @@ def save_requirement_resolution(row: dict[str, Any], *, database_path: Path | No
                     or existing_payload != (payload if isinstance(payload, dict) else {})
                 ):
                     raise ValueError("requirement_resolution_conflict")
+                if isinstance(row.get("enqueue_intent"), dict) and expected_pipeline_row_revision is not None:
+                    pipeline_revision = conn.execute(
+                        "SELECT row_revision FROM pipeline_runs WHERE run_id=?",
+                        (str(row.get("run_id") or "").strip(),),
+                    ).fetchone()
+                    if pipeline_revision is None or int(pipeline_revision[0]) != int(expected_pipeline_row_revision):
+                        raise ValueError("review_resource_stale")
+                if isinstance(row.get("enqueue_intent"), dict) and run_job_id and expected_row_revision is not None:
+                    job_revision = conn.execute(
+                        "SELECT row_revision FROM run_jobs WHERE run_job_id=?",
+                        (run_job_id,),
+                    ).fetchone()
+                    if job_revision is None or int(job_revision[0]) != int(expected_row_revision):
+                        raise ValueError("review_resource_stale")
             if insert_result.rowcount == 1:
                 if expected_pipeline_row_revision is not None:
                     pipeline_revision = conn.execute(

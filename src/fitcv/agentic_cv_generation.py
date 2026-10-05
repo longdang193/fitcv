@@ -160,6 +160,11 @@ class RepairAttempt(TypedDict, total=False):
     performed: bool
     missing_sections: list[str]
     reason: str
+    local_repair_attempted: bool
+    local_repair_succeeded: bool
+    local_repair_failed: bool
+    provider_retry_attempted: bool
+    provider_retry_succeeded: bool
 
 
 class ValidationSnapshot(TypedDict):
@@ -782,6 +787,11 @@ def _empty_cv_generation_trace(
             "repair_attempt_count": 0,
             "repair_targets": [],
             "repair_reason": "",
+            "local_repair_attempted": False,
+            "local_repair_succeeded": False,
+            "local_repair_failed": False,
+            "provider_retry_attempted": False,
+            "provider_retry_succeeded": False,
         },
         "efficiency_summary": {
             "schema_version": "accepted_cv_efficiency_v1",
@@ -882,14 +892,29 @@ def _update_efficiency_summary(
     savings = dict(summary.get("savings") or {})
     repair_attempted = bool(repair_summary.get("repair_attempted"))
     repair_kind = str(repair_summary.get("repair_kind") or "").strip()
-    local_repair_attempted = repair_attempted and repair_kind in {
+    inferred_local_repair_attempted = repair_attempted and repair_kind in {
         "deterministic_section_backfill",
         "candidate_name_placeholder",
     }
+    local_repair_attempted = bool(
+        repair_summary.get("local_repair_attempted", inferred_local_repair_attempted)
+    )
+    local_repair_succeeded = bool(
+        repair_summary.get(
+            "local_repair_succeeded",
+            local_repair_attempted and status == ACCEPTED_STATUS,
+        )
+    )
+    local_repair_failed = bool(
+        repair_summary.get(
+            "local_repair_failed",
+            local_repair_attempted and status != ACCEPTED_STATUS,
+        )
+    )
     savings.update({
         "local_repair_attempted": local_repair_attempted,
-        "local_repair_succeeded": local_repair_attempted and status == ACCEPTED_STATUS,
-        "local_repair_failed": local_repair_attempted and status != ACCEPTED_STATUS,
+        "local_repair_succeeded": local_repair_succeeded,
+        "local_repair_failed": local_repair_failed,
     })
     summary["stage_timings"] = stage_timings
     summary["savings"] = savings
@@ -1421,6 +1446,7 @@ def _run_repair_cycle(
     repair_arm = _coerce_repair_arm(repair_arm or config.get("cv_generation_repair_arm"))
     if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
         repair_attempt = _build_candidate_name_repair_attempt()
+        repair_attempt["local_repair_attempted"] = True
         structured_cv, markdown = _repair_candidate_name_placeholder(structured_cv or {}, profile, config)
         validation = _run_generation_validations(
             markdown,
@@ -1429,6 +1455,8 @@ def _run_repair_cycle(
             structured_cv=structured_cv,
             analysis_grounding=analysis_grounding,
         )
+        repair_attempt["local_repair_succeeded"] = bool(validation.get("valid"))
+        repair_attempt["local_repair_failed"] = not repair_attempt["local_repair_succeeded"]
 
     selection_summary = (
         (analysis_grounding.get("evidence_selection_summary") or {})
@@ -1452,6 +1480,7 @@ def _run_repair_cycle(
                 selection_present=selection_present,
             )
             if repaired_keys:
+                repair_attempt["local_repair_attempted"] = True
                 repaired_markdown = render_cv_markdown(repaired_cv or {}, config)
                 repaired_validation = _run_generation_validations(
                     repaired_markdown,
@@ -1461,19 +1490,33 @@ def _run_repair_cycle(
                     analysis_grounding=analysis_grounding,
                 )
                 if repaired_validation.get("valid"):
-                    return (
-                        repaired_cv,
-                        repaired_markdown,
-                        repaired_validation,
+                    repair_attempt.update(
                         {
                             "performed": True,
                             "missing_sections": repaired_keys,
                             "reason": "deterministic_section_backfill",
-                        },
+                            "local_repair_succeeded": True,
+                        }
+                    )
+                    return (
+                        repaired_cv,
+                        repaired_markdown,
+                        repaired_validation,
+                        repair_attempt,
                         runtime_provenance,
                     )
+                repair_attempt["local_repair_failed"] = True
+        previous_repair_attempt = repair_attempt
         repair_attempt = _build_repair_attempt(repair_targets)
+        for field in (
+            "local_repair_attempted",
+            "local_repair_succeeded",
+            "local_repair_failed",
+        ):
+            if previous_repair_attempt.get(field):
+                repair_attempt[field] = True
         repair_attempt["reason"] = "provider_retry"
+        repair_attempt["provider_retry_attempted"] = True
         repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
         if isinstance(structured_cv, dict) and isinstance(repaired_cv, dict):
             for section_name in repair_targets:
@@ -1497,6 +1540,7 @@ def _run_repair_cycle(
             structured_cv, markdown = repaired_cv, repaired_markdown
         if retry_provenance is not None:
             runtime_provenance = retry_provenance
+        repair_attempt["provider_retry_succeeded"] = bool(validation.get("valid"))
 
     if repair_arm == "local_first" and not validation.get("valid"):
         structured_cv, repaired_keys = _backfill_required_sections_from_profile(
@@ -1507,6 +1551,7 @@ def _run_repair_cycle(
             selection_present=selection_present,
         )
         if repaired_keys:
+            repair_attempt["local_repair_attempted"] = True
             markdown = render_cv_markdown(structured_cv or {}, config)
             validation = _run_generation_validations(
                 markdown,
@@ -1516,11 +1561,16 @@ def _run_repair_cycle(
                 analysis_grounding=analysis_grounding,
             )
             if validation.get("valid"):
-                repair_attempt = {
-                    "performed": True,
-                    "missing_sections": repaired_keys,
-                    "reason": "deterministic_section_backfill",
-                }
+                repair_attempt.update(
+                    {
+                        "performed": True,
+                        "missing_sections": repaired_keys,
+                        "reason": "deterministic_section_backfill",
+                        "local_repair_succeeded": True,
+                    }
+                )
+            else:
+                repair_attempt["local_repair_failed"] = True
 
     return structured_cv, markdown, validation, repair_attempt, runtime_provenance
 
@@ -2500,6 +2550,11 @@ def _generate_fresh_from_analysis(
                 "repair_targets": list(repair_attempt.get("missing_sections") or []),
                 "repair_reason": str(repair_attempt.get("reason") or ""),
                 "repair_kind": str(repair_attempt.get("reason") or ""),
+                "local_repair_attempted": bool(repair_attempt.get("local_repair_attempted")),
+                "local_repair_succeeded": bool(repair_attempt.get("local_repair_succeeded")),
+                "local_repair_failed": bool(repair_attempt.get("local_repair_failed")),
+                "provider_retry_attempted": bool(repair_attempt.get("provider_retry_attempted")),
+                "provider_retry_succeeded": bool(repair_attempt.get("provider_retry_succeeded")),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,
@@ -2565,6 +2620,11 @@ def _generate_fresh_from_analysis(
                 "repair_targets": list(repair_attempt.get("missing_sections") or []),
                 "repair_reason": str(repair_attempt.get("reason") or ""),
                 "repair_kind": str(repair_attempt.get("reason") or ""),
+                "local_repair_attempted": bool(repair_attempt.get("local_repair_attempted")),
+                "local_repair_succeeded": bool(repair_attempt.get("local_repair_succeeded")),
+                "local_repair_failed": bool(repair_attempt.get("local_repair_failed")),
+                "provider_retry_attempted": bool(repair_attempt.get("provider_retry_attempted")),
+                "provider_retry_succeeded": bool(repair_attempt.get("provider_retry_succeeded")),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,

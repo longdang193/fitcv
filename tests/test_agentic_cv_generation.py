@@ -8,6 +8,7 @@ from fitcv.agentic_cv_generation import (
     _update_efficiency_summary,
     _run_repair_cycle,
 )
+from unittest.mock import Mock
 
 
 def test_generation_trace_declares_owned_stage_metrics_and_unavailable_savings() -> None:
@@ -54,6 +55,70 @@ def test_provider_retry_does_not_count_as_local_repair() -> None:
     savings = trace["efficiency_summary"]["savings"]
     assert savings["local_repair_attempted"] is False
     assert savings["local_repair_succeeded"] is False
+
+
+def test_failed_local_repair_is_preserved_when_provider_retry_succeeds(monkeypatch) -> None:
+    validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+    }
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://example.com/job",
+        "fit_classification": "strong",
+        "target_role": "Data Engineer",
+        "sections": {
+            "header": {"name": "Jane Doe"},
+            "summary": {"text": "Summary"},
+            "experience": [],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+    monkeypatch.setattr(
+        "fitcv.agentic_cv_generation._backfill_required_sections_from_profile",
+        lambda **kwargs: (structured_cv, ["experience"]),
+    )
+    validation_results = iter(
+        [
+            {**validation, "valid": False},
+            {**validation, "valid": True, "missing_sections": []},
+        ]
+    )
+    monkeypatch.setattr(
+        "fitcv.agentic_cv_generation._run_generation_validations",
+        lambda *args, **kwargs: next(validation_results),
+    )
+
+    _, _, final_validation, repair_attempt, _ = _run_repair_cycle(
+        structured_cv=structured_cv,
+        markdown="# CV",
+        validation=validation,
+        profile={"experiences": [{"company": "ACME"}]},
+        config={},
+        analysis_grounding={},
+        retry_executor=Mock(return_value=(structured_cv, "# retry", validation, {"provider": "retry"})),
+        runtime_provenance=None,
+        repair_arm="local_first",
+    )
+
+    assert final_validation["valid"] is True
+    assert repair_attempt["reason"] == "provider_retry"
+    assert repair_attempt["local_repair_attempted"] is True
+    assert repair_attempt["local_repair_failed"] is True
+    assert repair_attempt["provider_retry_attempted"] is True
+    assert repair_attempt["provider_retry_succeeded"] is True
 
 
 def test_local_backfill_does_not_include_unselected_generated_nested_claims() -> None:

@@ -6827,6 +6827,133 @@ def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_sna
     enqueue.assert_not_called()
 
 
+def test_canonical_cv_review_recovery_rejects_stale_failed_enqueue_before_enqueue() -> None:
+    from fitcv_cp import app as app_module
+
+    run = PipelineRun(
+        run_id="run-canonical-review-recovery-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-recovery-race",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-recovery-race",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-recovery-race",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "resolution_id": "resolution-recovery-race",
+            "run_job_id": "job-1",
+            "run_id": run.run_id,
+            "expected_row_revision": 1,
+            "expected_pipeline_row_revision": 1,
+            "candidate_profile_id": "candidate-recovery-race",
+            "candidate_profile_revision": "1",
+            "source_profile_fingerprint": "profile-recovery-race",
+            "resolution_key": "skill:sql",
+            "requirement_instance_id": "skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "Used SQL for four years."},
+            "enqueue_intent": {
+                "run_id": run.run_id,
+                "job_url": "https://example.com/job-1",
+                "idempotency_key": "requirement-resolution:recovery-race",
+                "action_id": "requirement-resolution:recovery-race",
+            },
+        },
+        database_path=database_path,
+    )
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+    sqlite_store.update_requirement_resolution_enqueue_intent(
+        intent["intent_id"],
+        status="failed",
+        error_message="queue unavailable",
+        database_path=database_path,
+    )
+
+    original_save = app_module.sqlite_store_module.save_requirement_resolution
+
+    def advance_job_then_save(row: dict[str, Any]) -> dict[str, Any]:
+        with sqlite3.connect(database_path) as connection:
+            connection.execute(
+                "UPDATE run_jobs SET row_revision=row_revision+1 WHERE run_job_id=?",
+                ("job-1",),
+            )
+            connection.commit()
+        return original_save(row)
+
+    with patch.object(
+        app_module.sqlite_store_module,
+        "save_requirement_resolution",
+        side_effect=advance_job_then_save,
+    ), patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-2") as enqueue:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "recovery-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+    assert intent["status"] == "failed"
+    enqueue.assert_not_called()
+
+
 def test_canonical_cv_review_action_preserves_debug_update_after_resolution_cas() -> None:
     run = PipelineRun(
         run_id="run-canonical-review-debug-race",
