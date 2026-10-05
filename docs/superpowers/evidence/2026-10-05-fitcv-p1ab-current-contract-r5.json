@@ -4024,14 +4024,14 @@
     ],
     "repeat_count": 10,
     "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
-    "declared_input_fingerprint": "898e44abc269b7dbb162663bfbe6fdf8b4dbb1c97fe2ae8e3ab9dca1fe3da12e",
+    "declared_input_fingerprint": "426ea9b31d5756f491e7c88866047e4f0a85f84921bd3b40f06657fe7a8811fb",
     "arm": "local_first",
     "declared_model": "fixture-model",
     "resolved_models": [
       "cx/gpt-5.6-luna"
     ]
   },
-  "material_metrics_sha256": "9b1ccc93cf5fa6307710e9e7d1ae0870cb21f0a516ac2ff189be3efeae677d41",
+  "material_metrics_sha256": "6bc3fe5d2ff5284948f79c570550ba5cd0b806f07bed2c9291605d150f9163b6",
   "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
   "evidence_status": "canonical",
   "sanitizer_version": "fitcv-evidence-sanitizer.v1",
