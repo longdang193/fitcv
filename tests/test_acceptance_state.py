@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from scripts.render_acceptance_state import render_acceptance_state
 
@@ -87,6 +89,21 @@ def test_committed_acceptance_state_matches_fresh_render(tmp_path: Path) -> None
         repo_root=repo_root,
     )
     assert _canonical_bytes(rendered) == _canonical_bytes(repo_root / "artifacts/acceptance_state.json")
+
+
+def test_committed_acceptance_registry_fixture_hashes_match_declared_input() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    registry = yaml.safe_load((repo_root / "config/evidence_registry.yaml").read_text(encoding="utf-8"))
+    expected = hashlib.sha256(_canonical_bytes(repo_root / "config/acceptance_state.yaml")).hexdigest()
+    records = [
+        record
+        for record in registry["records"]
+        if record.get("declared_inputs") == ["config/acceptance_state.yaml"]
+    ]
+
+    assert records
+    assert {record["fixture_sha256"] for record in records} == {expected}
+    assert {record["material_metrics_sha256"] for record in records} == {expected}
 
 
 @pytest.mark.parametrize(

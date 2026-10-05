@@ -124,6 +124,12 @@ def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any
                 ),
             )
             for fact in artifacts
+            if str(
+                fact["payload"].get("artifact_id")
+                or fact["payload"].get("artifact_version_id")
+                or fact["payload"].get("version_id")
+                or ""
+            ).strip()
         })
         provider = [fact for fact in facts if fact.get("observation_type") == "provider_attempt"]
         generation = [fact for fact in facts if fact.get("observation_type") == "generation_attempt"]

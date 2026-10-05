@@ -67,6 +67,48 @@ def test_gold_effort_uses_canonical_artifact_id_for_accepted_denominator() -> No
     assert gold["unavailable_reason"] is None
 
 
+def test_gold_effort_excludes_unidentified_accepted_artifacts_from_denominator() -> None:
+    bronze = build_bronze_observations(
+        {
+            "provider_attempt": [
+                {"source_id": "p-1", "run_job_id": "job-1", "provider_call_count": 2, "token_total": 100},
+            ],
+            "accepted_artifact": [
+                {"source_id": "a-missing", "run_job_id": "job-1", "status": "accepted"},
+                {"source_id": "a-valid", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="2026-10-05T00:00:00Z",
+    )
+    gold = build_gold_cv_effort(build_silver_facts(bronze))[0]
+
+    assert gold["accepted_artifact_count"] == 1
+    assert gold["per_accepted_artifact"] == {"provider_call_count": 2.0, "token_total": 100.0}
+
+
+def test_gold_effort_marks_missing_artifact_identity_unavailable() -> None:
+    bronze = build_bronze_observations(
+        {
+            "provider_attempt": [
+                {"source_id": "p-1", "run_job_id": "job-1", "provider_call_count": 2, "token_total": 100},
+            ],
+            "accepted_artifact": [
+                {"source_id": "a-missing", "run_job_id": "job-1", "status": "accepted"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="2026-10-05T00:00:00Z",
+    )
+    gold = build_gold_cv_effort(build_silver_facts(bronze))[0]
+
+    assert gold["accepted_artifact_count"] == 0
+    assert gold["per_accepted_artifact"] is None
+    assert gold["unavailable_reason"] == "accepted_artifact_count_zero"
+
+
 def test_gold_acceptance_state_preserves_current_and_historical() -> None:
     rows = build_gold_acceptance_state(
         {"records": [

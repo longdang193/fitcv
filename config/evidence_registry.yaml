@@ -70,10 +70,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 099f5ff180371028601df672ff060143f335ca045f6305e6390c5844e82cc3da
+    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 099f5ff180371028601df672ff060143f335ca045f6305e6390c5844e82cc3da
+    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -86,10 +86,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 099f5ff180371028601df672ff060143f335ca045f6305e6390c5844e82cc3da
+    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 099f5ff180371028601df672ff060143f335ca045f6305e6390c5844e82cc3da
+    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -102,10 +102,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 099f5ff180371028601df672ff060143f335ca045f6305e6390c5844e82cc3da
+    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 099f5ff180371028601df672ff060143f335ca045f6305e6390c5844e82cc3da
+    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
