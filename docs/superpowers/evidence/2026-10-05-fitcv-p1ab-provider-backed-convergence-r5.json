@@ -31,11 +31,11 @@
     "accepted_cv_count": 10,
     "first_pass_acceptance_rate": 0.5,
     "provider_call_count": 15,
-    "token_total": 66903,
+    "token_total": 69911,
     "regeneration_count": 5,
     "validation_failure_count": 0,
-    "generation_elapsed_ms": 205748.0,
-    "end_to_end_wall_ms": 325322.895,
+    "generation_elapsed_ms": 191211.0,
+    "end_to_end_wall_ms": 334256.013,
     "page_fit": {"count": 10, "fail": 0, "pass": 10, "rate": 1.0, "total": 10}
   },
   "artifacts": {

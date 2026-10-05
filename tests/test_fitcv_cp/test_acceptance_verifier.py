@@ -165,6 +165,7 @@ def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Pat
         "run_job_diversity": {"run_count": 10, "job_type_count": 2},
     }
     peer_report = {**report, "input_manifest": {**peer_manifest, "path": str(peer_manifest_path)}}
+    peer_report["analysis_input_identity"] = [{"fingerprints": ["different"], "selected_evidence_ids": ["ev-2"]}]
     report["material_metrics_sha256"] = material_report_digest(report)
     peer_report["material_metrics_sha256"] = material_report_digest(peer_report)
     report_path.write_text(json.dumps(report), encoding="utf-8")
@@ -185,6 +186,7 @@ def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Pat
     assert "experiment_declared_input_fingerprint_not_current" in result["failures"]
     assert "experiment_peer_arm_must_differ" in result["failures"]
     assert "experiment_peer_report_incomplete" in result["failures"]
+    assert "experiment_peer_analysis_input_identity_not_identical" in result["failures"]
 
 
 def test_experiment_report_check_rejects_incomplete_cohort_metadata(tmp_path: Path) -> None:

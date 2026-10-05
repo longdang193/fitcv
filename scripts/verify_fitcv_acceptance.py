@@ -60,6 +60,29 @@ def _current_experiment_input_identity(repo_root: Path) -> tuple[str | None, str
     return hashlib.sha256(fixture.read_bytes()).hexdigest(), digest.hexdigest()
 
 
+def _normalized_analysis_input_identity(report: dict[str, Any]) -> tuple[str, ...] | None:
+    identities = report.get("analysis_input_identity")
+    if not isinstance(identities, list):
+        return None
+    normalized: list[str] = []
+    for identity in identities:
+        if not isinstance(identity, dict):
+            return None
+        normalized.append(
+            json.dumps(
+                {
+                    "fingerprints": sorted(str(value) for value in identity.get("fingerprints") or []),
+                    "selected_evidence_ids": sorted(
+                        str(value) for value in identity.get("selected_evidence_ids") or []
+                    ),
+                    "job_types": sorted(str(value) for value in identity.get("job_types") or []),
+                },
+                sort_keys=True,
+            )
+        )
+    return tuple(sorted(normalized))
+
+
 def _source_inputs_match_current(source_commit: Any, current_commit: str | None, repo_root: Path) -> bool:
     if not current_commit or source_commit == current_commit:
         return bool(source_commit)
@@ -153,6 +176,7 @@ def _run_runtime_efficiency_evidence_check(
     markdown_path = repo_root / str(evidence.get("markdown") or "")
     failures: list[str] = []
     report: dict[str, Any] = {}
+    analysis_input_identity: tuple[str, ...] | None = None
     if not json_path.is_file():
         failures.append("runtime_efficiency_json_missing")
     else:
@@ -448,6 +472,9 @@ def _run_experiment_report_check(
     if not isinstance(report, dict):
         failures.append("experiment_json_object_required")
     if isinstance(report, dict):
+        analysis_input_identity = _normalized_analysis_input_identity(report)
+        if analysis_input_identity is None:
+            failures.append("experiment_analysis_input_identity_missing")
         selection = dict(report.get("selection") or {})
         if str(report.get("status") or "") != "complete":
             failures.append("experiment_report_incomplete")
@@ -531,6 +558,13 @@ def _run_experiment_report_check(
                 if not isinstance(peer_report, dict):
                     failures.append("experiment_peer_json_object_required")
                 else:
+                    peer_analysis_input_identity = _normalized_analysis_input_identity(peer_report)
+                    if analysis_input_identity is None:
+                        failures.append("experiment_analysis_input_identity_missing")
+                    elif peer_analysis_input_identity is None:
+                        failures.append("experiment_peer_analysis_input_identity_missing")
+                    elif analysis_input_identity != peer_analysis_input_identity:
+                        failures.append("experiment_peer_analysis_input_identity_not_identical")
                     peer_validation = _run_experiment_report_check(
                         peer_experiment_json,
                         experiment_markdown,
