@@ -1517,7 +1517,11 @@ def _run_repair_cycle(
                 repair_attempt[field] = True
         repair_attempt["reason"] = "provider_retry"
         repair_attempt["provider_retry_attempted"] = True
-        repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
+        try:
+            repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
+        except Exception as exc:
+            setattr(exc, "repair_attempt", repair_attempt)
+            raise
         if isinstance(structured_cv, dict) and isinstance(repaired_cv, dict):
             for section_name in repair_targets:
                 section_key = str(section_name).strip().lower()
@@ -2596,6 +2600,9 @@ def _generate_fresh_from_analysis(
             cv_generation_trace=trace_payload,
         )
     except Exception as exc:
+        failed_repair_attempt = getattr(exc, "repair_attempt", None)
+        if isinstance(failed_repair_attempt, dict):
+            repair_attempt = dict(failed_repair_attempt)
         runtime_failure_evidence = getattr(exc, "llm_runtime_evidence", None)
         if isinstance(runtime_failure_evidence, dict):
             runtime_evidence.append(dict(runtime_failure_evidence))
