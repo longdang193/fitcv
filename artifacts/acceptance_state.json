@@ -17,9 +17,9 @@
     "data/fitcv-p0-corpus/p0c/requirement_support_benchmark.json"
   ],
   "current_contract_evidence": {
-    "json": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
-    "markdown": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md",
-    "sha256": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256"
+    "json": "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.json",
+    "markdown": "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.md",
+    "sha256": "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.sha256"
   },
   "evaluation_freeze_commit": "5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50",
   "evidence_paths": [
@@ -46,13 +46,20 @@
     "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.sha256",
     "docs/superpowers/evidence/2026-10-04-fitcv-contract-convergence.md",
     "docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.json",
-    "docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.md"
+    "docs/superpowers/evidence/2026-10-04-fitcv-generation-efficiency-baseline.md",
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.json",
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract.md",
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.json",
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.md",
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.sha256",
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-provider-backed-convergence.json"
   ],
   "optimization_result": {
     "evidence": [
       "docs/superpowers/evidence/2026-10-03-fitcv-first-pass-experiment.json",
       "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
-      "docs/superpowers/evidence/2026-10-04-fitcv-generation-format-defect-experiment.json"
+      "docs/superpowers/evidence/2026-10-04-fitcv-generation-format-defect-experiment.json",
+      "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence.json"
     ],
     "experiment": "complete",
     "production_default": "unchanged",
@@ -269,8 +276,8 @@
   "runtime_efficiency": {
     "accepted_artifact_and_total_workload_metrics": true,
     "baseline_evidence": {
-      "json": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.json",
-      "markdown": "docs/superpowers/evidence/2026-10-03-fitcv-p1-ab-current-contract.md"
+      "json": "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.json",
+      "markdown": "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-current-contract-r2.md"
     },
     "blocked_reasons": [],
     "measurement_status": "measured",

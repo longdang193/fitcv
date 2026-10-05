@@ -1,0 +1,72 @@
+{
+  "arms": {
+    "candidate": "provider_first",
+    "incumbent": "local_first"
+  },
+  "artifacts": {
+    "candidate_manifest": ".tmp\\fitcv-review-final-20261004-r3\\candidate-manifest.json",
+    "candidate_scorecard": ".tmp\\fitcv-review-final-20261004-r3\\candidate-benchmark.json",
+    "candidate_verifier": ".tmp\\fitcv-review-final-20261004-r3\\candidate-acceptance.json",
+    "incumbent_manifest": ".tmp\\fitcv-review-final-20261004-r3\\incumbent-manifest.json",
+    "incumbent_scorecard": ".tmp\\fitcv-review-final-20261004-r3\\incumbent-benchmark.json",
+    "incumbent_verifier": ".tmp\\fitcv-review-final-20261004-r3\\incumbent-acceptance.json"
+  },
+  "candidate": {
+    "accepted_cv_count": 5,
+    "end_to_end_wall_ms": 280744.815,
+    "first_pass_acceptance_rate": 0.5,
+    "generation_elapsed_ms": 174371.0,
+    "page_fit": {
+      "count": 5,
+      "fail": 0,
+      "pass": 5,
+      "rate": 1.0,
+      "total": 5
+    },
+    "provider_call_count": 15,
+    "regeneration_count": 5,
+    "token_total": 64643,
+    "validation_failure_count": 5
+  },
+  "cohort_setup": {
+    "freeze_upstream_from_repeat": 1,
+    "seed_database_sha256": null,
+    "upstream_reuse_policy": "cold_first_then_frozen"
+  },
+  "cohort_setup_equal": true,
+  "declared_input_fingerprint_equal": true,
+  "evidence_schema_version": "fitcv.p1_ab.provider_backed_convergence.v2",
+  "evidence_status": "complete",
+  "fixture_sha256_equal": true,
+  "incumbent": {
+    "accepted_cv_count": 10,
+    "end_to_end_wall_ms": 264915.399,
+    "first_pass_acceptance_rate": 0.9,
+    "generation_elapsed_ms": 147749.0,
+    "page_fit": {
+      "count": 10,
+      "fail": 0,
+      "pass": 10,
+      "rate": 1.0,
+      "total": 10
+    },
+    "provider_call_count": 11,
+    "regeneration_count": 1,
+    "token_total": 51640,
+    "validation_failure_count": 0
+  },
+  "job_types": [
+    "Contract",
+    "Part-time"
+  ],
+  "promotion": {
+    "decision": "candidate_regresses_correctness",
+    "notes": "Paired source-bound provider-backed cohorts are eligible for comparison. Candidate accepts 5/10 versus incumbent 10/10 and records five validation failures, so no optimization promotion is allowed.",
+    "production_default": "local_first",
+    "status": "rejected"
+  },
+  "provider_backed_equal": true,
+  "repeat_count": 10,
+  "resolved_models_equal": true,
+  "source_commit": "800e349ba7c073765e7579b85e5f7c6a90d9fdff"
+}

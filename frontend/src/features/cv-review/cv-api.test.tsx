@@ -153,8 +153,9 @@ describe("CV Review route and contracts", () => {
           data: {
             run_id: "run-1",
             run_job_id: "job-1",
-            status: "review_required",
-            uncertainties: [{ uncertainty_id: "u-1", resolution_key: "skill:sql" }],
+             status: "review_required",
+             review_revision: "revision-1",
+             uncertainties: [{ uncertainty_id: "u-1", resolution_key: "skill:sql" }],
             allowed_actions: ["RESOLVE_WITH_ANSWER"],
           },
         }),
@@ -166,13 +167,15 @@ describe("CV Review route and contracts", () => {
     await applyCvReviewAction("run-1", "job-1", {
       review_item_id: "review-1",
       uncertainty_id: "u-1",
-      resolution_key: "skill:sql",
-      action: "RESOLVE_WITH_ANSWER",
+       resolution_key: "skill:sql",
+       review_revision: "revision-1",
+       action: "RESOLVE_WITH_ANSWER",
       answer_text: "Used SQL for four years.",
     }, "idem-review-1");
     expect(requests[0].url).toBe("/runs/run-1/jobs/job-1/cv-review");
     expect(requests[1].url).toBe("/runs/run-1/jobs/job-1/cv-review/actions");
     expect(requests[1].options.headers["Idempotency-Key"]).toBe("idem-review-1");
+    expect(JSON.parse(requests[1].options.body).review_revision).toBe("revision-1");
   });
 
   it("uses root API routes for preview and download", async () => {

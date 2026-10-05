@@ -1,0 +1,31 @@
+{
+  "schema_version": "fitcv.p1ab.repair_experiment_decision.v1",
+  "status": "blocked",
+  "decision": "retain_incumbent",
+  "reason": "no_eligible_identical_provider_backed_cohort",
+  "incumbent_arm": "local_first",
+  "candidate_arm": "provider_first",
+  "repeat_count_required": 10,
+  "fixture": "tests/fixtures/fitcv-p1ab-repair-experiment.json",
+  "fixture_sha256": "fcb9a0cc587d3e6a058a3837a1a7f74ba1bd123394c48e9b7db409cb6d5658e2",
+  "source_commit": "1b86a1199f692488b366567959f8a4364c0f91db",
+  "working_tree_diff_sha256": "1383ec4ba5f0b9f08090898a498e0fb8c6c66a91810d2cdffd35eddc7e83fecb",
+  "preflight": {
+    "command": "python scripts/run_fitcv_repair_experiment.py --preflight-fixture",
+    "status": "eligible_shape",
+    "provider_calls": 0,
+    "credentials_loaded": false
+  },
+  "promotion": {
+    "eligible": false,
+    "promoted": false,
+    "savings_claimed": false,
+    "default_preserved": true
+  },
+  "missing_evidence": [
+    "ten incumbent repeats",
+    "ten candidate repeats",
+    "identical runtime/config/source fingerprints",
+    "correctness and cost comparison"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "analysis_input_identity_equal": true,
+  "arms": {
+    "candidate": "provider_first",
+    "incumbent": "local_first"
+  },
+  "artifacts": {
+    "candidate_manifest": "candidate-manifest.json",
+    "candidate_scorecard": "candidate-benchmark.json",
+    "incumbent_manifest": "incumbent-manifest.json",
+    "incumbent_scorecard": "incumbent-benchmark.json"
+  },
+  "candidate": {
+    "accepted_cv_count": 10,
+    "end_to_end_wall_ms": 195964.611,
+    "first_pass_acceptance_rate": 1.0,
+    "generation_elapsed_ms": 112335.0,
+    "page_fit": {
+      "fail": 0,
+      "pass": 10,
+      "rate": 1.0,
+      "total": 10
+    },
+    "provider_call_count": 10,
+    "regeneration_count": 0,
+    "token_total": 45043,
+    "validation_failure_count": 0
+  },
+  "declared_input_fingerprint_equal": true,
+  "evidence_schema_version": "fitcv.p1_ab.provider_backed_convergence.v1",
+  "evidence_status": "complete",
+  "fixture_sha256_equal": true,
+  "incumbent": {
+    "accepted_cv_count": 10,
+    "end_to_end_wall_ms": 247344.076,
+    "first_pass_acceptance_rate": 1.0,
+    "generation_elapsed_ms": 119467.0,
+    "page_fit": {
+      "fail": 0,
+      "pass": 10,
+      "rate": 1.0,
+      "total": 10
+    },
+    "provider_call_count": 10,
+    "regeneration_count": 0,
+    "token_total": 44999,
+    "validation_failure_count": 0
+  },
+  "job_types": [
+    "Contract",
+    "Part-time"
+  ],
+  "promotion": {
+    "decision": "candidate_improves_end_to_end_wall_time_without_correctness_regression",
+    "notes": "Candidate matches correctness and retry outcomes, lowers end-to-end wall time, and uses 44 more tokens; production default remains unchanged pending independent review.",
+    "production_default": "unchanged_pending_independent_review",
+    "status": "eligible"
+  },
+  "repeat_count": 10,
+  "resolved_models_equal": true,
+  "root_cause_fixed": "Seeded cohort stabilization previously incremented configuration_revision on every invocation, changing enrich_contract_fingerprint and forcing fresh upstream enrichment. Stabilization is now idempotent.",
+  "source_commit": "4730f9f776f58b1532e3906c87cf867beb976fa0"
+}

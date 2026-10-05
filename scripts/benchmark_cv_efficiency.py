@@ -29,12 +29,14 @@ from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
 DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
 DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
 STAGE_NAMES = (
+    "queue_wait",
     "analysis",
     "retrieval",
     "content_planning",
     "provider_generation",
     "validation",
     "render",
+    "local_repair",
     "repair",
     "persistence",
 )
@@ -171,6 +173,9 @@ def _stage_latency_samples(payload: dict[str, Any], traces: list[dict[str, Any]]
     for stage, values in dict(payload.get("stage_timings_ms") or {}).items():
         add(str(stage), values)
     for trace in traces:
+        for stage, detail in dict(dict(trace.get("efficiency_summary") or {}).get("stage_timings") or {}).items():
+            if isinstance(detail, dict):
+                add(str(stage).removesuffix("_ms"), detail.get("value"))
         for stage, values in dict(trace.get("stage_timings_ms") or {}).items():
             add(str(stage), values)
         for attempt in list(trace.get("attempts") or []):
@@ -186,7 +191,8 @@ def _stage_latency_samples(payload: dict[str, Any], traces: list[dict[str, Any]]
             ("content_planning_elapsed_ms", "content_planning"),
             ("validation_elapsed_ms", "validation"),
             ("render_elapsed_ms", "render"),
-            ("repair_elapsed_ms", "repair"),
+            ("repair_elapsed_ms", "local_repair"),
+            ("local_repair_elapsed_ms", "local_repair"),
             ("persistence_elapsed_ms", "persistence"),
         ):
             add(stage, trace.get(field))
@@ -245,11 +251,34 @@ def _optimization_scorecard(snapshots: list[dict[str, Any]]) -> dict[str, Any]:
         for field, values in optional_fields.items()
         if not values
     }
+    sections = {
+        "CORRECTNESS": {
+            "status": "measured" if failure_categories or snapshots else "unavailable",
+            "failure_categories": dict(sorted(failure_categories.items())),
+            "denominator": "accepted_cv_records",
+        },
+        "PRODUCT PARITY": {
+            "status": "measured" if snapshots else "unavailable",
+            "resolution_reuse": {"status": "measured", "count": resolution_reuse},
+            "denominator": "accepted_cv_records",
+        },
+        "EFFICIENCY": {
+            "status": "measured" if snapshots else "unavailable",
+            "provider_calls": {"status": "measured" if snapshots else "unavailable", "denominator": "accepted_cv_records"},
+            "savings": dict(unavailable),
+        },
+        "HUMAN EFFORT": {
+            "status": "measured" if snapshots else "unavailable",
+            "human_actions": {"status": "measured", "count": human_actions, "denominator": "accepted_cv_records"},
+            "review_time_ms": {"status": "unavailable", "reason": "trace contract does not persist review duration"},
+        },
+    }
     return {
         "regeneration_causes": dict(sorted(failure_categories.items())),
         "reuse_hits": {"status": "measured", "count": reuse_hits},
         "human_actions": {"status": "measured", "count": human_actions},
         "resolution_reuse": {"status": "measured", "count": resolution_reuse},
+        "sections": sections,
         **unavailable,
     }
 
@@ -322,6 +351,7 @@ def build_canonical_evidence(
             "source_fixture_sha256": source_fixture_sha256,
         }
     )
+    evidence["material_metrics_sha256"] = material_report_digest(evidence)
     return evidence
 
 
@@ -409,6 +439,17 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         for trace in traces
         if str(trace.get("job_type") or "").strip()
     }
+    analysis_input_fingerprints = {
+        str(record.get("analysis_input_fingerprint") or record.get("content_plan", {}).get("analysis_input_fingerprint") or "").strip()
+        for record in records
+        if str(record.get("analysis_input_fingerprint") or record.get("content_plan", {}).get("analysis_input_fingerprint") or "").strip()
+    }
+    selected_evidence_ids = {
+        str(evidence_id).strip()
+        for record in records
+        for evidence_id in list(dict(record.get("evidence_selection_summary") or {}).get("selected_evidence_ids") or [])
+        if str(evidence_id).strip()
+    }
     return {
         "run_id": run_id,
         "created_at": created_at.isoformat() if created_at else None,
@@ -442,6 +483,11 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
             "complete": bool(projected_records and len(current_contract_records) == len(projected_records)),
         },
         "trace_normalization": dict(normalized_traces.get("diagnostics") or {}),
+        "analysis_input_identity": {
+            "fingerprints": sorted(analysis_input_fingerprints),
+            "selected_evidence_ids": sorted(selected_evidence_ids),
+            "job_types": sorted(job_types),
+        },
         "_trace_records_for_diversity": traces,
         "coverage": {
             "attribution": {
@@ -904,6 +950,10 @@ def build_baseline(
             for snapshot in snapshots
             for outcome in list(snapshot.get("attempted_outcomes") or [])
         ],
+        "analysis_input_identity": [
+            dict(snapshot.get("analysis_input_identity") or {})
+            for snapshot in snapshots
+        ],
     }
 
 
@@ -926,8 +976,39 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "optimization_scorecard",
             "runs",
             "attempted_outcomes",
+            "input_manifest",
+            "analysis_input_identity",
         )
     }
+
+
+def _load_run_manifest(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("run_manifest_must_be_object")
+    run_ids = [str(value).strip() for value in list(payload.get("run_ids") or []) if str(value).strip()]
+    if not run_ids:
+        raise ValueError("run_manifest_missing_run_ids")
+    if len(run_ids) != len(set(run_ids)):
+        raise ValueError("run_manifest_duplicate_run_ids")
+    payload["run_ids"] = run_ids
+    return payload
+
+
+def _apply_manifest_measurement_gate(
+    report: dict[str, Any],
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    selection = dict(report.get("selection") or {})
+    expected = int(manifest.get("repeat_count") or len(list(manifest.get("run_ids") or [])))
+    actual = int(selection.get("run_count") or 0)
+    shortfall = max(expected - actual, 0)
+    selection["manifest_expected_run_count"] = expected
+    selection["manifest_run_count_shortfall"] = shortfall
+    report["selection"] = selection
+    if shortfall:
+        report["status"] = "incomplete"
+    return report
 
 
 def material_report_digest(report: dict[str, Any]) -> str:
@@ -945,9 +1026,11 @@ def _markdown(report: dict[str, Any]) -> str:
     accepted = dict(report.get("accepted_cv") or {})
     attribution = dict(report.get("attribution") or {})
     timing = dict(report.get("timing") or {})
+    scorecard = dict(report.get("optimization_scorecard") or {})
+    sections = dict(scorecard.get("sections") or {})
     return "\n".join(
         [
-            "# FitCV Runtime Efficiency Baseline",
+            "# FitCV Current Scorecard",
             "",
             f"- Evidence status: `{report.get('evidence_status', 'generated')}`",
             f"- Evidence schema: `{report.get('evidence_schema_version', 'runtime-report')}`",
@@ -982,6 +1065,18 @@ def _markdown(report: dict[str, Any]) -> str:
             "Stage latency p50/p95 is reported from explicit stage samples; missing stages stay unavailable.",
             "Generation duration, artifact acceptance latency, and run wall-clock time are separate metrics.",
             "Accepted-artifact and total-workload per-CV metrics stay null unless attribution is complete.",
+            "",
+            "## CORRECTNESS",
+            f"- `{sections.get('CORRECTNESS', {})}`",
+            "",
+            "## PRODUCT PARITY",
+            f"- `{sections.get('PRODUCT PARITY', {})}`",
+            "",
+            "## EFFICIENCY",
+            f"- `{sections.get('EFFICIENCY', {})}`",
+            "",
+            "## HUMAN EFFORT",
+            f"- `{sections.get('HUMAN EFFORT', {})}`",
         ]
     ) + "\n"
 
@@ -990,6 +1085,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", type=Path, default=None, help="SQLite control-plane database path")
     parser.add_argument("--run-id", action="append", dest="run_ids", help="Restrict selection to run ID")
+    parser.add_argument("--run-manifest", type=Path, help="Require exact run IDs and database identity from manifest")
     parser.add_argument("--limit", type=int, default=100, help="Maximum persisted runs to inspect")
     parser.add_argument("--output-json", type=Path, default=DEFAULT_JSON)
     parser.add_argument("--output-markdown", type=Path, default=DEFAULT_MARKDOWN)
@@ -999,17 +1095,43 @@ def main() -> int:
     parser.add_argument("--fixture-sha256")
     parser.add_argument("--source-fixture-sha256")
     args = parser.parse_args()
-    if args.database:
-        os.environ["FITCV_CP_SQLITE_PATH"] = str(args.database)
+    manifest = _load_run_manifest(args.run_manifest) if args.run_manifest else None
+    manifest_database = (manifest or {}).get("database_path") or (manifest or {}).get("database")
+    if manifest_database and args.database and Path(args.database).resolve() != Path(manifest_database).resolve():
+        parser.error("database does not match run manifest")
+    if args.database or manifest_database:
+        os.environ["FITCV_CP_SQLITE_PATH"] = str(args.database or manifest_database)
     runs = sqlite_store.list_runs(limit=max(args.limit, 1), include_archived=True)
-    if args.run_ids:
-        selected = set(args.run_ids)
+    selected_ids = list(args.run_ids or [])
+    if manifest:
+        if selected_ids and set(selected_ids) != set(manifest["run_ids"]):
+            parser.error("run IDs do not match run manifest")
+        selected_ids = list(manifest["run_ids"])
+    if selected_ids:
+        selected = set(selected_ids)
         runs = [run for run in runs if str(run.run_id) in selected]
+        found = {str(run.run_id) for run in runs}
+        missing = [run_id for run_id in selected_ids if run_id not in found]
+        if missing:
+            parser.error(f"run manifest references missing run IDs: {','.join(missing)}")
     run_jobs_by_run_id = {
         str(run.run_id): list(sqlite_store.iter_run_jobs_for_export(str(run.run_id)))
         for run in runs
     }
     report = build_baseline(runs, run_jobs_by_run_id=run_jobs_by_run_id)
+    if manifest:
+        report["input_manifest"] = {
+            "path": str(args.run_manifest.resolve()),
+            "run_ids": list(manifest["run_ids"]),
+            "repeat_count": int(manifest.get("repeat_count") or len(manifest["run_ids"])),
+            "database_path": str(Path(manifest_database).resolve()) if manifest_database else None,
+            "fixture_sha256": manifest.get("fixture_sha256"),
+            "declared_input_fingerprint": manifest.get("declared_input_fingerprint"),
+            "arm": manifest.get("arm"),
+            "declared_model": manifest.get("declared_model"),
+            "resolved_models": list(manifest.get("resolved_models") or []),
+        }
+        report = _apply_manifest_measurement_gate(report, manifest)
     report["material_metrics_sha256"] = material_report_digest(report)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_markdown.parent.mkdir(parents=True, exist_ok=True)

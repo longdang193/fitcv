@@ -30,6 +30,7 @@ from fitcv.llm_runtime import (
     LlmTaskRequest,
     LlmValidationResult,
     execute_llm_task,
+    install_test_llm_runtime,
     project_llm_runtime_evidence,
     parse_llm_json_object,
 )
@@ -361,6 +362,33 @@ def test_execute_llm_task_runs_one_uniform_success_flow() -> None:
     assert result.provenance.trace_id == "trace-1"
     assert not hasattr(result.provenance, "base_url")
     assert "secret" not in repr(result)
+
+
+def test_test_runtime_seam_bypasses_production_credential_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_REVIEW_E2E", "1")
+    credential_calls: list[str] = []
+    adapter_calls: list[str] = []
+
+    def credential_resolver(route: LlmRouting) -> str:
+        credential_calls.append(route.provider)
+        return "fixture-key"
+
+    def adapter(request: LlmTaskRequest, route: LlmRouting, api_key: str) -> LlmAdapterResponse:
+        adapter_calls.append(api_key)
+        return _response()
+
+    install_test_llm_runtime(adapter=adapter, credential_resolver=credential_resolver)
+    with patch("fitcv.llm_runtime.resolve_llm_routing", return_value=_route()), \
+         patch("fitcv.llm_runtime.resolve_llm_api_key", side_effect=AssertionError("production credential lookup")):
+        result = execute_llm_task(
+            _request(),
+            parser=lambda response: json.loads(response.raw_text),
+            validator=lambda value: LlmValidationResult(valid=True, errors=[], details={}),
+        )
+
+    assert result.status == "succeeded"
+    assert credential_calls == ["openai_compatible"]
+    assert adapter_calls == ["fixture-key"]
 
 
 @pytest.mark.parametrize(

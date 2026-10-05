@@ -1,0 +1,3947 @@
+{
+  "schema_version": "fitcv_runtime_efficiency_baseline_v3",
+  "contract_versions": {
+    "final_artifact": "fitcv.final_artifact.v1",
+    "trace": "fitcv.trace.v1",
+    "efficiency": "fitcv.efficiency.v1"
+  },
+  "status": "complete",
+  "trace_normalization": {
+    "duplicate_count": 10,
+    "conflict_count": 0,
+    "conflict_trace_ids": [],
+    "source_candidate_count": 20,
+    "normalized_trace_count": 10
+  },
+  "generated_at": "2026-10-04T23:04:10.575775+00:00",
+  "selection": {
+    "ordinary_runs_only": true,
+    "measurable_generation_work_only": true,
+    "contract_versions": {
+      "final_artifact": "fitcv.final_artifact.v1",
+      "trace": "fitcv.trace.v1",
+      "efficiency": "fitcv.efficiency.v1"
+    },
+    "current_contract_record_count": 10,
+    "historical_record_count": 0,
+    "run_count": 10,
+    "run_ids": [
+      "a9eabefd-64ba-4323-b88a-5a301f9ce46f",
+      "2a325c72-a2f5-498a-97d3-baa05e27baaa",
+      "62743b07-e73a-4e7f-944e-4673c6c95349",
+      "a83c1138-2cac-40f5-8255-0496f2239fc2",
+      "d618387f-fc94-42a4-a86f-196f7998b90b",
+      "ff149d46-cf94-4ab0-bd82-47fc9d88e2b8",
+      "e9e1493b-2dae-42ad-bbf0-8b6a17a3a468",
+      "d67274b7-c0e6-4538-a2d4-7499db3a18e2",
+      "9360a360-ab89-484b-b85d-0825231aa009",
+      "e0477f68-790f-4352-923a-1bf9b6dcfb5a"
+    ],
+    "exclusions": {},
+    "manifest_expected_run_count": 10,
+    "manifest_run_count_shortfall": 0
+  },
+  "workload": {
+    "attempted_generation_job_count": 10,
+    "terminal_validation_failed_job_count": 0,
+    "validation_failure_event_count": 0,
+    "validation_failure_count": 0,
+    "provider_call_count": 10,
+    "regeneration_count": 0,
+    "render_retry_count": 0,
+    "token_total": 44999,
+    "generation_elapsed_ms": 119467.0
+  },
+  "timing": {
+    "generation_elapsed_ms": 119467.0,
+    "generation_timing_coverage": {
+      "measured": 10,
+      "unavailable": 0
+    },
+    "artifact_acceptance_latency_ms": 119467.0,
+    "run_wall_ms": 247344.076,
+    "stage_latency_ms": {
+      "queue_wait": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "analysis": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "retrieval": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "content_planning": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "provider_generation": {
+        "p50_ms": 11769.5,
+        "p95_ms": 13177.05,
+        "measured": 10,
+        "coverage": true
+      },
+      "validation": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "render": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "local_repair": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "repair": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      },
+      "persistence": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "measured": 0,
+        "coverage": false
+      }
+    }
+  },
+  "coverage": {
+    "attribution": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true,
+      "matched": 10,
+      "unmatched": 0
+    },
+    "cost": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    },
+    "timing": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    },
+    "page_fit": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    },
+    "review_questions": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    },
+    "human_actions": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    },
+    "resolution_reuse": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    },
+    "page_fit_success": {
+      "measured": 10,
+      "unavailable": 0,
+      "total": 10,
+      "rate": 1.0,
+      "complete": true
+    }
+  },
+  "run_job_diversity": {
+    "run_count": 10,
+    "job_count": 10,
+    "job_type_count": 2,
+    "job_types": [
+      "Contract",
+      "Part-time"
+    ]
+  },
+  "accepted_cv": {
+    "count": 10,
+    "recorded_acceptance_count": 10,
+    "cost_per_accepted_cv": {
+      "provider_call_count": 1.0,
+      "token_total": 4499.9,
+      "regeneration_count": 0.0,
+      "validation_failure_event_count": 0.0,
+      "validation_failure_count": 0.0,
+      "generation_elapsed_ms": 11946.7,
+      "elapsed_ms": 11946.7
+    },
+    "accepted_artifact_cost_per_accepted_cv": {
+      "provider_call_count": 1.0,
+      "token_total": 4499.9,
+      "regeneration_count": 0.0,
+      "validation_failure_event_count": 0.0,
+      "validation_failure_count": 0.0,
+      "generation_elapsed_ms": 11946.7,
+      "elapsed_ms": 11946.7
+    },
+    "total_workload_cost_per_accepted_cv": {
+      "provider_call_count": 1.0,
+      "token_total": 4499.9,
+      "regeneration_count": 0.0,
+      "validation_failure_event_count": 0.0,
+      "generation_elapsed_ms": 11946.7,
+      "end_to_end_wall_ms": 24734.4076
+    },
+    "accepted_non_one_page_count": 0,
+    "page_fit_success": {
+      "count": 10,
+      "pass": 10,
+      "fail": 0,
+      "total": 10,
+      "rate": 1.0
+    }
+  },
+  "attribution": {
+    "unmatched_trace_count": 0,
+    "unattributed_accepted_artifact_count": 0,
+    "accepted_non_one_page_count": 0
+  },
+  "yield": {
+    "attempted_generation_job_count": 10,
+    "first_pass_acceptance_count": 10,
+    "retry_success_count": 0,
+    "retry_failure_count": 0,
+    "first_pass_acceptance_rate": 1.0
+  },
+  "aggregate": {
+    "provider_call_count": 10,
+    "token_total": 44999,
+    "regeneration_count": 0,
+    "validation_failure_event_count": 0,
+    "validation_failure_count": 0,
+    "terminal_validation_failed_job_count": 0,
+    "generation_elapsed_ms": 119467.0,
+    "end_to_end_wall_ms": 247344.076,
+    "elapsed_ms": 119467.0
+  },
+  "outcomes": {
+    "generation_status_counts": {
+      "accepted": 10
+    },
+    "page_fit": {
+      "pass": 10,
+      "fail": 0,
+      "total": 10,
+      "rate": 1.0
+    },
+    "render_retry_count": 0,
+    "compiler_outcome_counts": {},
+    "render_outcome_counts": {}
+  },
+  "optimization_scorecard": {
+    "regeneration_causes": {},
+    "reuse_hits": {
+      "status": "measured",
+      "count": 0
+    },
+    "human_actions": {
+      "status": "measured",
+      "count": 0
+    },
+    "resolution_reuse": {
+      "status": "measured",
+      "count": 0
+    },
+    "sections": {
+      "CORRECTNESS": {
+        "status": "measured",
+        "failure_categories": {},
+        "denominator": "accepted_cv_records"
+      },
+      "PRODUCT PARITY": {
+        "status": "measured",
+        "resolution_reuse": {
+          "status": "measured",
+          "count": 0
+        },
+        "denominator": "accepted_cv_records"
+      },
+      "EFFICIENCY": {
+        "status": "measured",
+        "provider_calls": {
+          "status": "measured",
+          "denominator": "accepted_cv_records"
+        },
+        "savings": {
+          "proof_reuse": {
+            "status": "unavailable",
+            "measured": 0,
+            "reason": "current trace contract does not persist this field"
+          },
+          "provider_calls_avoided": {
+            "status": "unavailable",
+            "measured": 0,
+            "reason": "current trace contract does not persist this field"
+          },
+          "renders_avoided": {
+            "status": "unavailable",
+            "measured": 0,
+            "reason": "current trace contract does not persist this field"
+          },
+          "tokens_avoided": {
+            "status": "unavailable",
+            "measured": 0,
+            "reason": "current trace contract does not persist this field"
+          }
+        }
+      },
+      "HUMAN EFFORT": {
+        "status": "measured",
+        "human_actions": {
+          "status": "measured",
+          "count": 0,
+          "denominator": "accepted_cv_records"
+        },
+        "review_time_ms": {
+          "status": "unavailable",
+          "reason": "trace contract does not persist review duration"
+        }
+      }
+    },
+    "proof_reuse": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    },
+    "provider_calls_avoided": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    },
+    "renders_avoided": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    },
+    "tokens_avoided": {
+      "status": "unavailable",
+      "measured": 0,
+      "reason": "current trace contract does not persist this field"
+    }
+  },
+  "runs": [
+    {
+      "run_id": "a9eabefd-64ba-4323-b88a-5a301f9ce46f",
+      "created_at": "2026-10-04T22:50:28.275469+00:00",
+      "started_at": "2026-10-04T22:50:28.515263+00:00",
+      "finished_at": "2026-10-04T22:50:47.994377+00:00",
+      "elapsed_wall_ms": 19479.113999999998,
+      "generation_elapsed_ms": 11088.0,
+      "timing": {
+        "generation_elapsed_ms": 11088.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 11031.0,
+            "p95_ms": 11031.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          11031.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 11088.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 11088,
+          "token_total": 4404,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4404
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/part-time",
+            "artifact_version_id": "8154f149-d10f-49eb-be29-5aac0563bdfc",
+            "run_id": "a9eabefd-64ba-4323-b88a-5a301f9ce46f",
+            "run_job_id": "9ad2d5de-fc52-5303-ae17-0f47fe2155ad",
+            "generation_input_fingerprint": "043239dc15cc8eeb5c5a5610c797076a6600448a924c69d170db44858dbd34c7",
+            "attempt_id": null,
+            "trace_id": "05bf4d96-18f7-4424-a1bb-6bca6b28d5a2",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "5002989a5ea176864957ef25bfcceea26342c36ba0583f2ecdc18b6894aee8b2",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "9329c32ca1b5ff13eb7c60423ab4d51b518396124c95ed9ba42c638568e24346",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3889,
+                "output_tokens": 515,
+                "total_tokens": 4404
+              }
+            ],
+            "token_total": 4404,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 11088,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 11088,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "05bf4d96-18f7-4424-a1bb-6bca6b28d5a2",
+          "job_url": "https://fitcv.example/repair-experiment/part-time",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_edu_2_ae5026f21f7962c5",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_2_92108bad92f5940d"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Part-time"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "2a325c72-a2f5-498a-97d3-baa05e27baaa",
+      "created_at": "2026-10-04T22:50:06.330280+00:00",
+      "started_at": "2026-10-04T22:50:06.577964+00:00",
+      "finished_at": "2026-10-04T22:50:26.892196+00:00",
+      "elapsed_wall_ms": 20314.232,
+      "generation_elapsed_ms": 12177.0,
+      "timing": {
+        "generation_elapsed_ms": 12177.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 12120.0,
+            "p95_ms": 12120.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          12120.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 12177.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 12177,
+          "token_total": 4563,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4563
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/contract",
+            "artifact_version_id": "15adc992-54ce-4f06-a66f-5f94ecad3bf5",
+            "run_id": "2a325c72-a2f5-498a-97d3-baa05e27baaa",
+            "run_job_id": "5e8bf9e7-1909-5a43-955b-e30ac3586c8e",
+            "generation_input_fingerprint": "6657044827050e2341213ea88a9dbcecba6fcbdd17d8d3937c8f22c446cc37c5",
+            "attempt_id": null,
+            "trace_id": "54b3adea-02b3-464e-b6de-ead861bb0302",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "4d8773ef8c121b4f5d045452a1dadc2f4021d0640e8e01edb41e26b38f8e7c1c",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "2bb79d9a4c1323ab90e66e1ccde4dbe9308a0f7c6797a7315c5e903d8c68577b",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3966,
+                "output_tokens": 597,
+                "total_tokens": 4563
+              }
+            ],
+            "token_total": 4563,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 12177,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 12177,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "54b3adea-02b3-464e-b6de-ead861bb0302",
+          "job_url": "https://fitcv.example/repair-experiment/contract",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_1_5617187e8f177f56"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Contract"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "62743b07-e73a-4e7f-944e-4673c6c95349",
+      "created_at": "2026-10-04T22:49:45.741551+00:00",
+      "started_at": "2026-10-04T22:49:45.983041+00:00",
+      "finished_at": "2026-10-04T22:50:04.935771+00:00",
+      "elapsed_wall_ms": 18952.73,
+      "generation_elapsed_ms": 11097.0,
+      "timing": {
+        "generation_elapsed_ms": 11097.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 11044.0,
+            "p95_ms": 11044.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          11044.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 11097.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 11097,
+          "token_total": 4413,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4413
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/part-time",
+            "artifact_version_id": "cb128ec0-c349-4c41-bf83-80b1bb29b4ac",
+            "run_id": "62743b07-e73a-4e7f-944e-4673c6c95349",
+            "run_job_id": "86b8fb1d-1b78-5738-9749-9a381ef26987",
+            "generation_input_fingerprint": "043239dc15cc8eeb5c5a5610c797076a6600448a924c69d170db44858dbd34c7",
+            "attempt_id": null,
+            "trace_id": "7364a81b-031a-410d-b1ae-39cea1b63720",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "cbb36304c70b3a01a0e4654c8df2689e5dd94f78d65b1f11b56edf373ad335d8",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "0fd1148cc1b9b51be33b5c47ec9455f26569e45b8ba751ad9a08250f4a2bf15a",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3889,
+                "output_tokens": 524,
+                "total_tokens": 4413
+              }
+            ],
+            "token_total": 4413,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 11097,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 11097,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "7364a81b-031a-410d-b1ae-39cea1b63720",
+          "job_url": "https://fitcv.example/repair-experiment/part-time",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_edu_2_ae5026f21f7962c5",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_2_92108bad92f5940d"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Part-time"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "a83c1138-2cac-40f5-8255-0496f2239fc2",
+      "created_at": "2026-10-04T22:49:24.681152+00:00",
+      "started_at": "2026-10-04T22:49:24.931917+00:00",
+      "finished_at": "2026-10-04T22:49:44.335020+00:00",
+      "elapsed_wall_ms": 19403.103000000003,
+      "generation_elapsed_ms": 10931.0,
+      "timing": {
+        "generation_elapsed_ms": 10931.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 10862.0,
+            "p95_ms": 10862.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          10862.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 10931.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 10931,
+          "token_total": 4497,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4497
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/contract",
+            "artifact_version_id": "38e7ea0a-ec12-4931-b5a7-8fc73290e199",
+            "run_id": "a83c1138-2cac-40f5-8255-0496f2239fc2",
+            "run_job_id": "d7a6f64e-fa48-52b8-bfa0-5a462ec4f71e",
+            "generation_input_fingerprint": "6657044827050e2341213ea88a9dbcecba6fcbdd17d8d3937c8f22c446cc37c5",
+            "attempt_id": null,
+            "trace_id": "c8d1992b-a277-4bc9-b9ff-c4d3580cefd4",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "48eb4b584f8f5e6d128c41a5551bc2600a80061ea435415cac146033ddefe922",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "7a63e9b3e7b9705dd4262457004626b3c7ff8decac0b977ca3042fbdc7b30f29",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3966,
+                "output_tokens": 531,
+                "total_tokens": 4497
+              }
+            ],
+            "token_total": 4497,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 10931,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 10931,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "c8d1992b-a277-4bc9-b9ff-c4d3580cefd4",
+          "job_url": "https://fitcv.example/repair-experiment/contract",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_1_5617187e8f177f56"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Contract"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "d618387f-fc94-42a4-a86f-196f7998b90b",
+      "created_at": "2026-10-04T22:49:03.373667+00:00",
+      "started_at": "2026-10-04T22:49:03.740429+00:00",
+      "finished_at": "2026-10-04T22:49:23.270592+00:00",
+      "elapsed_wall_ms": 19530.163,
+      "generation_elapsed_ms": 11470.0,
+      "timing": {
+        "generation_elapsed_ms": 11470.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 11419.0,
+            "p95_ms": 11419.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          11419.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 11470.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 11470,
+          "token_total": 4433,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4433
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/part-time",
+            "artifact_version_id": "5b9f55db-c56d-4fd6-a0bd-6a208726c7d5",
+            "run_id": "d618387f-fc94-42a4-a86f-196f7998b90b",
+            "run_job_id": "d9e56855-af12-5d95-af4d-a3ea651f5005",
+            "generation_input_fingerprint": "043239dc15cc8eeb5c5a5610c797076a6600448a924c69d170db44858dbd34c7",
+            "attempt_id": null,
+            "trace_id": "545ce07e-49bb-4d00-9dd0-941e41228dc0",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "80fd3112351e360ad72dfb3115fd6bc45beb246038d1b437fa2326f7be55bcbd",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "ff6bf0c75636182a3e6fa3e16154b068a6532b45b7e05c711a4dc9cb35115a7b",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3889,
+                "output_tokens": 544,
+                "total_tokens": 4433
+              }
+            ],
+            "token_total": 4433,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 11470,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 11470,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "545ce07e-49bb-4d00-9dd0-941e41228dc0",
+          "job_url": "https://fitcv.example/repair-experiment/part-time",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_edu_2_ae5026f21f7962c5",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_2_92108bad92f5940d"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Part-time"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "ff149d46-cf94-4ab0-bd82-47fc9d88e2b8",
+      "created_at": "2026-10-04T22:48:40.520515+00:00",
+      "started_at": "2026-10-04T22:48:40.756941+00:00",
+      "finished_at": "2026-10-04T22:49:02.021204+00:00",
+      "elapsed_wall_ms": 21264.263,
+      "generation_elapsed_ms": 13070.0,
+      "timing": {
+        "generation_elapsed_ms": 13070.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 12973.0,
+            "p95_ms": 12973.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          12973.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 13070.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 13070,
+          "token_total": 4586,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4586
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/contract",
+            "artifact_version_id": "8215f706-301e-4f35-9754-bf67c11eaaab",
+            "run_id": "ff149d46-cf94-4ab0-bd82-47fc9d88e2b8",
+            "run_job_id": "281c39ae-ee3d-5c69-b5d9-da1962026ded",
+            "generation_input_fingerprint": "6657044827050e2341213ea88a9dbcecba6fcbdd17d8d3937c8f22c446cc37c5",
+            "attempt_id": null,
+            "trace_id": "8717caf0-548f-47bd-a41d-e2d6a3c5b934",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "e92100420d334b00a3ed88d6b5ed34381bc46e9d1d75a86793d37d9c58efe013",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "a28a09f79d39afa390778306be6684770f714f7df02082bbdd8fb74d43d0b397",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3966,
+                "output_tokens": 620,
+                "total_tokens": 4586
+              }
+            ],
+            "token_total": 4586,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 13070,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 13070,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "8717caf0-548f-47bd-a41d-e2d6a3c5b934",
+          "job_url": "https://fitcv.example/repair-experiment/contract",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_1_5617187e8f177f56"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Contract"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "e9e1493b-2dae-42ad-bbf0-8b6a17a3a468",
+      "created_at": "2026-10-04T22:48:19.869471+00:00",
+      "started_at": "2026-10-04T22:48:20.103116+00:00",
+      "finished_at": "2026-10-04T22:48:39.112221+00:00",
+      "elapsed_wall_ms": 19009.105000000003,
+      "generation_elapsed_ms": 10984.0,
+      "timing": {
+        "generation_elapsed_ms": 10984.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 10917.0,
+            "p95_ms": 10917.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          10917.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 10984.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 10984,
+          "token_total": 4416,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4416
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/part-time",
+            "artifact_version_id": "60fe0bf9-4121-486f-9bab-873038dc3d1d",
+            "run_id": "e9e1493b-2dae-42ad-bbf0-8b6a17a3a468",
+            "run_job_id": "aec516c9-7176-599f-ae18-e6d9930bc45b",
+            "generation_input_fingerprint": "043239dc15cc8eeb5c5a5610c797076a6600448a924c69d170db44858dbd34c7",
+            "attempt_id": null,
+            "trace_id": "4f1a8d34-9828-48cc-9d8b-24fe65e4cc1e",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "28003a8def12cf2e98f1e04cbf7dafc7473576638b9c5701d3b0538326b5d609",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "677b1b4c58cf878232101f217363fc5625efacaf201ed4a02cb4b4c400a9c23e",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3889,
+                "output_tokens": 527,
+                "total_tokens": 4416
+              }
+            ],
+            "token_total": 4416,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 10984,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 10984,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "4f1a8d34-9828-48cc-9d8b-24fe65e4cc1e",
+          "job_url": "https://fitcv.example/repair-experiment/part-time",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_edu_2_ae5026f21f7962c5",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_2_92108bad92f5940d"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Part-time"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "d67274b7-c0e6-4538-a2d4-7499db3a18e2",
+      "created_at": "2026-10-04T22:47:57.838939+00:00",
+      "started_at": "2026-10-04T22:47:58.084084+00:00",
+      "finished_at": "2026-10-04T22:48:18.519747+00:00",
+      "elapsed_wall_ms": 20435.663,
+      "generation_elapsed_ms": 12378.0,
+      "timing": {
+        "generation_elapsed_ms": 12378.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 12323.0,
+            "p95_ms": 12323.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          12323.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 12378.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 12378,
+          "token_total": 4574,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4574
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/contract",
+            "artifact_version_id": "bf0c6e68-28bf-4001-967a-a589071bc2e3",
+            "run_id": "d67274b7-c0e6-4538-a2d4-7499db3a18e2",
+            "run_job_id": "6400cfd9-7638-5faa-8fa6-bcb01756b732",
+            "generation_input_fingerprint": "6657044827050e2341213ea88a9dbcecba6fcbdd17d8d3937c8f22c446cc37c5",
+            "attempt_id": null,
+            "trace_id": "f622abfb-eb4c-4c70-b231-d1a846217919",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "dc4964b3cba2e04605d45a75d33b2f538d4957bdeb115e5cf9298b600fda2b04",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "97c7e721719fcdbc95ad68b64627866cf22af4764c0ae2139297a598caad5dca",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3966,
+                "output_tokens": 608,
+                "total_tokens": 4574
+              }
+            ],
+            "token_total": 4574,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 12378,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 12378,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "f622abfb-eb4c-4c70-b231-d1a846217919",
+          "job_url": "https://fitcv.example/repair-experiment/contract",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_1_5617187e8f177f56"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Contract"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "9360a360-ab89-484b-b85d-0825231aa009",
+      "created_at": "2026-10-04T22:47:10.850206+00:00",
+      "started_at": "2026-10-04T22:47:11.098056+00:00",
+      "finished_at": "2026-10-04T22:47:56.427338+00:00",
+      "elapsed_wall_ms": 45329.282,
+      "generation_elapsed_ms": 12888.0,
+      "timing": {
+        "generation_elapsed_ms": 12888.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 12816.0,
+            "p95_ms": 12816.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          12816.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 12888.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 12888,
+          "token_total": 4501,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4501
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/part-time",
+            "artifact_version_id": "4b2ecc3e-8cf3-4c4d-95e3-bdab7eaed021",
+            "run_id": "9360a360-ab89-484b-b85d-0825231aa009",
+            "run_job_id": "82ef22f0-11dd-58b6-be7c-02e61718924f",
+            "generation_input_fingerprint": "043239dc15cc8eeb5c5a5610c797076a6600448a924c69d170db44858dbd34c7",
+            "attempt_id": null,
+            "trace_id": "87a26362-fe3e-446f-a1cf-fb2ae1f571f3",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "c1746172ce1d552eb5013990d0bc93bd86ffcd4b223dd7a685951094ed7e31c7",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "4334e4cc8b091fd7d67b66a9132f65f6553f6c2b5dba202a611e8442850d8faf",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3889,
+                "output_tokens": 612,
+                "total_tokens": 4501
+              }
+            ],
+            "token_total": 4501,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 12888,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 12888,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "87a26362-fe3e-446f-a1cf-fb2ae1f571f3",
+          "job_url": "https://fitcv.example/repair-experiment/part-time",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_edu_2_ae5026f21f7962c5",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_2_92108bad92f5940d"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Part-time"
+          ]
+        }
+      }
+    },
+    {
+      "run_id": "e0477f68-790f-4352-923a-1bf9b6dcfb5a",
+      "created_at": "2026-10-04T22:46:25.616611+00:00",
+      "started_at": "2026-10-04T22:46:25.846112+00:00",
+      "finished_at": "2026-10-04T22:47:09.472533+00:00",
+      "elapsed_wall_ms": 43626.421,
+      "generation_elapsed_ms": 13384.0,
+      "timing": {
+        "generation_elapsed_ms": 13384.0,
+        "generation_timing_coverage": {
+          "measured": 1,
+          "unavailable": 0
+        },
+        "stage_latency_ms": {
+          "queue_wait": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "analysis": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "retrieval": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "content_planning": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "provider_generation": {
+            "p50_ms": 13344.0,
+            "p95_ms": 13344.0,
+            "measured": 1,
+            "coverage": true
+          },
+          "validation": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "render": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "local_repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "repair": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          },
+          "persistence": {
+            "p50_ms": null,
+            "p95_ms": null,
+            "measured": 0,
+            "coverage": false
+          }
+        }
+      },
+      "stage_latency_samples_ms": {
+        "queue_wait": [],
+        "analysis": [],
+        "retrieval": [],
+        "content_planning": [],
+        "provider_generation": [
+          13344.0
+        ],
+        "validation": [],
+        "render": [],
+        "local_repair": [],
+        "repair": [],
+        "persistence": []
+      },
+      "yield": {
+        "attempted_generation_job_count": 1,
+        "first_pass_acceptance_count": 1,
+        "retry_success_count": 0,
+        "retry_failure_count": 0
+      },
+      "status_counts": {
+        "accepted": 1
+      },
+      "accepted_record_count": 1,
+      "projection": {
+        "schema_version": "accepted_cv_effort_v1",
+        "status": "measured",
+        "attribution_status": "complete",
+        "trace_normalization": {
+          "duplicate_count": 1,
+          "conflict_count": 0,
+          "conflict_trace_ids": [],
+          "source_candidate_count": 2,
+          "normalized_trace_count": 1
+        },
+        "denominator": {
+          "accepted_cv_count": 1
+        },
+        "unmatched_trace_count": 0,
+        "unattributed_accepted_artifact_count": 0,
+        "aggregate": {
+          "attempt_count": 1,
+          "provider_call_count": 1,
+          "regeneration_count": 0,
+          "validation_failure_event_count": 0,
+          "validation_failure_count": 0,
+          "render_retry_count": 0,
+          "review_question_count": 4,
+          "human_action_count": 0,
+          "reused_resolution_count": 0,
+          "generation_elapsed_ms": 13384.0,
+          "generation_timing_coverage": {
+            "measured": 1,
+            "unavailable": 0
+          },
+          "elapsed_ms": 13384,
+          "token_total": 4612,
+          "unmatched_trace_count": 0,
+          "unattributed_accepted_artifact_count": 0,
+          "page_fit_coverage": {
+            "verified": 1,
+            "eligible": 1
+          },
+          "page_fit_success": {
+            "verified_one_page": 1
+          },
+          "failure_category_counts": {},
+          "workload_status": "complete",
+          "workload": {
+            "attempted_generation_job_count": 1,
+            "terminal_validation_failed_job_count": 0,
+            "validation_failure_count": 0,
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "render_retry_count": 0,
+            "token_total": 4612
+          }
+        },
+        "records": [
+          {
+            "job_url": "https://fitcv.example/repair-experiment/contract",
+            "artifact_version_id": "5c3f649a-8eba-44ba-b754-e1b243e60f43",
+            "run_id": "e0477f68-790f-4352-923a-1bf9b6dcfb5a",
+            "run_job_id": "211aaaa9-de16-59e1-967d-bd83d58baa44",
+            "generation_input_fingerprint": "6657044827050e2341213ea88a9dbcecba6fcbdd17d8d3937c8f22c446cc37c5",
+            "attempt_id": null,
+            "trace_id": "33997a6f-247f-42f0-b834-573d3c8c9c28",
+            "final_artifact_contract_version": "fitcv.final_artifact.v1",
+            "trace_contract_version": "fitcv.trace.v1",
+            "page_fit_status": "pass",
+            "render_acceptance": {
+              "renderer_contract_version": "fitcv_native_render_v1",
+              "render_status": "pass",
+              "renderer_status": "rendered",
+              "page_count": 1,
+              "page_fit_status": "pass",
+              "artifact_checksum": "1d0c096d5ff14bbf1d61f78a87ff1d00cb78328660ec447ccdf3b081ce1b6075",
+              "template_sha256": "482d71000cae2d584b37f27e15234235b9a0c9883fddf0cb8b89051a509d3ea8",
+              "render_config_fingerprint": "90ec5c664d144c692d3bf11abbba5e390d336e062a0c943085f5e8aaae9a29dd",
+              "content_sha256": "96f197cc9dfd5509742cae1ab63581cce1c7cae3f6f04d82ba19242fdfd4c016",
+              "missing_tools": []
+            },
+            "acceptance_mode": "automatic",
+            "final_status": "accepted",
+            "attribution_status": "matched",
+            "attempt_count": 1,
+            "attempts": [
+              {
+                "attempt_index": 1,
+                "attempt_type": "initial_generation",
+                "provider_status": "accepted",
+                "failure_category": null
+              }
+            ],
+            "provider_call_count": 1,
+            "regeneration_count": 0,
+            "validation_failure_event_count": 0,
+            "validation_failure_count": 0,
+            "failure_category_counts": {},
+            "render_retry_count": 0,
+            "review_question_count": 4,
+            "human_action_count": 0,
+            "reused_resolution_count": 0,
+            "page_fit_verified": true,
+            "page_fit_source": "artifact_render_acceptance",
+            "render_page_count": 1,
+            "accepted_final_one_page": true,
+            "accepted_outcome": true,
+            "token_usage": [
+              {
+                "input_tokens": 3966,
+                "output_tokens": 646,
+                "total_tokens": 4612
+              }
+            ],
+            "token_total": 4612,
+            "token_usage_status": "available",
+            "generation_elapsed_ms": 13384,
+            "generation_elapsed_status": "measured",
+            "elapsed_ms": 13384,
+            "elapsed_status": "measured"
+          }
+        ]
+      },
+      "attempted_outcomes": [
+        {
+          "trace_id": "33997a6f-247f-42f0-b834-573d3c8c9c28",
+          "job_url": "https://fitcv.example/repair-experiment/contract",
+          "status": "accepted",
+          "attempt_count": 1,
+          "attempt_types": [
+            "initial_generation"
+          ],
+          "failure_category_counts": {},
+          "accepted_final_one_page": true
+        }
+      ],
+      "contract_coverage": {
+        "current": 1,
+        "historical": 0,
+        "total": 1,
+        "complete": true
+      },
+      "trace_normalization": {
+        "duplicate_count": 1,
+        "conflict_count": 0,
+        "conflict_trace_ids": [],
+        "source_candidate_count": 2,
+        "normalized_trace_count": 1
+      },
+      "analysis_input_identity": {
+        "fingerprints": [
+          "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+        ],
+        "selected_evidence_ids": [
+          "ev_edu_1_7a8fa192225bd60c",
+          "ev_edu_1_9b6da3e36a8aa91f",
+          "ev_exp_2_bb531418707fad22",
+          "ev_proj_1_5617187e8f177f56"
+        ],
+        "job_types": []
+      },
+      "coverage": {
+        "attribution": {
+          "matched": 1,
+          "unmatched": 0,
+          "total": 1
+        },
+        "cost": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "timing": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_reported": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_coverage": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "page_fit_success": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0,
+          "pass": 1,
+          "fail": 0,
+          "complete": true
+        },
+        "review_questions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "human_actions": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "resolution_reuse": {
+          "measured": 1,
+          "unavailable": 0,
+          "total": 1,
+          "rate": 1.0
+        },
+        "run_job_diversity": {
+          "run_count": 1,
+          "job_count": 1,
+          "job_type_count": 0,
+          "job_types": [
+            "Contract"
+          ]
+        }
+      }
+    }
+  ],
+  "attempted_outcomes": [
+    {
+      "trace_id": "05bf4d96-18f7-4424-a1bb-6bca6b28d5a2",
+      "job_url": "https://fitcv.example/repair-experiment/part-time",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "54b3adea-02b3-464e-b6de-ead861bb0302",
+      "job_url": "https://fitcv.example/repair-experiment/contract",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "7364a81b-031a-410d-b1ae-39cea1b63720",
+      "job_url": "https://fitcv.example/repair-experiment/part-time",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "c8d1992b-a277-4bc9-b9ff-c4d3580cefd4",
+      "job_url": "https://fitcv.example/repair-experiment/contract",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "545ce07e-49bb-4d00-9dd0-941e41228dc0",
+      "job_url": "https://fitcv.example/repair-experiment/part-time",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "8717caf0-548f-47bd-a41d-e2d6a3c5b934",
+      "job_url": "https://fitcv.example/repair-experiment/contract",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "4f1a8d34-9828-48cc-9d8b-24fe65e4cc1e",
+      "job_url": "https://fitcv.example/repair-experiment/part-time",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "f622abfb-eb4c-4c70-b231-d1a846217919",
+      "job_url": "https://fitcv.example/repair-experiment/contract",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "87a26362-fe3e-446f-a1cf-fb2ae1f571f3",
+      "job_url": "https://fitcv.example/repair-experiment/part-time",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    },
+    {
+      "trace_id": "33997a6f-247f-42f0-b834-573d3c8c9c28",
+      "job_url": "https://fitcv.example/repair-experiment/contract",
+      "status": "accepted",
+      "attempt_count": 1,
+      "attempt_types": [
+        "initial_generation"
+      ],
+      "failure_category_counts": {},
+      "accepted_final_one_page": true
+    }
+  ],
+  "analysis_input_identity": [
+    {
+      "fingerprints": [
+        "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_edu_2_ae5026f21f7962c5",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_2_92108bad92f5940d"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_1_5617187e8f177f56"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_edu_2_ae5026f21f7962c5",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_2_92108bad92f5940d"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_1_5617187e8f177f56"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_edu_2_ae5026f21f7962c5",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_2_92108bad92f5940d"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_1_5617187e8f177f56"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_edu_2_ae5026f21f7962c5",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_2_92108bad92f5940d"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_1_5617187e8f177f56"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "a981c40b5369714d2863bf1bba63a8e7be180b22937361fd2951f09100e61138"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_edu_2_ae5026f21f7962c5",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_2_92108bad92f5940d"
+      ],
+      "job_types": []
+    },
+    {
+      "fingerprints": [
+        "431c7a15650a941dc9c7d848d35c75a97e3440e949f187186fd004c642563035"
+      ],
+      "selected_evidence_ids": [
+        "ev_edu_1_7a8fa192225bd60c",
+        "ev_edu_1_9b6da3e36a8aa91f",
+        "ev_exp_2_bb531418707fad22",
+        "ev_proj_1_5617187e8f177f56"
+      ],
+      "job_types": []
+    }
+  ],
+  "input_manifest": {
+    "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-review-final-20261004\\incumbent-manifest.json",
+    "run_ids": [
+      "e0477f68-790f-4352-923a-1bf9b6dcfb5a",
+      "9360a360-ab89-484b-b85d-0825231aa009",
+      "d67274b7-c0e6-4538-a2d4-7499db3a18e2",
+      "e9e1493b-2dae-42ad-bbf0-8b6a17a3a468",
+      "ff149d46-cf94-4ab0-bd82-47fc9d88e2b8",
+      "d618387f-fc94-42a4-a86f-196f7998b90b",
+      "a83c1138-2cac-40f5-8255-0496f2239fc2",
+      "62743b07-e73a-4e7f-944e-4673c6c95349",
+      "2a325c72-a2f5-498a-97d3-baa05e27baaa",
+      "a9eabefd-64ba-4323-b88a-5a301f9ce46f"
+    ],
+    "repeat_count": 10,
+    "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
+    "declared_input_fingerprint": "63edd8166e90e9008f0575d46c2db2d726925f1011be2fd46718169e7194aae6",
+    "arm": "local_first",
+    "declared_model": "fixture-model",
+    "resolved_models": [
+      "cx/gpt-5.6-luna"
+    ]
+  },
+  "material_metrics_sha256": "03ae87ccfd9b40afac1945e4ac07823d1549954781ffa1ca12bdbf4cbf0cbb6e",
+  "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
+  "evidence_status": "canonical",
+  "sanitizer_version": "fitcv-evidence-sanitizer.v1",
+  "source_commit": "4730f9f776f58b1532e3906c87cf867beb976fa0",
+  "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
+  "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5"
+}

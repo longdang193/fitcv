@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from scripts.benchmark_cv_efficiency import (
     _markdown,
@@ -6,6 +7,8 @@ from scripts.benchmark_cv_efficiency import (
     build_baseline,
     material_report_digest,
     material_report_metrics,
+    _load_run_manifest,
+    _apply_manifest_measurement_gate,
 )
 from fitcv_cp.run_artifact_contracts import accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1
 
@@ -27,6 +30,27 @@ def accepted_cv_artifact_event_v1(**kwargs):
         },
     )
     return _accepted_cv_artifact_event_v1(**kwargs)
+
+
+def test_run_manifest_rejects_duplicate_run_ids(tmp_path: Path) -> None:
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps({"run_ids": ["run-1", "run-1"]}), encoding="utf-8")
+    try:
+        _load_run_manifest(path)
+    except ValueError as exc:
+        assert str(exc) == "run_manifest_duplicate_run_ids"
+    else:
+        raise AssertionError("duplicate manifest accepted")
+
+
+def test_manifest_measurement_gate_rejects_fewer_than_declared_repeats() -> None:
+    report = {"status": "complete", "selection": {"run_count": 4, "exclusions": {"succeeded": 6}}}
+
+    gated = _apply_manifest_measurement_gate(report, {"repeat_count": 10, "run_ids": [str(i) for i in range(10)]})
+
+    assert gated["status"] == "incomplete"
+    assert gated["selection"]["manifest_expected_run_count"] == 10
+    assert gated["selection"]["manifest_run_count_shortfall"] == 6
 
 
 def _run(run_id: str, payload: dict, status: str = "succeeded") -> dict:
@@ -430,11 +454,34 @@ def test_material_report_digest_changes_only_for_material_metrics() -> None:
     assert material_report_digest(first) != material_report_digest(changed)
 
 
+def test_material_report_digest_binds_experiment_input_manifest() -> None:
+    first = {"status": "complete", "input_manifest": {"arm": "local_first", "run_ids": ["one"]}}
+    changed = {"status": "complete", "input_manifest": {"arm": "provider_first", "run_ids": ["one"]}}
+
+    assert material_report_digest(first) != material_report_digest(changed)
+
+
+def test_material_report_digest_binds_analysis_input_identity() -> None:
+    first = {
+        "analysis_input_identity": [{"fingerprints": ["one"], "selected_evidence_ids": ["ev-1"]}],
+    }
+    changed = {
+        **first,
+        "analysis_input_identity": [{"fingerprints": ["two"], "selected_evidence_ids": ["ev-2"]}],
+    }
+
+    assert material_report_digest(first) != material_report_digest(changed)
+
+
 def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
     report = {
         "schema_version": "fitcv_runtime_efficiency_baseline_v3",
         "status": "complete",
         "environment": {"platform": "Windows"},
+        "input_manifest": {
+            "database_path": r"C:\Users\private\fitcv.sqlite3",
+            "arm": "local_first",
+        },
         "run": {
             "database_path": r"C:\Users\private\fitcv.sqlite3",
             "fixture_path": r"C:\Users\private\fixture.json",
@@ -442,6 +489,7 @@ def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
             "accepted": 1,
         },
     }
+    report["material_metrics_sha256"] = material_report_digest(report)
 
     evidence = build_canonical_evidence(
         report,
@@ -454,6 +502,7 @@ def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
     assert evidence["source_commit"] == "a" * 40
     assert evidence["run"] == {"accepted": 1}
     assert "environment" not in evidence
+    assert evidence["material_metrics_sha256"] == material_report_digest(evidence)
 
 
 def test_baseline_reports_unavailable_avoidance_fields_without_inventing_zeroes() -> None:

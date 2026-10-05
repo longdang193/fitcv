@@ -168,4 +168,33 @@ describe("job evaluation slice and api", () => {
     expect(markup).not.toContain("<span>skip_is_terminal_rejection</span>");
     expect(markup).not.toContain("<span>reranker_fit</span>");
   });
+
+  it.each([
+    ["review_required", "Review Required"],
+    ["pending", "Pending"],
+    ["cancelled", "Cancelled"],
+  ] as const)("keeps %s lifecycle distinct from rejection", (status, label) => {
+    const markup = renderToStaticMarkup(
+      React.createElement(FitEvidenceDrawer, {
+        job: {
+          run_job_id: `job-${status}`,
+          job_id: `job-${status}`,
+          title: "Role",
+          company: "Company",
+          current_stage_id: "cv-generation",
+          status,
+          result_bucket: null,
+          attributes: {},
+        } as RunJobItem,
+        open: true,
+        onClose: () => {},
+      })
+    );
+
+    expect(markup).toContain(label);
+    expect(markup).not.toContain("Rejected / Screened Out");
+    expect(markup).not.toContain("Candidate qualifications satisfy all required evaluation factors");
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('aria-live="polite"');
+  });
 });

@@ -50,6 +50,7 @@ export function getPendingCvReviewUncertainty(
   uncertainties: CvReviewUncertainty[]
 ): CvReviewUncertainty | undefined {
   return uncertainties.find((uncertainty) => {
+    if (uncertainty.is_actionable !== undefined) return uncertainty.is_actionable;
     const resolutionStatus = String(uncertainty.resolution_status || uncertainty.resolution_action || "").toLowerCase();
     return ![
       "resolved_with_answer",
@@ -190,6 +191,15 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       setCvReviewError("All review uncertainties are already resolved.");
       return;
     }
+    const allowedActions = pendingUncertainty.allowed_actions || cvReview.allowed_actions;
+    if (!pendingUncertainty.is_actionable && pendingUncertainty.is_actionable !== undefined) {
+      setCvReviewError("This uncertainty is already resolved.");
+      return;
+    }
+    if (!allowedActions.includes(action)) {
+      setCvReviewError("Action is not allowed for this uncertainty.");
+      return;
+    }
     if (action === "RESOLVE_WITH_ANSWER" && !cvReviewAnswer.trim()) {
       setCvReviewError("Answer required for this action.");
       return;
@@ -201,6 +211,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         review_item_id: cvReview.review_item_id,
         uncertainty_id: pendingUncertainty.uncertainty_id,
         resolution_key: pendingUncertainty.resolution_key || cvReview.resolution_key,
+        review_revision: cvReview.review_revision,
         action,
         answer_text: action === "RESOLVE_WITH_ANSWER" ? cvReviewAnswer.trim() : null,
       });
@@ -1652,11 +1663,20 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                             type="radio"
                             name="cv-review-uncertainty"
                             checked={uncertainty.uncertainty_id === cvReviewUncertaintyId}
-                            onChange={() => setCvReviewUncertaintyId(uncertainty.uncertainty_id || null)}
+                            disabled={uncertainty.is_actionable === false}
+                            onChange={() => {
+                              setCvReviewUncertaintyId(uncertainty.uncertainty_id || null);
+                              setCvReviewAnswer("");
+                            }}
                           />
                           <strong>{uncertainty.affected_fact || uncertainty.qualifier || "Unresolved requirement"}</strong>
                         </span>
                         <span>{uncertainty.question || uncertainty.message || "Question unavailable"}</span>
+                        {uncertainty.is_actionable === false && (
+                          <span role="status" style={{ color: "var(--muted)" }}>
+                            Resolved: {uncertainty.resolution_status || uncertainty.resolution_action || "read-only"}
+                          </span>
+                        )}
                         {uncertainty.recommended_disposition && (
                           <span style={{ color: "var(--muted)" }}>Recommended: {uncertainty.recommended_disposition}</span>
                         )}
@@ -1666,7 +1686,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 </ul>
               </section>
             )}
-            {cvReview.allowed_actions.includes("RESOLVE_WITH_ANSWER") && (
+            {((cvReview.uncertainties.find((item) => item.uncertainty_id === cvReviewUncertaintyId)?.allowed_actions)
+              || getPendingCvReviewUncertainty(cvReview.uncertainties)?.allowed_actions
+              || cvReview.allowed_actions).includes("RESOLVE_WITH_ANSWER") && (
               <Field
                 label="Answer"
                 value={cvReviewAnswer}
@@ -1676,7 +1698,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
               />
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {cvReview.allowed_actions.map((action) => (
+              {(cvReview.uncertainties.find((item) => item.uncertainty_id === cvReviewUncertaintyId)?.allowed_actions
+                || getPendingCvReviewUncertainty(cvReview.uncertainties)?.allowed_actions
+                || cvReview.allowed_actions).map((action) => (
                 <Button
                   key={action}
                   variant={action === "OVERRIDE_BLOCK" ? "danger" : "secondary"}

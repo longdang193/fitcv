@@ -622,6 +622,59 @@ def test_generation_writer_receives_only_content_plan_approved_evidence() -> Non
     assert result["cv_generation_trace"]["input_summary"]["approved_input_item_count"] == 1
 
 
+def test_generation_failure_preserves_repair_history_when_provider_retry_raises(monkeypatch) -> None:
+    analysis = _minimal_analysis_record()
+    structured_cv = _minimal_structured_cv()
+    structured_cv["sections"]["experience"] = []
+    invalid_validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+    }
+    monkeypatch.setattr(
+        generation_module,
+        "_backfill_required_sections_from_profile",
+        lambda **kwargs: (structured_cv, ["experience"]),
+    )
+    monkeypatch.setattr(
+        generation_module,
+        "_run_generation_validations",
+        lambda *args, **kwargs: invalid_validation,
+    )
+    with patch.object(
+        generation_module,
+        "_build_fallback_provider_generator",
+        return_value=lambda _repair_targets: None,
+    ), patch.object(
+        generation_module,
+        "_execute_generation_attempt",
+        side_effect=[
+            (structured_cv, "# CV", invalid_validation, _minimal_runtime_evidence()),
+            RuntimeError("provider unavailable"),
+        ],
+    ):
+        result = generation_module._generate_fresh_from_analysis(
+            analysis,
+            _minimal_profile(),
+            {**_minimal_config(), "cv_generation_repair_arm": "local_first"},
+        )
+
+    assert result["status"] == "generation_failed"
+    repair_summary = result["cv_generation_trace"]["repair_summary"]
+    assert repair_summary["local_repair_attempted"] is True
+    assert repair_summary["local_repair_failed"] is True
+    assert repair_summary["local_repair_succeeded"] is False
+    assert repair_summary["provider_retry_attempted"] is True
+    assert repair_summary["provider_retry_succeeded"] is False
+    savings = result["cv_generation_trace"]["efficiency_summary"]["savings"]
+    assert savings["local_repair_attempted"] is True
+    assert savings["local_repair_failed"] is True
+
+
 def test_merge_repaired_section_preserves_unrequested_sections() -> None:
     original = {"sections": {"summary": {"text": "keep"}, "experience": [{"role": "old"}]}}
 
@@ -861,6 +914,9 @@ def test_backfill_required_sections_from_profile_populates_missing_required_sect
     assert set(repaired_keys) == {"skills", "experience", "projects"}
     assert repaired["sections"]["skills"]["groups"][0]["items"]
     assert repaired["sections"]["experience"]
+    assert repaired["sections"]["experience"][0]["role"] == "DE"
+    assert repaired["sections"]["experience"][0]["company"] == "ACME"
+    assert repaired["sections"]["experience"][0]["bullets"] == []
     assert repaired["sections"]["projects"]
 
 

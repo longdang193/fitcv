@@ -1,0 +1,18 @@
+{
+  "schema_version": "fitcv.p1ab.repair_experiment_fixture.v1",
+  "fixture_id": "fitcv-p1ab-repair-cohort-v1",
+  "model": "fixture-model",
+  "runtime": "fitcv-runtime",
+  "job_types": ["Part-time", "Contract"],
+  "repeat_count": 10,
+  "required_evidence_categories": [
+    "grounding",
+    "final_artifact",
+    "page_fit",
+    "review_outcome"
+  ],
+  "arms": {
+    "INCUMBENT_ARM": "local_first",
+    "CANDIDATE_ARM": "provider_first"
+  }
+}

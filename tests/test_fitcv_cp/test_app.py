@@ -5600,6 +5600,11 @@ def test_run_history_http_routes_use_canonical_sqlite_rows() -> None:
 def test_healthz():
     resp = TestClient(_app()).get("/healthz")
     assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["status"] == "ok"
+    assert "local_mode" in payload
+    assert "inline_execution" in payload
+    assert "database_path" in payload
 
 def test_admin_orchestration_schema_diagnostics_endpoint() -> None:
     with patch(
@@ -6520,6 +6525,75 @@ def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     mock_append.assert_called_once()
 
 
+def test_admin_run_cv_review_resolution_delegates_to_canonical_action() -> None:
+    run = PipelineRun(
+        run_id="run-admin-resolution-delegation",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [{
+                "job_url": "https://example.com/job-1",
+                "status": "review_required",
+                "review_item_id": "review-1",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "1",
+                "source_profile_fingerprint": "profile-1",
+                "uncertainties": [{
+                    "uncertainty_id": "u-1",
+                    "resolution_key": "skill:sql",
+                    "requirement_instance_id": "skill:sql",
+                }],
+            }],
+        }),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {
+        "run_job_id": "job-1",
+        "source_url": "https://example.com/job-1",
+        "row_revision": 1,
+    }
+    store.list_cv_versions.return_value = []
+    store.reserve_idempotent_action.return_value = {
+        "action_id": "action-1",
+        "replayed": False,
+        "response": None,
+    }
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.list_run_job_ids_for_run", return_value=["job-1"]), \
+         patch("fitcv_cp.app.sqlite_store_module.get_run_job", return_value=store.get_run_job.return_value), \
+         patch("fitcv_cp.app.sqlite_store_module.get_pipeline_run_row_revision", return_value=1), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1", "created": True}) as save_resolution, \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue, \
+         patch("fitcv_cp.app.update_run_cv_generation_debug"), \
+         patch("fitcv_cp.app.append_event"):
+        response = TestClient(_app()).post(
+            "/admin/runs/run-admin-resolution-delegation/cv-review-action",
+            data={
+                "job_url": "https://example.com/job-1",
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+                "actor": "operator",
+            },
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    save_resolution.assert_called_once()
+    saved_row = save_resolution.call_args.args[0]
+    assert saved_row["run_id"] == "run-admin-resolution-delegation"
+    assert saved_row["expected_pipeline_row_revision"] == 1
+    enqueue.assert_called_once()
+
+
 def test_canonical_cv_review_resource_exposes_backend_owned_actions_and_evidence() -> None:
     run = PipelineRun(
         run_id="run-canonical-review-resource",
@@ -6551,7 +6625,11 @@ def test_canonical_cv_review_resource_exposes_backend_owned_actions_and_evidence
     )
     store = MagicMock()
     store.get_run.return_value = run
-    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.get_run_job.return_value = {
+        "run_job_id": "job-1",
+        "source_url": "https://example.com/job-1",
+        "row_revision": 1,
+    }
     store.list_cv_versions.return_value = [
         {
             "version_id": "cv-1",
@@ -6611,7 +6689,11 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     )
     store = MagicMock()
     store.get_run.return_value = run
-    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.get_run_job.return_value = {
+        "run_job_id": "job-1",
+        "source_url": "https://example.com/job-1",
+        "row_revision": 1,
+    }
     store.list_cv_versions.return_value = []
     store.reserve_idempotent_action.return_value = {
         "action_id": "action-1",
@@ -6619,7 +6701,7 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
         "response": None,
     }
     with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
-         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution", return_value={"resolution_id": "resolution-1"}) as save_resolution, \
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1"), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as update_debug:
         response = TestClient(_app()).post(
@@ -6636,6 +6718,10 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     assert response.status_code == 202
     assert response.json()["data"]["action_id"] == "requirement-resolution:resolution-1"
     assert response.json()["data"]["regeneration_job_id"] == "queue-1"
+    save_resolution.assert_called_once()
+    saved_row = save_resolution.call_args.args[0]
+    assert saved_row["run_job_id"] == "job-1"
+    assert saved_row["expected_row_revision"] == 1
     saved = json.loads(update_debug.call_args.args[1])
     assert saved["hitl_review_actions"][-1]["action"] == "RESOLVE_WITH_ANSWER"
     assert saved["hitl_review_actions"][-1]["idempotency_key"] == "idem-1"
@@ -6643,6 +6729,480 @@ def test_canonical_cv_review_action_queues_resolution_and_returns_refresh_contra
     store.complete_idempotent_action.assert_called_once_with(
         "action-1", response.json()["data"]
     )
+
+
+def test_canonical_cv_review_action_rejects_pipeline_revision_advanced_after_snapshot() -> None:
+    from fitcv_cp import app as app_module
+
+    run = PipelineRun(
+        run_id="run-canonical-review-pipeline-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-race",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-race",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-race",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+
+    original_queue_builder = app_module._build_hitl_review_queue
+    snapshot_calls = 0
+
+    def advance_pipeline_after_snapshot(current_run: PipelineRun) -> dict[str, Any]:
+        nonlocal snapshot_calls
+        queue = original_queue_builder(current_run)
+        if snapshot_calls == 0:
+            sqlite_store.update_run_cv_generation_debug(
+                run.run_id,
+                json.dumps({"concurrent_marker": "preserved"}),
+            )
+        snapshot_calls += 1
+        return queue
+
+    with patch("fitcv_cp.app._build_hitl_review_queue", side_effect=advance_pipeline_after_snapshot), \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "pipeline-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    assert sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-race",
+        candidate_profile_revision="1",
+        source_profile_fingerprint="profile-race",
+    ) == []
+    current_run = sqlite_store.get_run(run.run_id)
+    assert current_run is not None
+    assert json.loads(current_run.cv_generation_debug_json or "{}") == {"concurrent_marker": "preserved"}
+    enqueue.assert_not_called()
+
+
+def test_canonical_cv_review_recovery_rejects_stale_failed_enqueue_before_enqueue() -> None:
+    from fitcv_cp import app as app_module
+
+    run = PipelineRun(
+        run_id="run-canonical-review-recovery-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-recovery-race",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-recovery-race",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-recovery-race",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "resolution_id": "resolution-recovery-race",
+            "run_job_id": "job-1",
+            "run_id": run.run_id,
+            "expected_row_revision": 1,
+            "expected_pipeline_row_revision": 1,
+            "candidate_profile_id": "candidate-recovery-race",
+            "candidate_profile_revision": "1",
+            "source_profile_fingerprint": "profile-recovery-race",
+            "resolution_key": "skill:sql",
+            "requirement_instance_id": "skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "Used SQL for four years."},
+            "enqueue_intent": {
+                "run_id": run.run_id,
+                "job_url": "https://example.com/job-1",
+                "idempotency_key": "requirement-resolution:recovery-race",
+                "action_id": "requirement-resolution:recovery-race",
+            },
+        },
+        database_path=database_path,
+    )
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+    sqlite_store.update_requirement_resolution_enqueue_intent(
+        intent["intent_id"],
+        status="failed",
+        error_message="queue unavailable",
+        database_path=database_path,
+    )
+
+    original_save = app_module.sqlite_store_module.save_requirement_resolution
+
+    def advance_job_then_save(row: dict[str, Any]) -> dict[str, Any]:
+        with sqlite3.connect(database_path) as connection:
+            connection.execute(
+                "UPDATE run_jobs SET row_revision=row_revision+1 WHERE run_job_id=?",
+                ("job-1",),
+            )
+            connection.commit()
+        return original_save(row)
+
+    with patch.object(
+        app_module.sqlite_store_module,
+        "save_requirement_resolution",
+        side_effect=advance_job_then_save,
+    ), patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-2") as enqueue:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "recovery-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+    assert intent["status"] == "failed"
+    enqueue.assert_not_called()
+
+
+def test_canonical_cv_review_action_preserves_debug_update_after_resolution_cas() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-debug-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-debug-race",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-debug-race",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "requirement_instance_id": "skill:sql",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-debug-race",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+
+    def enqueue_and_advance(**_kwargs: object) -> str:
+        result = sqlite_store.update_run_cv_generation_debug(
+            run.run_id,
+            json.dumps({"concurrent_marker": "preserved"}),
+        )
+        assert result["persistence_status"] == "persisted"
+        return "queue-1"
+
+    with patch(
+        "fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id",
+        side_effect=enqueue_and_advance,
+    ) as enqueue:
+        response = TestClient(app, raise_server_exceptions=False).post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "debug-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    current_run = sqlite_store.get_run(run.run_id)
+    assert current_run is not None
+    assert json.loads(current_run.cv_generation_debug_json or "{}") == {"concurrent_marker": "preserved"}
+    saved = sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-debug-race",
+        candidate_profile_revision="1",
+        source_profile_fingerprint="profile-debug-race",
+    )
+    assert len(saved) == 1
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(saved[0]["resolution_id"])
+    assert intent is not None
+    assert intent["status"] == "enqueued"
+    assert intent["queue_job_id"] == "queue-1"
+    enqueue.assert_called_once()
+
+
+def test_canonical_cv_review_action_rejects_stale_revision_and_resolved_uncertainty() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-actionability",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "uncertainties": [
+                            {"uncertainty_id": "u-1", "resolution_key": "skill:sql"},
+                            {"uncertainty_id": "u-2", "resolution_key": "skill:python"},
+                        ],
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "review_item_id": "review-1",
+                        "job_url": "https://example.com/job-1",
+                        "uncertainty_id": "u-1",
+                        "resolution_key": "skill:sql",
+                        "action": "RESOLVE_WITH_ANSWER",
+                    }
+                ],
+            }
+        ),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {"run_job_id": "job-1", "source_url": "https://example.com/job-1"}
+    store.list_cv_versions.return_value = []
+    store.reserve_idempotent_action.return_value = {
+        "action_id": "action-1",
+        "replayed": False,
+        "response": None,
+    }
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution") as save_resolution, \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id") as enqueue:
+        client = TestClient(_app())
+        resource = client.get(
+            "/runs/run-canonical-review-actionability/jobs/job-1/cv-review"
+        ).json()["data"]
+        stale = client.post(
+            "/runs/run-canonical-review-actionability/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-stale"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-2",
+                "resolution_key": "skill:python",
+                "review_revision": "stale",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used Python for four years.",
+            },
+        )
+        resolved = client.post(
+            "/runs/run-canonical-review-actionability/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-resolved"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "review_revision": resource["review_revision"],
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "review_resource_stale"
+    assert resolved.status_code == 409
+    assert resolved.json()["error"]["code"] == "review_action_not_allowed"
+    save_resolution.assert_not_called()
+    enqueue.assert_not_called()
+
+
+def test_canonical_cv_review_action_rejects_changed_question_after_revision_snapshot() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-question-race",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "review_required",
+                        "review_item_id": "review-1",
+                        "candidate_profile_id": "candidate-1",
+                        "candidate_profile_revision": "1",
+                        "source_profile_fingerprint": "profile-1",
+                        "uncertainties": [
+                            {
+                                "uncertainty_id": "u-1",
+                                "resolution_key": "skill:sql",
+                                "question": "Which SQL systems have you used?",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+    )
+    store = MagicMock()
+    store.get_run.return_value = run
+    store.get_run_job.return_value = {
+        "run_job_id": "job-1",
+        "source_url": "https://example.com/job-1",
+    }
+    store.list_cv_versions.return_value = []
+    store.reserve_idempotent_action.return_value = {
+        "action_id": "action-1",
+        "replayed": False,
+        "response": None,
+    }
+    with patch("fitcv_cp.app._resolve_run_store", return_value=store), \
+         patch("fitcv_cp.app.sqlite_store_module.save_requirement_resolution") as save_resolution, \
+         patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
+        app = _app()
+        client = TestClient(app)
+        resource = client.get(
+            "/runs/run-canonical-review-question-race/jobs/job-1/cv-review"
+        ).json()["data"]
+        payload = json.loads(run.cv_generation_debug_json or "{}")
+        payload["debug_records"][0]["uncertainties"][0]["question"] = "Which Python systems have you used?"
+        run.cv_generation_debug_json = json.dumps(payload)
+        response = client.post(
+            "/runs/run-canonical-review-question-race/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-question-race"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "review_revision": resource["review_revision"],
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "review_resource_stale"
+    save_resolution.assert_not_called()
+    enqueue.assert_not_called()
 
 
 def test_canonical_cv_review_action_retries_after_enqueue_failure() -> None:
@@ -6715,6 +7275,103 @@ def test_canonical_cv_review_action_retries_after_enqueue_failure() -> None:
     assert first.status_code == 500
     assert second.status_code == 202
     store.fail_idempotent_action.assert_called_once_with("action-1")
+
+
+def test_canonical_cv_review_action_rejects_conflicting_failed_enqueue_recovery() -> None:
+    run = PipelineRun(
+        run_id="run-canonical-review-conflicting-recovery",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        cv_generation_debug_json=json.dumps({
+            "debug_records": [{
+                "job_url": "https://example.com/job-1",
+                "status": "review_required",
+                "review_item_id": "review-1",
+                "candidate_profile_id": "candidate-1",
+                "candidate_profile_revision": "1",
+                "source_profile_fingerprint": "profile-1",
+                "uncertainties": [{
+                    "uncertainty_id": "u-1",
+                    "resolution_key": "skill:sql",
+                    "requirement_instance_id": "skill:sql",
+                }],
+            }],
+        }),
+    )
+    app = _app()
+    sqlite_store.insert_run(run)
+    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as connection:
+        connection.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "profile-1",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        connection.commit()
+    with patch(
+        "fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id",
+        side_effect=[RuntimeError("queue unavailable"), "queue-1"],
+    ) as enqueue:
+        client = TestClient(app, raise_server_exceptions=False)
+        first = client.post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-failed"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+        second = client.post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-conflicting"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "CONFIRM_OMIT",
+            },
+        )
+        third = client.post(
+            f"/runs/{run.run_id}/jobs/job-1/cv-review/actions",
+            headers={"Idempotency-Key": "idem-retry"},
+            json={
+                "review_item_id": "review-1",
+                "uncertainty_id": "u-1",
+                "resolution_key": "skill:sql",
+                "action": "RESOLVE_WITH_ANSWER",
+                "answer_text": "Used SQL for four years.",
+            },
+        )
+
+    assert first.status_code == 500
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "requirement_resolution_conflict"
+    assert third.status_code == 202
+    assert enqueue.call_count == 2
+    saved = sqlite_store.list_requirement_resolutions(
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="1",
+        source_profile_fingerprint="profile-1",
+    )
+    assert saved[0]["resolution_action"] == "RESOLVE_WITH_ANSWER"
+    assert saved[0]["resolution_payload"] == {"answer_text": "Used SQL for four years."}
 
 
 def test_canonical_cv_review_action_reconciles_after_settlement_failure() -> None:
@@ -6959,6 +7616,12 @@ def test_canonical_cv_review_keeps_item_pending_until_all_uncertainties_resolve(
     assert payload["status"] == "review_required"
     assert payload["allowed_actions"] == ["RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"]
     assert payload["resolution_key"] == "skill:python"
+    uncertainties = {item["uncertainty_id"]: item for item in payload["uncertainties"]}
+    assert uncertainties["u-1"]["is_actionable"] is False
+    assert uncertainties["u-1"]["allowed_actions"] == []
+    assert uncertainties["u-2"]["is_actionable"] is True
+    assert uncertainties["u-2"]["allowed_actions"] == payload["allowed_actions"]
+    assert payload["review_revision"]
 
 
 @pytest.mark.parametrize(
@@ -7009,6 +7672,25 @@ def test_admin_run_cv_review_resolution_actions_store_identity_and_enqueue(
         ),
     )
     app = _app()
+    sqlite_store.insert_run(run)
+    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+        conn.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, source_url, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "job-1",
+                run.run_id,
+                0,
+                "projection-1",
+                json.dumps({"job_url": "https://example.com/job-1"}),
+                "https://example.com/job-1",
+                "Senior Data Engineer",
+                "[]",
+            ),
+        )
+        conn.commit()
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as update_debug, \
          patch("fitcv_cp.app.enqueue_cv_regenerate_once_with_job_id", return_value="queue-1") as enqueue:
@@ -7025,7 +7707,7 @@ def test_admin_run_cv_review_resolution_actions_store_identity_and_enqueue(
             follow_redirects=False,
         )
 
-    assert response.status_code == 303
+    assert response.status_code == 303, response.text
     enqueue.assert_called_once()
     saved = sqlite_store.list_requirement_resolutions(
         candidate_profile_id="candidate-1",

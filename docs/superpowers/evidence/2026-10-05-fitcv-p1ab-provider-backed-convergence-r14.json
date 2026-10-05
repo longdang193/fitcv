@@ -1,0 +1,75 @@
+{
+  "evidence_schema_version": "fitcv.p1_ab.provider_backed_convergence.v2",
+  "evidence_status": "complete",
+  "source_commit": "d35a9368f02d297ab2f58df31c68bf1cab60d005",
+  "repeat_count": 10,
+  "arms": {
+    "incumbent": "local_first",
+    "candidate": "provider_first"
+  },
+  "job_types": [
+    "Contract",
+    "Part-time"
+  ],
+  "fixture_sha256_equal": true,
+  "declared_input_fingerprint_equal": true,
+  "declared_input_fingerprint": "5cbcea743459e062d5972acce035b3774f03b4bb1aa3f64c735426e76484e46c",
+  "resolved_models_equal": true,
+  "provider_backed_equal": true,
+  "analysis_input_identity_equal": true,
+  "cohort_setup_equal": true,
+  "cohort_setup": {
+    "freeze_upstream_from_repeat": 0,
+    "seed_database_sha256": "2978935514af2be3f6e247e8ac146e3622b251f96c898cd19bed32ea78282f51",
+    "upstream_reuse_policy": "seeded_and_frozen"
+  },
+  "incumbent": {
+    "accepted_cv_count": 5,
+    "first_pass_acceptance_rate": 0.5,
+    "provider_call_count": 15,
+    "token_total": 68394,
+    "regeneration_count": 5,
+    "validation_failure_count": 5,
+    "generation_elapsed_ms": 194388.0,
+    "end_to_end_wall_ms": 262235.118,
+    "page_fit": {"count": 5, "pass": 5, "fail": 0, "total": 5, "rate": 1.0}
+  },
+  "candidate": {
+    "accepted_cv_count": 5,
+    "first_pass_acceptance_rate": 0.5,
+    "provider_call_count": 15,
+    "token_total": 68418,
+    "regeneration_count": 5,
+    "validation_failure_count": 5,
+    "generation_elapsed_ms": 188270.0,
+    "end_to_end_wall_ms": 257714.15899999999,
+    "page_fit": {"count": 5, "pass": 5, "fail": 0, "total": 5, "rate": 1.0}
+  },
+  "verification": {
+    "incumbent_acceptance": ".tmp/task7-current-20261005/local_first_seeded/eligibility.json",
+    "candidate_acceptance": ".tmp/task7-current-20261005/provider_first_seeded_common/eligibility.json",
+    "status": "PASSED",
+    "experiment_failures": []
+  },
+  "artifacts": {
+    "incumbent_manifest": ".tmp/task7-current-20261005/local_first_seeded/manifest.json",
+    "candidate_manifest": ".tmp/task7-current-20261005/provider_first_seeded_common/manifest.json",
+    "incumbent_scorecard": ".tmp/task7-current-20261005/local_first_seeded/scorecard.json",
+    "candidate_scorecard": ".tmp/task7-current-20261005/provider_first_seeded_common/scorecard.json",
+    "incumbent_manifest_sha256": "9958dcc2993bd372dba0c0f84e79afed7ee52c5eceb747bcd022b023a2670aa1",
+    "candidate_manifest_sha256": "9053de7c82ab36672305e2d84c333927c394b78312949658f7017086102f0f91",
+    "incumbent_scorecard_sha256": "700472da368f8ec73ff342e148a2f0029c3971499b1c54bc69d0cd80f3caa83a",
+    "candidate_scorecard_sha256": "68c55b5cf43ba2d5218addb4fe3e7ac8be4301253181612846d5a4147df50f34"
+  },
+  "root_cause": {
+    "failure": "Cold isolated arms selected different analysis evidence, so peer identity gate rejected the comparison.",
+    "confirmation": "Seeded and common-seed reruns matched analysis_input_identity; common-seed runs also matched cohort_setup.",
+    "correction": "Run both arms from one common seeded database with frozen upstream reuse; keep separate output databases and manifests."
+  },
+  "promotion": {
+    "status": "rejected",
+    "decision": "candidate_not_better",
+    "production_default": "local_first",
+    "notes": "Current-head paired cohorts pass correctness and identity gates. provider_first ties accepted CVs, calls, first-pass rate, regenerations, validation failures, and page fit, lowers generation and wall time, but uses 24 more tokens. Total-workload improvement gate is not met."
+  }
+}

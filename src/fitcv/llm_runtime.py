@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from collections import OrderedDict
 from contextlib import nullcontext
 import json
+import os
 import threading
 import time
 from typing import Any, Callable, Literal, TypeAlias
@@ -367,6 +368,20 @@ def _wait_for_provider_request_start(route: LlmRouting) -> None:
 LlmAdapter: TypeAlias = Callable[[LlmTaskRequest, LlmRouting, str], LlmAdapterResponse]
 LlmParser: TypeAlias = Callable[[LlmAdapterResponse], Any]
 LlmValidator: TypeAlias = Callable[[Any], LlmValidationResult]
+_TEST_ONLY_LLM_ADAPTER: LlmAdapter | None = None
+_TEST_ONLY_CREDENTIAL_RESOLVER: Callable[[LlmRouting], str] | None = None
+
+
+def install_test_llm_runtime(
+    *,
+    adapter: LlmAdapter,
+    credential_resolver: Callable[[LlmRouting], str],
+) -> None:
+    if str(os.environ.get("FITCV_REVIEW_E2E") or "").strip() != "1":
+        raise RuntimeError("test_llm_runtime_disabled")
+    global _TEST_ONLY_LLM_ADAPTER, _TEST_ONLY_CREDENTIAL_RESOLVER
+    _TEST_ONLY_LLM_ADAPTER = adapter
+    _TEST_ONLY_CREDENTIAL_RESOLVER = credential_resolver
 
 
 def _validate_request(request: LlmTaskRequest) -> None:
@@ -459,7 +474,8 @@ def execute_llm_task(
     try:
         if route is None:
             route = resolve_llm_routing(request.routing_part)
-        api_key = resolve_llm_api_key(route)
+        credential_resolver = _TEST_ONLY_CREDENTIAL_RESOLVER if str(os.environ.get("FITCV_REVIEW_E2E") or "").strip() == "1" else None
+        api_key = credential_resolver(route) if credential_resolver is not None else resolve_llm_api_key(route)
         validate_llm_routing_ready(route, api_key=api_key)
     except Exception as exc:
         message = str(exc)
@@ -472,12 +488,13 @@ def execute_llm_task(
             started=started,
         )
 
-    selected_adapter = adapter or (
+    test_runtime_enabled = str(os.environ.get("FITCV_REVIEW_E2E") or "").strip() == "1"
+    selected_adapter = adapter or (_TEST_ONLY_LLM_ADAPTER if test_runtime_enabled else None) or (
         _anthropic_messages_adapter
         if route.wire_api == "messages"
         else _openai_compatible_adapter
     )
-    default_adapter = adapter is None
+    default_adapter = adapter is None and not (test_runtime_enabled and _TEST_ONLY_LLM_ADAPTER is not None)
     adapter_name = (
         "anthropic_messages"
         if default_adapter and route.wire_api == "messages"

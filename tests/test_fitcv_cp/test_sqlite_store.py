@@ -125,6 +125,298 @@ def test_requirement_resolution_is_profile_and_source_scoped(tmp_path: Path) -> 
     assert [item["resolution_id"] for item in listed] == [saved["resolution_id"]]
 
 
+def test_requirement_resolution_persists_enqueue_intent_in_same_transaction(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution-outbox.sqlite3"
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "candidate_profile_id": "candidate-outbox",
+            "candidate_profile_revision": "1",
+            "source_profile_fingerprint": "source-outbox",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "yes"},
+            "actor": "admin",
+            "enqueue_intent": {
+                "run_id": "run-outbox",
+                "job_url": "https://jobs.example.test/outbox",
+                "actor": "admin",
+                "note": "review",
+                "idempotency_key": "requirement-resolution:outbox",
+                "action_id": "requirement-resolution:outbox",
+            },
+        },
+        database_path=database_path,
+    )
+
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+    assert intent["status"] == "pending"
+    assert intent["run_id"] == "run-outbox"
+
+    sqlite_store.update_requirement_resolution_enqueue_intent(
+        intent["intent_id"], status="failed", error_message="queue unavailable", database_path=database_path
+    )
+    assert sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )["error_message"] == "queue unavailable"
+
+
+def test_requirement_resolution_enqueue_claim_is_single_owner(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution-claim.sqlite3"
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "candidate_profile_id": "candidate-claim",
+            "candidate_profile_revision": "1",
+            "source_profile_fingerprint": "source-claim",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "yes"},
+            "enqueue_intent": {
+                "run_id": "run-claim",
+                "job_url": "https://jobs.example.test/claim",
+                "actor": "admin",
+                "idempotency_key": "requirement-resolution:claim",
+                "action_id": "requirement-resolution:claim",
+            },
+        },
+        database_path=database_path,
+    )
+    intent = sqlite_store.get_requirement_resolution_enqueue_intent(
+        saved["resolution_id"], database_path=database_path
+    )
+    assert intent is not None
+
+    def claim(token: str) -> dict[str, Any]:
+        return sqlite_store.claim_requirement_resolution_enqueue_intent(
+            intent["intent_id"], claim_token=token, database_path=database_path
+        ) or {}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        claims = list(pool.map(claim, ["claim-a", "claim-b"]))
+
+    assert sum(bool(item.get("claimed")) for item in claims) == 1
+    owner = next(item for item in claims if item.get("claimed"))
+    assert sqlite_store.settle_requirement_resolution_enqueue_intent(
+        intent["intent_id"],
+        claim_token=owner["claim_token"],
+        status="enqueued",
+        queue_job_id="queue-claim",
+        database_path=database_path,
+    ) is True
+    sqlite_store.update_requirement_resolution_enqueue_intent(
+        intent["intent_id"], status="failed", error_message="queue unavailable", database_path=database_path
+    )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        retry_claims = list(pool.map(claim, ["retry-a", "retry-b"]))
+    assert sum(bool(item.get("claimed")) for item in retry_claims) == 1
+
+
+def test_requirement_resolution_competing_writes_are_first_writer_wins(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution-race.sqlite3"
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+    barrier = threading.Barrier(2)
+
+    def save(answer: str) -> dict[str, Any]:
+        barrier.wait()
+        try:
+            return sqlite_store.save_requirement_resolution(
+                {
+                    "candidate_profile_id": "candidate-race",
+                    "candidate_profile_revision": "7",
+                    "source_profile_fingerprint": "source-race",
+                    "resolution_key": "required_skill:sql",
+                    "requirement_instance_id": "required_skill:sql",
+                    "resolution_action": "RESOLVE_WITH_ANSWER",
+                    "resolution_payload": {"answer_text": answer},
+                    "actor": answer,
+                },
+                database_path=database_path,
+            )
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(save, ["winner-a", "winner-b"]))
+
+    stored = sqlite_store.get_requirement_resolution(
+        candidate_profile_id="candidate-race",
+        candidate_profile_revision="7",
+        source_profile_fingerprint="source-race",
+        resolution_key="required_skill:sql",
+        requirement_instance_id="required_skill:sql",
+        database_path=database_path,
+    )
+
+    assert stored is not None
+    assert stored["resolution_payload"]["answer_text"] in {"winner-a", "winner-b"}
+    assert sum(bool(result.get("created")) for result in results) == 1
+    assert sum(result.get("error") == "requirement_resolution_conflict" for result in results) == 1
+    assert all(
+        result.get("resolution_id") == stored["resolution_id"]
+        for result in results
+        if "resolution_id" in result
+    )
+    with pytest.raises(ValueError, match="requirement_resolution_conflict"):
+        sqlite_store.save_requirement_resolution(
+            {
+                "candidate_profile_id": "candidate-race",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "source-race",
+                "resolution_key": "required_skill:sql",
+                "requirement_instance_id": "required_skill:sql",
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {"answer_text": "different-answer"},
+                "actor": "late-writer",
+            },
+            database_path=database_path,
+        )
+
+
+def test_requirement_resolution_checks_run_job_revision_inside_write_transaction(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution-resource-race.sqlite3"
+    run = _make_run("run-resolution-resource-race")
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+        sqlite_store._write_normalized_run(conn, run, insert=True)
+        conn.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "run-job-resolution-resource-race",
+                run.run_id,
+                0,
+                "source-race",
+                json.dumps({"job_url": "https://jobs.example.test/race"}),
+                "Race job",
+                "[]",
+            ),
+        )
+        conn.commit()
+
+    saved = sqlite_store.save_requirement_resolution(
+        {
+            "run_job_id": "run-job-resolution-resource-race",
+            "expected_row_revision": 1,
+            "candidate_profile_id": "candidate-race",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "source-race",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "winner"},
+            "actor": "admin",
+        },
+        database_path=database_path,
+    )
+
+    assert saved["created"] is True
+    duplicate = sqlite_store.save_requirement_resolution(
+        {
+            "run_job_id": "run-job-resolution-resource-race",
+            "expected_row_revision": 1,
+            "candidate_profile_id": "candidate-race",
+            "candidate_profile_revision": "7",
+            "source_profile_fingerprint": "source-race",
+            "resolution_key": "required_skill:sql",
+            "requirement_instance_id": "required_skill:sql",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "winner"},
+            "actor": "retry-admin",
+        },
+        database_path=database_path,
+    )
+    assert duplicate["created"] is False
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute(
+            "SELECT row_revision FROM run_jobs WHERE run_job_id=?",
+            ("run-job-resolution-resource-race",),
+        ).fetchone()[0] == 2
+    with pytest.raises(ValueError, match="requirement_resolution_conflict"):
+        sqlite_store.save_requirement_resolution(
+            {
+                "run_job_id": "run-job-resolution-resource-race",
+                "expected_row_revision": 1,
+                "candidate_profile_id": "candidate-race",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "source-race",
+                "resolution_key": "required_skill:sql",
+                "requirement_instance_id": "required_skill:sql",
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {"answer_text": "loser"},
+                "actor": "other-admin",
+            },
+            database_path=database_path,
+        )
+
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute(
+            "SELECT row_revision FROM run_jobs WHERE run_job_id=?",
+            ("run-job-resolution-resource-race",),
+        ).fetchone()[0] == 2
+
+
+def test_requirement_resolution_rejects_stale_pipeline_revision(tmp_path: Path) -> None:
+    database_path = tmp_path / "resolution-pipeline-race.sqlite3"
+    run = _make_run("run-resolution-pipeline-race")
+    with sqlite3.connect(database_path) as conn:
+        sqlite_store._configure_sqlite_connection(conn)
+        sqlite_store._ensure_control_plane_schema(conn)
+        sqlite_store._write_normalized_run(conn, run, insert=True)
+        conn.execute(
+            """INSERT INTO run_jobs (
+                run_job_id, run_id, source_index, source_fingerprint,
+                source_snapshot_json, title, skills_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "run-job-resolution-pipeline-race",
+                run.run_id,
+                0,
+                "source-pipeline-race",
+                json.dumps({"job_url": "https://jobs.example.test/pipeline-race"}),
+                "Pipeline race job",
+                "[]",
+            ),
+        )
+        conn.execute(
+            "UPDATE pipeline_runs SET row_revision=row_revision+1 WHERE run_id=?",
+            (run.run_id,),
+        )
+        conn.commit()
+
+    with pytest.raises(ValueError, match="review_resource_stale"):
+        sqlite_store.save_requirement_resolution(
+            {
+                "run_job_id": "run-job-resolution-pipeline-race",
+                "expected_row_revision": 1,
+                "expected_pipeline_row_revision": 1,
+                "candidate_profile_id": "candidate-pipeline-race",
+                "candidate_profile_revision": "7",
+                "source_profile_fingerprint": "source-pipeline-race",
+                "resolution_key": "required_skill:sql",
+                "requirement_instance_id": "required_skill:sql",
+                "resolution_action": "RESOLVE_WITH_ANSWER",
+                "resolution_payload": {"answer_text": "stale"},
+                "actor": "admin",
+            },
+            database_path=database_path,
+        )
+
+
 def test_run_exists_checks_identity_without_reconstructing_pipeline_run() -> None:
     run = _make_run("run-exists")
     sqlite_store.insert_run(run)

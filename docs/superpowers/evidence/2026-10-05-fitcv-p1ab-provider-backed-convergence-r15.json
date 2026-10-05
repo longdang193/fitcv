@@ -1,0 +1,87 @@
+{
+  "evidence_schema_version": "fitcv.p1_ab.provider_backed_convergence.v2",
+  "evidence_status": "complete",
+  "source_commit": "71cb62ac0928eff89c27515d5cd2ec9c00089754",
+  "repeat_count": 10,
+  "arms": {
+    "incumbent": "local_first",
+    "candidate": "provider_first"
+  },
+  "job_types": [
+    "Contract",
+    "Part-time"
+  ],
+  "fixture_sha256_equal": true,
+  "declared_input_fingerprint_equal": true,
+  "declared_input_fingerprint": "9eb8e8d3afd839f2d18b105185901b6918f09b468fdb1c879e13814d271889d0",
+  "resolved_models_equal": true,
+  "provider_backed_equal": true,
+  "analysis_input_identity_equal": true,
+  "cohort_setup_equal": true,
+  "cohort_setup": {
+    "freeze_upstream_from_repeat": 0,
+    "seed_database_sha256": "2978935514af2be3f6e247e8ac146e3622b251f96c898cd19bed32ea78282f51",
+    "upstream_reuse_policy": "seeded_and_frozen"
+  },
+  "local_first": {
+    "accepted_cv_count": 5,
+    "first_pass_acceptance_rate": 0.5,
+    "provider_call_count": 15,
+    "token_total": 68675,
+    "regeneration_count": 5,
+    "validation_failure_count": 5,
+    "generation_elapsed_ms": 341529.0,
+    "end_to_end_wall_ms": 406194.901,
+    "page_fit": {
+      "count": 5,
+      "pass": 5,
+      "fail": 0,
+      "total": 5,
+      "rate": 1.0
+    }
+  },
+  "provider_first": {
+    "accepted_cv_count": 5,
+    "first_pass_acceptance_rate": 0.5,
+    "provider_call_count": 15,
+    "token_total": 68935,
+    "regeneration_count": 5,
+    "validation_failure_count": 5,
+    "generation_elapsed_ms": 359163.0,
+    "end_to_end_wall_ms": 420625.831,
+    "page_fit": {
+      "count": 5,
+      "pass": 5,
+      "fail": 0,
+      "total": 5,
+      "rate": 1.0
+    }
+  },
+  "verification": {
+    "incumbent_acceptance": ".tmp/task7-current-20261005-head-71cb62ac/local_first/eligibility.json",
+    "candidate_acceptance": ".tmp/task7-current-20261005-head-71cb62ac/provider_first/eligibility.json",
+    "status": "PASSED",
+    "experiment_failures": []
+  },
+  "artifacts": {
+    "incumbent_manifest": ".tmp/task7-current-20261005-head-71cb62ac/local_first/manifest.json",
+    "candidate_manifest": ".tmp/task7-current-20261005-head-71cb62ac/provider_first/manifest.json",
+    "incumbent_scorecard": ".tmp/task7-current-20261005-head-71cb62ac/local_first/scorecard.json",
+    "candidate_scorecard": ".tmp/task7-current-20261005-head-71cb62ac/provider_first/scorecard.json",
+    "incumbent_manifest_sha256": "fb26f62243294eadc24f57005b6b7303a20ef2409ebe094a4d9b80beb040aee5",
+    "candidate_manifest_sha256": "2f9b73c91584d32df48003dd431fdca2328af9c30c264d636f10f437bcac5fe9",
+    "incumbent_scorecard_sha256": "09345127a181c620ce0eee8ffd5b6518d0a1994ff5de58ffd4ac6d909d453989",
+    "candidate_scorecard_sha256": "b5487d7509fd327024fcbfda81cc38abea04e06bf8e6bf9b56b742d4edd7c956"
+  },
+  "promotion": {
+    "status": "rejected",
+    "decision": "candidate_not_better",
+    "production_default": "local_first",
+    "notes": "Current-head paired cohorts pass correctness, identity, and provider-backed gates. provider_first ties accepted CVs, calls, first-pass rate, regenerations, validation failures, and page fit; generation and wall time differ but token total changes from 68675 to 68935. Total-workload improvement gate is not met."
+  },
+  "root_cause": {
+    "failure": "Review fixes changed declared executable inputs and invalidated R14 freshness; canonical baseline digest also required rebinding to analysis_input_identity.",
+    "confirmation": "Fresh committed-head cohorts used one common seeded database, matched analysis_input_identity and cohort_setup, and both experiment-bound verifiers passed.",
+    "correction": "Commit review fixes first, rerun both provider-backed arms from common frozen upstream state, bind scorecards to current manifests and source commit, and retain local_first when total-workload improvement is not proven."
+  }
+}

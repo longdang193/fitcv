@@ -52,6 +52,7 @@ from fitcv.contracts import (
     ROLE_ALIGNMENT_CHANNEL,
     STRUCTURED_CV_SCHEMA_VERSION,
 )
+from fitcv.cv_presets import get_section_order
 from fitcv.prompts import render_prompt
 from fitcv.section_policy import (
     certification_evidence_lines,
@@ -142,7 +143,11 @@ def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
         return []
     composition = (config.get("cv") or {}).get("composition") or {}
     enabled_sections: list[str] = []
-    for section_key, section_cfg in composition.items():
+    preset = str((config.get("cv") or {}).get("preset") or "europass").strip().lower()
+    ordered_keys = list(get_section_order(preset))
+    ordered_keys.extend(str(key) for key in composition if str(key) not in ordered_keys)
+    for section_key in ordered_keys:
+        section_cfg = composition.get(section_key)
         if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
             enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
     return enabled_sections

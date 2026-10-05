@@ -16,7 +16,20 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
 }) => {
   if (!job) return null;
 
-  const isPassed = job.result_bucket === "passed" || job.status === "passed";
+  const normalizedStatus = String(job.status || "pending").toLowerCase();
+  const isPassed = job.result_bucket === "passed" || normalizedStatus === "passed";
+  const isRejected = job.result_bucket === "rejected" || normalizedStatus === "rejected";
+  const lifecycle = (() => {
+    if (isPassed) return { variant: "success" as const, label: "Passed / Suitable" };
+    if (isRejected) return { variant: "danger" as const, label: "Rejected / Screened Out" };
+    if (normalizedStatus === "review_required") return { variant: "warn" as const, label: "Review Required" };
+    if (normalizedStatus === "cancelled") return { variant: "neutral" as const, label: "Cancelled" };
+    if (normalizedStatus === "skipped") return { variant: "neutral" as const, label: "Skipped" };
+    if (normalizedStatus === "failed" || normalizedStatus === "blocked") {
+      return { variant: "danger" as const, label: normalizedStatus === "failed" ? "Failed" : "Blocked" };
+    }
+    return { variant: "neutral" as const, label: "Pending" };
+  })();
   const rawAttributes = (job.attributes || {}) as Record<string, any>;
   const reasons: string[] = Array.isArray(rawAttributes.reasons)
     ? rawAttributes.reasons
@@ -63,9 +76,12 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
             <strong>Stage: {formatFactorLabel(job.current_stage_id) || "Screening"}</strong>
           </div>
           <StatusBadge
-            status={isPassed ? "success" : "danger"}
-            label={isPassed ? "Passed / Suitable" : "Rejected / Screened Out"}
+            status={lifecycle.variant}
+            label={lifecycle.label}
           />
+        </div>
+        <div role="status" aria-live="polite" aria-atomic="true" style={{ color: "var(--muted)", fontSize: 13 }}>
+          Pipeline status: {lifecycle.label}.
         </div>
 
         {/* Reasons block */}
@@ -83,7 +99,9 @@ export const FitEvidenceDrawer: React.FC<FitEvidenceDrawerProps> = ({
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               {isPassed
                 ? "Candidate qualifications satisfy all required evaluation factors for this stage."
-                : "No explicit disqualification reason recorded."}
+                : isRejected
+                ? "No explicit disqualification reason recorded."
+                : "No qualification conclusion recorded for this lifecycle state."}
             </p>
           )}
         </div>
