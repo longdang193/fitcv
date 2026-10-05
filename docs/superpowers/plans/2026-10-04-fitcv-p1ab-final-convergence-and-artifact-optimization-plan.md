@@ -155,7 +155,7 @@ return `implementation-ready` before Task 7 or Task 8 closes.
 | Task 4 | `completed` | current | `codex` | Task 3 | drawer lifecycle matrix, accessibility assertions, and frontend proof | typecheck passed; frontend: 337 passed; production build passed with existing chunk warning |
 | Task 5 | `completed` | current | `codex` | Task 4 | deterministic browser flow through owned bootstrap/server/DB | `powershell -ExecutionPolicy Bypass -File scripts/run_fitcv_review_e2e.ps1`: 1 passed; build passed; owned identity checks passed |
 | Task 6 | `completed` | current | `codex` | Task 5 | telemetry schema tests and generated scorecard | `62 passed`; `docs/superpowers/evidence/2026-10-04-fitcv-current-scorecard.{json,md}`; explicit manifest-bound input; unavailable metrics preserved |
-| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r12.md`; paired seeded current-source cohorts; candidate rejected on equal correctness and higher cost/latency |
+| Task 7 | `completed` | current | `codex` | Task 6 | identical-workload incumbent/candidate benchmark | `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r13.md`; paired seeded current-source cohorts; candidate rejected on higher token cost |
 | Task 8 | `active` | current | `codex` | Task 7 | full verification and plan reconciliation | backend/frontend/owned-browser checks passed; candidate promotion rejected; fresh CI and final review remain |
 
 ## Activation Gate
@@ -792,13 +792,15 @@ The result was positive for the candidate, but it is not the final optimization
 decision because the later R5 rerun used the completed declared-input inventory.
 Evidence: `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r2.md`.
 
-**Final current result (2026-10-05, R12):** comparable seeded cohorts completed
-after fixing seeded idempotency-key replay. Both arms accepted 10/10, used 15
-provider calls, and had 5 regenerations. `provider_first` used 70,438 versus
-70,318 tokens, 209,026 versus 169,944 generation ms, and 295,326.243 versus
-252,497.206 end-to-end wall ms. Promotion is rejected; `local_first` remains
-default. Evidence:
-`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r12.md`.
+**Final current result (2026-10-05, R13):** comparable seeded cohorts completed
+on reviewed head `2564e20`. Both arms accepted 10/10, used 15 provider calls,
+and had 5 regenerations. `provider_first` used 70,367 versus 70,282 tokens,
+194,170 versus 216,303 generation ms, and 285,228.900 versus 308,266.482
+end-to-end wall ms. Promotion is rejected because token cost increased;
+`local_first` remains default. Evidence:
+`docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence-r13.md`.
+R12 remains historical and is superseded because it predates the final caller-bound
+regression patch.
 
 ### Task 8: Final verification and plan reconciliation
 
@@ -845,17 +847,17 @@ optimization decision, evidence immutability, and P1-C/P2 deferral.
   Task 1 admission as `not evidenced`; do not use this review as retroactive
   admission proof.
 
-Resume reconciliation (2026-10-05): review head `81cc4121` had clean tracked
-state before this fix; current declared-input fingerprint is
-`1e1d9a9d539b49ca1a944c0a3e7b516a176eb9bf6ca0b832997be751603a64b9`; the
-dependency-ready next action is Task 8 final verification after the seeded
-cohort rerun. Prior Task 1 admission remains `not evidenced`.
+Resume reconciliation (2026-10-05): review head `2564e20` has clean tracked
+state before final evidence-only updates; current declared-input fingerprint is
+`7813b2336ffa847549e42eb1b1566a541454ae492ac621151e8211c81237ac99`; the
+dependency-ready next action is Task 8 final verification after the current-head
+seeded cohort rerun. Prior Task 1 admission remains `not evidenced`.
 
-- Task 7 blocker is resolved with current-source seeded paired cohorts. R12
-  records both arms at 10/10; candidate calls and regenerations tie, while
-  candidate tokens and latency increase. Task 8 remains active pending fresh
-  full-suite verification and independent final review. Production default
-  remains `local_first`.
+- Task 7 blocker is resolved with current-source seeded paired cohorts. R13
+  records both arms at 10/10; candidate calls and regenerations tie, wall time
+  decreases, and token cost increases. Task 8 remains active pending fresh full-
+  suite verification and independent final review. Production default remains
+  `local_first`.
 
 **Authority:**
 - Preauthorized local actions: run declared verification and reconcile plan/evidence text.
