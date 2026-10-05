@@ -201,8 +201,11 @@ def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_s
     assert {
         "data/candidate_profile.private.yaml",
         "src/fitcv/agentic_cv_analysis.py",
+        "src/fitcv/contracts.py",
         "src/fitcv/cv_generator.py",
+        "src/fitcv/evidence.py",
         "src/fitcv/llm_runtime.py",
+        "src/fitcv/openai_compat.py",
         "src/fitcv/runtime_routing.py",
         "src/fitcv/prompts/__init__.py",
         "src/fitcv/prompts/loader.py",
@@ -211,6 +214,9 @@ def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_s
         "src/fitcv/prompts/renderer.py",
         "src/fitcv/prompts/templates/cv_generation_write_v1.md",
         "src/fitcv_cp/run_artifact_contracts.py",
+        "src/fitcv_cp/local_storage.py",
+        "config/runtime/prompts.yaml",
+        "templates/cv_template.md",
         "src/fitcv_cp/sqlite_store.py",
     }.issubset(experiment.DECLARED_INPUTS)
 
@@ -220,7 +226,15 @@ def test_declared_inputs_cover_private_profile_and_analysis_generation_runtime_s
     [
         "src/fitcv/llm_runtime.py",
         "src/fitcv/runtime_routing.py",
+        "src/fitcv/validator.py",
+        "src/fitcv/evidence.py",
+        "src/fitcv/openai_compat.py",
+        "src/fitcv/contracts.py",
+        "src/fitcv/cv_presets.py",
         "src/fitcv/prompts/__init__.py",
+        "src/fitcv_cp/local_storage.py",
+        "templates/cv_template.md",
+        "config/runtime/prompts.yaml",
         "src/fitcv_cp/run_artifact_contracts.py",
     ],
 )
