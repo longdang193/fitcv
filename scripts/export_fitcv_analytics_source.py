@@ -238,8 +238,17 @@ def _table_exists(connection: Any, table: str) -> bool:
     ).fetchone() is not None
 
 
-def _flatten_debug_values(value: Any, *, acceptance_context: bool = False) -> Iterable[dict[str, Any]]:
+def _flatten_debug_values(
+    value: Any, *, acceptance_context: bool = False, acceptance_items: bool = False
+) -> Iterable[dict[str, Any]]:
     if isinstance(value, list):
+        if acceptance_items:
+            for item in value:
+                if isinstance(item, dict):
+                    yield {**item, "_acceptance_container_context": True}
+                else:
+                    yield {"_malformed_acceptance_event": True, "_acceptance_container_context": True}
+            return
         for item in value:
             yield from _flatten_debug_values(item, acceptance_context=acceptance_context)
         return
@@ -256,9 +265,13 @@ def _flatten_debug_values(value: Any, *, acceptance_context: bool = False) -> It
         "accepted_cv_effort", "cv_generation_trace",
     ):
         if key in value:
-            yield from _flatten_debug_values(
-                value[key], acceptance_context=key == "accepted_artifact_events"
-            )
+            if key == "accepted_artifact_events":
+                if isinstance(value[key], list):
+                    yield from _flatten_debug_values(value[key], acceptance_context=True, acceptance_items=True)
+                else:
+                    yield {"_malformed_acceptance_event": True, "_acceptance_container_context": True}
+            else:
+                yield from _flatten_debug_values(value[key])
 
 
 def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
@@ -276,7 +289,9 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
             else:
                 raw_values = raw_value or []
             values = list(_flatten_debug_values(
-                raw_values, acceptance_context=source_key == "accepted_artifact_events"
+                raw_values,
+                acceptance_context=source_key == "accepted_artifact_events",
+                acceptance_items=source_key == "accepted_artifact_events",
             ))
             for event_index, value in enumerate(values):
                 value = dict(value)
@@ -290,7 +305,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                     field in value for field in ("accepted", "accepted_outcome", "final_status")
                 ):
                     value["_acceptance_evidence_seen"] = True
-                if source_key == "accepted_artifact_events":
+                if source_key == "accepted_artifact_events" or value.get("_acceptance_container_context"):
                     value["_acceptance_evidence_seen"] = True
                     value["_accepted_event_seen"] = True
                     value["_accepted_event_valid"] = _valid_accepted_debug_event(value)

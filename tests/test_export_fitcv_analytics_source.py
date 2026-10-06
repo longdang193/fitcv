@@ -697,13 +697,22 @@ def test_export_retains_malformed_acceptance_container(tmp_path: Path, container
     assert metrics["acceptance_yield"]["value"] is None
 
 
-def test_export_retains_nested_acceptance_evidence(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "nested_events",
+    [
+        [None, {"artifact_id": "unknown"}],
+        [[{"artifact_id": "cv-1"}]],
+        [{"artifact_id": "cv-1"}, []],
+        {"artifact_id": "cv-1", "accepted_outcome": True},
+    ],
+)
+def test_export_retains_nested_acceptance_evidence(tmp_path: Path, nested_events: object) -> None:
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
     with sqlite3.connect(database) as connection:
         payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
         debug = json.loads(payload["cv_generation_debug_json"])
-        debug["debug_records"] = [{"accepted_artifact_events": [None, {"artifact_id": "unknown"}]}]
+        debug["debug_records"] = [{"accepted_artifact_events": nested_events}]
         payload["cv_generation_debug_json"] = json.dumps(debug)
         connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
         connection.commit()
@@ -714,6 +723,25 @@ def test_export_retains_nested_acceptance_evidence(tmp_path: Path) -> None:
 
     assert any(item["validity"] == "invalid" for item in bundle["sources"]["accepted_artifact"])
     assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_preserves_nested_implicit_acceptance_semantics(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["debug_records"] = [{"accepted_artifact_events": [{"artifact_id": "cv-1"}]}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert not any(item["validity"] == "invalid" for item in bundle["sources"]["accepted_artifact"])
+    assert metrics["acceptance_yield"]["value"] == 0.5
 
 
 def test_export_blocks_alternate_acceptance_with_foreign_run_id(tmp_path: Path) -> None:
