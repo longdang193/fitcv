@@ -7,6 +7,7 @@ from scripts.fitcv_analytics import (
     build_gold_candidate_gap,
     build_gold_cv_effort,
     build_gold_optimization_state,
+    build_gold_semantic_metric,
     build_gold_requirement_demand,
     build_silver_facts,
     compute_projection_input_fingerprint,
@@ -121,6 +122,61 @@ def test_rebuild_is_deterministic_and_sql_views_match_gold(tmp_path) -> None:
         assert connection.execute("SELECT provider_call_count FROM gold_run_job_effort").fetchone() == (2,)
 
 
+def test_semantic_metric_builder_emits_registry_fields_and_expected_value() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    rebuilt = rebuild_analytics_bundle(
+        bundle,
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    rows = rebuilt["gold"]["gold_semantic_metric"]
+    acceptance = next(row for row in rows if row["metric_id"] == "acceptance_yield")
+    assert {"numerator", "denominator", "value", "coverage_status", "unavailable_reason"} <= set(acceptance)
+    assert acceptance["value"] is None
+    assert acceptance["coverage_status"] == "unavailable"
+    assert {row["metric_id"] for row in rows} == {metric["metric_id"] for metric in load_metric_registry()["metrics"]}
+
+
+def test_semantic_metric_uses_metric_coverage_and_run_job_denominators() -> None:
+    registry = load_metric_registry()
+    gold = {
+        "gold_cohort_effort": [{
+            "cohort_id": "c",
+            "cohort_type": "fixture",
+            "successful_run_job_count": 1,
+            "attempted_job_count": 1,
+            "generation_job_count": 1,
+            "first_pass_success_count": 1,
+            "generation_attempt_coverage": "complete",
+            "verified_one_page_count": 1,
+            "render_proof_count": 1,
+            "coverage": "complete",
+            "render_proof_coverage": "unavailable",
+        }],
+        "gold_run_job_effort": [{
+            "run_job_id": "job-1",
+            "review_action_count": 1,
+            "manual_attempted_run_job_count": 1,
+            "review_action_coverage": "complete",
+            "coverage": "complete",
+        }],
+        "gold_requirement_demand": [],
+        "gold_candidate_gap": [],
+    }
+    rows = build_gold_semantic_metric(gold, registry, source_commit="head", input_fingerprint="input")
+    accepted = next(row for row in rows if row["metric_id"] == "acceptance_yield")
+    first_pass = next(row for row in rows if row["metric_id"] == "first_pass_success")
+    render = next(row for row in rows if row["metric_id"] == "verified_one_page_rate")
+    effort = next(row for row in rows if row["metric_id"] == "manual_effort")
+    assert accepted["value"] == 1.0
+    assert first_pass["value"] == 1.0
+    assert render["value"] is None
+    assert render["coverage_status"] == "unavailable"
+    assert effort["denominator"] == 1
+    assert effort["value"] == 1.0
+
+
 def test_run_job_gold_ignores_requirement_and_gap_sources() -> None:
     bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
     result = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
@@ -132,6 +188,220 @@ def test_gold_cohort_exposes_declared_first_pass_and_render_metrics() -> None:
     cohort = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_cohort_effort"][0]
     assert "first_pass_success_count" in cohort
     assert "verified_one_page_rate" in cohort
+    assert cohort["provider_call_coverage"] == "complete"
+    assert cohort["token_coverage"] == "complete"
+
+
+def test_cohort_provider_metrics_ignore_incomplete_review_coverage() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    bundle["sources"]["review_action"] = [{
+        "source_id": "review-invalid",
+        "run_job_id": "job-1",
+        "action": "approve",
+        "validity": "invalid",
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture",
+    }]
+    result = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["provider_call_coverage"] == "complete"
+    assert cohort["token_coverage"] == "complete"
+    metrics = {row["metric_id"]: row for row in result["gold"]["gold_semantic_metric"]}
+    assert metrics["provider_calls_per_accepted_cv"]["value"] == 2.0
+    assert metrics["tokens_per_accepted_cv"]["value"] == 100.0
+
+
+def test_explicit_unknown_eligibility_is_excluded_and_yield_is_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{
+                    "source_id": "generation",
+                    "run_job_id": "job",
+                    "status": "succeeded",
+                    "attempt_count": 1,
+                    "eligible": None,
+                    "cohort_id": "c",
+                    "cohort_type": "fixture",
+                }, {
+                    "source_id": "known-generation",
+                    "run_job_id": "known-job",
+                    "status": "succeeded",
+                    "attempt_count": 1,
+                    "eligible": True,
+                    "cohort_id": "c",
+                    "cohort_type": "fixture",
+                }],
+                "accepted_artifact": [{
+                    "source_id": "artifact",
+                    "run_job_id": "job",
+                    "artifact_id": "cv",
+                    "status": "accepted",
+                    "cohort_id": "c",
+                    "cohort_type": "fixture",
+                }, {
+                    "source_id": "known-artifact",
+                    "run_job_id": "known-job",
+                    "artifact_id": "known-cv",
+                    "status": "accepted",
+                    "cohort_id": "c",
+                    "cohort_type": "fixture",
+                }],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    row = result["gold"]["gold_run_job_effort"][0]
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    metrics = {item["metric_id"]: item for item in result["gold"]["gold_semantic_metric"]}
+    assert row["eligible"] is None
+    assert row["eligible_attempt_coverage"] == "unavailable"
+    assert cohort["generation_job_count"] == 1
+    assert cohort["eligible_attempt_coverage"] == "unavailable"
+    assert cohort["generation_attempt_coverage"] == "unavailable"
+    assert cohort["first_pass_success_rate"] is None
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_provider_call_metric_stays_known_when_tokens_are_missing() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    bundle["sources"]["provider_attempt"][0]["token_total"] = None
+    result = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["provider_call_count"] == 2
+    assert cohort["provider_call_coverage"] == "complete"
+    assert cohort["token_coverage"] == "unavailable"
+    metrics = {row["metric_id"]: row for row in result["gold"]["gold_semantic_metric"]}
+    assert metrics["provider_calls_per_accepted_cv"]["value"] == 2.0
+    assert metrics["tokens_per_accepted_cv"]["value"] is None
+
+
+def test_oversized_token_totals_stay_unavailable_without_overflow() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [
+                    {"source_id": "provider-1", "run_job_id": "job-1", "provider_call_count": 1, "token_total": 10**400, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "provider-2", "run_job_id": "job-1", "provider_call_count": 1, "token_total": 1e308, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    row = result["gold"]["gold_run_job_effort"][0]
+    assert row["token_total"] is None
+    assert row["token_coverage"] == "unavailable"
+
+
+def test_acceptance_yield_excludes_artifacts_without_generation_history() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{"source_id": "generation", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"}],
+                "accepted_artifact": [
+                    {"source_id": "artifact-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "artifact-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["successful_run_job_count"] == 1
+    assert cohort["generation_job_count"] == 1
+    acceptance = next(row for row in result["gold"]["gold_semantic_metric"] if row["metric_id"] == "acceptance_yield")
+    assert acceptance["value"] == 1.0
+
+
+def test_acceptance_yield_excludes_ineligible_generation_jobs() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [
+                    {"source_id": "eligible", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture", "eligible": True},
+                    {"source_id": "ineligible", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture", "eligible": False},
+                ],
+                "provider_attempt": [
+                    {"source_id": "provider-1", "run_job_id": "job-1", "provider_call_count": 1, "token_total": 10, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "provider-2", "run_job_id": "job-2", "provider_call_count": 1, "token_total": 10, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+                "accepted_artifact": [
+                    {"source_id": "artifact-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "artifact-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["successful_run_job_count"] == 1
+    assert cohort["generation_job_count"] == 1
+    assert cohort["accepted_artifact_count"] == 2
+    metrics = {row["metric_id"]: row for row in result["gold"]["gold_semantic_metric"]}
+    assert metrics["provider_calls_per_accepted_cv"]["value"] == 1.0
+    assert metrics["tokens_per_accepted_cv"]["value"] == 10.0
+
+
+def test_registry_fallback_preserves_supplied_records() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {},
+            "registry": {
+                "claim_priority_map": {"claim": ["priority"]},
+                "records": [{"evidence_id": "fixture-evidence", "claim": "claim", "status": "current"}],
+            },
+            "state": {"implementation": {"priority": "accepted"}, "acceptance": {"priority": "accepted"}},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    assert result["gold"]["gold_acceptance_state"][0]["evidence_id"] == "fixture-evidence"
+
+
+def test_persistence_failed_is_terminal_generation_evidence() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{"source_id": "generation", "run_job_id": "job", "status": "persistence_failed", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"}],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    row = result["gold"]["gold_run_job_effort"][0]
+    assert row["generation_attempt_coverage"] == "complete"
+    assert row["failed_generation_attempt_count"] == 1
+
+
+def test_manual_effort_rejects_incomplete_review_coverage() -> None:
+    result = rebuild_analytics_bundle(
+        {"sources": {"review_action": [{"source_id": "review", "run_job_id": "job", "status": "approved", "coverage": "unavailable"}]}, "registry": {}, "state": {}},
+        source_commit="head", declared_input_fingerprint="inputs", ingested_at="now",
+    )
+    metric = next(row for row in result["gold"]["gold_semantic_metric"] if row["metric_id"] == "manual_effort")
+    assert metric["value"] is None
+    assert metric["coverage_status"] == "unavailable"
 
 
 def test_direct_invalid_token_facts_become_unavailable() -> None:
@@ -281,6 +551,161 @@ def test_invalid_provider_fact_keeps_cost_ratio_unavailable() -> None:
     assert row["per_accepted_artifact"] is None
 
 
+def test_invalid_accepted_artifact_fact_keeps_cost_ratio_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [{
+                    "source_id": "provider",
+                    "run_job_id": "job",
+                    "provider_call_count": 2,
+                    "token_total": 10,
+                    "cohort_id": "c",
+                    "cohort_type": "fixture",
+                }],
+                "accepted_artifact": [
+                    {"source_id": "valid-artifact", "run_job_id": "job", "artifact_id": "cv", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "invalid-artifact", "run_job_id": "job", "artifact_id": "cv-invalid", "status": "accepted", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    row = result["gold"]["gold_run_job_effort"][0]
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    metrics = {item["metric_id"]: item for item in result["gold"]["gold_semantic_metric"]}
+    assert row["accepted_artifact_observation_count"] == 2
+    assert row["accepted_artifact_count"] == 1
+    assert row["accepted_artifact_coverage"] == "unavailable"
+    assert cohort["provider_call_coverage"] == "unavailable"
+    assert cohort["token_coverage"] == "unavailable"
+    assert metrics["provider_calls_per_accepted_cv"]["value"] is None
+    assert metrics["tokens_per_accepted_cv"]["value"] is None
+
+
+def test_invalid_accepted_artifact_fact_keeps_acceptance_metrics_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [
+                    {"source_id": "g-1", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "g-2", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+                "accepted_artifact": [
+                    {"source_id": "a-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "a-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    metrics = {item["metric_id"]: item for item in result["gold"]["gold_semantic_metric"]}
+    assert cohort["eligible_attempt_coverage"] == "unavailable"
+    assert cohort["generation_attempt_coverage"] == "unavailable"
+    assert cohort["first_pass_success_rate"] is None
+    assert metrics["acceptance_yield"]["value"] is None
+    assert metrics["first_pass_success"]["value"] is None
+
+
+def test_malformed_accepted_artifact_fact_blocks_cost_ratio() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [{"source_id": "provider", "run_job_id": "job", "provider_call_count": 4, "token_total": 20, "cohort_id": "c", "cohort_type": "fixture"}],
+                "accepted_artifact": [
+                    {"source_id": "valid-artifact", "run_job_id": "job", "artifact_id": "cv", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "malformed-artifact", "run_job_id": "job", "artifact_id": "cv-malformed", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["accepted_artifact_observation_count"] == 2
+    assert cohort["accepted_artifact_coverage"] == "unavailable"
+    assert cohort["per_accepted_artifact"] is None
+
+
+def test_malformed_acceptance_types_cannot_confirm_artifact() -> None:
+    for payload in (
+        {"artifact_id": "cv", "status": "accepted", "accepted": "false"},
+        {"artifact_id": ["cv"], "status": "accepted"},
+    ):
+        result = rebuild_analytics_bundle(
+            {
+                "sources": {
+                    "provider_attempt": [{"source_id": "provider", "run_job_id": "job", "provider_call_count": 2, "token_total": 10, "cohort_id": "c", "cohort_type": "fixture"}],
+                    "generation_attempt": [{"source_id": "generation", "run_job_id": "job", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"}],
+                    "accepted_artifact": [{"source_id": "artifact", "run_job_id": "job", "cohort_id": "c", "cohort_type": "fixture", **payload}],
+                },
+                "registry": {},
+                "state": {},
+            },
+            source_commit="head",
+            declared_input_fingerprint="inputs",
+            ingested_at="now",
+        )
+
+        row = result["gold"]["gold_run_job_effort"][0]
+        metrics = {item["metric_id"]: item for item in result["gold"]["gold_semantic_metric"]}
+        assert row["accepted_artifact_count"] == 0
+        assert row["accepted_artifact_coverage"] == "unavailable"
+        assert metrics["acceptance_yield"]["value"] is None
+        assert metrics["provider_calls_per_accepted_cv"]["value"] is None
+        assert metrics["tokens_per_accepted_cv"]["value"] is None
+
+
+def test_malformed_acceptance_evidence_blocks_render_rate() -> None:
+    render_acceptance = {
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": "b" * 64,
+        "template_sha256": "c" * 64,
+        "render_config_fingerprint": "d" * 64,
+        "renderer_contract_version": "v1",
+    }
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "accepted_artifact": [
+                    {"source_id": "valid", "run_job_id": "job", "artifact_id": "cv-1", "status": "accepted", "render_acceptance": render_acceptance, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "malformed", "run_job_id": "job", "artifact_id": ["cv-2"], "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    metric = next(item for item in result["gold"]["gold_semantic_metric"] if item["metric_id"] == "verified_one_page_rate")
+    assert cohort["accepted_artifact_coverage"] == "unavailable"
+    assert cohort["render_proof_coverage"] == "unavailable"
+    assert cohort["verified_one_page_rate"] is None
+    assert metric["value"] is None
+
+
 def test_incomplete_provider_and_artifact_coverage_keeps_cost_ratio_unavailable() -> None:
     result = rebuild_analytics_bundle(
         {
@@ -380,7 +805,8 @@ def test_requirement_and_gap_gold_have_explicit_grains_and_distinct_denominators
     gaps = build_gold_candidate_gap(silver)
     assert demand[0]["grain"] == "requirement_and_cohort"
     assert demand[0]["numerator_posting_count"] == 2
-    assert demand[0]["denominator_posting_count"] == 2
+    assert demand[0]["denominator_posting_count"] == 0
+    assert demand[0]["coverage"] == "unavailable"
     assert gaps[0]["grain"] == "requirement_and_gap_category_and_cohort"
     assert gaps[0]["numerator_requirement_count"] == 1
     assert gaps[0]["denominator_requirement_count"] == 2
@@ -407,6 +833,33 @@ def test_requirement_gold_filters_unrelated_and_invalid_facts_and_marks_coverage
     assert demand[0]["unavailable_reason"] == "invalid_source_fact"
 
 
+def test_requirement_demand_marks_requirement_outside_inventory_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "posting_inventory": [{"source_id": "inventory", "posting_id": "p1", "eligible": True, "extraction_status": "complete", "cohort_id": "c", "cohort_type": "fixture"}],
+                "posting_requirement": [
+                    {"source_id": "requirement-1", "posting_id": "p1", "requirement": "python", "eligible": True, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "requirement-2", "posting_id": "p2", "requirement": "python", "eligible": True, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    demand = result["gold"]["gold_requirement_demand"][0]
+    metric = next(item for item in result["gold"]["gold_semantic_metric"] if item["metric_id"] == "skill_demand")
+    assert demand["numerator_posting_count"] == 1
+    assert demand["denominator_posting_count"] == 1
+    assert demand["coverage"] == "unavailable"
+    assert demand["unavailable_reason"] == "requirement_posting_not_in_inventory"
+    assert metric["value"] is None
+
+
 def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> None:
     bronze = build_bronze_observations(
         {"posting_requirement": [{"source_id": "invalid", "posting_id": "post-1", "requirement": "python", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"}]},
@@ -425,6 +878,7 @@ def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> Non
         "numerator_posting_count": 0,
         "denominator_posting_count": 0,
         "coverage": "unavailable",
+        "posting_inventory_coverage": "unavailable",
         "unavailable_reason": "invalid_source_fact",
     }]
 
@@ -468,7 +922,8 @@ def test_requirement_demand_uses_explicit_posting_inventory_denominator() -> Non
                 {"source_id": "posting-2", "posting_id": "posting-2", "eligible": True, "extraction_status": "complete", "cohort_id": "c", "cohort_type": "fixture"},
             ],
             "posting_requirement": [
-                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-2", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
             ],
         },
         "registry": {},
@@ -490,7 +945,8 @@ def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None
                 {"source_id": "posting-1", "posting_id": "posting-1", "eligible": True, "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "fixture"},
             ],
             "posting_requirement": [
-                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-2", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
             ],
         },
         "registry": {},
@@ -526,7 +982,8 @@ def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
     bundle = {
         "sources": {
             "posting_requirement": [
-                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-2", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
             ],
             "candidate_gap": [
                 {"source_id": "gap-1", "posting_id": "posting-1", "requirement": "python", "gap_category": "missing_evidence", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
@@ -540,6 +997,7 @@ def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
     gaps = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_candidate_gap"]
 
     assert {(row["candidate_profile_revision"], row["candidate_profile_fingerprint"]) for row in gaps} == {("1", "fp-1"), ("2", "fp-2")}
+    assert {row["denominator_requirement_count"] for row in gaps} == {1}
 
 
 def test_acceptance_and_optimization_state_are_separate() -> None:

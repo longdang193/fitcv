@@ -32,6 +32,7 @@ from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from collections.abc import Iterator
 from typing import Any, Callable, Optional
+from urllib.parse import quote
 
 from fitcv.decision_feedback import (
     DecisionAlternative,
@@ -5242,6 +5243,42 @@ def _sqlite_connection(db_path: Path, *, read_only: bool = False) -> Iterator[sq
         yield conn
     finally:
         conn.close()
+
+
+@contextmanager
+def open_readonly_snapshot(database_path: Path) -> Iterator[sqlite3.Connection]:
+    """Open checkpointed SQLite path in one read-only transaction."""
+    path = Path(database_path).resolve()
+    sidecars = (Path(f"{path}-wal"), Path(f"{path}-shm"))
+    if any(candidate.exists() for candidate in sidecars):
+        raise RuntimeError("readonly_snapshot_requires_checkpointed_database")
+    before = {
+        candidate: hashlib.sha256(candidate.read_bytes()).digest()
+        for candidate in (path, *sidecars)
+        if candidate.exists()
+    }
+    if path not in before:
+        raise FileNotFoundError(path)
+    uri = f"file:{quote(path.as_posix(), safe='/:')}?mode=ro&immutable=1"
+    conn = sqlite3.connect(uri, timeout=30, uri=True)
+    try:
+        conn.execute("PRAGMA query_only=ON")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN")
+        try:
+            yield conn
+        finally:
+            conn.rollback()
+    finally:
+        conn.close()
+        after = {
+            candidate: hashlib.sha256(candidate.read_bytes()).digest()
+            for candidate in (path, *sidecars)
+            if candidate.exists()
+        }
+        if before != after:
+            raise RuntimeError("readonly_snapshot_source_changed")
 
 
 @contextmanager
