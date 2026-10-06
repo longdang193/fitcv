@@ -60,3 +60,13 @@ SELECT json_extract(payload_json, '$.row_key') AS row_key,
        json_extract(payload_json, '$.measurement_status') AS measurement_status,
        payload_json
 FROM silver_acceptance_evidence;
+
+DROP VIEW IF EXISTS gold_optimization_state;
+CREATE VIEW gold_optimization_state AS
+SELECT json_extract(payload_json, '$.row_key') AS row_key,
+       json_extract(payload_json, '$.priority') AS priority,
+       json_extract(payload_json, '$.evidence_id') AS evidence_id,
+       json_extract(payload_json, '$.measurement_status') AS measurement_status,
+       json_extract(payload_json, '$.optimization_status') AS optimization_status,
+       payload_json
+FROM silver_optimization_state;

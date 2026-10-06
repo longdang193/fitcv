@@ -6,6 +6,7 @@ from scripts.fitcv_analytics import (
     build_gold_acceptance_state,
     build_gold_candidate_gap,
     build_gold_cv_effort,
+    build_gold_optimization_state,
     build_gold_requirement_demand,
     build_silver_facts,
     compute_projection_input_fingerprint,
@@ -53,6 +54,27 @@ def test_silver_reconciles_mutable_snapshots_but_bronze_keeps_history() -> None:
     assert len(bronze) == 2
     assert len(silver) == 1
     assert silver[0]["payload"]["token_total"] == 20
+    assert len(silver[0]["superseded_observation_ids"]) == 1
+
+
+def test_newer_authoritative_invalidation_supersedes_older_valid_snapshot() -> None:
+    bronze = build_bronze_observations(
+        {
+            "provider_attempt": [
+                {"source_id": "attempt-1", "run_job_id": "job-1", "revision": 1, "observed_at": "2026-10-01T00:00:00Z", "token_total": 10, "validity": "valid"},
+                {"source_id": "attempt-1", "run_job_id": "job-1", "revision": 2, "observed_at": "2026-10-01T00:01:00Z", "token_total": 10, "validity": "invalid"},
+            ]
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="2026-10-05T00:00:00Z",
+    )
+
+    silver = build_silver_facts(bronze)
+
+    assert len(silver) == 1
+    assert silver[0]["validity"] == "invalid"
+    assert silver[0]["payload"]["revision"] == 2
     assert len(silver[0]["superseded_observation_ids"]) == 1
 
 
@@ -153,10 +175,11 @@ def test_first_pass_rate_uses_generation_jobs_not_attempt_rows() -> None:
     result = rebuild_analytics_bundle(
         {
             "sources": {
-                "generation_attempt": [
-                    {"source_id": "first", "run_job_id": "job-1", "status": "failed", "attempt_count": 2, "cohort_id": "c", "cohort_type": "fixture"},
-                    {"source_id": "second", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
-                ],
+                    "generation_attempt": [
+                        {"source_id": "first", "run_job_id": "job-1", "status": "failed", "attempt_count": 2, "cohort_id": "c", "cohort_type": "fixture"},
+                        {"source_id": "second", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                    ],
+                    "accepted_artifact": [{"source_id": "artifact-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted"}],
             },
             "registry": {},
             "state": {},
@@ -193,14 +216,32 @@ def test_multiple_generation_rows_do_not_claim_first_pass_success() -> None:
     assert cohort["first_pass_success_rate"] == 0.0
 
 
+def test_first_pass_requires_durable_accepted_artifact() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{"source_id": "generation", "run_job_id": "job", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"}],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    assert result["gold"]["gold_run_job_effort"][0]["first_pass_success_count"] == 0
+
+
 def test_invalid_generation_fact_keeps_first_pass_rate_unavailable() -> None:
     result = rebuild_analytics_bundle(
         {
             "sources": {
-                "generation_attempt": [
-                    {"source_id": "valid", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
-                    {"source_id": "invalid", "run_job_id": "job-2", "status": "failed", "attempt_count": 2, "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
-                ],
+                    "generation_attempt": [
+                        {"source_id": "valid", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                        {"source_id": "invalid", "run_job_id": "job-2", "status": "failed", "attempt_count": 2, "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                    ],
+                    "accepted_artifact": [{"source_id": "artifact-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted"}],
             },
             "registry": {},
             "state": {},
@@ -417,6 +458,104 @@ def test_invalid_only_candidate_gap_emits_unavailable_gold_row() -> None:
     gaps = build_gold_candidate_gap(build_silver_facts(bronze))
     assert gaps[0]["coverage"] == "unavailable"
     assert gaps[0]["unavailable_reason"] == "invalid_source_fact"
+
+
+def test_requirement_demand_uses_explicit_posting_inventory_denominator() -> None:
+    bundle = {
+        "sources": {
+            "posting_inventory": [
+                {"source_id": "posting-1", "posting_id": "posting-1", "eligible": True, "extraction_status": "complete", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "posting-2", "posting_id": "posting-2", "eligible": True, "extraction_status": "complete", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "posting_requirement": [
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        "registry": {},
+        "state": {},
+    }
+
+    demand = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_requirement_demand"]
+
+    row = next(item for item in demand if item["requirement"] == "python")
+    assert row["numerator_posting_count"] == 1
+    assert row["denominator_posting_count"] == 2
+    assert row["coverage"] == "complete"
+
+
+def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None:
+    bundle = {
+        "sources": {
+            "posting_inventory": [
+                {"source_id": "posting-1", "posting_id": "posting-1", "eligible": True, "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "posting_requirement": [
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        "registry": {},
+        "state": {},
+    }
+
+    row = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_requirement_demand"][0]
+
+    assert row["denominator_posting_count"] == 0
+    assert row["coverage"] == "unavailable"
+    assert row["unavailable_reason"] == "extraction_status_incomplete"
+
+
+def test_same_requirement_remains_in_each_declared_cohort() -> None:
+    bronze = build_bronze_observations(
+        {
+            "posting_requirement": [
+                {"source_id": "r-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "old", "cohort_type": "fixture"},
+                {"source_id": "r-2", "posting_id": "posting-1", "requirement": "python", "cohort_id": "new", "cohort_type": "fixture"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    rows = build_gold_requirement_demand(build_silver_facts(bronze))
+
+    assert {(row["cohort_id"], row["requirement"]) for row in rows} == {("old", "python"), ("new", "python")}
+
+
+def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
+    bundle = {
+        "sources": {
+            "posting_requirement": [
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "candidate_gap": [
+                {"source_id": "gap-1", "posting_id": "posting-1", "requirement": "python", "gap_category": "missing_evidence", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "gap-2", "posting_id": "posting-1", "requirement": "python", "gap_category": "missing_evidence", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        "registry": {},
+        "state": {},
+    }
+
+    gaps = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_candidate_gap"]
+
+    assert {(row["candidate_profile_revision"], row["candidate_profile_fingerprint"]) for row in gaps} == {("1", "fp-1"), ("2", "fp-2")}
+
+
+def test_acceptance_and_optimization_state_are_separate() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {},
+            "registry": {"records": [{"claim": "p1_acceptance_scope", "evidence_id": "evidence-1", "status": "unavailable"}]},
+            "state": {"status_dimensions": {"p1_b": {"implementation_status": "verified", "acceptance_status": "passed", "measurement_status": "incomplete", "optimization_status": "rejected"}}},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    assert "optimization_status" not in result["gold"]["gold_acceptance_state"][0]
+    assert result["gold"]["gold_optimization_state"][0]["optimization_status"] == "rejected"
 
 
 def test_projection_fingerprint_changes_with_declared_input(tmp_path) -> None:
