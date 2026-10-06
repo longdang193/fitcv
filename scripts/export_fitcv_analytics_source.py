@@ -271,6 +271,11 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                     item for item in raw_values
                     if isinstance(item, dict) and not any(item == existing for existing in values)
                 )
+                values.extend(
+                    {"_malformed_acceptance_event": True, "_source_event_index": index}
+                    for index, item in enumerate(raw_values)
+                    if not isinstance(item, dict)
+                )
             for event_index, value in enumerate(values):
                 value = dict(value)
                 value["_debug_record_groups"] = [f"{row['run_id']}:{source_key}:{event_index}"]
@@ -282,6 +287,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 if any(field in value for field in ("accepted", "accepted_outcome", "final_status")):
                     value["_acceptance_evidence_seen"] = True
                 if source_key == "accepted_artifact_events":
+                    value["_acceptance_evidence_seen"] = True
                     value["_accepted_event_seen"] = True
                     value["_accepted_event_valid"] = _valid_accepted_debug_event(value)
                 trace = value.get("cv_generation_trace")
@@ -294,7 +300,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 _mark_null_telemetry(value)
                 sanitized = _sanitize(value) or {}
                 current_rejection = _acceptance_rejection_present(value)
-                current_acceptance_evidence = any(
+                current_acceptance_evidence = source_key == "accepted_artifact_events" or any(
                     field in value for field in ("accepted", "accepted_outcome", "final_status")
                 )
                 current_invalid = _acceptance_evidence_invalid(value) or (
