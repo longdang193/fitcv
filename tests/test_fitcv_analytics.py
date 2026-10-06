@@ -671,6 +671,41 @@ def test_malformed_acceptance_types_cannot_confirm_artifact() -> None:
         assert metrics["tokens_per_accepted_cv"]["value"] is None
 
 
+def test_malformed_acceptance_evidence_blocks_render_rate() -> None:
+    render_acceptance = {
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": "a" * 64,
+        "content_sha256": "b" * 64,
+        "template_sha256": "c" * 64,
+        "render_config_fingerprint": "d" * 64,
+        "renderer_contract_version": "v1",
+    }
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "accepted_artifact": [
+                    {"source_id": "valid", "run_job_id": "job", "artifact_id": "cv-1", "status": "accepted", "render_acceptance": render_acceptance, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "malformed", "run_job_id": "job", "artifact_id": ["cv-2"], "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    metric = next(item for item in result["gold"]["gold_semantic_metric"] if item["metric_id"] == "verified_one_page_rate")
+    assert cohort["accepted_artifact_coverage"] == "unavailable"
+    assert cohort["render_proof_coverage"] == "unavailable"
+    assert cohort["verified_one_page_rate"] is None
+    assert metric["value"] is None
+
+
 def test_incomplete_provider_and_artifact_coverage_keeps_cost_ratio_unavailable() -> None:
     result = rebuild_analytics_bundle(
         {
@@ -795,6 +830,33 @@ def test_requirement_gold_filters_unrelated_and_invalid_facts_and_marks_coverage
     assert demand[0]["numerator_posting_count"] == 1
     assert demand[0]["coverage"] == "unavailable"
     assert demand[0]["unavailable_reason"] == "invalid_source_fact"
+
+
+def test_requirement_demand_marks_requirement_outside_inventory_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "posting_inventory": [{"source_id": "inventory", "posting_id": "p1", "eligible": True, "extraction_status": "complete", "cohort_id": "c", "cohort_type": "fixture"}],
+                "posting_requirement": [
+                    {"source_id": "requirement-1", "posting_id": "p1", "requirement": "python", "eligible": True, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "requirement-2", "posting_id": "p2", "requirement": "python", "eligible": True, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    demand = result["gold"]["gold_requirement_demand"][0]
+    metric = next(item for item in result["gold"]["gold_semantic_metric"] if item["metric_id"] == "skill_demand")
+    assert demand["numerator_posting_count"] == 1
+    assert demand["denominator_posting_count"] == 1
+    assert demand["coverage"] == "unavailable"
+    assert demand["unavailable_reason"] == "requirement_posting_not_in_inventory"
+    assert metric["value"] is None
 
 
 def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> None:

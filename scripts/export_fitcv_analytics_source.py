@@ -153,6 +153,25 @@ def _contains_marker(value: Any, marker: str) -> bool:
     return False
 
 
+def _valid_debug_identity(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _valid_accepted_debug_event(value: dict[str, Any]) -> bool:
+    identity_fields = ("artifact_id", "artifact_version_id", "version_id", "cv_version_id", "run_job_id")
+    if not any(_valid_debug_identity(value.get(field)) for field in identity_fields):
+        return False
+    if any(field in value and not _valid_debug_identity(value[field]) for field in identity_fields):
+        return False
+    for field in ("accepted", "accepted_outcome"):
+        if field in value and (not isinstance(value[field], bool) or not value[field]):
+            return False
+    for field in ("final_status", "status"):
+        if field in value and not isinstance(value[field], str):
+            return False
+    return True
+
+
 def _run_debug_payload(row: Any) -> dict[str, Any]:
     compatibility = _json(row["compatibility_json"] if "compatibility_json" in row.keys() else None)
     compatibility = compatibility if isinstance(compatibility, dict) else {}
@@ -195,6 +214,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 value = dict(value)
                 if source_key == "accepted_artifact_events":
                     value["_accepted_event"] = True
+                    value["_accepted_event_valid"] = _valid_accepted_debug_event(value)
                 trace = value.get("cv_generation_trace")
                 if isinstance(trace, dict):
                     summary = trace.get("efficiency_summary") or {}
@@ -484,9 +504,19 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         provider_call_count = _debug_number(debug, "provider_call_count")
         token_total = _debug_number(debug, "token_total")
         accepted_event = bool(
-            artifact_debug.get("_accepted_event")
-            or artifact_debug.get("accepted_outcome") is True
-            or str(artifact_debug.get("final_status") or "").lower() == "accepted"
+            (
+                artifact_debug.get("_accepted_event")
+                and artifact_debug.get("_accepted_event_valid") is True
+            )
+            or (
+                artifact_debug.get("accepted_outcome") is True
+                and _valid_accepted_debug_event(artifact_debug)
+            )
+            or (
+                isinstance(artifact_debug.get("final_status"), str)
+                and artifact_debug["final_status"].lower() == "accepted"
+                and _valid_accepted_debug_event(artifact_debug)
+            )
         )
         _append(sources, "generation_attempt", {
             **common,

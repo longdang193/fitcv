@@ -373,6 +373,26 @@ def test_export_rejects_null_nested_provider_count(tmp_path: Path) -> None:
     assert provider.get("provider_call_count") is None
 
 
+def test_export_rejects_malformed_acceptance_event_identity_and_flag(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        event = debug["accepted_artifact_events"][0]
+        event["artifact_id"] = ["bad"]
+        event["version_id"] = "cv-1"
+        event["accepted"] = "false"
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+
+    assert bundle["sources"].get("accepted_artifact", []) == []
+    assert bundle["sources"].get("artifact", []) == []
+
+
 @pytest.mark.parametrize("attempt_count", [1.9, 10**400])
 def test_export_rejects_fractional_and_oversized_attempt_counts(tmp_path: Path, attempt_count: object) -> None:
     database = tmp_path / "fitcv.sqlite3"

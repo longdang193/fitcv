@@ -566,8 +566,8 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "generation_attempt_coverage": "complete" if generation_coverage_complete else "unavailable",
                 "verified_one_page_count": verified_one_page,
                 "render_proof_count": render_proofs,
-                "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
-                "render_proof_coverage": "complete" if render_proofs and accepted_rows and all(row.get("render_proof_coverage") == "complete" for row in accepted_rows) else "unavailable",
+                "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and acceptance_evidence_coverage == "complete" and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
+                "render_proof_coverage": "complete" if render_proofs and acceptance_evidence_coverage == "complete" and accepted_rows and all(row.get("render_proof_coverage") == "complete" for row in accepted_rows) else "unavailable",
                 "accepted_artifact_observation_count": sum(int(row.get("accepted_artifact_observation_count") or 0) for row in rows),
                 "accepted_artifact_coverage": accepted_artifact_coverage,
                 "provider_call_coverage": provider_call_coverage,
@@ -639,6 +639,9 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             continue
         if cohort not in inventory_cohorts:
             postings_by_cohort[cohort].add(posting_id)
+        elif posting_id not in inventory_by_cohort[cohort]:
+            coverage_issues.setdefault(cohort, "requirement_posting_not_in_inventory")
+            continue
         requirement_postings[(*cohort, requirement)].add(posting_id)
     for cohort in inventory_cohorts:
         postings_by_cohort[cohort] = inventory_by_cohort[cohort]
