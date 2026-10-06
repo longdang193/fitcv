@@ -105,7 +105,7 @@ def _sanitize_string(value: str) -> str:
         host = "[redacted-host]"
     try:
         query = urlencode([
-            (key, item)
+            (key, _sanitize_string(item))
             for key, item in parse_qsl(parts.query, keep_blank_values=True)
             if not _is_secret_query_key(key)
         ])
@@ -135,7 +135,7 @@ def _sanitize(value: Any, *, key: str = "") -> Any:
 
 def _mark_null_telemetry(value: Any) -> None:
     if isinstance(value, dict):
-        for field in ("token_usage", "usage", "provider_call_count"):
+        for field in ("token_usage", "usage", "provider_call_count", "total_tokens", "token_total", "prompt_tokens", "completion_tokens", "input_tokens", "output_tokens", "attempt_count"):
             if field in value and value[field] is None:
                 value[f"_{field}_present"] = True
         for item in value.values():
@@ -246,6 +246,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 return sum(total for total in totals) if all(total is not None for total in totals) else None
             if not isinstance(usage, dict):
                 return None
+            if any(str(key).endswith("_present") for key in usage):
+                return None
             if expected_calls not in (None, 1):
                 return None
             for key in ("total_tokens", "token_total"):
@@ -270,6 +272,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 continue
             if usage is not None or "token_usage" in candidate or "usage" in candidate:
                 usage_seen = True
+                if candidate.get("_provider_call_count_present"):
+                    return None
                 return usage_total(usage, candidate.get("provider_call_count"))
         if usage_seen:
             return None
@@ -280,6 +284,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 return None
         return None
     for candidate in candidates:
+        if field == "attempt_count" and isinstance(candidate, dict) and candidate.get("_attempt_count_present"):
+            return None
         if field == "provider_call_count" and isinstance(candidate, dict) and candidate.get("_provider_call_count_present"):
             return None
         if isinstance(candidate, dict) and candidate.get(field) is not None:
@@ -288,6 +294,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
 
 
 def _debug_attempt_count(debug: dict[str, Any], fallback: int) -> int:
+    if debug.get("_attempt_count_present"):
+        return 0
     value = _debug_number(debug, "attempt_count")
     if value is None and isinstance(debug.get("attempts"), list):
         value = len(debug["attempts"])
@@ -318,8 +326,10 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     run_by_id = {str(row["run_id"]): row for row in runs}
     debug_by_artifact = _debug_records(runs)
 
+    run_input_by_id: dict[str, Any] = {}
     if _table_exists(connection, "run_inputs"):
         for row in connection.execute("SELECT * FROM run_inputs ORDER BY run_id"):
+            run_input_by_id[str(row["run_id"])] = row
             profile_json = _json(row["candidate_profile_json"] if "candidate_profile_json" in row.keys() else None)
             profile_fingerprint = row["candidate_profile_checksum"] if "candidate_profile_checksum" in row.keys() else None
             if not profile_fingerprint and isinstance(profile_json, dict):
@@ -369,7 +379,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         if isinstance(requirements, dict):
             requirements = list(requirements.values())
         for index, item in enumerate(requirements):
-            requirement = item if isinstance(item, str) else item.get("requirement") if isinstance(item, dict) else None
+            requirement = item if isinstance(item, str) else next((item.get(field) for field in ("requirement", "canonical", "name", "skill", "title") if item.get(field)), None) if isinstance(item, dict) else None
             if not str(requirement or "").strip():
                 continue
             _append(sources, "posting_requirement", {
@@ -418,6 +428,12 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             "cohort_type": run_payload.get("cohort_type") or "imported",
             "observed_at": row["created_at"],
         }
+        run_input = run_input_by_id.get(str(row["run_id"]))
+        common.update({
+            "candidate_profile_id": run_input["candidate_profile_id"] if run_input is not None and "candidate_profile_id" in run_input.keys() else None,
+            "candidate_profile_revision": run_input["candidate_profile_revision"] if run_input is not None and "candidate_profile_revision" in run_input.keys() else None,
+            "candidate_profile_fingerprint": run_input["candidate_profile_checksum"] if run_input is not None and "candidate_profile_checksum" in run_input.keys() else None,
+        })
         evaluation = evaluations_by_version.get(version_id)
         evidence = _json(evaluation["evidence_json"] if evaluation is not None and "evidence_json" in evaluation.keys() else None)
         if isinstance(evidence, dict) and str(evaluation["status"] or "") == "succeeded":
@@ -513,15 +529,29 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "cohort_type": run_payload.get("cohort_type") or "imported",
                 "observed_at": row["created_at"],
             })
-    if _table_exists(connection, "requirement_resolutions"):
-        for row in connection.execute("SELECT * FROM requirement_resolutions ORDER BY resolution_id"):
+    if _table_exists(connection, "requirement_resolutions") and _table_exists(connection, "requirement_resolution_enqueue_intents") and _table_exists(connection, "run_jobs"):
+        for row in connection.execute(
+            """SELECT rr.*, i.run_id, j.run_job_id
+               FROM requirement_resolutions rr
+               JOIN requirement_resolution_enqueue_intents i ON i.resolution_id=rr.resolution_id
+               JOIN run_jobs j ON j.run_id=i.run_id AND j.source_url=i.job_url
+               ORDER BY rr.resolution_id"""
+        ):
+            run = run_by_id.get(str(row["run_id"]))
+            run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
+            run_payload = run_payload if isinstance(run_payload, dict) else {}
             _append(sources, "review_action", {
                 "source_id": row["resolution_id"],
                 "review_action_id": row["resolution_id"],
+                "run_id": row["run_id"],
+                "run_job_id": row["run_job_id"],
                 "action": row["resolution_action"],
                 "candidate_profile_id": row["candidate_profile_id"],
                 "candidate_profile_revision": row["candidate_profile_revision"],
+                "candidate_profile_fingerprint": row["source_profile_fingerprint"],
                 "requirement_instance_id": row["requirement_instance_id"],
+                "cohort_id": run_payload.get("cohort_id") or "operational",
+                "cohort_type": run_payload.get("cohort_type") or "imported",
                 "observed_at": row["updated_at"],
             })
     return {

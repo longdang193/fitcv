@@ -188,7 +188,7 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     _seed_database(database)
     with sqlite3.connect(database) as connection:
         connection.execute("ALTER TABLE run_jobs ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'")
-        connection.execute("UPDATE run_jobs SET skills_json=? WHERE run_job_id='job-1'", (json.dumps(["Python"]),))
+        connection.execute("UPDATE run_jobs SET skills_json=? WHERE run_job_id='job-1'", (json.dumps([{"canonical": "Python"}]),))
         connection.execute("UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'", (json.dumps({"extraction_status": "valid"}),))
         connection.execute(
             """
@@ -209,6 +209,10 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     bundle = export_bundle(database, source_commit="head")
     assert any(row["requirement"] == "Python" for row in bundle["sources"]["posting_requirement"])
     assert any(row["gap_category"] == "missing_evidence" for row in bundle["sources"]["candidate_gap"])
+    gap = bundle["sources"]["candidate_gap"][0]
+    assert gap["candidate_profile_id"] == "profile-1"
+    assert gap["candidate_profile_revision"] == 1
+    assert gap["candidate_profile_fingerprint"] == "profile-hash"
     replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint=bundle["input_fingerprint"], ingested_at="now")
     assert replay["gold"]["gold_requirement_demand"]
     assert replay["gold"]["gold_candidate_gap"]
@@ -384,6 +388,57 @@ def test_export_rejects_fractional_and_oversized_attempt_counts(tmp_path: Path, 
     replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint=bundle["input_fingerprint"], ingested_at="now")
     effort = next(row for row in replay["gold"]["gold_run_job_effort"] if row["run_job_id"] == "job-1")
     assert effort["generation_attempt_coverage"] == "unavailable"
+
+
+def test_export_rejects_explicit_null_attempt_count(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"][0]["attempt_count"] = None
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    generation = next(row for row in bundle["sources"]["generation_attempt"] if row["run_job_id"] == "job-1")
+    assert generation["attempt_count"] == 0
+
+
+def test_export_redacts_nested_url_query_values(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE run_jobs SET source_url=? WHERE run_job_id='job-1'", ("https://example.test/job?next=https%3A%2F%2Fuser%3APRIVATE%40other.test%2Fpath%3Faccess_token%3DSECRET",))
+        connection.commit()
+    encoded = json.dumps(export_bundle(database, source_commit="head"), sort_keys=True)
+    assert "PRIVATE" not in encoded
+    assert "SECRET" not in encoded
+
+
+def test_requirement_resolution_without_job_lineage_is_not_exported(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE requirement_resolutions (
+                resolution_id TEXT PRIMARY KEY, candidate_profile_id TEXT, candidate_profile_revision TEXT,
+                source_profile_fingerprint TEXT, resolution_key TEXT, requirement_instance_id TEXT,
+                resolution_action TEXT, resolution_payload_json TEXT, actor TEXT, created_at TEXT, updated_at TEXT
+            );
+            CREATE TABLE requirement_resolution_enqueue_intents (
+                intent_id TEXT PRIMARY KEY, resolution_id TEXT, run_id TEXT, job_url TEXT,
+                actor TEXT, note TEXT, idempotency_key TEXT, action_id TEXT, status TEXT,
+                queue_job_id TEXT, error_message TEXT, created_at TEXT, updated_at TEXT
+            );
+            INSERT INTO requirement_resolutions VALUES ('resolution-1','profile-1','1','hash','key','job-1:0','RESOLVE_WITH_ANSWER','{}','actor','now','now');
+            INSERT INTO requirement_resolution_enqueue_intents VALUES ('intent-1','resolution-1','run-1','https://example.test/not-a-job','actor',NULL,'idem','action','enqueued',NULL,NULL,'now','now');
+            """
+        )
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    assert not any(row["review_action_id"] == "resolution-1" for row in bundle["sources"].get("review_action", []))
 
 
 @pytest.mark.parametrize(
