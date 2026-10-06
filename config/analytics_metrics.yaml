@@ -106,4 +106,5 @@ metrics:
 claim_priority_map:
   p0_acceptance_scope: [p0_a, p0_b, p0_c]
   p1_acceptance_scope: [p1_a, p1_b, p1_c]
+  p1b_current_contract_measurement: [p1_b]
   p2_acceptance_scope: [p2]

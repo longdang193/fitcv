@@ -434,6 +434,67 @@ def test_current_contract_evidence_rejects_dropped_attempted_outcome(tmp_path: P
     assert "current_contract_evidence_outcomes_incomplete" in result["failures"]
 
 
+def test_unavailable_current_contract_evidence_requires_provenance(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "unavailable",
+        "unavailable_reason": "retained_inputs_missing",
+        "source_commit": "a" * 40,
+        "material_metrics_sha256": "b" * 64,
+        "declared_input_fingerprint": "c" * 64,
+    }
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("unavailable", encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}, "runtime_efficiency": {"measurement_status": "incomplete"}},
+        tmp_path,
+    )
+    assert result["passed"] is True
+
+    evidence.pop("material_metrics_sha256")
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}, "runtime_efficiency": {"measurement_status": "incomplete"}},
+        tmp_path,
+    )
+    assert result["passed"] is False
+    assert "current_contract_evidence_material_digest_invalid" in result["failures"]
+
+
+def test_unavailable_registry_record_must_match_evidence_provenance(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "unavailable",
+        "unavailable_reason": "retained_inputs_missing",
+        "source_commit": "a" * 40,
+        "material_metrics_sha256": "b" * 64,
+        "declared_input_fingerprint": "c" * 64,
+    }
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("unavailable", encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    result = verifier._run_registry_evidence_check(
+        {"runtime_efficiency": {"measurement_status": "incomplete"}, "current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}},
+        tmp_path,
+    )
+    assert result["passed"] is False
+
+
 def test_current_contract_evidence_rejects_stale_declared_inputs(
     monkeypatch, tmp_path: Path
 ) -> None:

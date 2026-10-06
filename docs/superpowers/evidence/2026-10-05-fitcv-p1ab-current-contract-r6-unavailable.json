@@ -7,7 +7,8 @@
   "coverage": {},
   "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
   "evidence_status": "unavailable",
-  "declared_input_fingerprint": "f15679869948463e6b26ded5da84dfeb0b73dff0542a4ffa1c15d296011bba4d",
+  "declared_input_fingerprint": "525aec279c3d03f3b2d70997a02c7c7b4000213caa07d968c5fe852a6962064a",
+  "material_metrics_sha256": "160d274abe31dbc05519892b4d56e8706bce5ab1e58f40cd6eb21058bdd92623",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
   "schema_version": "fitcv_runtime_efficiency_baseline_v3",
   "selection": {

@@ -22,6 +22,9 @@ RECONCILABLE_OBSERVATION_TYPES = {
     "accepted_artifact",
 }
 TRACE_OBSERVATION_TYPES = {"trace", "generation_trace", "normalized_trace"}
+REQUIREMENT_DEMAND_OBSERVATION_TYPES = {"posting_requirement"}
+CANDIDATE_GAP_OBSERVATION_TYPES = {"candidate_gap"}
+INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid"}
 DEFAULT_METRIC_REGISTRY = Path(__file__).resolve().parents[1] / "config/analytics_metrics.yaml"
 
 
@@ -195,6 +198,17 @@ def _known_sum(values: list[Any]) -> float | int | None:
     return sum(values)
 
 
+def _coverage_issue(fact: dict[str, Any]) -> str | None:
+    if fact.get("validity") != "valid":
+        return "invalid_source_fact"
+    payload = dict(fact.get("payload") or {})
+    for field in ("coverage", "coverage_status", "extraction_status", "evaluation_status"):
+        value = str(payload.get(field) or "").strip().lower()
+        if value in INCOMPLETE_COVERAGE_VALUES:
+            return f"{field}_incomplete"
+    return None
+
+
 def _group_run_jobs(silver: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for fact in silver:
@@ -223,6 +237,8 @@ def _artifact_identity(fact: dict[str, Any]) -> str:
 def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> list[dict[str, Any]]:
     artifacts: dict[str, dict[str, Any]] = {}
     for fact in facts:
+        if fact.get("validity") != "valid":
+            continue
         payload = dict(fact.get("payload") or {})
         if fact.get("observation_type") not in {"artifact", "accepted_artifact"}:
             continue
@@ -264,9 +280,11 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
     result: list[dict[str, Any]] = []
     for run_job_id, facts in sorted(grouped.items()):
         artifacts = _accepted_artifacts(facts, run_job_id)
-        provider = [fact for fact in facts if fact.get("observation_type") == "provider_attempt"]
-        generation = [fact for fact in facts if fact.get("observation_type") == "generation_attempt"]
-        review = [fact for fact in facts if fact.get("observation_type") == "review_action"]
+        invalid_facts = [fact for fact in facts if _coverage_issue(fact)]
+        valid_facts = [fact for fact in facts if fact.get("validity") == "valid"]
+        provider = [fact for fact in valid_facts if fact.get("observation_type") == "provider_attempt"]
+        generation = [fact for fact in valid_facts if fact.get("observation_type") == "generation_attempt"]
+        review = [fact for fact in valid_facts if fact.get("observation_type") == "review_action"]
         provider_calls = _known_sum([fact["payload"].get("provider_call_count") for fact in provider])
         tokens = _known_sum([fact["payload"].get("token_total") for fact in provider])
         result.append(
@@ -279,7 +297,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "cohort_type": next((fact["payload"].get("cohort_type") for fact in facts if fact["payload"].get("cohort_type")), "unclassified"),
                 "accepted_artifact_ids": [artifact["artifact_id"] for artifact in artifacts],
                 "accepted_artifact_count": len(artifacts),
-                "attempted_work_count": len({fact["observation_id"] for fact in facts}),
+                "attempted_work_count": len({fact["observation_id"] for fact in valid_facts}),
                 "provider_attempt_count": len(provider),
                 "generation_attempt_count": len(generation),
                 "failed_generation_attempt_count": sum(
@@ -289,8 +307,13 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "review_action_count": len(review),
                 "provider_call_count": provider_calls,
                 "token_total": tokens,
-                "unavailable_reason": None if artifacts else "accepted_artifact_count_zero",
-                "source_observation_ids": sorted(fact["observation_id"] for fact in facts),
+                "coverage": "unavailable" if invalid_facts else "complete",
+                "unavailable_reason": (
+                    _coverage_issue(invalid_facts[0])
+                    if invalid_facts
+                    else None if artifacts else "accepted_artifact_count_zero"
+                ),
+                "source_observation_ids": sorted(fact["observation_id"] for fact in valid_facts),
             }
         )
     return result
@@ -325,7 +348,11 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                     if accepted_artifacts and provider_calls is not None and tokens is not None
                     else None
                 ),
-                "unavailable_reason": None if accepted_artifacts else "accepted_artifact_count_zero",
+                "coverage": "unavailable" if any(row.get("coverage") == "unavailable" for row in rows) else "complete",
+                "unavailable_reason": next(
+                    (str(row.get("unavailable_reason")) for row in rows if row.get("coverage") == "unavailable"),
+                    None if accepted_artifacts else "accepted_artifact_count_zero",
+                ),
                 "source_run_job_ids": sorted(str(row["run_job_id"]) for row in rows),
             }
         )
@@ -348,11 +375,20 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
     """Build one row per requirement and eligible opportunity cohort."""
     postings_by_cohort: dict[tuple[str, str], set[str]] = defaultdict(set)
     requirement_postings: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    coverage_issues: dict[tuple[str, str], str] = {}
+    dimension_keys: set[tuple[str, str, str]] = set()
     for fact in silver:
+        if fact.get("observation_type") not in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
+            continue
         payload = dict(fact.get("payload") or {})
         posting_id = _posting_id(payload)
         requirement = _requirement_key(payload)
         cohort = _cohort_key(payload)
+        if posting_id and requirement:
+            dimension_keys.add((*cohort, requirement))
+        if (issue := _coverage_issue(fact)) is not None:
+            coverage_issues.setdefault(cohort, issue)
+            continue
         if not posting_id or not requirement or payload.get("eligible", True) is False:
             continue
         postings_by_cohort[cohort].add(posting_id)
@@ -367,10 +403,11 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             "cohort_type": cohort_type,
             "numerator_posting_count": len(posting_ids),
             "denominator_posting_count": len(postings_by_cohort[(cohort_id, cohort_type)]),
-            "coverage": "complete",
-            "unavailable_reason": None,
+            "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
+            "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
         }
-        for (cohort_id, cohort_type, requirement), posting_ids in sorted(requirement_postings.items())
+        for (cohort_id, cohort_type, requirement) in sorted(dimension_keys | set(requirement_postings))
+        for posting_ids in [requirement_postings.get((cohort_id, cohort_type, requirement), set())]
     ]
 
 
@@ -378,16 +415,28 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
     """Build one row per requirement, explicit gap category, and cohort."""
     denominator: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
     gaps: dict[tuple[str, str, str, str], set[tuple[str, str]]] = defaultdict(set)
+    coverage_issues: dict[tuple[str, str], str] = {}
+    gap_keys: set[tuple[str, str, str, str]] = set()
     for fact in silver:
+        observation_type = fact.get("observation_type")
+        if observation_type not in REQUIREMENT_DEMAND_OBSERVATION_TYPES | CANDIDATE_GAP_OBSERVATION_TYPES:
+            continue
         payload = dict(fact.get("payload") or {})
         posting_id = _posting_id(payload)
         requirement = _requirement_key(payload)
         cohort = _cohort_key(payload)
+        if (issue := _coverage_issue(fact)) is not None:
+            coverage_issues.setdefault(cohort, issue)
+            continue
         if not posting_id or not requirement or payload.get("eligible", True) is False:
             continue
         pair = (posting_id, requirement)
-        denominator[cohort].add(pair)
+        if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
+            denominator[cohort].add(pair)
+            continue
         category = str(payload.get("gap_category") or "").strip()
+        if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+            gap_keys.add((*cohort, requirement, category))
         if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
             gaps[(*cohort, requirement, category)].add(pair)
     return [
@@ -401,10 +450,11 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             "cohort_type": cohort_type,
             "numerator_requirement_count": len(pairs),
             "denominator_requirement_count": len(denominator[(cohort_id, cohort_type)]),
-            "coverage": "complete",
-            "unavailable_reason": None,
+            "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
+            "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
         }
-        for (cohort_id, cohort_type, requirement, category), pairs in sorted(gaps.items())
+        for (cohort_id, cohort_type, requirement, category) in sorted(gap_keys | set(gaps))
+        for pairs in [gaps.get((cohort_id, cohort_type, requirement, category), set())]
     ]
 
 
@@ -438,7 +488,10 @@ def build_gold_acceptance_state(
     status_dimensions = dict(state.get("status_dimensions") or {})
     records_by_priority: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
-        priorities = mapping.get(str(record.get("claim") or "")) or [str(record.get("priority") or record.get("claim") or "unknown")]
+        claim = str(record.get("claim") or "")
+        priorities = mapping.get(claim)
+        if not priorities:
+            raise ValueError(f"analytics_claim_priority_mapping_missing:{claim}")
         for priority in priorities:
             records_by_priority[str(priority)].append(record)
     output: list[dict[str, Any]] = []

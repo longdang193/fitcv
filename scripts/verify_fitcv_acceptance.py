@@ -347,6 +347,13 @@ def _run_current_contract_evidence_check(
         ):
             if not str(evidence.get("unavailable_reason") or "").strip():
                 failures.append("current_contract_evidence_unavailable_reason_missing")
+            if not isinstance(evidence.get("source_commit"), str) or len(evidence["source_commit"]) != 40:
+                failures.append("current_contract_evidence_source_commit_invalid")
+            if not isinstance(evidence.get("material_metrics_sha256"), str) or len(evidence["material_metrics_sha256"]) != 64:
+                failures.append("current_contract_evidence_material_digest_invalid")
+            declared_input_fingerprint = evidence.get("declared_input_fingerprint")
+            if not isinstance(declared_input_fingerprint, str) or len(declared_input_fingerprint) != 64:
+                failures.append("current_contract_evidence_input_fingerprint_invalid")
             return {
                 "passed": not failures,
                 "evidence_json": str(json_path),
@@ -440,7 +447,17 @@ def _run_registry_evidence_check(state: dict[str, Any], repo_root: Path) -> dict
             references = dict(state.get("current_contract_evidence") or {})
             expected_paths = {str(references.get(key) or "") for key in ("json", "markdown", "sha256")}
             if expected_paths == set(unavailable[0].get("artifact_paths") or []):
-                return {"passed": True, "status": "checked", "failures": ["current_contract_evidence_unavailable"]}
+                evidence_json = repo_root / str(references.get("json") or "")
+                try:
+                    evidence = json.loads(evidence_json.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    failures.append("current_contract_evidence_unavailable_evidence_invalid")
+                else:
+                    record = unavailable[0]
+                    for field in ("source_commit", "declared_input_fingerprint", "material_metrics_sha256"):
+                        if evidence.get(field) != record.get(field):
+                            failures.append(f"current_contract_evidence_unavailable_{field}_mismatch")
+                return {"passed": not failures, "status": "checked", "failures": sorted(set(failures))}
         failures.append("current_contract_registry_record_missing_or_ambiguous")
     elif len(current) != 1:
         failures.append("current_contract_registry_record_missing_or_ambiguous")

@@ -365,12 +365,27 @@ def _attempted_outcomes(
         record = projected_by_trace.get(str(trace.get("trace_id") or ""), {})
         outcome = {
             "trace_id": str(trace.get("trace_id") or ""),
+            "run_job_id": str(
+                trace.get("run_job_id")
+                or trace.get("job_id")
+                or trace.get("scope_key")
+                or trace.get("job_url")
+                or trace.get("trace_id")
+                or ""
+            ),
             "job_url": str(trace.get("job_url") or trace.get("scope_key") or ""),
             "status": status,
             "attempt_count": len(attempts),
             "attempt_types": [str(item.get("attempt_type") or "unknown") for item in attempts],
             "failure_category_counts": dict(record.get("failure_category_counts") or {}),
             "accepted_final_one_page": record.get("accepted_final_one_page"),
+            "artifact_id": record.get("artifact_id"),
+            "provider_call_count": dict(trace.get("efficiency_summary") or {}).get("provider_call_count"),
+            "token_total": sum(
+                float(item.get("total_tokens") or 0)
+                for item in list(dict(trace.get("efficiency_summary") or {}).get("token_usage") or [])
+                if isinstance(item, dict) and item.get("total_tokens") is not None
+            ) or None,
         }
         outcomes.append(outcome)
     return outcomes
@@ -1033,38 +1048,44 @@ def build_baseline(
     accepted = dict(report.get("accepted_cv") or {})
     accepted_count = int(accepted.get("count") or 0)
     cohort_id = ",".join(str(value) for value in report.get("selection", {}).get("run_ids", [])) or "unclassified"
+    outcomes = [item for item in list(report.get("attempted_outcomes") or []) if isinstance(item, dict)]
     source_rows: dict[str, list[dict[str, Any]]] = {
-        "provider_attempt": [{
-            "source_id": f"benchmark-provider:{cohort_id}",
-            "run_job_id": cohort_id,
-            "provider_call_count": workload.get("provider_call_count"),
-            "token_total": workload.get("token_total"),
-            "cohort_id": cohort_id,
-            "cohort_type": "benchmark",
-        }],
-        "generation_attempt": [
+        "provider_attempt": [
             {
-                "source_id": f"benchmark-generation:{index}",
-                "run_job_id": cohort_id,
-                "status": "accepted" if outcome.get("accepted") else "failed",
+                "source_id": f"benchmark-provider:{index}",
+                "run_job_id": str(outcome.get("run_job_id") or f"benchmark-job:{index}"),
+                "provider_call_count": outcome.get("provider_call_count"),
+                "token_total": outcome.get("token_total"),
                 "cohort_id": cohort_id,
                 "cohort_type": "benchmark",
             }
-            for index, outcome in enumerate(list(report.get("attempted_outcomes") or []))
-            if isinstance(outcome, dict)
+            for index, outcome in enumerate(outcomes)
+        ],
+        "generation_attempt": [
+            {
+                "source_id": f"benchmark-generation:{index}",
+                "run_job_id": str(outcome.get("run_job_id") or f"benchmark-job:{index}"),
+                "status": "accepted" if str(outcome.get("status") or "").lower() in {"accepted", "succeeded", "success"} else "failed",
+                "cohort_id": cohort_id,
+                "cohort_type": "benchmark",
+            }
+            for index, outcome in enumerate(outcomes)
         ],
         "accepted_artifact": [
             {
                 "source_id": f"benchmark-artifact:{index}",
-                "run_job_id": cohort_id,
-                "artifact_id": f"accepted-artifact:{index}",
+                "run_job_id": str(outcome.get("run_job_id") or f"benchmark-job:{index}"),
+                "artifact_id": str(outcome.get("artifact_id") or f"accepted-artifact:{index}"),
                 "status": "accepted",
                 "cohort_id": cohort_id,
                 "cohort_type": "benchmark",
             }
-            for index in range(accepted_count)
+            for index, outcome in enumerate(outcomes)
+            if str(outcome.get("status") or "").lower() in {"accepted", "succeeded", "success"}
         ],
     }
+    if not outcomes:
+        source_rows = {}
     bronze = build_bronze_observations(
         source_rows,
         source_commit="benchmark-report",
@@ -1083,6 +1104,7 @@ def build_baseline(
         "token_total": None,
         "per_accepted_artifact": None,
         "unavailable_reason": "no_attempted_jobs",
+        "source_run_job_ids": [],
     }
     report["gold_cv_effort"] = {
         "alias_of": "gold_cohort_effort",

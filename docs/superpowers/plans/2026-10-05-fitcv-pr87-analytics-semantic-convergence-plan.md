@@ -89,6 +89,15 @@ dependency and no unsupported P1-C completion claim.
 - Recovery owner: `single lead controller`; no worker may alter registry, acceptance state, retained evidence, or retained database bytes.
 - Dirty baseline: modified tracked files are `scripts/benchmark_cv_efficiency.py`, `scripts/fitcv_analytics.py`, `scripts/sql/fitcv_gold_views.sql`, `scripts/verify_fitcv_acceptance.py`, `tests/test_benchmark_cv_efficiency.py`, `tests/test_fitcv_analytics.py`, and `tests/test_fitcv_cp/test_acceptance_verifier.py`; intended untracked files are `config/analytics_metrics.yaml`, `tests/fixtures/analytics_semantic_contract.json`, and this plan; all other existing untracked files remain scratch and out of scope.
 
+## Post-Review Correction Sequence
+
+- [x] Preserve actual `run_job_id` grain in benchmark Gold projections and emit no synthetic job for empty input.
+- [x] Filter requirement-demand and candidate-gap Gold inputs by source type; exclude invalid facts and propagate unavailable coverage.
+- [x] Require explicit claim-to-priority mapping, including `p1b_current_contract_measurement` → `p1_b`; reject unknown claims.
+- [x] Require source commit, material digest, and input fingerprint provenance before accepting unavailable current-contract evidence.
+- [x] Add regressions for empty input, run-job identity, invalid/source filtering, unknown claims, and unavailable-evidence provenance.
+- [x] Rerun focused and full suites, deterministic rebuild, SQL smoke test, acceptance verifier, and diff-scope review — focused `72 passed`; full `3225 passed, 8 skipped`; deterministic material digest `160d274abe31dbc05519892b4d56e8706bce5ab1e58f40cd6eb21058bdd92623`; six SQL views; `git diff --check` passed.
+
 ## Evidence Recovery Contract
 
 - Authoritative R5 pair: `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` and the database path recorded by that manifest. The R5 evidence JSON records this pair as the source for the current contract; no arbitrary `data/control_plane.sqlite3` substitution is allowed.

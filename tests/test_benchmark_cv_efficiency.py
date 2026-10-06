@@ -34,6 +34,25 @@ def accepted_cv_artifact_event_v1(**kwargs):
     return _accepted_cv_artifact_event_v1(**kwargs)
 
 
+def test_empty_baseline_has_no_synthetic_run_job() -> None:
+    report = build_baseline([])
+
+    assert report["gold_cohort_effort"]["attempted_job_count"] == 0
+    assert report["gold_cohort_effort"]["source_run_job_ids"] == []
+
+
+def test_baseline_preserves_trace_run_job_ids_in_gold() -> None:
+    report = build_baseline([_run(
+        "run-1",
+        {"cv_generation_trace": {"records": [
+            {"trace_id": "trace-1", "run_job_id": "job-1", "job_url": "job-url", "attempts": [{"provider_status": "accepted"}], "output_summary": {"final_status": "accepted"}, "efficiency_summary": {"provider_call_count": 1}},
+            {"trace_id": "trace-2", "run_job_id": "job-2", "job_url": "job-url-2", "attempts": [{"provider_status": "failed"}], "output_summary": {"final_status": "failed"}, "efficiency_summary": {"provider_call_count": 1}},
+        ]}}
+    )])
+
+    assert report["gold_cohort_effort"]["source_run_job_ids"] == ["job-1", "job-2"]
+
+
 def test_run_manifest_rejects_duplicate_run_ids(tmp_path: Path) -> None:
     path = tmp_path / "manifest.json"
     path.write_text(json.dumps({"run_ids": ["run-1", "run-1"]}), encoding="utf-8")

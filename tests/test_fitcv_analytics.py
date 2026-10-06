@@ -22,6 +22,16 @@ def test_metric_registry_has_unique_contracts_and_claim_mapping() -> None:
         "evidence_gap",
     }
     assert registry["claim_priority_map"]["p0_acceptance_scope"] == ["p0_a", "p0_b", "p0_c"]
+    assert registry["claim_priority_map"]["p1b_current_contract_measurement"] == ["p1_b"]
+
+
+def test_acceptance_state_rejects_unknown_claim_priority() -> None:
+    try:
+        build_gold_acceptance_state({"records": [{"claim": "unknown"}]}, {"status_dimensions": {}})
+    except ValueError as exc:
+        assert str(exc) == "analytics_claim_priority_mapping_missing:unknown"
+    else:
+        raise AssertionError("unknown claim accepted")
 
 
 def test_silver_reconciles_mutable_snapshots_but_bronze_keeps_history() -> None:
@@ -111,6 +121,49 @@ def test_requirement_and_gap_gold_have_explicit_grains_and_distinct_denominators
     assert gaps[0]["grain"] == "requirement_and_gap_category_and_cohort"
     assert gaps[0]["numerator_requirement_count"] == 1
     assert gaps[0]["denominator_requirement_count"] == 2
+
+
+def test_requirement_gold_filters_unrelated_and_invalid_facts_and_marks_coverage() -> None:
+    bronze = build_bronze_observations(
+        {
+            "posting_requirement": [
+                {"source_id": "valid", "posting_id": "post-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "invalid", "posting_id": "post-2", "requirement": "python", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "provider_attempt": [
+                {"source_id": "noise", "posting_id": "post-noise", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    demand = build_gold_requirement_demand(build_silver_facts(bronze))
+    assert demand[0]["numerator_posting_count"] == 1
+    assert demand[0]["coverage"] == "unavailable"
+    assert demand[0]["unavailable_reason"] == "invalid_source_fact"
+
+
+def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> None:
+    bronze = build_bronze_observations(
+        {"posting_requirement": [{"source_id": "invalid", "posting_id": "post-1", "requirement": "python", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"}]},
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    demand = build_gold_requirement_demand(build_silver_facts(bronze))
+    assert demand == [{
+        "schema_version": "fitcv.analytics.v2",
+        "metric": "gold_requirement_demand",
+        "grain": "requirement_and_cohort",
+        "requirement": "python",
+        "cohort_id": "c",
+        "cohort_type": "fixture",
+        "numerator_posting_count": 0,
+        "denominator_posting_count": 0,
+        "coverage": "unavailable",
+        "unavailable_reason": "invalid_source_fact",
+    }]
 
 
 def test_projection_fingerprint_changes_with_declared_input(tmp_path) -> None:
@@ -233,7 +286,7 @@ def test_gold_effort_marks_missing_artifact_identity_unavailable() -> None:
 
 def test_gold_acceptance_state_preserves_current_and_historical() -> None:
     rows = build_gold_acceptance_state(
-        {"records": [
+        {"claim_priority_map": {"claim": ["p1"]}, "records": [
             {"evidence_id": "old", "claim": "claim", "status": "historical", "cohort_id": "c1", "cohort_type": "replay"},
             {"evidence_id": "new", "claim": "claim", "status": "current", "cohort_id": "c2", "cohort_type": "fixture"},
         ]},
