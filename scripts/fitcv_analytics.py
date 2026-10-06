@@ -418,7 +418,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "token_coverage": "complete" if token_coverage_complete else "unavailable",
                 "generation_attempt_count": len(generation),
                 "failed_generation_attempt_count": sum(
-                    str(fact["payload"].get("status") or "") in {"failed", "generation_failed", "validation_failed"}
+                    str(fact["payload"].get("status") or "") in {"failed", "generation_failed", "validation_failed", "persistence_failed"}
                     for fact in generation
                 ),
                 "review_action_count": len(review),
@@ -446,7 +446,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         provider_calls = _known_sum([row["provider_call_count"] for row in rows])
         tokens = _known_sum([row["token_total"] for row in rows])
         eligible_rows = [row for row in rows if row.get("eligible", True) and (row.get("generation_observation_count") or row.get("generation_attempt_count"))]
-        accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in eligible_rows)
+        accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in rows)
         generation_jobs = len(eligible_rows)
         first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in eligible_rows)
         render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)

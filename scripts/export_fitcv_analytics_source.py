@@ -47,6 +47,17 @@ _SECRET_QUERY_PARTS = {
 _SAFE_TELEMETRY_FIELDS = {"prompt_tokens", "completion_tokens", "input_tokens", "output_tokens", "total_tokens", "token_total"}
 
 
+def _normalized_query_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+
+
+def _is_secret_query_key(key: str) -> bool:
+    normalized = _normalized_query_key(key)
+    return normalized in _SECRET_QUERY_PARTS or any(
+        part in normalized for part in ("api_key", "apikey", "authorization", "credential", "private_key", "secret", "token", "password", "signature")
+    )
+
+
 def _digest_bytes(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -69,12 +80,14 @@ def _json(value: Any) -> Any:
 def _sanitize_string(value: str) -> str:
     value = value.strip()
     url_like = "://" in value or value.startswith("//") or re.match(r"^(?:https?|wss?|ftp):", value, re.IGNORECASE)
-    if not url_like and "?" not in value:
-        return value
     try:
-        parts = urlsplit(value)
+        initial_parts = urlsplit(value)
     except ValueError:
         return "[redacted-url]"
+    fragment_has_secret = any(_is_secret_query_key(key) for key, _ in parse_qsl(initial_parts.fragment, keep_blank_values=True))
+    if not url_like and "?" not in value and not fragment_has_secret:
+        return value
+    parts = initial_parts
     if not parts.netloc and (parts.scheme or url_like):
         return "[redacted-url]"
     invalid_port = False
@@ -94,8 +107,7 @@ def _sanitize_string(value: str) -> str:
         query = urlencode([
             (key, item)
             for key, item in parse_qsl(parts.query, keep_blank_values=True)
-            if re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_") not in _SECRET_QUERY_PARTS
-            and not any(secret in key.lower() for secret in ("auth", "credential", "secret", "token", "password", "signature"))
+            if not _is_secret_query_key(key)
         ])
     except ValueError:
         query = ""
@@ -166,8 +178,10 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 trace = value.get("cv_generation_trace")
                 if isinstance(trace, dict):
                     summary = trace.get("efficiency_summary") or {}
-                    if isinstance(summary, dict):
-                        value = {**summary, **value}
+                if "token_usage" in value and value["token_usage"] is None:
+                    value["_token_usage_present"] = True
+                if "usage" in value and value["usage"] is None:
+                    value["_usage_present"] = True
                 sanitized = _sanitize(value) or {}
                 for identifier in (
                     value.get("artifact_id"), value.get("artifact_version_id"),
@@ -185,6 +199,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
     if isinstance(trace, dict):
         candidates.append(trace.get("efficiency_summary"))
     if field == "token_total":
+        if debug.get("_token_usage_present") or debug.get("_usage_present"):
+            return None
         invalid_statuses = {"incomplete", "not_run", "unavailable"}
         if any(
             isinstance(candidate, dict)
@@ -225,32 +241,24 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                     return left_value + right_value if left_value is not None and right_value is not None else None
             return None
 
-        provider_calls = next(
-            (
-                candidate.get("provider_call_count")
-                for candidate in candidates
-                if isinstance(candidate, dict) and candidate.get("provider_call_count") is not None
-            ),
-            None,
-        )
         usage_seen = False
         for candidate in candidates:
             if not isinstance(candidate, dict):
                 continue
-            usage = candidate.get("token_usage") if "token_usage" in candidate else candidate.get("usage")
-            if usage is not None:
+            if "token_usage" in candidate:
+                usage = candidate["token_usage"]
+            elif "usage" in candidate:
+                usage = candidate["usage"]
+            else:
+                continue
+            if usage is not None or "token_usage" in candidate or "usage" in candidate:
                 usage_seen = True
-                return usage_total(usage, provider_calls)
+                return usage_total(usage, candidate.get("provider_call_count"))
         if usage_seen:
             return None
         for candidate in candidates:
             if isinstance(candidate, dict) and "token_total" in candidate:
-                statuses = {
-                    str(item.get("token_usage_status") or "").strip().lower()
-                    for item in candidates
-                    if isinstance(item, dict) and item.get("token_usage_status") is not None
-                }
-                if statuses and statuses <= {"available"}:
+                if str(candidate.get("token_usage_status") or "").strip().lower() == "available":
                     return token_number(candidate.get("token_total"))
                 return None
         return None

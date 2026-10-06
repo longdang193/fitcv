@@ -240,6 +240,9 @@ def test_export_redacts_malformed_url_without_leaking_fragment_or_credentials(tm
             "www.example.test/job?api_key=PRIVATE",
             "https://example.test/job?api.key=PRIVATE",
             "https://example.test/job?api+key=PRIVATE",
+            "https://example.test/job?X-API-Key=PRIVATE",
+            "https://example.test/job?private_key=PRIVATE",
+            "/job#access_token=PRIVATE",
             "https://user:PRIVATE",
             "https://example.test/job?api-key=PRIVATE",
         ):
@@ -271,6 +274,43 @@ def test_export_rejects_incomplete_primary_token_source_and_nested_cardinality(t
         event["cv_generation_trace"]["efficiency_summary"].update(
             {"token_usage_status": "available", "token_usage": [{"total_tokens": 9}]}
         )
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
+    assert provider.get("token_total") is None
+
+
+@pytest.mark.parametrize("primary", [{"usage": {"total_tokens": "bad"}}, {"token_usage": None}])
+def test_export_does_not_fall_through_primary_usage(tmp_path: Path, primary: dict[str, object]) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        event = debug["accepted_artifact_events"][0]
+        event.pop("cv_generation_trace", None)
+        event.update(primary)
+        event["cv_generation_trace"] = {"efficiency_summary": {"provider_call_count": 1, "token_usage": [{"total_tokens": 9}]}}
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
+    assert provider.get("token_total") is None
+
+
+def test_export_uses_nested_usage_source_cardinality(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        event = debug["accepted_artifact_events"][0]
+        event["provider_call_count"] = 1
+        event["cv_generation_trace"]["efficiency_summary"]["provider_call_count"] = 2
+        event["cv_generation_trace"]["efficiency_summary"]["token_usage"] = [{"total_tokens": 9}]
         payload["cv_generation_debug_json"] = json.dumps(debug)
         connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
         connection.commit()

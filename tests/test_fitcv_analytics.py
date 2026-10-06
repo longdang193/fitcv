@@ -277,6 +277,10 @@ def test_acceptance_yield_excludes_ineligible_generation_jobs() -> None:
                     {"source_id": "eligible", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture", "eligible": True},
                     {"source_id": "ineligible", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture", "eligible": False},
                 ],
+                "provider_attempt": [
+                    {"source_id": "provider-1", "run_job_id": "job-1", "provider_call_count": 1, "token_total": 10, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "provider-2", "run_job_id": "job-2", "provider_call_count": 1, "token_total": 10, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
                 "accepted_artifact": [
                     {"source_id": "artifact-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
                     {"source_id": "artifact-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
@@ -292,6 +296,10 @@ def test_acceptance_yield_excludes_ineligible_generation_jobs() -> None:
     cohort = result["gold"]["gold_cohort_effort"][0]
     assert cohort["successful_run_job_count"] == 1
     assert cohort["generation_job_count"] == 1
+    assert cohort["accepted_artifact_count"] == 2
+    metrics = {row["metric_id"]: row for row in result["gold"]["gold_semantic_metric"]}
+    assert metrics["provider_calls_per_accepted_cv"]["value"] == 1.0
+    assert metrics["tokens_per_accepted_cv"]["value"] == 10.0
 
 
 def test_registry_fallback_preserves_supplied_records() -> None:
@@ -326,6 +334,7 @@ def test_persistence_failed_is_terminal_generation_evidence() -> None:
     )
     row = result["gold"]["gold_run_job_effort"][0]
     assert row["generation_attempt_coverage"] == "complete"
+    assert row["failed_generation_attempt_count"] == 1
 
 
 def test_direct_invalid_token_facts_become_unavailable() -> None:
