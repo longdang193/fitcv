@@ -510,6 +510,74 @@ def test_render_proof_must_match_stored_content_checksum(tmp_path: Path) -> None
     assert metrics["verified_one_page_rate"]["value"] is None
 
 
+def test_export_blocks_acceptance_debug_from_other_pipeline_run(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs WHERE run_id='run-1'").fetchone()[0])
+        connection.execute(
+            "INSERT INTO pipeline_runs VALUES (?, ?, ?, ?)",
+            ("run-2", json.dumps(payload), "2026-10-06T00:10:00Z", None),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_blocks_acceptance_when_referenced_run_job_is_missing(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("DELETE FROM run_jobs WHERE run_job_id='job-1'")
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_applies_run_job_rejection_to_artifact_acceptance(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["debug_records"] = [{"run_job_id": "job-1", "accepted_outcome": False}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_preserves_acceptance_conflict_when_durability_is_missing(tmp_path: Path) -> None:
+    for field, value in (("generation_status", "generation_failed"), ("content_checksum", None)):
+        database = tmp_path / f"fitcv-{field}.sqlite3"
+        _seed_database(database)
+        with sqlite3.connect(database) as connection:
+            connection.execute(f"UPDATE cv_versions SET {field}=? WHERE version_id='cv-1'", (value,))
+            connection.commit()
+
+        bundle = export_bundle(database, source_commit="head")
+        replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+        metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+        assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+        assert metrics["acceptance_yield"]["value"] is None
+
+
 @pytest.mark.parametrize("attempt_count", [1.9, 10**400])
 def test_export_rejects_fractional_and_oversized_attempt_counts(tmp_path: Path, attempt_count: object) -> None:
     database = tmp_path / "fitcv.sqlite3"

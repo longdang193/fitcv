@@ -176,7 +176,9 @@ def _valid_accepted_debug_event(value: dict[str, Any]) -> bool:
     return True
 
 
-def _debug_matches_version(debug: dict[str, Any], version_id: str, run_job_id: str) -> bool:
+def _debug_matches_version(debug: dict[str, Any], version_id: str, run_job_id: str, run_id: str) -> bool:
+    if debug.get("_debug_run_id_conflict") or debug.get("_debug_run_id") != run_id:
+        return False
     for field in ("artifact_id", "artifact_version_id", "version_id", "cv_version_id"):
         value = debug.get(field)
         if value is not None and (not _valid_debug_identity(value) or value.strip() != version_id):
@@ -290,6 +292,10 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                         key = identifier.strip() if isinstance(identifier, str) else str(identifier)
                         previous = records.get(key, {})
                         merged = {**previous, **sanitized}
+                        merged["_debug_run_id_conflict"] = bool(previous.get("_debug_run_id_conflict")) or (
+                            bool(previous.get("_debug_run_id"))
+                            and previous.get("_debug_run_id") != sanitized.get("_debug_run_id")
+                        )
                         merged["_acceptance_rejection_present"] = bool(previous.get("_acceptance_rejection_present")) or current_rejection
                         merged["_acceptance_evidence_invalid"] = bool(previous.get("_acceptance_evidence_invalid")) or current_invalid
                         if source_key == "accepted_artifact_events":
@@ -464,6 +470,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     jobs = []
     if _table_exists(connection, "run_jobs"):
         jobs = connection.execute("SELECT * FROM run_jobs ORDER BY run_job_id").fetchall()
+    known_run_job_ids = {str(row["run_job_id"]) for row in jobs}
     for row in jobs:
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
@@ -533,6 +540,15 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             else {}
         )
         debug = {**job_debug, **artifact_debug}
+        debug["_acceptance_rejection_present"] = bool(
+            job_debug.get("_acceptance_rejection_present") or artifact_debug.get("_acceptance_rejection_present")
+        )
+        debug["_acceptance_evidence_invalid"] = bool(
+            job_debug.get("_acceptance_evidence_invalid") or artifact_debug.get("_acceptance_evidence_invalid")
+        )
+        debug["_debug_run_id_conflict"] = bool(
+            job_debug.get("_debug_run_id_conflict") or artifact_debug.get("_debug_run_id_conflict")
+        )
         if artifact_debug.get("_accepted_event_seen"):
             consumed_debug_keys.add(version_id)
         run = run_by_id.get(str(row["run_id"]))
@@ -574,31 +590,38 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         provider_call_count = _debug_number(debug, "provider_call_count")
         token_total = _debug_number(debug, "token_total")
         accepted_event_observed = artifact_debug.get("_accepted_event_seen") is True
+        acceptance_rejection_present = bool(debug.get("_acceptance_rejection_present"))
+        acceptance_evidence_invalid = bool(debug.get("_acceptance_evidence_invalid"))
+        lineage_available = not known_run_job_ids or run_job_id in known_run_job_ids
         accepted_event = bool(
             (
                 artifact_debug.get("_accepted_event_seen")
                 and artifact_debug.get("_accepted_event_valid") is True
-                and not artifact_debug.get("_acceptance_rejection_present")
-                and not artifact_debug.get("_acceptance_evidence_invalid")
-                and _debug_matches_version(artifact_debug, version_id, run_job_id)
+                and not acceptance_rejection_present
+                and not acceptance_evidence_invalid
+                and lineage_available
+                and _debug_matches_version(artifact_debug, version_id, run_job_id, str(row["run_id"]))
             )
             or (
                 artifact_debug.get("accepted_outcome") is True
                 and _valid_accepted_debug_event(artifact_debug)
-                and not artifact_debug.get("_acceptance_rejection_present")
-                and not artifact_debug.get("_acceptance_evidence_invalid")
-                and _debug_matches_version(artifact_debug, version_id, run_job_id)
+                and not acceptance_rejection_present
+                and not acceptance_evidence_invalid
+                and lineage_available
+                and _debug_matches_version(artifact_debug, version_id, run_job_id, str(row["run_id"]))
             )
             or (
                 isinstance(artifact_debug.get("final_status"), str)
                 and artifact_debug["final_status"].lower() == "accepted"
                 and _valid_accepted_debug_event(artifact_debug)
-                and not artifact_debug.get("_acceptance_rejection_present")
-                and not artifact_debug.get("_acceptance_evidence_invalid")
-                and _debug_matches_version(artifact_debug, version_id, run_job_id)
+                and not acceptance_rejection_present
+                and not acceptance_evidence_invalid
+                and lineage_available
+                and _debug_matches_version(artifact_debug, version_id, run_job_id, str(row["run_id"]))
             )
         )
         accepted_event_invalid = accepted_event_observed and not accepted_event
+        artifact_emitted = False
         _append(sources, "generation_attempt", {
             **common,
             "source_id": version_id,
@@ -634,6 +657,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             }
             _append(sources, "accepted_artifact", artifact)
             _append(sources, "artifact", artifact)
+            artifact_emitted = True
             if isinstance(debug.get("render_acceptance"), dict):
                 _append(sources, "render_proof", {
                     **common,
@@ -642,7 +666,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                     "artifact_id": version_id,
                     **debug["render_acceptance"],
                 })
-        elif accepted_event_invalid:
+        if accepted_event_observed and not artifact_emitted:
             _append(sources, "accepted_artifact", {
                 **common,
                 "source_id": version_id,
