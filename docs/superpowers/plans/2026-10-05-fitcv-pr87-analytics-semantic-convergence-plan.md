@@ -120,12 +120,15 @@ dependency and no unsupported P1-C completion claim.
 
 ## Current Review Correction Ledger
 
-- [ ] Require complete native render proof before exposing verified-one-page metrics; failed or missing proof remains unavailable.
-- [ ] Propagate benchmark render metadata and generation attempt totals into analytics Gold without changing run-job grain.
-- [ ] Parse direct token and attempt-count facts fail-closed for malformed, negative, non-finite, or non-integral values.
-- [ ] Add regressions for valid and invalid render proof, job-denominated first-pass rates, malformed attempt counts, and direct malformed token facts.
-- [ ] Rebuild projection fingerprint and material evidence digests after code/test changes; update registry and R6-unavailable evidence hashes.
-- [ ] Rerun focused/full verification, acceptance verifier, deterministic rebuild, SQL smoke, and diff-scope proof before returning plan to `completed`.
+- [x] Require complete native render proof before exposing verified-one-page metrics; failed or missing proof remains unavailable.
+- [x] Propagate benchmark render metadata and generation attempt totals into analytics Gold without changing run-job grain.
+- [x] Parse direct token and attempt-count facts fail-closed for malformed, negative, non-finite, or non-integral values.
+- [x] Retain invalid generation/provider facts in coverage and denominator accounting; keep affected ratios null.
+- [x] Reconcile benchmark fallback status with Gold first-pass status and reject malformed retry history.
+- [x] Verify unavailable-evidence material digest content, not only sidecar bytes and registry equality.
+- [x] Add regressions for valid and invalid render proof, retry identity, job-denominated first-pass rates, malformed attempt counts, malformed telemetry, mixed validity, fallback status, and forged material hashes.
+- [x] Rebuild projection fingerprint and material evidence digests after code/test changes; update registry and R6-unavailable evidence hashes.
+- [x] Rerun focused/full verification, acceptance verifier, deterministic rebuild, SQL smoke, and diff-scope proof — `3249 passed, 8 skipped`; verifier passed; deterministic digest `548a853b9a1000c521e723e682685206ce6ed345d8fb9b7de6677d039837d48b`; six SQL views; `git diff --check` passed.
 
 ## Evidence Recovery Contract
 

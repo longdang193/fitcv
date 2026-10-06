@@ -24,7 +24,7 @@ records:
   - evidence_id: p1ab-current-contract-r6-unavailable-v1
     claim: p1b_current_contract_measurement
     schema_version: fitcv.p1_ab.current_contract.v1
-    source_commit: 6e8c46558571a04de4680fd3883c702c7e4e7af4
+    source_commit: 5e352a103251a257ccb29b5f9f0c8b3ec43dfe57
     declared_inputs:
       - config/analytics_metrics.yaml
       - scripts/fitcv_analytics.py
@@ -32,7 +32,7 @@ records:
       - scripts/sql/fitcv_gold_views.sql
       - scripts/verify_fitcv_acceptance.py
       - tests/fixtures/analytics_semantic_contract.json
-    declared_input_fingerprint: af30bab23c3179a7cd69e2fce72cfb499e74f345c0a151757e7beffb5c1e8647
+    declared_input_fingerprint: 4cd3085fc668fbf04d27c3432e5056fcba4045ce63c055f698c9138bee0c74d9
     fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
     cohort_id: p1ab-current-contract-r6-unavailable
     cohort_type: unavailable_retained_fixture_rebuild
