@@ -188,6 +188,27 @@ def test_gold_cohort_exposes_declared_first_pass_and_render_metrics() -> None:
     cohort = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_cohort_effort"][0]
     assert "first_pass_success_count" in cohort
     assert "verified_one_page_rate" in cohort
+    assert cohort["provider_call_coverage"] == "complete"
+    assert cohort["token_coverage"] == "complete"
+
+
+def test_cohort_provider_metrics_ignore_incomplete_review_coverage() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    bundle["sources"]["review_action"] = [{
+        "source_id": "review-invalid",
+        "run_job_id": "job-1",
+        "action": "approve",
+        "validity": "invalid",
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture",
+    }]
+    result = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["provider_call_coverage"] == "complete"
+    assert cohort["token_coverage"] == "complete"
+    metrics = {row["metric_id"]: row for row in result["gold"]["gold_semantic_metric"]}
+    assert metrics["provider_calls_per_accepted_cv"]["value"] == 2.0
+    assert metrics["tokens_per_accepted_cv"]["value"] == 100.0
 
 
 def test_direct_invalid_token_facts_become_unavailable() -> None:

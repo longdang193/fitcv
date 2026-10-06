@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -66,26 +67,27 @@ def _json(value: Any) -> Any:
 
 
 def _sanitize_string(value: str) -> str:
-    if "://" not in value:
+    if not ("://" in value or value.startswith("//") or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:/", value)):
         return value
     try:
         parts = urlsplit(value)
     except ValueError:
         return "[redacted-url]"
-    if not parts.scheme or not parts.netloc:
-        return "[redacted-url]" if parts.scheme or "://" in value else value
-    raw_host = parts.netloc.rsplit("@", 1)[-1]
+    if not parts.netloc:
+        return "[redacted-url]"
+    invalid_port = False
     try:
         hostname = parts.hostname or ""
         port = parts.port
     except ValueError:
         hostname = ""
         port = None
+        invalid_port = True
     host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
-    if host and port is not None:
+    if host and port is not None and not invalid_port:
         host = f"{host}:{port}"
     if not host:
-        host = raw_host
+        host = "[redacted-host]"
     try:
         query = urlencode([
             (key, item)
@@ -187,7 +189,10 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
         def token_number(value: Any) -> int | None:
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 return None
-            numeric = float(value)
+            try:
+                numeric = float(value)
+            except (OverflowError, ValueError):
+                return None
             return int(numeric) if math.isfinite(numeric) and numeric >= 0 and numeric.is_integer() else None
 
         def usage_total(usage: Any) -> int | None:
@@ -209,6 +214,9 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
             usage = candidate.get("token_usage") or candidate.get("usage")
             if isinstance(usage, list) and usage:
                 totals = [usage_total(block) for block in usage]
+                expected_calls = token_number(candidate.get("provider_call_count"))
+                if expected_calls is not None and expected_calls != len(usage):
+                    continue
                 if all(total is not None for total in totals):
                     return sum(total for total in totals if total is not None)
             elif isinstance(usage, dict):
