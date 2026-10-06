@@ -198,6 +198,10 @@ def _debug_owned_by_run(debug: dict[str, Any], run_id: str) -> bool:
     return bool(debug) and debug.get("_debug_run_id") == run_id and not debug.get("_debug_run_id_conflict")
 
 
+def _debug_record_key(run_id: str, identifier: str) -> str:
+    return f"{run_id}::{identifier}"
+
+
 def _acceptance_rejection_present(value: dict[str, Any]) -> bool:
     if value.get("accepted") is False or value.get("accepted_outcome") is False:
         return True
@@ -312,8 +316,10 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 for identifier in identifiers:
                     if str(identifier or "").strip():
                         key = identifier.strip() if isinstance(identifier, str) else str(identifier)
-                        previous = records.get(key, {})
+                        record_key = _debug_record_key(str(row["run_id"]), key)
+                        previous = records.get(record_key, {})
                         merged = {**previous, **sanitized}
+                        merged["_debug_identifier"] = key
                         merged["_debug_run_id_conflict"] = bool(previous.get("_debug_run_id_conflict")) or (
                             bool(previous.get("_debug_run_id"))
                             and previous.get("_debug_run_id") != sanitized.get("_debug_run_id")
@@ -336,7 +342,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                         if source_key == "accepted_artifact_events":
                             merged["_accepted_event_seen"] = True
                             merged["_accepted_event_valid"] = previous.get("_accepted_event_valid", True) and value["_accepted_event_valid"]
-                        records[key] = merged
+                        records[record_key] = merged
                         if source_key == "accepted_artifact_events":
                             break
     return records
@@ -568,9 +574,11 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         run_job_id = str(row["run_job_id"] or "")
         ordinal = int(row["ordinal"] or 0)
         status = str(row["generation_status"] or "").lower()
-        artifact_debug = debug_by_artifact.get(version_id, {})
+        artifact_debug_key = _debug_record_key(str(row["run_id"]), version_id)
+        artifact_debug = debug_by_artifact.get(artifact_debug_key, {})
         artifact_debug = artifact_debug if _debug_owned_by_run(artifact_debug, str(row["run_id"])) else {}
-        job_debug_all = debug_by_artifact.get(run_job_id, {})
+        job_debug_key = _debug_record_key(str(row["run_id"]), run_job_id)
+        job_debug_all = debug_by_artifact.get(job_debug_key, {})
         job_debug_all = job_debug_all if _debug_owned_by_run(job_debug_all, str(row["run_id"])) else {}
         job_debug = (
             job_debug_all
@@ -588,7 +596,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             job_debug_all.get("_debug_run_id_conflict") or artifact_debug.get("_debug_run_id_conflict")
         )
         if artifact_debug.get("_accepted_event_seen") or artifact_debug.get("_acceptance_evidence_seen"):
-            consumed_debug_keys.add(version_id)
+            consumed_debug_keys.add(artifact_debug_key)
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
         run_payload = run_payload if isinstance(run_payload, dict) else {}
@@ -720,15 +728,16 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         if not (debug.get("_accepted_event_seen") or debug.get("_acceptance_evidence_seen")) or debug_key in consumed_debug_keys:
             continue
         run_id = str(debug.get("_debug_run_id") or "unknown")
+        debug_identifier = str(debug.get("_debug_identifier") or debug_key)
         debug_run_job_id = debug.get("run_job_id")
         run_job_id = (
             debug_run_job_id
             if _valid_debug_identity(debug_run_job_id) and run_job_run_ids.get(str(debug_run_job_id)) == run_id
-            else f"unbound:{run_id}:{debug_key}"
+            else f"unbound:{run_id}:{debug_identifier}"
         )
         _append(sources, "accepted_artifact", {
-            "source_id": f"{run_id}:invalid-acceptance:{debug_key}",
-            "artifact_id": f"unresolved:{debug_key}",
+            "source_id": f"{run_id}:invalid-acceptance:{debug_identifier}",
+            "artifact_id": f"unresolved:{debug_identifier}",
             "run_id": run_id,
             "run_job_id": run_job_id,
             "cohort_id": debug.get("_debug_cohort_id") or "operational",

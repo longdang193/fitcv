@@ -525,7 +525,9 @@ def test_export_blocks_acceptance_debug_from_other_pipeline_run(tmp_path: Path) 
     replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
     metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
 
-    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "valid"
+    assert bundle["sources"]["accepted_artifact"][1]["validity"] == "invalid"
+    assert bundle["sources"]["accepted_artifact"][1]["run_id"] == "run-2"
     assert metrics["acceptance_yield"]["value"] is None
 
 
@@ -771,6 +773,35 @@ def test_export_unbinds_foreign_job_acceptance_reference(tmp_path: Path) -> None
     assert invalid[0]["run_id"] == "run-1"
     assert invalid[0]["cohort_id"] == "c1"
     assert invalid[0]["run_job_id"].startswith("unbound:run-1:")
+
+
+def test_export_preserves_same_identifier_acceptance_rejections_per_run(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"] = []
+        debug["debug_records"] = [{"artifact_id": "unknown", "accepted_outcome": False}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=? WHERE run_id='run-1'", (json.dumps(payload),))
+        run_two_payload = {
+            "cohort_id": "c2",
+            "cohort_type": "fixture",
+            "cv_generation_debug_json": json.dumps({
+                "debug_records": [{"artifact_id": "unknown", "accepted_outcome": False}],
+            }),
+        }
+        connection.execute(
+            "INSERT INTO pipeline_runs VALUES (?, ?, ?, ?)",
+            ("run-2", json.dumps(run_two_payload), "2026-10-06T00:10:00Z", None),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    invalid = [item for item in bundle["sources"]["accepted_artifact"] if item["validity"] == "invalid"]
+
+    assert {item["cohort_id"] for item in invalid} == {"c1", "c2"}
 
 
 def test_export_preserves_job_rejection_when_job_has_multiple_versions(tmp_path: Path) -> None:
