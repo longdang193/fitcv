@@ -1,0 +1,33 @@
+{
+  "accepted_cv": {
+    "count": 0
+  },
+  "attempted_outcomes": [],
+  "attribution": {},
+  "coverage": {},
+  "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
+  "evidence_status": "unavailable",
+  "declared_input_fingerprint": "10089ab1330807962014e6dd0061ac6a375a351ee0e195eda1d4bbcd5df4f762",
+  "material_metrics_sha256": "3dc07e4915495105e6bfacd57f574d9de70eada6246bf42462fc55398b03ddd9",
+  "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
+  "schema_version": "fitcv_runtime_efficiency_baseline_v3",
+  "selection": {
+    "current_contract_record_count": 0,
+    "historical_record_count": 0,
+    "run_count": 0
+  },
+  "source_commit": "b87d3e0f1cc68789d775e58a8cd67d1965881245",
+  "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
+  "status": "incomplete",
+  "timing": {
+    "generation_elapsed_ms": null,
+    "generation_timing_coverage": {
+      "measured": 0,
+      "unavailable": 0
+    }
+  },
+  "unavailable_reason": "retained_r5_manifest_and_database_unavailable",
+  "workload": {
+    "attempted_generation_job_count": 0
+  }
+}

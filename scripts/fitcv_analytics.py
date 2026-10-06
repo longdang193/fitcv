@@ -4,11 +4,31 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import re
+import sqlite3
+import argparse
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Iterable
 
+import yaml
 
-ANALYTICS_SCHEMA_VERSION = "fitcv.analytics.v1"
+
+ANALYTICS_SCHEMA_VERSION = "fitcv.analytics.v2"
+RECONCILABLE_OBSERVATION_TYPES = {
+    "provider_attempt",
+    "generation_attempt",
+    "review_action",
+    "artifact",
+    "accepted_artifact",
+}
+TRACE_OBSERVATION_TYPES = {"trace", "generation_trace", "normalized_trace"}
+RUN_JOB_OBSERVATION_TYPES = RECONCILABLE_OBSERVATION_TYPES
+REQUIREMENT_DEMAND_OBSERVATION_TYPES = {"posting_requirement"}
+CANDIDATE_GAP_OBSERVATION_TYPES = {"candidate_gap"}
+INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid"}
+DEFAULT_METRIC_REGISTRY = Path(__file__).resolve().parents[1] / "config/analytics_metrics.yaml"
 
 
 def _json(value: Any) -> str:
@@ -17,6 +37,64 @@ def _json(value: Any) -> str:
 
 def _digest(value: Any) -> str:
     return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
+
+
+def load_metric_registry(path: Path = DEFAULT_METRIC_REGISTRY) -> dict[str, Any]:
+    registry = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if registry.get("schema_version") != "fitcv.analytics_metrics.v1":
+        raise ValueError("analytics_metric_registry_schema_invalid")
+    metrics = registry.get("metrics")
+    if not isinstance(metrics, list) or not metrics:
+        raise ValueError("analytics_metric_registry_metrics_invalid")
+    metric_ids: set[str] = set()
+    required = {
+        "metric_id", "version", "source_model", "grain", "numerator",
+        "denominator", "dimensions", "cohort_policy", "null_policy",
+        "coverage_metric", "owner", "description",
+    }
+    for metric in metrics:
+        if not isinstance(metric, dict) or not required <= set(metric):
+            raise ValueError("analytics_metric_definition_invalid")
+        metric_id = str(metric["metric_id"])
+        if not metric_id or metric_id in metric_ids:
+            raise ValueError("analytics_metric_id_not_unique")
+        metric_ids.add(metric_id)
+    mapping = registry.get("claim_priority_map")
+    if not isinstance(mapping, dict) or any(not isinstance(value, list) or not value for value in mapping.values()):
+        raise ValueError("analytics_claim_priority_map_invalid")
+    return registry
+
+
+def compute_projection_input_fingerprint(
+    repo_root: Path,
+    registry_path: Path = DEFAULT_METRIC_REGISTRY,
+) -> str:
+    registry = load_metric_registry(registry_path)
+    paths = registry.get("projection_inputs")
+    if not isinstance(paths, list) or not paths:
+        raise ValueError("analytics_projection_inputs_invalid")
+    digest = hashlib.sha256()
+    for relative in sorted({str(value).replace("\\", "/") for value in paths}):
+        path = repo_root / relative
+        if not path.is_file():
+            raise FileNotFoundError(relative)
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _logical_entity_id(observation_type: str, payload: dict[str, Any], source_id: str) -> str:
+    fields = (
+        "provider_attempt_id", "generation_attempt_id", "review_action_id",
+        "artifact_id", "artifact_version_id", "version_id", "source_id", "id",
+    )
+    for field in fields:
+        value = str(payload.get(field) or "").strip()
+        if value:
+            return f"{observation_type}:{value}"
+    return f"{observation_type}:unresolved:{source_id}" if source_id else ""
 
 
 def build_bronze_observations(
@@ -44,6 +122,7 @@ def build_bronze_observations(
                 or payload.get("accepted_at")
                 or ""
             )
+            logical_entity_id = _logical_entity_id(observation_type, payload, source_id)
             identity = {
                 "observation_type": observation_type,
                 "source_id": source_id,
@@ -54,6 +133,7 @@ def build_bronze_observations(
                     "observation_id": _digest(identity),
                     "observation_type": observation_type,
                     "source_id": source_id,
+                    "logical_entity_id": logical_entity_id,
                     "observed_at": observed_at,
                     "source_schema": str(payload.get("schema_version") or "unknown"),
                     "source_commit": source_commit,
@@ -66,8 +146,8 @@ def build_bronze_observations(
 
 
 def build_silver_facts(bronze: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Deduplicate Bronze by observation identity and retain validity semantics."""
-    facts: dict[str, dict[str, Any]] = {}
+    """Reconcile mutable facts while preserving conflicting trace identities."""
+    observations: dict[str, dict[str, Any]] = {}
     for observation in bronze:
         row = dict(observation)
         observation_id = str(row.get("observation_id") or "").strip()
@@ -76,25 +156,91 @@ def build_silver_facts(bronze: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
             continue
         fact = {
             **row,
-            "entity_id": f"{row.get('observation_type')}:{row.get('source_id')}",
+            "entity_id": str(row.get("logical_entity_id") or ""),
             "validity": str(payload.get("validity") or "valid"),
         }
-        existing = facts.get(observation_id)
+        existing = observations.get(observation_id)
         if existing is None or _json(fact) < _json(existing):
-            facts[observation_id] = fact
-    return sorted(facts.values(), key=lambda row: row["observation_id"])
+            observations[observation_id] = fact
+
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for fact in observations.values():
+        observation_type = str(fact.get("observation_type") or "")
+        if observation_type in TRACE_OBSERVATION_TYPES or not fact.get("logical_entity_id"):
+            grouped[f"observation:{fact['observation_id']}"].append(fact)
+        else:
+            grouped[f"entity:{fact['logical_entity_id']}"] .append(fact)
+
+    facts: list[dict[str, Any]] = []
+    for key, candidates in sorted(grouped.items()):
+        if key.startswith("observation:") or len(candidates) == 1:
+            winner = candidates[0]
+            winner["observation_history_ids"] = [winner["observation_id"]]
+            winner["superseded_observation_ids"] = []
+            facts.append(winner)
+            continue
+        winner = max(
+            candidates,
+            key=lambda row: (
+                row.get("validity") == "valid",
+                str(row.get("observed_at") or ""),
+                str(row.get("source_commit") or ""),
+                str(row.get("observation_id") or ""),
+            ),
+        )
+        history = sorted(str(row["observation_id"]) for row in candidates)
+        winner["observation_history_ids"] = history
+        winner["superseded_observation_ids"] = [item for item in history if item != winner["observation_id"]]
+        facts.append(winner)
+    return sorted(facts, key=lambda row: (str(row.get("entity_id") or ""), row["observation_id"]))
 
 
 def _known_sum(values: list[Any]) -> float | int | None:
     if not values or any(value is None for value in values):
         return None
-    return sum(values)
+    parsed: list[float] = []
+    for value in values:
+        if isinstance(value, bool):
+            return None
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        if numeric < 0 or not math.isfinite(numeric) or not numeric.is_integer():
+            return None
+        parsed.append(numeric)
+    total = sum(parsed)
+    return int(total) if total.is_integer() else total
 
 
-def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Aggregate one-to-many work before joining accepted artifact identities."""
+def _attempt_count(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric) or numeric < 1 or not numeric.is_integer():
+        return None
+    return int(numeric)
+
+
+def _coverage_issue(fact: dict[str, Any]) -> str | None:
+    if fact.get("validity") != "valid":
+        return "invalid_source_fact"
+    payload = dict(fact.get("payload") or {})
+    for field in ("coverage", "coverage_status", "extraction_status", "evaluation_status"):
+        value = str(payload.get(field) or "").strip().lower()
+        if value in INCOMPLETE_COVERAGE_VALUES:
+            return f"{field}_incomplete"
+    return None
+
+
+def _group_run_jobs(silver: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for fact in silver:
+        if fact.get("observation_type") not in RUN_JOB_OBSERVATION_TYPES:
+            continue
         payload = dict(fact.get("payload") or {})
         run_job_id = str(
             payload.get("run_job_id")
@@ -104,46 +250,130 @@ def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any
         ).strip()
         if run_job_id:
             grouped[run_job_id].append({**fact, "payload": payload})
+    return grouped
+
+
+def _artifact_identity(fact: dict[str, Any]) -> str:
+    payload = dict(fact.get("payload") or {})
+    return str(
+        payload.get("artifact_id")
+        or payload.get("artifact_version_id")
+        or payload.get("version_id")
+        or ""
+    ).strip()
+
+
+def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> list[dict[str, Any]]:
+    artifacts: dict[str, dict[str, Any]] = {}
+    for fact in facts:
+        if fact.get("validity") != "valid":
+            continue
+        payload = dict(fact.get("payload") or {})
+        if fact.get("observation_type") not in {"artifact", "accepted_artifact"}:
+            continue
+        if str(payload.get("status") or "") not in {"accepted", "succeeded"} or not bool(payload.get("accepted", True)):
+            continue
+        artifact_id = _artifact_identity(fact)
+        if not artifact_id:
+            continue
+        row = artifacts.setdefault(
+            artifact_id,
+            {
+                "schema_version": ANALYTICS_SCHEMA_VERSION,
+                "metric": "gold_cv_artifact",
+                "grain": "accepted_artifact",
+                "run_job_id": run_job_id,
+                "artifact_id": artifact_id,
+                "accepted_at": payload.get("accepted_at"),
+                "source_observation_ids": [],
+                "render_proof": False,
+                "verified_one_page": False,
+            },
+        )
+        raw_render = payload.get("render_acceptance")
+        render = raw_render if isinstance(raw_render, dict) else {}
+        page_fit_status = str(payload.get("page_fit_status") or render.get("page_fit_status") or "").strip().lower()
+        page_count = render.get("page_count")
+        render_proof = (
+            str(render.get("render_status") or "").strip().lower() == "pass"
+            and isinstance(page_count, int)
+            and not isinstance(page_count, bool)
+            and page_count == 1
+            and page_fit_status == "pass"
+            and all(
+                bool(re.fullmatch(r"[0-9a-f]{64}", str(render.get(field) or "")))
+                for field in ("artifact_checksum", "content_sha256", "template_sha256", "render_config_fingerprint")
+            )
+            and bool(str(render.get("renderer_contract_version") or "").strip())
+        )
+        row["render_proof"] = row["render_proof"] or render_proof
+        row["verified_one_page"] = row["verified_one_page"] or (
+            render_proof and page_count == 1 and page_fit_status == "pass"
+        )
+        row["source_observation_ids"].append(fact["observation_id"])
+    for row in artifacts.values():
+        row["source_observation_ids"] = sorted(set(row["source_observation_ids"]))
+    return [artifacts[key] for key in sorted(artifacts)]
+
+
+def build_gold_cv_artifact(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build one row per accepted artifact identity."""
+    result: list[dict[str, Any]] = []
+    for run_job_id, facts in sorted(_group_run_jobs(silver).items()):
+        result.extend(_accepted_artifacts(facts, run_job_id))
+    return result
+
+
+def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build one row per attempted run-job, including failed work."""
+    grouped = _group_run_jobs(silver)
 
     result: list[dict[str, Any]] = []
     for run_job_id, facts in sorted(grouped.items()):
-        artifacts = [
-            fact for fact in facts
-            if fact.get("observation_type") in {"artifact", "accepted_artifact"}
-            and str(fact["payload"].get("status") or "") in {"accepted", "succeeded"}
-            and bool(fact["payload"].get("accepted", True))
-        ]
-        artifact_keys = sorted({
-            (
-                run_job_id,
-                str(
-                    fact["payload"].get("artifact_id")
-                    or fact["payload"].get("artifact_version_id")
-                    or fact["payload"].get("version_id")
-                    or ""
-                ),
-            )
-            for fact in artifacts
-            if str(
-                fact["payload"].get("artifact_id")
-                or fact["payload"].get("artifact_version_id")
-                or fact["payload"].get("version_id")
-                or ""
-            ).strip()
-        })
-        provider = [fact for fact in facts if fact.get("observation_type") == "provider_attempt"]
-        generation = [fact for fact in facts if fact.get("observation_type") == "generation_attempt"]
-        review = [fact for fact in facts if fact.get("observation_type") == "review_action"]
-        provider_calls = _known_sum([fact["payload"].get("provider_call_count") for fact in provider])
-        tokens = _known_sum([fact["payload"].get("token_total") for fact in provider])
+        artifacts = _accepted_artifacts(facts, run_job_id)
+        invalid_facts = [fact for fact in facts if _coverage_issue(fact)]
+        valid_facts = [fact for fact in facts if fact.get("validity") == "valid"]
+        provider_all = [fact for fact in facts if fact.get("observation_type") == "provider_attempt"]
+        generation_all = [fact for fact in facts if fact.get("observation_type") == "generation_attempt"]
+        provider = [fact for fact in valid_facts if fact.get("observation_type") == "provider_attempt"]
+        generation = [fact for fact in valid_facts if fact.get("observation_type") == "generation_attempt"]
+        review = [fact for fact in valid_facts if fact.get("observation_type") == "review_action"]
+        provider_calls = _known_sum([fact["payload"].get("provider_call_count") for fact in provider_all])
+        tokens = _known_sum([fact["payload"].get("token_total") for fact in provider_all])
+        provider_coverage_complete = bool(provider_all) and len(provider) == len(provider_all) and all(_coverage_issue(fact) is None for fact in provider_all) and provider_calls is not None and tokens is not None
+        generation_coverage_complete = not generation_all or (len(generation) == len(generation_all) and all(
+            str(fact["payload"].get("status") or "").strip().lower() in {
+                "accepted", "succeeded", "success", "failed", "generation_failed", "validation_failed"
+            }
+            and _attempt_count(fact["payload"].get("attempt_count")) is not None
+            and _coverage_issue(fact) is None
+            for fact in generation_all
+        ))
+        if not provider_coverage_complete:
+            provider_calls = None
+            tokens = None
         result.append(
             {
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
-                "metric": "gold_cv_effort",
-                "grain": "run_job_id + artifact_version_id",
+                "metric": "gold_run_job_effort",
+                "grain": "run_job",
                 "run_job_id": run_job_id,
-                "accepted_artifact_count": len([key for key in artifact_keys if key[1]]),
-                "attempted_work_count": len({fact["observation_id"] for fact in facts}),
+                "cohort_id": next((fact["payload"].get("cohort_id") for fact in facts if fact["payload"].get("cohort_id")), "unclassified"),
+                "cohort_type": next((fact["payload"].get("cohort_type") for fact in facts if fact["payload"].get("cohort_type")), "unclassified"),
+                "accepted_artifact_ids": [artifact["artifact_id"] for artifact in artifacts],
+                "accepted_artifact_count": len(artifacts),
+                "first_pass_success_count": int(
+                    len(generation) == 1
+                    and generation_coverage_complete
+                    and str(generation[0]["payload"].get("status") or "").lower() in {"accepted", "succeeded", "success"}
+                    and _attempt_count(generation[0]["payload"].get("attempt_count")) == 1
+                ),
+                "generation_attempt_coverage": "complete" if generation_coverage_complete else "unavailable",
+                "generation_observation_count": len(generation_all),
+                "verified_one_page_count": sum(bool(artifact.get("verified_one_page")) for artifact in artifacts),
+                "render_proof_count": sum(bool(artifact.get("render_proof")) for artifact in artifacts),
+                "render_proof_coverage": "complete" if artifacts and all(bool(artifact.get("render_proof")) for artifact in artifacts) else "unavailable",
+                "attempted_work_count": len({fact["observation_id"] for fact in valid_facts}),
                 "provider_attempt_count": len(provider),
                 "generation_attempt_count": len(generation),
                 "failed_generation_attempt_count": sum(
@@ -153,19 +383,191 @@ def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any
                 "review_action_count": len(review),
                 "provider_call_count": provider_calls,
                 "token_total": tokens,
-                "per_accepted_artifact": (
-                    {
-                        "provider_call_count": provider_calls / len(artifact_keys),
-                        "token_total": tokens / len(artifact_keys),
-                    }
-                    if artifact_keys and provider_calls is not None and tokens is not None
-                    else None
+                "coverage": "unavailable" if invalid_facts or (generation_all and not generation_coverage_complete) or (provider_all and not provider_coverage_complete) else "complete",
+                "unavailable_reason": (
+                    _coverage_issue(invalid_facts[0])
+                    if invalid_facts
+                    else "accepted_artifact_count_zero" if not artifacts else "generation_attempt_incomplete" if generation_all and not generation_coverage_complete else "provider_telemetry_incomplete" if provider_all and not provider_coverage_complete else None
                 ),
-                "unavailable_reason": None if artifact_keys else "accepted_artifact_count_zero",
-                "source_observation_ids": sorted(fact["observation_id"] for fact in facts),
+                "source_observation_ids": sorted(fact["observation_id"] for fact in valid_facts),
             }
         )
     return result
+
+
+def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build one row per declared analytical cohort."""
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in build_gold_run_job_effort(silver):
+        grouped[(str(row["cohort_id"]), str(row["cohort_type"]))].append(row)
+    result: list[dict[str, Any]] = []
+    for (cohort_id, cohort_type), rows in sorted(grouped.items()):
+        provider_calls = _known_sum([row["provider_call_count"] for row in rows])
+        tokens = _known_sum([row["token_total"] for row in rows])
+        accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in rows)
+        generation_jobs = sum(bool(row.get("generation_observation_count") or row.get("generation_attempt_count")) for row in rows)
+        first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in rows)
+        render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)
+        verified_one_page = sum(int(row["verified_one_page_count"] or 0) for row in rows)
+        result.append(
+            {
+                "schema_version": ANALYTICS_SCHEMA_VERSION,
+                "metric": "gold_cohort_effort",
+                "grain": "cohort",
+                "cohort_id": cohort_id,
+                "cohort_type": cohort_type,
+                "attempted_job_count": len(rows),
+                "accepted_artifact_count": accepted_artifacts,
+                "first_pass_success_count": first_pass_successes,
+                "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else None,
+                "generation_attempt_coverage": "complete" if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else "unavailable",
+                "verified_one_page_count": verified_one_page,
+                "render_proof_count": render_proofs,
+                "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
+                "render_proof_coverage": "complete" if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows) else "unavailable",
+                "provider_call_count": provider_calls,
+                "token_total": tokens,
+                "per_accepted_artifact": (
+                    {
+                        "provider_call_count": provider_calls / accepted_artifacts,
+                        "token_total": tokens / accepted_artifacts,
+                    }
+                    if accepted_artifacts and all(row.get("coverage") == "complete" for row in rows) and provider_calls is not None and tokens is not None
+                    else None
+                ),
+                "coverage": "unavailable" if any(row.get("coverage") == "unavailable" for row in rows) else "complete",
+                "unavailable_reason": next(
+                    (str(row.get("unavailable_reason")) for row in rows if row.get("coverage") == "unavailable"),
+                    None if accepted_artifacts else "accepted_artifact_count_zero",
+                ),
+                "source_run_job_ids": sorted(str(row["run_job_id"]) for row in rows),
+            }
+        )
+    return result
+
+
+def _cohort_key(payload: dict[str, Any]) -> tuple[str, str]:
+    return str(payload.get("cohort_id") or "unknown"), str(payload.get("cohort_type") or "unknown")
+
+
+def _posting_id(payload: dict[str, Any]) -> str:
+    return str(payload.get("posting_id") or payload.get("job_id") or payload.get("source_id") or "").strip()
+
+
+def _requirement_key(payload: dict[str, Any]) -> str:
+    return str(payload.get("requirement") or payload.get("requirement_id") or "").strip()
+
+
+def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build one row per requirement and eligible opportunity cohort."""
+    postings_by_cohort: dict[tuple[str, str], set[str]] = defaultdict(set)
+    requirement_postings: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    coverage_issues: dict[tuple[str, str], str] = {}
+    dimension_keys: set[tuple[str, str, str]] = set()
+    for fact in silver:
+        if fact.get("observation_type") not in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
+            continue
+        payload = dict(fact.get("payload") or {})
+        posting_id = _posting_id(payload)
+        requirement = _requirement_key(payload)
+        cohort = _cohort_key(payload)
+        if posting_id and requirement:
+            dimension_keys.add((*cohort, requirement))
+        if (issue := _coverage_issue(fact)) is not None:
+            coverage_issues.setdefault(cohort, issue)
+            continue
+        if not posting_id or not requirement or payload.get("eligible", True) is False:
+            continue
+        postings_by_cohort[cohort].add(posting_id)
+        requirement_postings[(*cohort, requirement)].add(posting_id)
+    return [
+        {
+            "schema_version": ANALYTICS_SCHEMA_VERSION,
+            "metric": "gold_requirement_demand",
+            "grain": "requirement_and_cohort",
+            "requirement": requirement,
+            "cohort_id": cohort_id,
+            "cohort_type": cohort_type,
+            "numerator_posting_count": len(posting_ids),
+            "denominator_posting_count": len(postings_by_cohort[(cohort_id, cohort_type)]),
+            "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
+            "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
+        }
+        for (cohort_id, cohort_type, requirement) in sorted(dimension_keys | set(requirement_postings))
+        for posting_ids in [requirement_postings.get((cohort_id, cohort_type, requirement), set())]
+    ]
+
+
+def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build one row per requirement, explicit gap category, and cohort."""
+    denominator: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
+    gaps: dict[tuple[str, str, str, str], set[tuple[str, str]]] = defaultdict(set)
+    coverage_issues: dict[tuple[str, str], str] = {}
+    gap_keys: set[tuple[str, str, str, str]] = set()
+    for fact in silver:
+        observation_type = fact.get("observation_type")
+        if observation_type not in REQUIREMENT_DEMAND_OBSERVATION_TYPES | CANDIDATE_GAP_OBSERVATION_TYPES:
+            continue
+        payload = dict(fact.get("payload") or {})
+        posting_id = _posting_id(payload)
+        requirement = _requirement_key(payload)
+        cohort = _cohort_key(payload)
+        category = str(payload.get("gap_category") or "").strip()
+        if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and posting_id and requirement and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+            gap_keys.add((*cohort, requirement, category))
+        if (issue := _coverage_issue(fact)) is not None:
+            coverage_issues.setdefault(cohort, issue)
+            continue
+        if not posting_id or not requirement or payload.get("eligible", True) is False:
+            continue
+        pair = (posting_id, requirement)
+        if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
+            denominator[cohort].add(pair)
+            continue
+        if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+            gaps[(*cohort, requirement, category)].add(pair)
+    for key, pairs in list(gaps.items()):
+        cohort = key[:2]
+        eligible_pairs = pairs & denominator[cohort]
+        if eligible_pairs != pairs:
+            coverage_issues.setdefault(cohort, "posting_requirement_coverage_incomplete")
+        gaps[key] = eligible_pairs
+    return [
+        {
+            "schema_version": ANALYTICS_SCHEMA_VERSION,
+            "metric": "gold_candidate_gap",
+            "grain": "requirement_and_gap_category_and_cohort",
+            "requirement": requirement,
+            "gap_category": category,
+            "cohort_id": cohort_id,
+            "cohort_type": cohort_type,
+            "numerator_requirement_count": len(pairs),
+            "denominator_requirement_count": len(denominator[(cohort_id, cohort_type)]),
+            "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
+            "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
+        }
+        for (cohort_id, cohort_type, requirement, category) in sorted(gap_keys | set(gaps))
+        for pairs in [gaps.get((cohort_id, cohort_type, requirement, category), set())]
+    ]
+
+
+def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Compatibility adapter for callers migrating to run-job Gold."""
+    rows = build_gold_run_job_effort(silver)
+    for row in rows:
+        accepted_count = int(row.get("accepted_artifact_count") or 0)
+        provider_calls = row.get("provider_call_count")
+        tokens = row.get("token_total")
+        row["per_accepted_artifact"] = (
+            {
+                "provider_call_count": provider_calls / accepted_count,
+                "token_total": tokens / accepted_count,
+            }
+            if accepted_count and provider_calls is not None and tokens is not None
+            else None
+        )
+        row["metric"] = "gold_cv_effort_compat"
+    return rows
 
 
 def build_gold_acceptance_state(
@@ -173,30 +575,163 @@ def build_gold_acceptance_state(
     state: dict[str, Any],
 ) -> list[dict[str, Any]]:
     records = list(registry.get("records") or [])
+    mapping = dict(registry.get("claim_priority_map") or {})
+    if not mapping:
+        mapping = load_metric_registry().get("claim_priority_map", {})
+    status_dimensions = dict(state.get("status_dimensions") or {})
+    records_by_priority: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        claim = str(record.get("claim") or "")
+        priorities = mapping.get(claim)
+        if not priorities:
+            raise ValueError(f"analytics_claim_priority_mapping_missing:{claim}")
+        for priority in priorities:
+            records_by_priority[str(priority)].append(record)
     output: list[dict[str, Any]] = []
-    for record in sorted(records, key=lambda item: str(item.get("evidence_id") or "")):
-        output.append(
-            {
+    priorities = sorted(set(records_by_priority) | set(status_dimensions))
+    for priority in priorities:
+        dimension = dict(status_dimensions.get(priority) or {})
+        priority_records = records_by_priority.get(priority) or [None]
+        for record in sorted(priority_records, key=lambda item: str((item or {}).get("evidence_id") or "")):
+            record = record or {}
+            evidence_id = record.get("evidence_id")
+            output.append({
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
                 "metric": "gold_acceptance_state",
-                "evidence_id": record.get("evidence_id"),
+                "grain": "priority + evidence_id",
+                "row_key": f"{priority}:{evidence_id or '__status_only__'}",
+                "priority": priority,
+                "evidence_id": evidence_id,
                 "claim": record.get("claim"),
-                "status": record.get("status"),
+                "evidence_status": record.get("status"),
                 "cohort_id": record.get("cohort_id"),
                 "cohort_type": record.get("cohort_type"),
                 "source_commit": record.get("source_commit"),
                 "declared_input_fingerprint": record.get("declared_input_fingerprint"),
                 "material_metrics_sha256": record.get("material_metrics_sha256"),
-                "implementation": state.get("implementation"),
-                "acceptance": state.get("acceptance"),
-                "measurement": state.get("measurement"),
-                "optimization": state.get("optimization_result"),
+                "implementation_status": dimension.get("implementation_status"),
+                "acceptance_status": dimension.get("acceptance_status"),
+                "measurement_status": dimension.get("measurement_status"),
+                "optimization_status": dimension.get("optimization_status"),
                 "historical": record.get("status") in {"historical", "superseded"},
-                "deferred": record.get("status") == "deferred",
-            }
-        )
+                "deferred": record.get("status") == "deferred" or dimension.get("implementation_status") == "deferred" or dimension.get("acceptance_status") == "deferred",
+            })
     return output
 
 
 def material_gold_digest(gold: dict[str, Any]) -> str:
     return _digest({key: value for key, value in gold.items() if key not in {"generated_at", "ingested_at"}})
+
+
+def _insert_json_rows(connection: sqlite3.Connection, table: str, rows: list[dict[str, Any]]) -> None:
+    connection.execute(f'DROP TABLE IF EXISTS "{table}"')
+    connection.execute(f'CREATE TABLE "{table}" (payload_json TEXT NOT NULL)')
+    connection.executemany(
+        f'INSERT INTO "{table}" (payload_json) VALUES (?)',
+        [(_json(row),) for row in rows],
+    )
+
+
+def write_analytics_sqlite(
+    *,
+    path: Path,
+    artifacts: list[dict[str, Any]],
+    run_jobs: list[dict[str, Any]],
+    cohorts: list[dict[str, Any]],
+    acceptance: list[dict[str, Any]],
+    requirement_demand: list[dict[str, Any]] | None = None,
+    candidate_gaps: list[dict[str, Any]] | None = None,
+) -> None:
+    """Write disposable analytical projections and rebuild SQL views deterministically."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(path) as connection:
+        _insert_json_rows(connection, "silver_cv_artifact", artifacts)
+        _insert_json_rows(connection, "silver_run_job_effort", run_jobs)
+        _insert_json_rows(connection, "silver_cohort_effort", cohorts)
+        _insert_json_rows(connection, "silver_requirement_demand", requirement_demand or [])
+        _insert_json_rows(connection, "silver_candidate_gap", candidate_gaps or [])
+        _insert_json_rows(connection, "silver_acceptance_evidence", acceptance)
+        connection.executescript(
+            (Path(__file__).resolve().parent / "sql/fitcv_gold_views.sql").read_text(encoding="utf-8")
+        )
+
+
+def rebuild_analytics_bundle(
+    bundle: dict[str, Any],
+    *,
+    source_commit: str,
+    declared_input_fingerprint: str,
+    ingested_at: str,
+) -> dict[str, Any]:
+    sources = dict(bundle.get("sources") or {})
+    bronze = build_bronze_observations(
+        sources,
+        source_commit=source_commit,
+        declared_input_fingerprint=declared_input_fingerprint,
+        ingested_at=ingested_at,
+    )
+    silver = build_silver_facts(bronze)
+    artifacts = build_gold_cv_artifact(silver)
+    run_jobs = build_gold_run_job_effort(silver)
+    cohorts = build_gold_cohort_effort(silver)
+    requirement_demand = build_gold_requirement_demand(silver)
+    candidate_gaps = build_gold_candidate_gap(silver)
+    acceptance = build_gold_acceptance_state(
+        dict(bundle.get("registry") or {}),
+        dict(bundle.get("state") or {}),
+    )
+    material = {
+        "schema_version": ANALYTICS_SCHEMA_VERSION,
+        "gold_cv_artifact": artifacts,
+        "gold_run_job_effort": run_jobs,
+        "gold_cohort_effort": cohorts,
+        "gold_requirement_demand": requirement_demand,
+        "gold_candidate_gap": candidate_gaps,
+        "gold_acceptance_state": acceptance,
+    }
+    return {
+        "schema_version": ANALYTICS_SCHEMA_VERSION,
+        "source_commit": source_commit,
+        "declared_input_fingerprint": declared_input_fingerprint,
+        "ingested_at": ingested_at,
+        "bronze": bronze,
+        "silver": silver,
+        "gold": material,
+        "material_metrics_sha256": _digest(material),
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", type=Path, required=True, help="Declared analytics source bundle JSON")
+    parser.add_argument("--output", type=Path, required=True, help="Deterministic analytics output JSON")
+    parser.add_argument("--sqlite-output", type=Path, help="Disposable analytical SQLite projection")
+    parser.add_argument("--source-commit", required=True)
+    parser.add_argument("--declared-input-fingerprint", required=True)
+    parser.add_argument("--ingested-at", required=True)
+    args = parser.parse_args()
+    bundle = json.loads(args.input.read_text(encoding="utf-8"))
+    output = rebuild_analytics_bundle(
+        bundle,
+        source_commit=args.source_commit,
+        declared_input_fingerprint=args.declared_input_fingerprint,
+        ingested_at=args.ingested_at,
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.sqlite_output:
+        write_analytics_sqlite(
+            path=args.sqlite_output,
+            artifacts=output["gold"]["gold_cv_artifact"],
+            run_jobs=output["gold"]["gold_run_job_effort"],
+            cohorts=output["gold"]["gold_cohort_effort"],
+            requirement_demand=output["gold"]["gold_requirement_demand"],
+            candidate_gaps=output["gold"]["gold_candidate_gap"],
+            acceptance=output["gold"]["gold_acceptance_state"],
+        )
+    print(json.dumps({"status": "ok", "material_metrics_sha256": output["material_metrics_sha256"]}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

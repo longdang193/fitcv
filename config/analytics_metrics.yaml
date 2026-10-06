@@ -1,0 +1,110 @@
+schema_version: fitcv.analytics_metrics.v1
+projection_inputs:
+  - config/analytics_metrics.yaml
+  - scripts/fitcv_analytics.py
+  - scripts/benchmark_cv_efficiency.py
+  - scripts/sql/fitcv_gold_views.sql
+  - scripts/verify_fitcv_acceptance.py
+  - tests/fixtures/analytics_semantic_contract.json
+metrics:
+  - metric_id: acceptance_yield
+    version: 1
+    source_model: gold_cohort_effort
+    grain: cohort
+    numerator: distinct attempted jobs producing accepted CV
+    denominator: distinct eligible attempted jobs
+    dimensions: [cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: compare equivalent eligible cohorts only
+    null_policy: unavailable when denominator is zero or eligibility is incomplete
+    coverage_metric: eligible_attempt_coverage
+    owner: analytics
+    description: Accepted CV yield across eligible attempted jobs.
+  - metric_id: provider_calls_per_accepted_cv
+    version: 1
+    source_model: gold_cohort_effort
+    grain: cohort
+    numerator: all provider calls including failed attempts and retries
+    denominator: distinct accepted artifacts
+    dimensions: [cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: keep current and historical cohorts separate
+    null_policy: unavailable when accepted artifact identity or telemetry is incomplete
+    coverage_metric: provider_call_coverage
+    owner: analytics
+    description: Provider workload per accepted artifact.
+  - metric_id: tokens_per_accepted_cv
+    version: 1
+    source_model: gold_cohort_effort
+    grain: cohort
+    numerator: all measured provider tokens including failed attempts and retries
+    denominator: distinct accepted artifacts
+    dimensions: [cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: keep current and historical cohorts separate
+    null_policy: unavailable when token telemetry is incomplete or denominator is zero
+    coverage_metric: token_coverage
+    owner: analytics
+    description: Provider tokens per accepted artifact.
+  - metric_id: first_pass_success
+    version: 1
+    source_model: gold_cohort_effort
+    grain: cohort
+    numerator: jobs accepted without regeneration
+    denominator: eligible attempted generation jobs
+    dimensions: [cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: compare equivalent generation cohorts only
+    null_policy: unavailable when denominator is zero or retry identity is incomplete
+    coverage_metric: generation_attempt_coverage
+    owner: analytics
+    description: First-pass acceptance rate.
+  - metric_id: manual_effort
+    version: 1
+    source_model: gold_run_job_effort
+    grain: run_job
+    numerator: distinct durable human actions
+    denominator: one attempted run-job
+    dimensions: [run_job_id, cohort_id, cohort_type]
+    cohort_policy: no UI click counting
+    null_policy: unavailable when action telemetry is absent
+    coverage_metric: review_action_coverage
+    owner: analytics
+    description: Durable human effort associated with one attempted run-job.
+  - metric_id: verified_one_page_rate
+    version: 1
+    source_model: gold_cohort_effort
+    grain: cohort
+    numerator: accepted artifacts with valid native render proof
+    denominator: accepted artifacts with measurable render evidence
+    dimensions: [cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: require comparable render evidence coverage
+    null_policy: unavailable when render evidence coverage is incomplete
+    coverage_metric: render_proof_coverage
+    owner: analytics
+    description: Verified native one-page rate.
+  - metric_id: skill_demand
+    version: 1
+    source_model: gold_requirement_demand
+    grain: requirement_and_cohort
+    numerator: distinct eligible postings containing requirement X
+    denominator: distinct eligible postings in cohort
+    dimensions: [requirement, cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: deduplicate requirement occurrences within one posting
+    null_policy: unavailable when posting identity or requirement extraction is incomplete
+    coverage_metric: posting_requirement_coverage
+    owner: analytics
+    description: Requirement demand in imported opportunity corpus.
+  - metric_id: evidence_gap
+    version: 1
+    source_model: gold_candidate_gap
+    grain: requirement_and_cohort
+    numerator: distinct requirements in one explicit gap category
+    denominator: distinct eligible posting requirements in cohort
+    dimensions: [requirement, gap_category, cohort_id, cohort_type, source_mix, date_range]
+    cohort_policy: keep missing evidence, unmet qualifier, and uncertain interpretation separate
+    null_policy: unavailable when candidate or posting coverage is incomplete
+    coverage_metric: candidate_requirement_coverage
+    owner: analytics
+    description: Candidate evidence gap by explicit category, never an unsupported inability claim.
+claim_priority_map:
+  p0_acceptance_scope: [p0_a, p0_b, p0_c]
+  p1_acceptance_scope: [p1_a, p1_b, p1_c]
+  p1b_current_contract_measurement: [p1_b]
+  p2_acceptance_scope: [p2]

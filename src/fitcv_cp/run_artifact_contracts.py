@@ -661,7 +661,16 @@ def build_accepted_cv_effort_projection(
                 "job_url": job_url,
                 "artifact_version_id": str(action.get("artifact_version_id") or "").strip(),
                 "run_id": _lineage_value(action, "run_id") or None,
-                "run_job_id": _lineage_value(action, "run_job_id") or None,
+                "run_job_id": (
+                    _lineage_value(action, "run_job_id")
+                    or _lineage_value(trace, "run_job_id")
+                    or (
+                        f"{_lineage_value(action, 'run_id') or _lineage_value(trace, 'run_id')}:{_lineage_value(trace, 'job_id') or _lineage_value(trace, 'job_url')}"
+                        if (_lineage_value(action, "run_id") or _lineage_value(trace, "run_id"))
+                        and (_lineage_value(trace, "job_id") or _lineage_value(trace, "job_url"))
+                        else None
+                    )
+                ),
                 "generation_input_fingerprint": _lineage_value(action, "generation_input_fingerprint") or None,
                 "attempt_id": _lineage_value(action, "attempt_id") or None,
                 "trace_id": _lineage_value(action, "trace_id") or None,

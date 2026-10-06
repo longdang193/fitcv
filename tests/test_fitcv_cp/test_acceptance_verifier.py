@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import yaml
+
 from scripts import verify_fitcv_acceptance as verifier
 from scripts.benchmark_cv_efficiency import material_report_digest
 from scripts.verify_fitcv_acceptance import (
     _run_current_contract_evidence_check,
     _run_experiment_report_check,
+    _run_registry_evidence_check,
     _run_runtime_efficiency_evidence_check,
     build_acceptance_report,
     format_acceptance_summary,
@@ -17,6 +20,15 @@ from scripts.run_fitcv_repair_experiment import DECLARED_INPUTS
 
 def test_normalized_analysis_input_identity_rejects_empty_cohort() -> None:
     assert verifier._normalized_analysis_input_identity({"analysis_input_identity": []}) is None
+
+
+def test_registry_evidence_check_fails_closed_when_registry_missing(tmp_path: Path) -> None:
+    result = _run_registry_evidence_check(
+        {"evidence_registry": "missing-evidence-registry.yaml"},
+        tmp_path,
+    )
+    assert result["passed"] is False
+    assert result["failures"][0].startswith("evidence_registry_invalid:")
 
 
 def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> None:
@@ -422,6 +434,112 @@ def test_current_contract_evidence_rejects_dropped_attempted_outcome(tmp_path: P
 
     assert result["passed"] is False
     assert "current_contract_evidence_outcomes_incomplete" in result["failures"]
+
+
+def test_unavailable_current_contract_evidence_requires_provenance(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "unavailable",
+        "unavailable_reason": "retained_inputs_missing",
+        "source_commit": "a" * 40,
+        "material_metrics_sha256": "b" * 64,
+        "declared_input_fingerprint": "c" * 64,
+    }
+    evidence["material_metrics_sha256"] = material_report_digest(evidence)
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("unavailable", encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}, "runtime_efficiency": {"measurement_status": "incomplete"}},
+        tmp_path,
+    )
+    assert result["passed"] is True
+
+    evidence.pop("material_metrics_sha256")
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}, "runtime_efficiency": {"measurement_status": "incomplete"}},
+        tmp_path,
+    )
+    assert result["passed"] is False
+    assert "current_contract_evidence_material_digest_invalid" in result["failures"]
+
+
+def test_unavailable_current_contract_evidence_rejects_forged_material_digest(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "unavailable",
+        "unavailable_reason": "retained_inputs_missing",
+        "source_commit": "a" * 40,
+        "material_metrics_sha256": "0" * 64,
+        "declared_input_fingerprint": "c" * 64,
+    }
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("unavailable", encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+
+    result = _run_current_contract_evidence_check(
+        {"current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}, "runtime_efficiency": {"measurement_status": "incomplete"}},
+        tmp_path,
+    )
+    assert result["passed"] is False
+    assert "current_contract_evidence_material_digest_mismatch" in result["failures"]
+
+
+def test_unavailable_registry_record_must_match_evidence_provenance(tmp_path: Path) -> None:
+    evidence_json = tmp_path / "current.json"
+    evidence_markdown = tmp_path / "current.md"
+    evidence_sha = tmp_path / "current.sha256"
+    evidence = {
+        "evidence_status": "unavailable",
+        "unavailable_reason": "retained_inputs_missing",
+        "source_commit": "a" * 40,
+        "material_metrics_sha256": "b" * 64,
+        "declared_input_fingerprint": "c" * 64,
+    }
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    evidence_markdown.write_text("unavailable", encoding="utf-8")
+    evidence_sha.write_text(
+        f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
+        encoding="utf-8",
+    )
+    registry = {
+        "schema_version": "fitcv.evidence_registry.v1",
+        "records": [{
+            "evidence_id": "unavailable",
+            "claim": "p1b_current_contract_measurement",
+            "schema_version": "fitcv.p1_ab.current_contract.v1",
+            "source_commit": evidence["source_commit"],
+            "declared_input_fingerprint": evidence["declared_input_fingerprint"],
+            "fixture_sha256": "d" * 64,
+            "cohort_id": "unavailable",
+            "cohort_type": "fixture",
+            "material_metrics_sha256": evidence["material_metrics_sha256"],
+            "artifact_paths": [evidence_json.name, evidence_markdown.name, evidence_sha.name],
+            "status": "unavailable",
+        }],
+    }
+    (tmp_path / "registry.yaml").write_text(yaml.safe_dump(registry), encoding="utf-8")
+    state = {"evidence_registry": "registry.yaml", "runtime_efficiency": {"measurement_status": "incomplete"}, "current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}}
+    assert verifier._run_registry_evidence_check(state, tmp_path)["passed"] is True
+
+    evidence["source_commit"] = "e" * 40
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    assert verifier._run_registry_evidence_check(state, tmp_path)["failures"] == ["current_contract_evidence_unavailable_source_commit_mismatch"]
 
 
 def test_current_contract_evidence_rejects_stale_declared_inputs(

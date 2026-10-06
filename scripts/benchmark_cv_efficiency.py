@@ -6,6 +6,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import platform
 import subprocess
@@ -25,6 +26,20 @@ from fitcv_cp.run_artifact_contracts import (
     collect_normalized_generation_traces,
 )
 from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
+try:
+    from scripts.fitcv_analytics import (
+        build_bronze_observations,
+        build_gold_cohort_effort,
+        build_silver_facts,
+        compute_projection_input_fingerprint,
+    )
+except ModuleNotFoundError:
+    from fitcv_analytics import (
+        build_bronze_observations,
+        build_gold_cohort_effort,
+        build_silver_facts,
+        compute_projection_input_fingerprint,
+    )
 
 DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
 DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
@@ -122,6 +137,26 @@ def _trace_final_accepted(trace: dict[str, Any], attempts: list[dict[str, Any]])
     if final_status:
         return final_status in {"accepted", "succeeded", "success"}
     return bool(attempts and str(attempts[-1].get("provider_status") or "").strip().lower() == "accepted")
+
+
+def _validated_attempts(trace: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    raw_attempts = trace.get("attempts")
+    if not isinstance(raw_attempts, list) or not raw_attempts:
+        return [], False
+    if any(not isinstance(item, dict) for item in raw_attempts):
+        return [item for item in raw_attempts if isinstance(item, dict)], False
+    attempts = list(raw_attempts)
+    indexed = ["attempt_index" in item for item in attempts]
+    if any(indexed):
+        indexes = []
+        for item in attempts:
+            value = item.get("attempt_index")
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                return attempts, False
+            indexes.append(value)
+        if indexes != list(range(1, len(attempts) + 1)):
+            return attempts, False
+    return attempts, True
 
 
 def _is_recorded(value: Any) -> bool:
@@ -334,9 +369,43 @@ def evaluate_promotion_gate(baseline: dict[str, Any], candidate: dict[str, Any])
     }
 
 
+def _trace_token_total(trace: dict[str, Any]) -> float | None:
+    usage = list(dict(trace.get("efficiency_summary") or {}).get("token_usage") or [])
+    if not usage:
+        return None
+    total = 0.0
+    for item in usage:
+        if not isinstance(item, dict):
+            return None
+        raw_total = item.get("total_tokens")
+        if raw_total is None:
+            if item.get("input_tokens") is None or item.get("output_tokens") is None:
+                return None
+            try:
+                input_tokens = float(item["input_tokens"])
+                output_tokens = float(item["output_tokens"])
+            except (TypeError, ValueError):
+                return None
+            if any(isinstance(value, bool) for value in (item["input_tokens"], item["output_tokens"])):
+                return None
+            if input_tokens < 0 or output_tokens < 0 or not input_tokens.is_integer() or not output_tokens.is_integer():
+                return None
+            raw_total = input_tokens + output_tokens
+        try:
+            parsed_total = float(raw_total)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(raw_total, bool) or parsed_total < 0 or not math.isfinite(parsed_total) or not parsed_total.is_integer():
+            return None
+        total += parsed_total
+    return total
+
+
 def _attempted_outcomes(
     traces: list[dict[str, Any]],
     projected_records: list[dict[str, Any]],
+    *,
+    run_id: str | None = None,
 ) -> list[dict[str, Any]]:
     projected_by_trace = {
         str(record.get("trace_id")): record
@@ -345,18 +414,35 @@ def _attempted_outcomes(
     }
     outcomes: list[dict[str, Any]] = []
     for trace in traces:
-        attempts = [item for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+        attempts, attempt_history_complete = _validated_attempts(trace)
         output_summary = dict(trace.get("output_summary") or {})
-        status = str(output_summary.get("final_status") or trace.get("status") or "unknown").strip().lower()
+        status = str(output_summary.get("final_status") or trace.get("status") or "").strip().lower()
+        if not status and attempt_history_complete:
+            status = "accepted" if _trace_final_accepted(trace, attempts) else "failed"
+        status = status or "unknown"
         record = projected_by_trace.get(str(trace.get("trace_id") or ""), {})
+        actual_run_job_id = str(trace.get("run_job_id") or "").strip()
+        fallback_job_id = str(
+            trace.get("job_id")
+            or trace.get("scope_key")
+            or trace.get("job_url")
+            or trace.get("trace_id")
+            or "unknown"
+        ).strip()
         outcome = {
             "trace_id": str(trace.get("trace_id") or ""),
+            "run_job_id": actual_run_job_id or f"{str(trace.get('run_id') or run_id or 'unknown').strip()}:{fallback_job_id}",
             "job_url": str(trace.get("job_url") or trace.get("scope_key") or ""),
             "status": status,
-            "attempt_count": len(attempts),
+            "attempt_count": len(attempts) if attempt_history_complete else None,
+            "attempt_history_coverage": "complete" if attempt_history_complete else "unavailable",
             "attempt_types": [str(item.get("attempt_type") or "unknown") for item in attempts],
             "failure_category_counts": dict(record.get("failure_category_counts") or {}),
             "accepted_final_one_page": record.get("accepted_final_one_page"),
+            "artifact_id": record.get("artifact_version_id"),
+            "accepted_artifact": bool(record.get("artifact_version_id")),
+            "provider_call_count": dict(trace.get("efficiency_summary") or {}).get("provider_call_count"),
+            "token_total": _trace_token_total(trace),
         }
         outcomes.append(outcome)
     return outcomes
@@ -435,7 +521,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     projected_records = [
         item for item in list(projection.get("records") or []) if isinstance(item, dict)
     ]
-    attempted_outcomes = _attempted_outcomes(traces, projected_records)
+    attempted_outcomes = _attempted_outcomes(traces, projected_records, run_id=run_id)
     generation_elapsed_values = [
         elapsed
         for elapsed in (_trace_generation_elapsed_ms(trace) for trace in traces)
@@ -446,7 +532,9 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     retry_success_count = 0
     retry_failure_count = 0
     for trace in traces:
-        attempts = [item for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+        attempts, attempt_history_complete = _validated_attempts(trace)
+        if not attempt_history_complete:
+            continue
         final_accepted = _trace_final_accepted(trace, attempts)
         if len(attempts) == 1 and final_accepted:
             first_pass_acceptance_count += 1
@@ -527,6 +615,25 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
         "accepted_record_count": status_counts.get("accepted", 0),
         "projection": projection,
         "attempted_outcomes": attempted_outcomes,
+        "accepted_artifact_records": [
+            {
+                "artifact_id": str(record.get("artifact_version_id") or ""),
+                "run_job_id": str(
+                    record.get("run_job_id")
+                    or next(
+                        (
+                            outcome.get("run_job_id")
+                            for outcome in attempted_outcomes
+                            if outcome.get("trace_id") == record.get("trace_id")
+                        ),
+                        f"{run_id}:{record.get('job_url') or record.get('trace_id') or 'unknown'}",
+                    )
+                ),
+                "render_acceptance": record.get("render_acceptance"),
+            }
+            for record in projected_records
+            if str(record.get("artifact_version_id") or "").strip()
+        ],
         "contract_coverage": {
             "current": len(current_contract_records),
             "historical": len(projected_records) - len(current_contract_records),
@@ -1001,6 +1108,12 @@ def _build_baseline(
             for snapshot in snapshots
             for outcome in list(snapshot.get("attempted_outcomes") or [])
         ],
+        "accepted_artifact_records": [
+            record
+            for snapshot in snapshots
+            for record in list(snapshot.get("accepted_artifact_records") or [])
+            if isinstance(record, dict)
+        ],
         "analysis_input_identity": [
             dict(snapshot.get("analysis_input_identity") or {})
             for snapshot in snapshots
@@ -1014,25 +1127,82 @@ def build_baseline(
     run_jobs_by_run_id: dict[str, Iterable[Any]] | None = None,
 ) -> dict[str, Any]:
     report = _build_baseline(runs, run_jobs_by_run_id=run_jobs_by_run_id)
-    workload = dict(report.get("workload") or {})
-    accepted = dict(report.get("accepted_cv") or {})
-    accepted_count = int(accepted.get("count") or 0)
+    report["projection_input_fingerprint"] = compute_projection_input_fingerprint(REPO_ROOT)
+    cohort_id = ",".join(str(value) for value in report.get("selection", {}).get("run_ids", [])) or "unclassified"
+    outcomes = [item for item in list(report.get("attempted_outcomes") or []) if isinstance(item, dict)]
+    accepted_artifact_records = [
+        item for item in list(report.get("accepted_artifact_records") or [])
+        if isinstance(item, dict) and str(item.get("artifact_id") or "").strip()
+    ]
+    source_rows: dict[str, list[dict[str, Any]]] = {
+        "provider_attempt": [
+            {
+                "source_id": f"benchmark-provider:{index}",
+                "run_job_id": str(outcome.get("run_job_id") or f"benchmark-job:{index}"),
+                "provider_call_count": outcome.get("provider_call_count"),
+                "token_total": outcome.get("token_total"),
+                "cohort_id": cohort_id,
+                "cohort_type": "benchmark",
+            }
+            for index, outcome in enumerate(outcomes)
+        ],
+        "generation_attempt": [
+            {
+                "source_id": f"benchmark-generation:{index}",
+                "run_job_id": str(outcome.get("run_job_id") or f"benchmark-job:{index}"),
+                "status": "accepted" if str(outcome.get("status") or "").lower() in {"accepted", "succeeded", "success"} else "failed",
+                "attempt_count": outcome.get("attempt_count"),
+                "cohort_id": cohort_id,
+                "cohort_type": "benchmark",
+            }
+            for index, outcome in enumerate(outcomes)
+        ],
+        "accepted_artifact": [
+            {
+                "source_id": f"benchmark-artifact:{index}",
+                "run_job_id": str(artifact.get("run_job_id") or f"benchmark-job:{index}"),
+                "artifact_id": str(artifact["artifact_id"]),
+                "status": "accepted",
+                "render_acceptance": artifact.get("render_acceptance"),
+                "page_fit_status": artifact.get("page_fit_status"),
+                "cohort_id": cohort_id,
+                "cohort_type": "benchmark",
+            }
+            for index, artifact in enumerate(accepted_artifact_records)
+        ],
+    }
+    if not outcomes and not accepted_artifact_records:
+        source_rows = {}
+    bronze = build_bronze_observations(
+        source_rows,
+        source_commit="benchmark-report",
+        declared_input_fingerprint=material_report_digest(report),
+        ingested_at="report",
+    )
+    canonical_cohort = build_gold_cohort_effort(build_silver_facts(bronze))
+    report["gold_cohort_effort"] = canonical_cohort[0] if canonical_cohort else {
+        "metric": "gold_cohort_effort",
+        "grain": "cohort",
+        "cohort_id": cohort_id,
+        "cohort_type": "benchmark",
+        "attempted_job_count": 0,
+        "accepted_artifact_count": 0,
+        "provider_call_count": None,
+        "token_total": None,
+        "per_accepted_artifact": None,
+        "unavailable_reason": "no_attempted_jobs",
+        "source_run_job_ids": [],
+    }
     report["gold_cv_effort"] = {
-        "schema_version": "fitcv.analytics.v1",
-        "metric": "gold_cv_effort",
-        "cohort_id": ",".join(str(value) for value in report.get("selection", {}).get("run_ids", [])),
-        "accepted_artifact_count": accepted_count,
-        "attempted_generation_job_count": workload.get("attempted_generation_job_count"),
-        "provider_call_count": workload.get("provider_call_count"),
-        "token_total": workload.get("token_total"),
-        "regeneration_count": workload.get("regeneration_count"),
-        "failed_work_included": True,
-        "per_accepted_artifact": (
-            dict(accepted.get("total_workload_cost_per_accepted_cv") or {})
-            if accepted_count
-            else None
-        ),
-        "unavailable_reason": None if accepted_count else "accepted_artifact_count_zero",
+        "alias_of": "gold_cohort_effort",
+        "metric": "gold_cohort_effort",
+        "cohort_id": report["gold_cohort_effort"].get("cohort_id"),
+        "accepted_artifact_count": report["gold_cohort_effort"].get("accepted_artifact_count"),
+        "attempted_generation_job_count": report["gold_cohort_effort"].get("attempted_job_count"),
+        "provider_call_count": report["gold_cohort_effort"].get("provider_call_count"),
+        "token_total": report["gold_cohort_effort"].get("token_total"),
+        "per_accepted_artifact": report["gold_cohort_effort"].get("per_accepted_artifact"),
+        "unavailable_reason": report["gold_cohort_effort"].get("unavailable_reason"),
     }
     report["failure_pareto"] = build_failure_pareto(report)
     report["optimization_gate"] = evaluate_promotion_gate({}, {})
@@ -1060,7 +1230,7 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "attempted_outcomes",
             "input_manifest",
             "analysis_input_identity",
-            "gold_cv_effort",
+            "gold_cohort_effort",
             "failure_pareto",
             "optimization_gate",
         )
@@ -1112,7 +1282,7 @@ def _markdown(report: dict[str, Any]) -> str:
     attribution = dict(report.get("attribution") or {})
     timing = dict(report.get("timing") or {})
     scorecard = dict(report.get("optimization_scorecard") or {})
-    gold_effort = dict(report.get("gold_cv_effort") or {})
+    gold_effort = dict(report.get("gold_cohort_effort") or {})
     sections = dict(scorecard.get("sections") or {})
     return "\n".join(
         [
