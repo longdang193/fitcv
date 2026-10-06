@@ -281,8 +281,11 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 _mark_null_telemetry(value)
                 sanitized = _sanitize(value) or {}
                 current_rejection = _acceptance_rejection_present(value)
+                current_acceptance_evidence = any(
+                    field in value for field in ("accepted", "accepted_outcome", "final_status")
+                )
                 current_invalid = _acceptance_evidence_invalid(value) or (
-                    source_key == "accepted_artifact_events" and not value["_accepted_event_valid"]
+                    current_acceptance_evidence and not _valid_accepted_debug_event(value)
                 )
                 identifiers = (
                     value.get("version_id"), value.get("cv_version_id"),
