@@ -236,9 +236,16 @@ def _known_sum(values: list[Any]) -> float | int | None:
 def _attempt_count(value: Any) -> int | None:
     if value is None or isinstance(value, bool):
         return None
+    if isinstance(value, int):
+        try:
+            if value >= 1 and math.isfinite(float(value)):
+                return value
+        except OverflowError:
+            return None
+        return None
     try:
         numeric = float(value)
-    except (TypeError, ValueError):
+    except (OverflowError, TypeError, ValueError):
         return None
     if not math.isfinite(numeric) or numeric < 1 or not numeric.is_integer():
         return None
@@ -366,7 +373,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         token_coverage_complete = provider_facts_complete and tokens is not None
         generation_coverage_complete = not generation_all or (len(generation) == len(generation_all) and all(
             str(fact["payload"].get("status") or "").strip().lower() in {
-                "accepted", "succeeded", "success", "failed", "generation_failed", "validation_failed"
+                "accepted", "succeeded", "success", "failed", "generation_failed", "validation_failed", "persistence_failed"
             }
             and _attempt_count(fact["payload"].get("attempt_count")) is not None
             and _coverage_issue(fact) is None
@@ -377,6 +384,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         if not token_coverage_complete:
             tokens = None
         generation_invalid = any(_coverage_issue(fact) is not None for fact in generation_all)
+        eligible = not any(fact["payload"].get("eligible", True) is False for fact in generation_all)
         eligible_attempt_coverage = "unavailable" if generation_invalid or not generation_coverage_complete else "complete"
         result.append(
             {
@@ -386,6 +394,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "run_job_id": run_job_id,
                 "cohort_id": next((fact["payload"].get("cohort_id") for fact in facts if fact["payload"].get("cohort_id")), "unclassified"),
                 "cohort_type": next((fact["payload"].get("cohort_type") for fact in facts if fact["payload"].get("cohort_type")), "unclassified"),
+                "eligible": eligible,
                 "accepted_artifact_ids": [artifact["artifact_id"] for artifact in artifacts],
                 "accepted_artifact_count": len(artifacts),
                 "first_pass_success_count": int(
@@ -436,9 +445,10 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
     for (cohort_id, cohort_type), rows in sorted(grouped.items()):
         provider_calls = _known_sum([row["provider_call_count"] for row in rows])
         tokens = _known_sum([row["token_total"] for row in rows])
-        accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in rows)
-        generation_jobs = sum(bool(row.get("generation_observation_count") or row.get("generation_attempt_count")) for row in rows)
-        first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in rows)
+        eligible_rows = [row for row in rows if row.get("eligible", True) and (row.get("generation_observation_count") or row.get("generation_attempt_count"))]
+        accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in eligible_rows)
+        generation_jobs = len(eligible_rows)
+        first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in eligible_rows)
         render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)
         verified_one_page = sum(int(row["verified_one_page_count"] or 0) for row in rows)
         accepted_rows = [row for row in rows if row.get("accepted_artifact_count")]
@@ -451,13 +461,13 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "cohort_id": cohort_id,
                 "cohort_type": cohort_type,
                 "attempted_job_count": len(rows),
-                "generation_job_count": sum(bool(row.get("generation_observation_count") or row.get("generation_attempt_count")) for row in rows),
-                "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")),
-                "eligible_attempt_coverage": "complete" if generation_jobs and all(row.get("eligible_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else "unavailable",
+                "generation_job_count": generation_jobs,
+                "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in eligible_rows),
+                "eligible_attempt_coverage": "complete" if generation_jobs and all(row.get("eligible_attempt_coverage") == "complete" for row in eligible_rows) else "unavailable",
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
-                "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else None,
-                "generation_attempt_coverage": "complete" if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else "unavailable",
+                "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in eligible_rows) else None,
+                "generation_attempt_coverage": "complete" if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in eligible_rows) else "unavailable",
                 "verified_one_page_count": verified_one_page,
                 "render_proof_count": render_proofs,
                 "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
@@ -828,7 +838,7 @@ def rebuild_analytics_bundle(
     candidate_gaps = build_gold_candidate_gap(silver)
     registry = dict(bundle.get("registry") or {})
     if not registry.get("metrics"):
-        registry = load_metric_registry()
+        registry["metrics"] = load_metric_registry().get("metrics", [])
     acceptance = build_gold_acceptance_state(registry, dict(bundle.get("state") or {}))
     optimization = build_gold_optimization_state(
         registry,

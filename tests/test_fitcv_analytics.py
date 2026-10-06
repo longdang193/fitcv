@@ -269,6 +269,65 @@ def test_acceptance_yield_excludes_artifacts_without_generation_history() -> Non
     assert acceptance["value"] == 1.0
 
 
+def test_acceptance_yield_excludes_ineligible_generation_jobs() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [
+                    {"source_id": "eligible", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture", "eligible": True},
+                    {"source_id": "ineligible", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture", "eligible": False},
+                ],
+                "accepted_artifact": [
+                    {"source_id": "artifact-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "artifact-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["successful_run_job_count"] == 1
+    assert cohort["generation_job_count"] == 1
+
+
+def test_registry_fallback_preserves_supplied_records() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {},
+            "registry": {
+                "claim_priority_map": {"claim": ["priority"]},
+                "records": [{"evidence_id": "fixture-evidence", "claim": "claim", "status": "current"}],
+            },
+            "state": {"implementation": {"priority": "accepted"}, "acceptance": {"priority": "accepted"}},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    assert result["gold"]["gold_acceptance_state"][0]["evidence_id"] == "fixture-evidence"
+
+
+def test_persistence_failed_is_terminal_generation_evidence() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{"source_id": "generation", "run_job_id": "job", "status": "persistence_failed", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"}],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    row = result["gold"]["gold_run_job_effort"][0]
+    assert row["generation_attempt_coverage"] == "complete"
+
+
 def test_direct_invalid_token_facts_become_unavailable() -> None:
     bronze = build_bronze_observations(
         {"provider_attempt": [{"source_id": "provider", "run_job_id": "job", "token_total": "not_recorded", "cohort_id": "c", "cohort_type": "fixture"}]},

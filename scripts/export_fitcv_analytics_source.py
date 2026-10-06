@@ -68,13 +68,14 @@ def _json(value: Any) -> Any:
 
 def _sanitize_string(value: str) -> str:
     value = value.strip()
-    if not ("://" in value or value.startswith("//") or re.match(r"^(?:https?|wss?|ftp):", value, re.IGNORECASE)):
+    url_like = "://" in value or value.startswith("//") or re.match(r"^(?:https?|wss?|ftp):", value, re.IGNORECASE)
+    if not url_like and "?" not in value:
         return value
     try:
         parts = urlsplit(value)
     except ValueError:
         return "[redacted-url]"
-    if not parts.netloc:
+    if not parts.netloc and (parts.scheme or url_like):
         return "[redacted-url]"
     invalid_port = False
     try:
@@ -93,12 +94,12 @@ def _sanitize_string(value: str) -> str:
         query = urlencode([
             (key, item)
             for key, item in parse_qsl(parts.query, keep_blank_values=True)
-            if key.lower().replace("-", "_") not in _SECRET_QUERY_PARTS
+            if re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_") not in _SECRET_QUERY_PARTS
             and not any(secret in key.lower() for secret in ("auth", "credential", "secret", "token", "password", "signature"))
         ])
     except ValueError:
         query = ""
-    return urlunsplit((parts.scheme, host, parts.path, query, ""))
+    return urlunsplit((parts.scheme, host, parts.path, query, "")) if parts.netloc else f"{parts.path}?{query}".rstrip("?")
 
 
 def _sanitize(value: Any, *, key: str = "") -> Any:
@@ -166,7 +167,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 if isinstance(trace, dict):
                     summary = trace.get("efficiency_summary") or {}
                     if isinstance(summary, dict):
-                        value = {**value, **summary}
+                        value = {**summary, **value}
                 sanitized = _sanitize(value) or {}
                 for identifier in (
                     value.get("artifact_id"), value.get("artifact_version_id"),
@@ -224,6 +225,14 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                     return left_value + right_value if left_value is not None and right_value is not None else None
             return None
 
+        provider_calls = next(
+            (
+                candidate.get("provider_call_count")
+                for candidate in candidates
+                if isinstance(candidate, dict) and candidate.get("provider_call_count") is not None
+            ),
+            None,
+        )
         usage_seen = False
         for candidate in candidates:
             if not isinstance(candidate, dict):
@@ -231,14 +240,19 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
             usage = candidate.get("token_usage") if "token_usage" in candidate else candidate.get("usage")
             if usage is not None:
                 usage_seen = True
-                total = usage_total(usage, candidate.get("provider_call_count"))
-                if total is not None:
-                    return total
+                return usage_total(usage, provider_calls)
         if usage_seen:
             return None
         for candidate in candidates:
             if isinstance(candidate, dict) and "token_total" in candidate:
-                return token_number(candidate.get("token_total"))
+                statuses = {
+                    str(item.get("token_usage_status") or "").strip().lower()
+                    for item in candidates
+                    if isinstance(item, dict) and item.get("token_usage_status") is not None
+                }
+                if statuses and statuses <= {"available"}:
+                    return token_number(candidate.get("token_total"))
+                return None
         return None
     for candidate in candidates:
         if isinstance(candidate, dict) and candidate.get(field) is not None:
@@ -250,10 +264,15 @@ def _debug_attempt_count(debug: dict[str, Any], fallback: int) -> int:
     value = _debug_number(debug, "attempt_count")
     if value is None and isinstance(debug.get("attempts"), list):
         value = len(debug["attempts"])
-    try:
-        return max(1, int(value)) if value is not None else max(1, fallback)
-    except (TypeError, ValueError):
+    if value is None:
         return max(1, fallback)
+    if isinstance(value, bool):
+        return 0
+    try:
+        numeric = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return 0
+    return int(numeric) if math.isfinite(numeric) and numeric >= 1 and numeric.is_integer() else 0
 
 
 def _append(sources: dict[str, list[dict[str, Any]]], kind: str, row: dict[str, Any]) -> None:
