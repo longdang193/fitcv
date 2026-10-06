@@ -289,12 +289,26 @@ def _group_run_jobs(silver: Iterable[dict[str, Any]]) -> dict[str, list[dict[str
 
 def _artifact_identity(fact: dict[str, Any]) -> str:
     payload = dict(fact.get("payload") or {})
-    return str(
-        payload.get("artifact_id")
-        or payload.get("artifact_version_id")
-        or payload.get("version_id")
-        or ""
-    ).strip()
+    for field in ("artifact_id", "artifact_version_id", "version_id"):
+        value = payload.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if value is not None:
+            return ""
+    return ""
+
+
+def _accepted_artifact_claim_valid(fact: dict[str, Any]) -> bool:
+    payload = dict(fact.get("payload") or {})
+    status = payload.get("status")
+    accepted = payload.get("accepted", True)
+    return (
+        isinstance(status, str)
+        and status.strip().lower() in {"accepted", "succeeded"}
+        and isinstance(accepted, bool)
+        and accepted
+        and bool(_artifact_identity(fact))
+    )
 
 
 def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> list[dict[str, Any]]:
@@ -305,7 +319,7 @@ def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> lis
         payload = dict(fact.get("payload") or {})
         if fact.get("observation_type") not in {"artifact", "accepted_artifact"}:
             continue
-        if str(payload.get("status") or "") not in {"accepted", "succeeded"} or not bool(payload.get("accepted", True)):
+        if not _accepted_artifact_claim_valid(fact):
             continue
         artifact_id = _artifact_identity(fact)
         if not artifact_id:
@@ -358,7 +372,7 @@ def _accepted_artifact_facts(facts: Iterable[dict[str, Any]]) -> list[dict[str, 
         status = str(payload.get("status") or "").strip().lower()
         if observation_type == "accepted_artifact" or (
             observation_type == "artifact"
-            and (status in {"accepted", "succeeded"} or payload.get("accepted") is True)
+            and (status in {"accepted", "succeeded"} or "accepted" in payload)
         ):
             result.append(fact)
     return result
@@ -384,8 +398,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
             fact.get("validity") == "valid"
             and _coverage_issue(fact) is None
             and bool(_artifact_identity(fact))
-            and str((fact.get("payload") or {}).get("status") or "").strip().lower() in {"accepted", "succeeded"}
-            and (fact.get("payload") or {}).get("accepted", True) is not False
+            and _accepted_artifact_claim_valid(fact)
             for fact in accepted_artifact_facts
         )
         invalid_facts = [fact for fact in facts if _coverage_issue(fact)]
