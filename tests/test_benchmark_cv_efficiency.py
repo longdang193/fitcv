@@ -53,6 +53,36 @@ def test_baseline_preserves_trace_run_job_ids_in_gold() -> None:
     assert report["gold_cohort_effort"]["source_run_job_ids"] == ["job-1", "job-2"]
 
 
+def test_baseline_does_not_fabricate_accepted_artifact_from_successful_trace() -> None:
+    report = build_baseline([_run(
+        "run-no-artifact",
+        {"cv_generation_trace": {"records": [{"trace_id": "trace-1", "run_job_id": "job-1", "job_url": "job-url", "attempts": [{"provider_status": "accepted"}], "output_summary": {"final_status": "accepted"}}]}},
+    )])
+
+    assert report["accepted_cv"]["count"] == 0
+    assert report["gold_cohort_effort"]["accepted_artifact_count"] == 0
+
+
+def test_baseline_run_scopes_fallback_job_identity() -> None:
+    runs = [
+        _run(f"run-{index}", {"cv_generation_trace": {"records": [{"trace_id": f"trace-{index}", "job_url": "same-url", "attempts": [{"provider_status": "failed"}], "output_summary": {"final_status": "failed"}}]}})
+        for index in (1, 2)
+    ]
+
+    report = build_baseline(runs)
+
+    assert report["gold_cohort_effort"]["attempted_job_count"] == 2
+
+
+def test_baseline_supports_input_output_token_telemetry() -> None:
+    trace = {"trace_id": "trace-tokens", "run_job_id": "job-tokens", "job_url": "job-tokens", "attempts": [{"provider_status": "accepted"}], "efficiency_summary": {"provider_call_count": 1, "token_usage": [{"input_tokens": 4, "output_tokens": 6}]}}
+    artifact = accepted_cv_artifact_event_v1(artifact_id="cv-tokens", job_url="job-tokens", run_id="run-tokens", trace_id="trace-tokens", acceptance_mode="automatic", accepted_at="2026-10-02T00:01:00Z", finalized_at="2026-10-02T00:01:00Z")
+
+    report = build_baseline([_run("run-tokens", {"cv_generation_trace": {"records": [trace]}, "accepted_artifact_events": [artifact]})])
+
+    assert report["gold_cohort_effort"]["token_total"] == 10
+
+
 def test_run_manifest_rejects_duplicate_run_ids(tmp_path: Path) -> None:
     path = tmp_path / "manifest.json"
     path.write_text(json.dumps({"run_ids": ["run-1", "run-1"]}), encoding="utf-8")

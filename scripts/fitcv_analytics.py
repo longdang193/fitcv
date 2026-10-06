@@ -425,6 +425,9 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         posting_id = _posting_id(payload)
         requirement = _requirement_key(payload)
         cohort = _cohort_key(payload)
+        category = str(payload.get("gap_category") or "").strip()
+        if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and posting_id and requirement and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+            gap_keys.add((*cohort, requirement, category))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
             continue
@@ -434,11 +437,14 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
             denominator[cohort].add(pair)
             continue
-        category = str(payload.get("gap_category") or "").strip()
-        if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
-            gap_keys.add((*cohort, requirement, category))
         if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
             gaps[(*cohort, requirement, category)].add(pair)
+    for key, pairs in list(gaps.items()):
+        cohort = key[:2]
+        eligible_pairs = pairs & denominator[cohort]
+        if eligible_pairs != pairs:
+            coverage_issues.setdefault(cohort, "posting_requirement_coverage_incomplete")
+        gaps[key] = eligible_pairs
     return [
         {
             "schema_version": ANALYTICS_SCHEMA_VERSION,

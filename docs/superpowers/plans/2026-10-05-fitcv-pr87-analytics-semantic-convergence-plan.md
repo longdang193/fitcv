@@ -98,6 +98,16 @@ dependency and no unsupported P1-C completion claim.
 - [x] Add regressions for empty input, run-job identity, invalid/source filtering, unknown claims, and unavailable-evidence provenance.
 - [x] Rerun focused and full suites, deterministic rebuild, SQL smoke test, acceptance verifier, and diff-scope review — focused `72 passed`; full `3225 passed, 8 skipped`; deterministic material digest `160d274abe31dbc05519892b4d56e8706bce5ab1e58f40cd6eb21058bdd92623`; six SQL views; `git diff --check` passed.
 
+## Independent Review Corrections
+
+- [x] Derive accepted-artifact Gold rows only from durable accepted-artifact events; never infer them from successful trace status or synthetic artifact IDs.
+- [x] Scope fallback run-job identities by run when traces omit `run_job_id`.
+- [x] Preserve `total_tokens` and `input_tokens + output_tokens` telemetry; mark partial token samples unavailable.
+- [x] Keep candidate-gap numerators inside eligible posting-requirement denominators and mark unmatched provenance unavailable.
+- [x] Retain invalid-only candidate-gap dimensions as unavailable rows.
+- [x] Make unavailable-evidence provenance regression exercise valid registry comparison, then explicit mismatch.
+- [x] Rerun final full proof, update evidence fingerprints, commit, push, and request fresh independent review — full `3230 passed, 8 skipped`; acceptance verifier passed; deterministic material digest `160d274abe31dbc05519892b4d56e8706bce5ab1e58f40cd6eb21058bdd92623`; six SQL views; `git diff --check` passed.
+
 ## Evidence Recovery Contract
 
 - Authoritative R5 pair: `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` and the database path recorded by that manifest. The R5 evidence JSON records this pair as the source for the current contract; no arbitrary `data/control_plane.sqlite3` substitution is allowed.

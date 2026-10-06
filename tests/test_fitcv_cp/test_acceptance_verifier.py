@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import yaml
+
 from scripts import verify_fitcv_acceptance as verifier
 from scripts.benchmark_cv_efficiency import material_report_digest
 from scripts.verify_fitcv_acceptance import (
@@ -488,11 +490,29 @@ def test_unavailable_registry_record_must_match_evidence_provenance(tmp_path: Pa
         f"{verifier._canonical_file_digest(evidence_json)}  {evidence_json.name}\n",
         encoding="utf-8",
     )
-    result = verifier._run_registry_evidence_check(
-        {"runtime_efficiency": {"measurement_status": "incomplete"}, "current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}},
-        tmp_path,
-    )
-    assert result["passed"] is False
+    registry = {
+        "schema_version": "fitcv.evidence_registry.v1",
+        "records": [{
+            "evidence_id": "unavailable",
+            "claim": "p1b_current_contract_measurement",
+            "schema_version": "fitcv.p1_ab.current_contract.v1",
+            "source_commit": evidence["source_commit"],
+            "declared_input_fingerprint": evidence["declared_input_fingerprint"],
+            "fixture_sha256": "d" * 64,
+            "cohort_id": "unavailable",
+            "cohort_type": "fixture",
+            "material_metrics_sha256": evidence["material_metrics_sha256"],
+            "artifact_paths": [evidence_json.name, evidence_markdown.name, evidence_sha.name],
+            "status": "unavailable",
+        }],
+    }
+    (tmp_path / "registry.yaml").write_text(yaml.safe_dump(registry), encoding="utf-8")
+    state = {"evidence_registry": "registry.yaml", "runtime_efficiency": {"measurement_status": "incomplete"}, "current_contract_evidence": {"json": evidence_json.name, "markdown": evidence_markdown.name, "sha256": evidence_sha.name}}
+    assert verifier._run_registry_evidence_check(state, tmp_path)["passed"] is True
+
+    evidence["source_commit"] = "e" * 40
+    evidence_json.write_text(json.dumps(evidence), encoding="utf-8")
+    assert verifier._run_registry_evidence_check(state, tmp_path)["failures"] == ["current_contract_evidence_unavailable_source_commit_mismatch"]
 
 
 def test_current_contract_evidence_rejects_stale_declared_inputs(
