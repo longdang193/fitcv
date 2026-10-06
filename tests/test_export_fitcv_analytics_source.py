@@ -228,15 +228,47 @@ def test_export_redacts_malformed_url_without_leaking_fragment_or_credentials(tm
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
     with sqlite3.connect(database) as connection:
-        connection.execute(
-            "UPDATE run_jobs SET source_url=? WHERE run_job_id='job-1'",
-            ("https://user:password@example.test:not-a-port/job?refresh_token=secret#jwt",),
-        )
+        for source_url in (
+            "https://user:password@example.test:not-a-port/job?refresh_token=secret#jwt",
+            "https:///job?access_token=PRIVATE#JWT",
+            "https://?api_key=PRIVATE#JWT",
+        ):
+            connection.execute(
+                "UPDATE run_jobs SET source_url=? WHERE run_job_id='job-1'",
+                (source_url,),
+            )
+            connection.commit()
+            encoded = json.dumps(export_bundle(database, source_commit="head"), sort_keys=True)
+            assert "user:password" not in encoded
+            assert "refresh_token" not in encoded
+            assert "access_token" not in encoded
+            assert "api_key" not in encoded
+            assert "PRIVATE" not in encoded
+            assert "secret#jwt" not in encoded
+            assert "#JWT" not in encoded
+
+
+@pytest.mark.parametrize(
+    "token_usage",
+    [[{"total_tokens": 6}, {}], [{"total_tokens": True}], [{"total_tokens": 1.9}], [{"total_tokens": "bad"}]],
+)
+def test_export_marks_invalid_token_telemetry_unavailable(tmp_path: Path, token_usage: list[dict[str, object]]) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"][0]["cv_generation_trace"]["efficiency_summary"]["token_usage"] = token_usage
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
         connection.commit()
-    encoded = json.dumps(export_bundle(database, source_commit="head"), sort_keys=True)
-    assert "user:password" not in encoded
-    assert "refresh_token" not in encoded
-    assert "secret#jwt" not in encoded
+    bundle = export_bundle(database, source_commit="head")
+    provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
+    assert provider.get("token_total") is None
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint=bundle["input_fingerprint"], ingested_at="now")
+    effort = next(row for row in replay["gold"]["gold_run_job_effort"] if row["run_job_id"] == "job-1")
+    assert effort["token_total"] is None
+    assert effort["token_coverage"] == "unavailable"
 
 
 def test_export_fails_closed_for_live_wal_without_touching_sidecars(tmp_path: Path) -> None:

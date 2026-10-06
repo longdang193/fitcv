@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -72,7 +73,7 @@ def _sanitize_string(value: str) -> str:
     except ValueError:
         return "[redacted-url]"
     if not parts.scheme or not parts.netloc:
-        return value
+        return "[redacted-url]" if parts.scheme or "://" in value else value
     raw_host = parts.netloc.rsplit("@", 1)[-1]
     try:
         hostname = parts.hostname or ""
@@ -183,26 +184,37 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
         if isinstance(candidate, dict) and candidate.get(field) is not None:
             return candidate[field]
     if field == "token_total":
+        def token_number(value: Any) -> int | None:
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                return None
+            numeric = float(value)
+            return int(numeric) if math.isfinite(numeric) and numeric >= 0 and numeric.is_integer() else None
+
+        def usage_total(usage: Any) -> int | None:
+            if not isinstance(usage, dict):
+                return None
+            for key in ("total_tokens", "token_total"):
+                if key in usage:
+                    return token_number(usage[key])
+            for left, right in (("prompt_tokens", "completion_tokens"), ("input_tokens", "output_tokens")):
+                if left in usage and right in usage:
+                    left_value = token_number(usage[left])
+                    right_value = token_number(usage[right])
+                    return left_value + right_value if left_value is not None and right_value is not None else None
+            return None
+
         for candidate in candidates:
             if not isinstance(candidate, dict):
                 continue
             usage = candidate.get("token_usage") or candidate.get("usage")
-            usage_blocks = usage if isinstance(usage, list) else [usage]
-            totals = []
-            for block in usage_blocks:
-                if not isinstance(block, dict):
-                    continue
-                for key in ("total_tokens", "token_total"):
-                    if block.get(key) is not None:
-                        totals.append(int(block[key]))
-                        break
-                else:
-                    parts = [block.get(key) for key in ("prompt_tokens", "completion_tokens", "input_tokens", "output_tokens")]
-                    numeric = [int(value) for value in parts if isinstance(value, (int, float)) and not isinstance(value, bool)]
-                    if numeric:
-                        totals.append(sum(numeric))
-            if totals:
-                return sum(totals)
+            if isinstance(usage, list) and usage:
+                totals = [usage_total(block) for block in usage]
+                if all(total is not None for total in totals):
+                    return sum(total for total in totals if total is not None)
+            elif isinstance(usage, dict):
+                total = usage_total(usage)
+                if total is not None:
+                    return total
     return None
 
 
