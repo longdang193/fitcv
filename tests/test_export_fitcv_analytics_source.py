@@ -677,7 +677,7 @@ def test_export_retains_malformed_implicit_acceptance_events(tmp_path: Path, eve
     assert metrics["acceptance_yield"]["value"] is None
 
 
-@pytest.mark.parametrize("container", [True, 1, "accepted", {"artifact_id": "cv-1"}])
+@pytest.mark.parametrize("container", [None, True, 1, "accepted", {"artifact_id": "cv-1"}])
 def test_export_retains_malformed_acceptance_container(tmp_path: Path, container: object) -> None:
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
@@ -685,6 +685,25 @@ def test_export_retains_malformed_acceptance_container(tmp_path: Path, container
         payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
         debug = json.loads(payload["cv_generation_debug_json"])
         debug["accepted_artifact_events"] = container
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert any(item["validity"] == "invalid" for item in bundle["sources"]["accepted_artifact"])
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_retains_nested_acceptance_evidence(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["debug_records"] = [{"accepted_artifact_events": [None, {"artifact_id": "unknown"}]}]
         payload["cv_generation_debug_json"] = json.dumps(debug)
         connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
         connection.commit()

@@ -238,21 +238,27 @@ def _table_exists(connection: Any, table: str) -> bool:
     ).fetchone() is not None
 
 
-def _flatten_debug_values(value: Any) -> Iterable[dict[str, Any]]:
+def _flatten_debug_values(value: Any, *, acceptance_context: bool = False) -> Iterable[dict[str, Any]]:
     if isinstance(value, list):
         for item in value:
-            yield from _flatten_debug_values(item)
+            yield from _flatten_debug_values(item, acceptance_context=acceptance_context)
         return
     if not isinstance(value, dict):
+        if acceptance_context:
+            yield {"_malformed_acceptance_event": True, "_acceptance_container_context": True}
         return
     if any(str(key) in value for key in ("artifact_id", "artifact_version_id", "version_id", "cv_version_id", "run_job_id", "accepted", "accepted_outcome", "final_status")):
-        yield value
+        yield {**value, "_acceptance_container_context": True} if acceptance_context else value
+    elif acceptance_context:
+        yield {**value, "_acceptance_container_context": True}
     for key in (
         "records", "debug_records", "cv_generation_debug_records", "accepted_artifact_events",
         "accepted_cv_effort", "cv_generation_trace",
     ):
         if key in value:
-            yield from _flatten_debug_values(value[key])
+            yield from _flatten_debug_values(
+                value[key], acceptance_context=key == "accepted_artifact_events"
+            )
 
 
 def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
@@ -265,21 +271,13 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
         cohort_type = compatibility.get("cohort_type") or "imported"
         for source_key in ("debug_records", "cv_generation_debug_records", "accepted_artifact_events", "accepted_cv_effort", "cv_generation_trace"):
             raw_value = parsed.get(source_key)
-            if source_key == "accepted_artifact_events" and raw_value is not None and not isinstance(raw_value, list):
+            if source_key == "accepted_artifact_events" and source_key in parsed and not isinstance(raw_value, list):
                 raw_values = [{"_malformed_acceptance_container": True}]
             else:
                 raw_values = raw_value or []
-            values = list(_flatten_debug_values(raw_values))
-            if source_key == "accepted_artifact_events" and isinstance(raw_values, list):
-                values.extend(
-                    item for item in raw_values
-                    if isinstance(item, dict) and not any(item == existing for existing in values)
-                )
-                values.extend(
-                    {"_malformed_acceptance_event": True, "_source_event_index": index}
-                    for index, item in enumerate(raw_values)
-                    if not isinstance(item, dict)
-                )
+            values = list(_flatten_debug_values(
+                raw_values, acceptance_context=source_key == "accepted_artifact_events"
+            ))
             for event_index, value in enumerate(values):
                 value = dict(value)
                 value["_debug_record_groups"] = [f"{row['run_id']}:{source_key}:{event_index}"]
@@ -288,7 +286,9 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 value["_debug_run_id"] = str(row["run_id"])
                 value["_debug_cohort_id"] = cohort_id
                 value["_debug_cohort_type"] = cohort_type
-                if any(field in value for field in ("accepted", "accepted_outcome", "final_status")):
+                if source_key == "accepted_artifact_events" or value.get("_acceptance_container_context") or any(
+                    field in value for field in ("accepted", "accepted_outcome", "final_status")
+                ):
                     value["_acceptance_evidence_seen"] = True
                 if source_key == "accepted_artifact_events":
                     value["_acceptance_evidence_seen"] = True
@@ -304,7 +304,9 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 _mark_null_telemetry(value)
                 sanitized = _sanitize(value) or {}
                 current_rejection = _acceptance_rejection_present(value)
-                current_acceptance_evidence = source_key == "accepted_artifact_events" or any(
+                current_acceptance_evidence = source_key == "accepted_artifact_events" or bool(
+                    value.get("_acceptance_container_context")
+                ) or any(
                     field in value for field in ("accepted", "accepted_outcome", "final_status")
                 )
                 current_invalid = _acceptance_evidence_invalid(value) or (
