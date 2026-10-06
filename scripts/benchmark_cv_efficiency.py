@@ -629,6 +629,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
                         f"{run_id}:{record.get('job_url') or record.get('trace_id') or 'unknown'}",
                     )
                 ),
+                "content_checksum": (record.get("render_acceptance") or {}).get("content_sha256"),
                 "render_acceptance": record.get("render_acceptance"),
             }
             for record in projected_records
@@ -1162,6 +1163,7 @@ def build_baseline(
                 "source_id": f"benchmark-artifact:{index}",
                 "run_job_id": str(artifact.get("run_job_id") or f"benchmark-job:{index}"),
                 "artifact_id": str(artifact["artifact_id"]),
+                "content_checksum": artifact.get("content_checksum"),
                 "status": "accepted",
                 "render_acceptance": artifact.get("render_acceptance"),
                 "page_fit_status": artifact.get("page_fit_status"),

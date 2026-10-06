@@ -333,6 +333,7 @@ def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> lis
                 "run_job_id": run_job_id,
                 "artifact_id": artifact_id,
                 "accepted_at": payload.get("accepted_at"),
+                "content_checksum": payload.get("content_checksum"),
                 "source_observation_ids": [],
                 "render_proof": False,
                 "verified_one_page": False,
@@ -352,6 +353,7 @@ def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> lis
                 bool(re.fullmatch(r"[0-9a-f]{64}", str(render.get(field) or "")))
                 for field in ("artifact_checksum", "content_sha256", "template_sha256", "render_config_fingerprint")
             )
+            and str(render.get("content_sha256") or "") == str(payload.get("content_checksum") or "")
             and bool(str(render.get("renderer_contract_version") or "").strip())
         )
         row["render_proof"] = row["render_proof"] or render_proof
