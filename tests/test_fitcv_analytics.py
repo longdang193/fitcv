@@ -337,6 +337,16 @@ def test_persistence_failed_is_terminal_generation_evidence() -> None:
     assert row["failed_generation_attempt_count"] == 1
 
 
+def test_manual_effort_rejects_incomplete_review_coverage() -> None:
+    result = rebuild_analytics_bundle(
+        {"sources": {"review_action": [{"source_id": "review", "run_job_id": "job", "status": "approved", "coverage": "unavailable"}]}, "registry": {}, "state": {}},
+        source_commit="head", declared_input_fingerprint="inputs", ingested_at="now",
+    )
+    metric = next(row for row in result["gold"]["gold_semantic_metric"] if row["metric_id"] == "manual_effort")
+    assert metric["value"] is None
+    assert metric["coverage_status"] == "unavailable"
+
+
 def test_direct_invalid_token_facts_become_unavailable() -> None:
     bronze = build_bronze_observations(
         {"provider_attempt": [{"source_id": "provider", "run_job_id": "job", "token_total": "not_recorded", "cohort_id": "c", "cohort_type": "fixture"}]},

@@ -133,6 +133,18 @@ def _sanitize(value: Any, *, key: str = "") -> Any:
     return value
 
 
+def _mark_null_telemetry(value: Any) -> None:
+    if isinstance(value, dict):
+        for field in ("token_usage", "usage", "provider_call_count"):
+            if field in value and value[field] is None:
+                value[f"_{field}_present"] = True
+        for item in value.values():
+            _mark_null_telemetry(item)
+    elif isinstance(value, list):
+        for item in value:
+            _mark_null_telemetry(item)
+
+
 def _run_debug_payload(row: Any) -> dict[str, Any]:
     compatibility = _json(row["compatibility_json"] if "compatibility_json" in row.keys() else None)
     compatibility = compatibility if isinstance(compatibility, dict) else {}
@@ -182,6 +194,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                     value["_token_usage_present"] = True
                 if "usage" in value and value["usage"] is None:
                     value["_usage_present"] = True
+                _mark_null_telemetry(value)
                 sanitized = _sanitize(value) or {}
                 for identifier in (
                     value.get("artifact_id"), value.get("artifact_version_id"),
@@ -199,7 +212,11 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
     if isinstance(trace, dict):
         candidates.append(trace.get("efficiency_summary"))
     if field == "token_total":
-        if debug.get("_token_usage_present") or debug.get("_usage_present"):
+        if any(
+            isinstance(candidate, dict)
+            and (candidate.get("_token_usage_present") or candidate.get("_usage_present"))
+            for candidate in candidates
+        ):
             return None
         invalid_statuses = {"incomplete", "not_run", "unavailable"}
         if any(
@@ -263,6 +280,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 return None
         return None
     for candidate in candidates:
+        if field == "provider_call_count" and isinstance(candidate, dict) and candidate.get("_provider_call_count_present"):
+            return None
         if isinstance(candidate, dict) and candidate.get(field) is not None:
             return candidate[field]
     return None
@@ -346,7 +365,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             "collected_at": run["created_at"] if run is not None else None,
         }
         _append(sources, "posting_inventory", inventory)
-        requirements = snapshot.get("requirements") or snapshot.get("requirement_coverage") or []
+        requirements = snapshot.get("requirements") or snapshot.get("requirement_coverage") or _json(row["skills_json"] if "skills_json" in row.keys() else None) or []
         if isinstance(requirements, dict):
             requirements = list(requirements.values())
         for index, item in enumerate(requirements):
@@ -365,6 +384,11 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "extraction_status": inventory["extraction_status"],
                 "source": row["source_url"],
             })
+
+    evaluations_by_version: dict[str, Any] = {}
+    if _table_exists(connection, "cv_evaluations"):
+        for evaluation in connection.execute("SELECT * FROM cv_evaluations WHERE is_current=1 ORDER BY cv_evaluation_id"):
+            evaluations_by_version[str(evaluation["cv_version_id"])] = evaluation
 
     versions = []
     if _table_exists(connection, "cv_versions"):
@@ -394,6 +418,29 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             "cohort_type": run_payload.get("cohort_type") or "imported",
             "observed_at": row["created_at"],
         }
+        evaluation = evaluations_by_version.get(version_id)
+        evidence = _json(evaluation["evidence_json"] if evaluation is not None and "evidence_json" in evaluation.keys() else None)
+        if isinstance(evidence, dict) and str(evaluation["status"] or "") == "succeeded":
+            for index, item in enumerate(evidence.get("requirement_coverage") or []):
+                if not isinstance(item, dict) or not str(item.get("requirement") or "").strip():
+                    continue
+                selected_support = str(item.get("selected_support") or "").strip().lower()
+                gap_category = {
+                    "unsupported": "missing_evidence",
+                    "pending": "missing_evidence",
+                    "relevant_unverified": "uncertain_interpretation",
+                    "contradicted": "unmet_qualifier",
+                }.get(selected_support)
+                if gap_category:
+                    _append(sources, "candidate_gap", {
+                        **common,
+                        "source_id": f"{version_id}:gap:{index}",
+                        "run_job_id": run_job_id,
+                        "posting_id": run_job_id,
+                        "requirement": item["requirement"],
+                        "requirement_instance_id": item.get("requirement_instance_id") or f"{run_job_id}:{index}",
+                        "gap_category": gap_category,
+                    })
         normalized_status = "succeeded" if status == "generated" else status
         attempt_count = _debug_attempt_count(debug, ordinal or 1)
         provider_call_count = _debug_number(debug, "provider_call_count")

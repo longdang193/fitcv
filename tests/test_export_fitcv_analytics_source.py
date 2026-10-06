@@ -183,6 +183,37 @@ def test_export_is_replayable_sanitized_and_non_mutating(tmp_path: Path) -> None
         assert len(metric_ids) == 8
 
 
+def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("ALTER TABLE run_jobs ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'")
+        connection.execute("UPDATE run_jobs SET skills_json=? WHERE run_job_id='job-1'", (json.dumps(["Python"]),))
+        connection.execute("UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'", (json.dumps({"extraction_status": "valid"}),))
+        connection.execute(
+            """
+            CREATE TABLE cv_evaluations (
+                cv_evaluation_id TEXT PRIMARY KEY,
+                cv_version_id TEXT,
+                status TEXT,
+                evidence_json TEXT,
+                is_current INTEGER
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO cv_evaluations VALUES (?, ?, ?, ?, ?)",
+            ("evaluation-1", "cv-1", "succeeded", json.dumps({"requirement_coverage": [{"requirement": "Python", "selected_support": "unsupported"}]}), 1),
+        )
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    assert any(row["requirement"] == "Python" for row in bundle["sources"]["posting_requirement"])
+    assert any(row["gap_category"] == "missing_evidence" for row in bundle["sources"]["candidate_gap"])
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint=bundle["input_fingerprint"], ingested_at="now")
+    assert replay["gold"]["gold_requirement_demand"]
+    assert replay["gold"]["gold_candidate_gap"]
+
+
 def test_export_rejects_missing_path_and_hash_mismatch(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         export_bundle(tmp_path / "missing.sqlite3", source_commit="head")
@@ -317,6 +348,23 @@ def test_export_uses_nested_usage_source_cardinality(tmp_path: Path) -> None:
     bundle = export_bundle(database, source_commit="head")
     provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
     assert provider.get("token_total") is None
+
+
+def test_export_rejects_null_nested_provider_count(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        event = debug["accepted_artifact_events"][0]
+        event["provider_call_count"] = None
+        event["cv_generation_trace"]["efficiency_summary"]["provider_call_count"] = 2
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
+    assert provider.get("provider_call_count") is None
 
 
 @pytest.mark.parametrize("attempt_count", [1.9, 10**400])

@@ -412,7 +412,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "render_proof_coverage": "complete" if artifacts and all(bool(artifact.get("render_proof")) for artifact in artifacts) else "unavailable",
                 "attempted_work_count": len({fact["observation_id"] for fact in valid_facts}),
                 "manual_attempted_run_job_count": 1,
-                "review_action_coverage": "complete" if review_all and len(review) == len(review_all) else "unavailable",
+                "review_action_coverage": "complete" if review_all and len(review) == len(review_all) and all(_coverage_issue(fact) is None for fact in review_all) else "unavailable",
                 "provider_attempt_count": len(provider),
                 "provider_call_coverage": "complete" if provider_call_coverage_complete else "unavailable",
                 "token_coverage": "complete" if token_coverage_complete else "unavailable",
