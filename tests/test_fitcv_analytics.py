@@ -682,7 +682,8 @@ def test_requirement_demand_uses_explicit_posting_inventory_denominator() -> Non
                 {"source_id": "posting-2", "posting_id": "posting-2", "eligible": True, "extraction_status": "complete", "cohort_id": "c", "cohort_type": "fixture"},
             ],
             "posting_requirement": [
-                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-2", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
             ],
         },
         "registry": {},
@@ -704,7 +705,8 @@ def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None
                 {"source_id": "posting-1", "posting_id": "posting-1", "eligible": True, "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "fixture"},
             ],
             "posting_requirement": [
-                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-2", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
             ],
         },
         "registry": {},
@@ -740,7 +742,8 @@ def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
     bundle = {
         "sources": {
             "posting_requirement": [
-                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "requirement-2", "posting_id": "posting-1", "requirement": "python", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "2", "candidate_profile_fingerprint": "fp-2", "cohort_id": "c", "cohort_type": "fixture"},
             ],
             "candidate_gap": [
                 {"source_id": "gap-1", "posting_id": "posting-1", "requirement": "python", "gap_category": "missing_evidence", "candidate_profile_id": "candidate-1", "candidate_profile_revision": "1", "candidate_profile_fingerprint": "fp-1", "cohort_id": "c", "cohort_type": "fixture"},
@@ -754,6 +757,7 @@ def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
     gaps = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_candidate_gap"]
 
     assert {(row["candidate_profile_revision"], row["candidate_profile_fingerprint"]) for row in gaps} == {("1", "fp-1"), ("2", "fp-2")}
+    assert {row["denominator_requirement_count"] for row in gaps} == {1}
 
 
 def test_acceptance_and_optimization_state_are_separate() -> None:

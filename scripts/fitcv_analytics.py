@@ -562,9 +562,9 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
 
 def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build one row per requirement, explicit gap category, and cohort."""
-    denominator: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
+    denominator: dict[tuple[str, str, str, str, str], set[tuple[str, str]]] = defaultdict(set)
     gaps: dict[tuple[str, str, str, str, str, str, str], set[tuple[str, str]]] = defaultdict(set)
-    coverage_issues: dict[tuple[str, str], str] = {}
+    coverage_issues: dict[tuple[str, str, str, str, str], str] = {}
     gap_keys: set[tuple[str, str, str, str]] = set()
     for fact in silver:
         observation_type = fact.get("observation_type")
@@ -578,24 +578,25 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         profile = tuple(str(payload.get(field) or "") for field in (
             "candidate_profile_id", "candidate_profile_revision", "candidate_profile_fingerprint"
         ))
+        partition = (*cohort, *profile)
         if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and posting_id and requirement and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
             gap_keys.add((*cohort, requirement, category, *profile))
         if (issue := _coverage_issue(fact)) is not None:
-            coverage_issues.setdefault(cohort, issue)
+            coverage_issues.setdefault(partition, issue)
             continue
         if not posting_id or not requirement or payload.get("eligible", True) is False:
             continue
         pair = (posting_id, requirement)
         if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
-            denominator[cohort].add(pair)
+            denominator[partition].add(pair)
             continue
         if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
             gaps[(*cohort, requirement, category, *profile)].add(pair)
     for key, pairs in list(gaps.items()):
-        cohort = key[:2]
-        eligible_pairs = pairs & denominator[cohort]
+        partition = key[:2] + key[4:]
+        eligible_pairs = pairs & denominator[partition]
         if eligible_pairs != pairs:
-            coverage_issues.setdefault(cohort, "posting_requirement_coverage_incomplete")
+            coverage_issues.setdefault(partition, "posting_requirement_coverage_incomplete")
         gaps[key] = eligible_pairs
     return [
         {
@@ -610,10 +611,10 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             "candidate_profile_revision": profile_revision or None,
             "candidate_profile_fingerprint": profile_fingerprint or None,
             "numerator_requirement_count": len(pairs),
-            "denominator_requirement_count": len(denominator[(cohort_id, cohort_type)]),
-            "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
-            "candidate_requirement_coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
-            "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
+            "denominator_requirement_count": len(denominator[(cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint)]),
+            "coverage": "unavailable" if (cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint) in coverage_issues else "complete",
+            "candidate_requirement_coverage": "unavailable" if (cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint) in coverage_issues else "complete",
+            "unavailable_reason": coverage_issues.get((cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint)),
         }
         for (cohort_id, cohort_type, requirement, category, profile_id, profile_revision, profile_fingerprint) in sorted(gap_keys | set(gaps))
         for pairs in [gaps.get((cohort_id, cohort_type, requirement, category, profile_id, profile_revision, profile_fingerprint), set())]

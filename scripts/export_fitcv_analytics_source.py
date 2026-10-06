@@ -145,6 +145,14 @@ def _mark_null_telemetry(value: Any) -> None:
             _mark_null_telemetry(item)
 
 
+def _contains_marker(value: Any, marker: str) -> bool:
+    if isinstance(value, dict):
+        return marker in value or any(_contains_marker(item, marker) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_marker(item, marker) for item in value)
+    return False
+
+
 def _run_debug_payload(row: Any) -> dict[str, Any]:
     compatibility = _json(row["compatibility_json"] if "compatibility_json" in row.keys() else None)
     compatibility = compatibility if isinstance(compatibility, dict) else {}
@@ -261,6 +269,14 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
             return None
 
         usage_seen = False
+        inherited_provider_calls = next(
+            (
+                candidate.get("provider_call_count")
+                for candidate in candidates
+                if isinstance(candidate, dict) and candidate.get("provider_call_count") is not None
+            ),
+            None,
+        )
         for candidate in candidates:
             if not isinstance(candidate, dict):
                 continue
@@ -274,7 +290,8 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 usage_seen = True
                 if candidate.get("_provider_call_count_present"):
                     return None
-                return usage_total(usage, candidate.get("provider_call_count"))
+                provider_calls = candidate.get("provider_call_count", inherited_provider_calls)
+                return usage_total(usage, provider_calls)
         if usage_seen:
             return None
         for candidate in candidates:
@@ -294,7 +311,7 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
 
 
 def _debug_attempt_count(debug: dict[str, Any], fallback: int) -> int:
-    if debug.get("_attempt_count_present"):
+    if _contains_marker(debug, "_attempt_count_present"):
         return 0
     value = _debug_number(debug, "attempt_count")
     if value is None and isinstance(debug.get("attempts"), list):
@@ -326,10 +343,9 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     run_by_id = {str(row["run_id"]): row for row in runs}
     debug_by_artifact = _debug_records(runs)
 
-    run_input_by_id: dict[str, Any] = {}
+    run_input_identity_by_id: dict[str, dict[str, Any]] = {}
     if _table_exists(connection, "run_inputs"):
         for row in connection.execute("SELECT * FROM run_inputs ORDER BY run_id"):
-            run_input_by_id[str(row["run_id"])] = row
             profile_json = _json(row["candidate_profile_json"] if "candidate_profile_json" in row.keys() else None)
             profile_fingerprint = row["candidate_profile_checksum"] if "candidate_profile_checksum" in row.keys() else None
             if not profile_fingerprint and isinstance(profile_json, dict):
@@ -337,6 +353,11 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                     profile_fingerprint = canonical_candidate_checksum(profile_json)
                 except (TypeError, ValueError, KeyError):
                     profile_fingerprint = None
+            run_input_identity_by_id[str(row["run_id"])] = {
+                "candidate_profile_id": row["candidate_profile_id"],
+                "candidate_profile_revision": row["candidate_profile_revision"],
+                "candidate_profile_fingerprint": profile_fingerprint,
+            }
             _append(sources, "candidate_profile_revision", {
                 "source_id": f"{row['run_id']}:candidate-profile",
                 "candidate_profile_id": row["candidate_profile_id"],
@@ -393,6 +414,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "eligible": True,
                 "extraction_status": inventory["extraction_status"],
                 "source": row["source_url"],
+                **run_input_identity_by_id.get(str(row["run_id"]), {}),
             })
 
     evaluations_by_version: dict[str, Any] = {}
@@ -428,12 +450,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             "cohort_type": run_payload.get("cohort_type") or "imported",
             "observed_at": row["created_at"],
         }
-        run_input = run_input_by_id.get(str(row["run_id"]))
-        common.update({
-            "candidate_profile_id": run_input["candidate_profile_id"] if run_input is not None and "candidate_profile_id" in run_input.keys() else None,
-            "candidate_profile_revision": run_input["candidate_profile_revision"] if run_input is not None and "candidate_profile_revision" in run_input.keys() else None,
-            "candidate_profile_fingerprint": run_input["candidate_profile_checksum"] if run_input is not None and "candidate_profile_checksum" in run_input.keys() else None,
-        })
+        common.update(run_input_identity_by_id.get(str(row["run_id"]), {}))
         evaluation = evaluations_by_version.get(version_id)
         evidence = _json(evaluation["evidence_json"] if evaluation is not None and "evidence_json" in evaluation.keys() else None)
         if isinstance(evidence, dict) and str(evaluation["status"] or "") == "succeeded":

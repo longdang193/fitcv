@@ -189,6 +189,7 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     with sqlite3.connect(database) as connection:
         connection.execute("ALTER TABLE run_jobs ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'")
         connection.execute("UPDATE run_jobs SET skills_json=? WHERE run_job_id='job-1'", (json.dumps([{"canonical": "Python"}]),))
+        connection.execute("UPDATE run_inputs SET candidate_profile_checksum=NULL WHERE run_id='run-1'")
         connection.execute("UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'", (json.dumps({"extraction_status": "valid"}),))
         connection.execute(
             """
@@ -212,7 +213,8 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     gap = bundle["sources"]["candidate_gap"][0]
     assert gap["candidate_profile_id"] == "profile-1"
     assert gap["candidate_profile_revision"] == 1
-    assert gap["candidate_profile_fingerprint"] == "profile-hash"
+    profile = bundle["sources"]["candidate_profile_revision"][0]
+    assert gap["candidate_profile_fingerprint"] == profile["candidate_profile_fingerprint"]
     replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint=bundle["input_fingerprint"], ingested_at="now")
     assert replay["gold"]["gold_requirement_demand"]
     assert replay["gold"]["gold_candidate_gap"]
@@ -403,6 +405,39 @@ def test_export_rejects_explicit_null_attempt_count(tmp_path: Path) -> None:
     bundle = export_bundle(database, source_commit="head")
     generation = next(row for row in bundle["sources"]["generation_attempt"] if row["run_job_id"] == "job-1")
     assert generation["attempt_count"] == 0
+
+
+def test_export_rejects_nested_null_attempt_count(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"][0]["cv_generation_trace"]["efficiency_summary"]["attempt_count"] = None
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    generation = next(row for row in bundle["sources"]["generation_attempt"] if row["run_job_id"] == "job-1")
+    assert generation["attempt_count"] == 0
+
+
+def test_export_uses_outer_provider_count_for_nested_usage(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        event = debug["accepted_artifact_events"][0]
+        event["provider_call_count"] = 2
+        event["cv_generation_trace"]["efficiency_summary"].pop("provider_call_count", None)
+        event["cv_generation_trace"]["efficiency_summary"]["token_usage"] = [{"total_tokens": 9}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
+    assert provider.get("token_total") is None
 
 
 def test_export_redacts_nested_url_query_values(tmp_path: Path) -> None:
