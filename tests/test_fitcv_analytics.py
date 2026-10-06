@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from scripts.fitcv_analytics import (
     build_bronze_observations,
     build_gold_acceptance_state,
@@ -94,6 +97,27 @@ def test_rebuild_is_deterministic_and_sql_views_match_gold(tmp_path) -> None:
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT artifact_id FROM gold_cv_artifact").fetchone() == ("cv-1",)
         assert connection.execute("SELECT provider_call_count FROM gold_run_job_effort").fetchone() == (2,)
+
+
+def test_run_job_gold_ignores_requirement_and_gap_sources() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    result = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    assert result["gold"]["gold_cohort_effort"][0]["attempted_job_count"] == 1
+
+
+def test_gold_cohort_exposes_declared_first_pass_and_render_metrics() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    cohort = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_cohort_effort"][0]
+    assert "first_pass_success_count" in cohort
+    assert "verified_one_page_rate" in cohort
+
+
+def test_deferred_status_dimension_sets_deferred_flag() -> None:
+    rows = build_gold_acceptance_state(
+        {"claim_priority_map": {"claim": ["p1_c"]}, "records": [{"evidence_id": "e", "claim": "claim", "status": "current"}]},
+        {"status_dimensions": {"p1_c": {"implementation_status": "deferred", "acceptance_status": "deferred", "measurement_status": "not_applicable"}}},
+    )
+    assert rows[0]["deferred"] is True
 
 
 def test_requirement_and_gap_gold_have_explicit_grains_and_distinct_denominators() -> None:

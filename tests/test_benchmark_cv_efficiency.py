@@ -83,6 +83,25 @@ def test_baseline_supports_input_output_token_telemetry() -> None:
     assert report["gold_cohort_effort"]["token_total"] == 10
 
 
+def test_baseline_marks_malformed_or_negative_token_telemetry_unavailable() -> None:
+    trace = {"trace_id": "trace-bad-tokens", "run_job_id": "job-bad-tokens", "job_url": "job-bad-tokens", "attempts": [{"provider_status": "accepted"}], "efficiency_summary": {"provider_call_count": 1, "token_usage": [{"input_tokens": "not_recorded", "output_tokens": 6}, {"input_tokens": -1, "output_tokens": 2}]}}
+    artifact = accepted_cv_artifact_event_v1(artifact_id="cv-bad-tokens", job_url="job-bad-tokens", run_id="run-bad-tokens", trace_id="trace-bad-tokens", acceptance_mode="automatic", accepted_at="2026-10-02T00:01:00Z", finalized_at="2026-10-02T00:01:00Z")
+
+    report = build_baseline([_run("run-bad-tokens", {"cv_generation_trace": {"records": [trace]}, "accepted_artifact_events": [artifact]})])
+
+    assert report["gold_cohort_effort"]["token_total"] is None
+
+
+def test_baseline_aligns_legacy_artifact_with_run_scoped_trace_identity() -> None:
+    trace = {"trace_id": "", "run_id": "run-legacy", "job_id": "job-legacy", "job_url": "url-legacy", "attempts": [{"provider_status": "accepted"}], "efficiency_summary": {"provider_call_count": 1, "token_usage": [{"total_tokens": 5}]}}
+    artifact = accepted_cv_artifact_event_v1(artifact_id="cv-legacy", job_url="url-legacy", run_id="run-legacy", trace_id=None, acceptance_mode="automatic", accepted_at="2026-10-02T00:01:00Z", finalized_at="2026-10-02T00:01:00Z")
+
+    report = build_baseline([_run("run-legacy", {"cv_generation_trace": {"records": [trace]}, "accepted_artifact_events": [artifact]})])
+
+    assert report["gold_cohort_effort"]["attempted_job_count"] == 1
+    assert report["gold_cohort_effort"]["token_total"] == 5
+
+
 def test_run_manifest_rejects_duplicate_run_ids(tmp_path: Path) -> None:
     path = tmp_path / "manifest.json"
     path.write_text(json.dumps({"run_ids": ["run-1", "run-1"]}), encoding="utf-8")

@@ -360,11 +360,21 @@ def _trace_token_total(trace: dict[str, Any]) -> float | None:
         if raw_total is None:
             if item.get("input_tokens") is None or item.get("output_tokens") is None:
                 return None
-            raw_total = float(item["input_tokens"]) + float(item["output_tokens"])
+            try:
+                input_tokens = float(item["input_tokens"])
+                output_tokens = float(item["output_tokens"])
+            except (TypeError, ValueError):
+                return None
+            if input_tokens < 0 or output_tokens < 0:
+                return None
+            raw_total = input_tokens + output_tokens
         try:
-            total += float(raw_total)
+            parsed_total = float(raw_total)
         except (TypeError, ValueError):
             return None
+        if parsed_total < 0:
+            return None
+        total += parsed_total
     return total
 
 

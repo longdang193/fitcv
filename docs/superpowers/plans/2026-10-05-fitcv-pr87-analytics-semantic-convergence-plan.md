@@ -108,6 +108,16 @@ dependency and no unsupported P1-C completion claim.
 - [x] Make unavailable-evidence provenance regression exercise valid registry comparison, then explicit mismatch.
 - [x] Rerun final full proof, update evidence fingerprints, commit, push, and request fresh independent review — full `3230 passed, 8 skipped`; acceptance verifier passed; deterministic material digest `160d274abe31dbc05519892b4d56e8706bce5ab1e58f40cd6eb21058bdd92623`; six SQL views; `git diff --check` passed.
 
+## Second Review Corrections
+
+- [x] Restrict run-job Gold grouping to run-job observation types; keep requirement and gap facts out of workload denominators.
+- [x] Align legacy accepted-artifact rows with matched run-scoped trace identity.
+- [x] Treat malformed, partial, and negative token telemetry as unavailable without crashing.
+- [x] Emit executable first-pass and render-proof fields required by declared cohort metrics.
+- [x] Derive `deferred` from deferred status dimensions, not evidence status alone.
+- [x] Add regressions for mixed-source isolation, legacy matching, malformed tokens, declared Gold fields, and deferred status.
+- [x] Rerun final full proof, update evidence fingerprints, commit, push, and request fresh independent review — full `3235 passed, 8 skipped`; acceptance verifier passed; deterministic material digest `eba5b5adaab5ae3234eb1f9974daee477091b270d96ef218b27db7f23009c5d2`; six SQL views; `git diff --check` passed.
+
 ## Evidence Recovery Contract
 
 - Authoritative R5 pair: `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` and the database path recorded by that manifest. The R5 evidence JSON records this pair as the source for the current contract; no arbitrary `data/control_plane.sqlite3` substitution is allowed.

@@ -32,11 +32,11 @@ records:
       - scripts/sql/fitcv_gold_views.sql
       - scripts/verify_fitcv_acceptance.py
       - tests/fixtures/analytics_semantic_contract.json
-    declared_input_fingerprint: 6b608df4524ce0823cd1681e514ce0e99b6d03abee9e59b67fbf26cfd9b30d7a
+    declared_input_fingerprint: 84393017cd3ceaab251da927cd8fa952d77e6b9c65487434375262ff79d93ee7
     fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
     cohort_id: p1ab-current-contract-r6-unavailable
     cohort_type: unavailable_retained_fixture_rebuild
-    material_metrics_sha256: 160d274abe31dbc05519892b4d56e8706bce5ab1e58f40cd6eb21058bdd92623
+    material_metrics_sha256: eba5b5adaab5ae3234eb1f9974daee477091b270d96ef218b27db7f23009c5d2
     artifact_paths:
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md

@@ -22,6 +22,7 @@ RECONCILABLE_OBSERVATION_TYPES = {
     "accepted_artifact",
 }
 TRACE_OBSERVATION_TYPES = {"trace", "generation_trace", "normalized_trace"}
+RUN_JOB_OBSERVATION_TYPES = RECONCILABLE_OBSERVATION_TYPES
 REQUIREMENT_DEMAND_OBSERVATION_TYPES = {"posting_requirement"}
 CANDIDATE_GAP_OBSERVATION_TYPES = {"candidate_gap"}
 INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid"}
@@ -212,6 +213,8 @@ def _coverage_issue(fact: dict[str, Any]) -> str | None:
 def _group_run_jobs(silver: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for fact in silver:
+        if fact.get("observation_type") not in RUN_JOB_OBSERVATION_TYPES:
+            continue
         payload = dict(fact.get("payload") or {})
         run_job_id = str(
             payload.get("run_job_id")
@@ -257,7 +260,17 @@ def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> lis
                 "artifact_id": artifact_id,
                 "accepted_at": payload.get("accepted_at"),
                 "source_observation_ids": [],
+                "render_proof": False,
+                "verified_one_page": False,
             },
+        )
+        render = dict(payload.get("render_acceptance") or {})
+        page_fit_status = str(payload.get("page_fit_status") or render.get("page_fit_status") or "").strip().lower()
+        page_count = render.get("page_count")
+        render_proof = bool(render) and page_count is not None and bool(page_fit_status)
+        row["render_proof"] = row["render_proof"] or render_proof
+        row["verified_one_page"] = row["verified_one_page"] or (
+            render_proof and page_count == 1 and page_fit_status == "pass"
         )
         row["source_observation_ids"].append(fact["observation_id"])
     for row in artifacts.values():
@@ -297,6 +310,18 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "cohort_type": next((fact["payload"].get("cohort_type") for fact in facts if fact["payload"].get("cohort_type")), "unclassified"),
                 "accepted_artifact_ids": [artifact["artifact_id"] for artifact in artifacts],
                 "accepted_artifact_count": len(artifacts),
+                "first_pass_success_count": min(
+                    1,
+                    sum(
+                        str(fact["payload"].get("status") or "").lower() in {"accepted", "succeeded", "success"}
+                        and int(fact["payload"].get("attempt_index") or 1) == 1
+                        for fact in generation
+                    ),
+                ),
+                "generation_attempt_coverage": "complete" if generation and all(str(fact["payload"].get("status") or "").strip() for fact in generation) else "unavailable",
+                "verified_one_page_count": sum(bool(artifact.get("verified_one_page")) for artifact in artifacts),
+                "render_proof_count": sum(bool(artifact.get("render_proof")) for artifact in artifacts),
+                "render_proof_coverage": "complete" if artifacts and all(bool(artifact.get("render_proof")) for artifact in artifacts) else "unavailable",
                 "attempted_work_count": len({fact["observation_id"] for fact in valid_facts}),
                 "provider_attempt_count": len(provider),
                 "generation_attempt_count": len(generation),
@@ -329,6 +354,10 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         provider_calls = _known_sum([row["provider_call_count"] for row in rows])
         tokens = _known_sum([row["token_total"] for row in rows])
         accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in rows)
+        generation_attempts = sum(int(row["generation_attempt_count"] or 0) for row in rows)
+        first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in rows)
+        render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)
+        verified_one_page = sum(int(row["verified_one_page_count"] or 0) for row in rows)
         result.append(
             {
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -338,6 +367,13 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "cohort_type": cohort_type,
                 "attempted_job_count": len(rows),
                 "accepted_artifact_count": accepted_artifacts,
+                "first_pass_success_count": first_pass_successes,
+                "first_pass_success_rate": first_pass_successes / generation_attempts if generation_attempts else None,
+                "generation_attempt_coverage": "complete" if generation_attempts and all(row.get("generation_attempt_coverage") == "complete" for row in rows) else "unavailable",
+                "verified_one_page_count": verified_one_page,
+                "render_proof_count": render_proofs,
+                "verified_one_page_rate": verified_one_page / render_proofs if render_proofs else None,
+                "render_proof_coverage": "complete" if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows) else "unavailable",
                 "provider_call_count": provider_calls,
                 "token_total": tokens,
                 "per_accepted_artifact": (
@@ -527,7 +563,7 @@ def build_gold_acceptance_state(
                 "measurement_status": dimension.get("measurement_status"),
                 "optimization_status": dimension.get("optimization_status"),
                 "historical": record.get("status") in {"historical", "superseded"},
-                "deferred": record.get("status") == "deferred",
+                "deferred": record.get("status") == "deferred" or dimension.get("implementation_status") == "deferred" or dimension.get("acceptance_status") == "deferred",
             })
     return output
 
