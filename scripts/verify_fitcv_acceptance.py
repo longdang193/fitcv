@@ -351,6 +351,8 @@ def _run_current_contract_evidence_check(
                 failures.append("current_contract_evidence_source_commit_invalid")
             if not isinstance(evidence.get("material_metrics_sha256"), str) or len(evidence["material_metrics_sha256"]) != 64:
                 failures.append("current_contract_evidence_material_digest_invalid")
+            elif evidence.get("material_metrics_sha256") != material_report_digest(evidence):
+                failures.append("current_contract_evidence_material_digest_mismatch")
             declared_input_fingerprint = evidence.get("declared_input_fingerprint")
             if not isinstance(declared_input_fingerprint, str) or len(declared_input_fingerprint) != 64:
                 failures.append("current_contract_evidence_input_fingerprint_invalid")

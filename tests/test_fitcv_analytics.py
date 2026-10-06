@@ -171,6 +171,122 @@ def test_first_pass_rate_uses_generation_jobs_not_attempt_rows() -> None:
     assert cohort["first_pass_success_rate"] == 0.5
 
 
+def test_multiple_generation_rows_do_not_claim_first_pass_success() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [
+                    {"source_id": "first", "run_job_id": "job", "status": "failed", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "retry", "run_job_id": "job", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["first_pass_success_count"] == 0
+    assert cohort["first_pass_success_rate"] == 0.0
+
+
+def test_invalid_generation_fact_keeps_first_pass_rate_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [
+                    {"source_id": "valid", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "invalid", "run_job_id": "job-2", "status": "failed", "attempt_count": 2, "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["first_pass_success_count"] == 1
+    assert cohort["first_pass_success_rate"] is None
+    assert cohort["generation_attempt_coverage"] == "unavailable"
+
+
+def test_invalid_provider_fact_keeps_cost_ratio_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [
+                    {"source_id": "valid", "run_job_id": "job", "provider_call_count": 2, "token_total": 10, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "invalid", "run_job_id": "job", "provider_call_count": 3, "token_total": 12, "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+                "accepted_artifact": [{"source_id": "artifact", "run_job_id": "job", "artifact_id": "cv", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"}],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    row = result["gold"]["gold_cohort_effort"][0]
+    assert row["provider_call_count"] is None
+    assert row["token_total"] is None
+    assert row["per_accepted_artifact"] is None
+
+
+def test_malformed_render_proof_stays_unavailable() -> None:
+    for render_acceptance in (True, "bad", ["bad"], {"render_status": "pass", "page_count": True, "page_fit_status": "pass"}):
+        result = rebuild_analytics_bundle(
+            {
+                "sources": {
+                    "accepted_artifact": [{
+                        "source_id": "artifact",
+                        "run_job_id": "job",
+                        "artifact_id": "cv",
+                        "status": "accepted",
+                        "render_acceptance": render_acceptance,
+                        "cohort_id": "c",
+                        "cohort_type": "fixture",
+                    }],
+                },
+                "registry": {},
+                "state": {},
+            },
+            source_commit="head",
+            declared_input_fingerprint="inputs",
+            ingested_at="now",
+        )
+
+        artifact = result["gold"]["gold_cv_artifact"][0]
+        assert artifact["render_proof"] is False
+        assert artifact["verified_one_page"] is False
+
+
+def test_fractional_and_boolean_telemetry_stays_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [{"source_id": "provider", "run_job_id": "job", "provider_call_count": 1.5, "token_total": True, "cohort_id": "c", "cohort_type": "fixture"}],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    row = result["gold"]["gold_run_job_effort"][0]
+    assert row["provider_call_count"] is None
+    assert row["token_total"] is None
+
+
 def test_deferred_status_dimension_sets_deferred_flag() -> None:
     rows = build_gold_acceptance_state(
         {"claim_priority_map": {"claim": ["p1_c"]}, "records": [{"evidence_id": "e", "claim": "claim", "status": "current"}]},

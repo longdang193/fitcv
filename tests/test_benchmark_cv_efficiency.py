@@ -138,6 +138,44 @@ def test_baseline_keeps_missing_render_proof_unavailable() -> None:
     assert report["gold_cohort_effort"]["verified_one_page_rate"] is None
 
 
+def test_baseline_rejects_malformed_attempt_history_for_first_pass() -> None:
+    traces = [
+        {"trace_id": "trace-malformed", "run_job_id": "job-malformed", "attempts": [None, {"provider_status": "accepted"}], "output_summary": {"final_status": "accepted"}},
+        {"trace_id": "trace-out-of-order", "run_job_id": "job-out-of-order", "attempts": [{"attempt_index": 2, "provider_status": "accepted"}], "output_summary": {"final_status": "accepted"}},
+    ]
+
+    report = build_baseline([_run("run-attempt-history", {"cv_generation_trace": {"records": traces}})])
+
+    assert report["gold_cohort_effort"]["first_pass_success_rate"] is None
+    assert report["gold_cohort_effort"]["generation_attempt_coverage"] == "unavailable"
+
+
+def test_baseline_fallback_acceptance_matches_gold_first_pass_projection() -> None:
+    trace = {
+        "trace_id": "trace-fallback-status",
+        "run_job_id": "job-fallback-status",
+        "attempts": [{"provider_status": "accepted"}],
+    }
+
+    report = build_baseline([_run("run-fallback-status", {"cv_generation_trace": {"records": [trace]}})])
+
+    assert report["yield"]["first_pass_acceptance_count"] == 1
+    assert report["gold_cohort_effort"]["first_pass_success_count"] == 1
+    assert report["gold_cohort_effort"]["first_pass_success_rate"] == 1.0
+
+
+def test_baseline_rejects_fractional_and_boolean_trace_tokens() -> None:
+    for value in (1.5, True):
+        trace = {
+            "trace_id": f"trace-token-{value}",
+            "run_job_id": f"job-token-{value}",
+            "attempts": [{"provider_status": "accepted"}],
+            "efficiency_summary": {"token_usage": [{"total_tokens": value}]},
+        }
+        report = build_baseline([_run(f"run-token-{value}", {"cv_generation_trace": {"records": [trace]}})])
+        assert report["gold_cohort_effort"]["token_total"] is None
+
+
 def test_baseline_marks_malformed_or_negative_token_telemetry_unavailable() -> None:
     trace = {"trace_id": "trace-bad-tokens", "run_job_id": "job-bad-tokens", "job_url": "job-bad-tokens", "attempts": [{"provider_status": "accepted"}], "efficiency_summary": {"provider_call_count": 1, "token_usage": [{"input_tokens": "not_recorded", "output_tokens": 6}, {"input_tokens": -1, "output_tokens": 2}]}}
     artifact = accepted_cv_artifact_event_v1(artifact_id="cv-bad-tokens", job_url="job-bad-tokens", run_id="run-bad-tokens", trace_id="trace-bad-tokens", acceptance_mode="automatic", accepted_at="2026-10-02T00:01:00Z", finalized_at="2026-10-02T00:01:00Z")

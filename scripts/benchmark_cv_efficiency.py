@@ -139,6 +139,26 @@ def _trace_final_accepted(trace: dict[str, Any], attempts: list[dict[str, Any]])
     return bool(attempts and str(attempts[-1].get("provider_status") or "").strip().lower() == "accepted")
 
 
+def _validated_attempts(trace: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    raw_attempts = trace.get("attempts")
+    if not isinstance(raw_attempts, list) or not raw_attempts:
+        return [], False
+    if any(not isinstance(item, dict) for item in raw_attempts):
+        return [item for item in raw_attempts if isinstance(item, dict)], False
+    attempts = list(raw_attempts)
+    indexed = ["attempt_index" in item for item in attempts]
+    if any(indexed):
+        indexes = []
+        for item in attempts:
+            value = item.get("attempt_index")
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                return attempts, False
+            indexes.append(value)
+        if sorted(indexes) != list(range(1, len(attempts) + 1)):
+            return attempts, False
+    return attempts, True
+
+
 def _is_recorded(value: Any) -> bool:
     return value not in {None, "", "not_recorded", "not_run", "not_applicable", "unverified"}
 
@@ -366,14 +386,16 @@ def _trace_token_total(trace: dict[str, Any]) -> float | None:
                 output_tokens = float(item["output_tokens"])
             except (TypeError, ValueError):
                 return None
-            if input_tokens < 0 or output_tokens < 0:
+            if any(isinstance(value, bool) for value in (item["input_tokens"], item["output_tokens"])):
+                return None
+            if input_tokens < 0 or output_tokens < 0 or not input_tokens.is_integer() or not output_tokens.is_integer():
                 return None
             raw_total = input_tokens + output_tokens
         try:
             parsed_total = float(raw_total)
         except (TypeError, ValueError):
             return None
-        if parsed_total < 0 or not math.isfinite(parsed_total):
+        if isinstance(raw_total, bool) or parsed_total < 0 or not math.isfinite(parsed_total) or not parsed_total.is_integer():
             return None
         total += parsed_total
     return total
@@ -392,9 +414,12 @@ def _attempted_outcomes(
     }
     outcomes: list[dict[str, Any]] = []
     for trace in traces:
-        attempts = [item for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+        attempts, attempt_history_complete = _validated_attempts(trace)
         output_summary = dict(trace.get("output_summary") or {})
-        status = str(output_summary.get("final_status") or trace.get("status") or "unknown").strip().lower()
+        status = str(output_summary.get("final_status") or trace.get("status") or "").strip().lower()
+        if not status and attempt_history_complete:
+            status = "accepted" if _trace_final_accepted(trace, attempts) else "failed"
+        status = status or "unknown"
         record = projected_by_trace.get(str(trace.get("trace_id") or ""), {})
         actual_run_job_id = str(trace.get("run_job_id") or "").strip()
         fallback_job_id = str(
@@ -409,7 +434,8 @@ def _attempted_outcomes(
             "run_job_id": actual_run_job_id or f"{str(trace.get('run_id') or run_id or 'unknown').strip()}:{fallback_job_id}",
             "job_url": str(trace.get("job_url") or trace.get("scope_key") or ""),
             "status": status,
-            "attempt_count": len(attempts),
+            "attempt_count": len(attempts) if attempt_history_complete else None,
+            "attempt_history_coverage": "complete" if attempt_history_complete else "unavailable",
             "attempt_types": [str(item.get("attempt_type") or "unknown") for item in attempts],
             "failure_category_counts": dict(record.get("failure_category_counts") or {}),
             "accepted_final_one_page": record.get("accepted_final_one_page"),
@@ -506,7 +532,9 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
     retry_success_count = 0
     retry_failure_count = 0
     for trace in traces:
-        attempts = [item for item in list(trace.get("attempts") or []) if isinstance(item, dict)]
+        attempts, attempt_history_complete = _validated_attempts(trace)
+        if not attempt_history_complete:
+            continue
         final_accepted = _trace_final_accepted(trace, attempts)
         if len(attempts) == 1 and final_accepted:
             first_pass_acceptance_count += 1
