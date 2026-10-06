@@ -26,6 +26,7 @@ RECONCILABLE_OBSERVATION_TYPES = {
 TRACE_OBSERVATION_TYPES = {"trace", "generation_trace", "normalized_trace"}
 RUN_JOB_OBSERVATION_TYPES = RECONCILABLE_OBSERVATION_TYPES
 REQUIREMENT_DEMAND_OBSERVATION_TYPES = {"posting_requirement"}
+POSTING_INVENTORY_OBSERVATION_TYPES = {"posting_inventory"}
 CANDIDATE_GAP_OBSERVATION_TYPES = {"candidate_gap"}
 INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid"}
 DEFAULT_METRIC_REGISTRY = Path(__file__).resolve().parents[1] / "config/analytics_metrics.yaml"
@@ -179,15 +180,24 @@ def build_silver_facts(bronze: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
             winner["superseded_observation_ids"] = []
             facts.append(winner)
             continue
-        winner = max(
-            candidates,
-            key=lambda row: (
-                row.get("validity") == "valid",
+        def authority_key(row: dict[str, Any]) -> tuple[str, str, str, str, str]:
+            payload = dict(row.get("payload") or {})
+            revision = payload.get("revision")
+            if revision is None:
+                revision = payload.get("source_revision")
+            try:
+                revision_key = f"1:{int(revision):030d}"
+            except (TypeError, ValueError):
+                revision_key = f"0:{str(revision or '')}"
+            return (
+                revision_key,
                 str(row.get("observed_at") or ""),
                 str(row.get("source_commit") or ""),
                 str(row.get("observation_id") or ""),
-            ),
-        )
+                str(row.get("validity") or ""),
+            )
+
+        winner = max(candidates, key=authority_key)
         history = sorted(str(row["observation_id"]) for row in candidates)
         winner["observation_history_ids"] = history
         winner["superseded_observation_ids"] = [item for item in history if item != winner["observation_id"]]
@@ -367,6 +377,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                     and generation_coverage_complete
                     and str(generation[0]["payload"].get("status") or "").lower() in {"accepted", "succeeded", "success"}
                     and _attempt_count(generation[0]["payload"].get("attempt_count")) == 1
+                    and bool(artifacts)
                 ),
                 "generation_attempt_coverage": "complete" if generation_coverage_complete else "unavailable",
                 "generation_observation_count": len(generation_all),
@@ -461,25 +472,37 @@ def _requirement_key(payload: dict[str, Any]) -> str:
 def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build one row per requirement and eligible opportunity cohort."""
     postings_by_cohort: dict[tuple[str, str], set[str]] = defaultdict(set)
+    inventory_by_cohort: dict[tuple[str, str], set[str]] = defaultdict(set)
     requirement_postings: dict[tuple[str, str, str], set[str]] = defaultdict(set)
     coverage_issues: dict[tuple[str, str], str] = {}
+    inventory_cohorts: set[tuple[str, str]] = set()
     dimension_keys: set[tuple[str, str, str]] = set()
     for fact in silver:
-        if fact.get("observation_type") not in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
+        observation_type = fact.get("observation_type")
+        if observation_type not in REQUIREMENT_DEMAND_OBSERVATION_TYPES | POSTING_INVENTORY_OBSERVATION_TYPES:
             continue
         payload = dict(fact.get("payload") or {})
         posting_id = _posting_id(payload)
         requirement = _requirement_key(payload)
         cohort = _cohort_key(payload)
-        if posting_id and requirement:
+        if observation_type in POSTING_INVENTORY_OBSERVATION_TYPES:
+            inventory_cohorts.add(cohort)
+        if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES and posting_id and requirement:
             dimension_keys.add((*cohort, requirement))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
             continue
+        if observation_type in POSTING_INVENTORY_OBSERVATION_TYPES:
+            if posting_id and payload.get("eligible", True) is not False:
+                inventory_by_cohort[cohort].add(posting_id)
+            continue
         if not posting_id or not requirement or payload.get("eligible", True) is False:
             continue
-        postings_by_cohort[cohort].add(posting_id)
+        if cohort not in inventory_cohorts:
+            postings_by_cohort[cohort].add(posting_id)
         requirement_postings[(*cohort, requirement)].add(posting_id)
+    for cohort in inventory_cohorts:
+        postings_by_cohort[cohort] = inventory_by_cohort[cohort]
     return [
         {
             "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -501,7 +524,7 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
 def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build one row per requirement, explicit gap category, and cohort."""
     denominator: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
-    gaps: dict[tuple[str, str, str, str], set[tuple[str, str]]] = defaultdict(set)
+    gaps: dict[tuple[str, str, str, str, str, str, str], set[tuple[str, str]]] = defaultdict(set)
     coverage_issues: dict[tuple[str, str], str] = {}
     gap_keys: set[tuple[str, str, str, str]] = set()
     for fact in silver:
@@ -513,8 +536,11 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         requirement = _requirement_key(payload)
         cohort = _cohort_key(payload)
         category = str(payload.get("gap_category") or "").strip()
+        profile = tuple(str(payload.get(field) or "") for field in (
+            "candidate_profile_id", "candidate_profile_revision", "candidate_profile_fingerprint"
+        ))
         if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and posting_id and requirement and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
-            gap_keys.add((*cohort, requirement, category))
+            gap_keys.add((*cohort, requirement, category, *profile))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
             continue
@@ -525,7 +551,7 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             denominator[cohort].add(pair)
             continue
         if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
-            gaps[(*cohort, requirement, category)].add(pair)
+            gaps[(*cohort, requirement, category, *profile)].add(pair)
     for key, pairs in list(gaps.items()):
         cohort = key[:2]
         eligible_pairs = pairs & denominator[cohort]
@@ -541,13 +567,16 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             "gap_category": category,
             "cohort_id": cohort_id,
             "cohort_type": cohort_type,
+            "candidate_profile_id": profile_id or None,
+            "candidate_profile_revision": profile_revision or None,
+            "candidate_profile_fingerprint": profile_fingerprint or None,
             "numerator_requirement_count": len(pairs),
             "denominator_requirement_count": len(denominator[(cohort_id, cohort_type)]),
             "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
             "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
         }
-        for (cohort_id, cohort_type, requirement, category) in sorted(gap_keys | set(gaps))
-        for pairs in [gaps.get((cohort_id, cohort_type, requirement, category), set())]
+        for (cohort_id, cohort_type, requirement, category, profile_id, profile_revision, profile_fingerprint) in sorted(gap_keys | set(gaps))
+        for pairs in [gaps.get((cohort_id, cohort_type, requirement, category, profile_id, profile_revision, profile_fingerprint), set())]
     ]
 
 
@@ -612,11 +641,35 @@ def build_gold_acceptance_state(
                 "implementation_status": dimension.get("implementation_status"),
                 "acceptance_status": dimension.get("acceptance_status"),
                 "measurement_status": dimension.get("measurement_status"),
-                "optimization_status": dimension.get("optimization_status"),
                 "historical": record.get("status") in {"historical", "superseded"},
                 "deferred": record.get("status") == "deferred" or dimension.get("implementation_status") == "deferred" or dimension.get("acceptance_status") == "deferred",
             })
     return output
+
+
+def build_gold_optimization_state(
+    registry: dict[str, Any],
+    state: dict[str, Any],
+) -> list[dict[str, Any]]:
+    rows = build_gold_acceptance_state(registry, state)
+    dimensions = dict(state.get("status_dimensions") or {})
+    return [
+        {
+            "schema_version": ANALYTICS_SCHEMA_VERSION,
+            "metric": "gold_optimization_state",
+            "grain": row["grain"],
+            "row_key": row["row_key"],
+            "priority": row["priority"],
+            "evidence_id": row["evidence_id"],
+            "claim": row["claim"],
+            "evidence_status": row["evidence_status"],
+            "measurement_status": dimensions.get(row["priority"], {}).get("measurement_status"),
+            "optimization_status": dimensions.get(row["priority"], {}).get("optimization_status"),
+            "deferred": dimensions.get(row["priority"], {}).get("optimization_status") == "deferred",
+        }
+        for row in rows
+        if dimensions.get(row["priority"], {}).get("optimization_status") is not None
+    ]
 
 
 def material_gold_digest(gold: dict[str, Any]) -> str:
@@ -641,6 +694,7 @@ def write_analytics_sqlite(
     acceptance: list[dict[str, Any]],
     requirement_demand: list[dict[str, Any]] | None = None,
     candidate_gaps: list[dict[str, Any]] | None = None,
+    optimization: list[dict[str, Any]] | None = None,
 ) -> None:
     """Write disposable analytical projections and rebuild SQL views deterministically."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -651,6 +705,7 @@ def write_analytics_sqlite(
         _insert_json_rows(connection, "silver_requirement_demand", requirement_demand or [])
         _insert_json_rows(connection, "silver_candidate_gap", candidate_gaps or [])
         _insert_json_rows(connection, "silver_acceptance_evidence", acceptance)
+        _insert_json_rows(connection, "silver_optimization_state", optimization or [])
         connection.executescript(
             (Path(__file__).resolve().parent / "sql/fitcv_gold_views.sql").read_text(encoding="utf-8")
         )
@@ -680,6 +735,10 @@ def rebuild_analytics_bundle(
         dict(bundle.get("registry") or {}),
         dict(bundle.get("state") or {}),
     )
+    optimization = build_gold_optimization_state(
+        dict(bundle.get("registry") or {}),
+        dict(bundle.get("state") or {}),
+    )
     material = {
         "schema_version": ANALYTICS_SCHEMA_VERSION,
         "gold_cv_artifact": artifacts,
@@ -688,6 +747,7 @@ def rebuild_analytics_bundle(
         "gold_requirement_demand": requirement_demand,
         "gold_candidate_gap": candidate_gaps,
         "gold_acceptance_state": acceptance,
+        "gold_optimization_state": optimization,
     }
     return {
         "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -728,6 +788,7 @@ def main() -> int:
             requirement_demand=output["gold"]["gold_requirement_demand"],
             candidate_gaps=output["gold"]["gold_candidate_gap"],
             acceptance=output["gold"]["gold_acceptance_state"],
+            optimization=output["gold"]["gold_optimization_state"],
         )
     print(json.dumps({"status": "ok", "material_metrics_sha256": output["material_metrics_sha256"]}))
     return 0

@@ -98,9 +98,15 @@ path.
 ## Coordination state
 
 - Base commit: `66b0ba6fb04cc4a3c88f75998872586cd58cc4a4` (PR #88 merge).
-- Active task: plan review and blocker patching.
-- Task ledger: PR #89, PR #90, PR #91, and PR #92 are `proposed`; none is
-  admitted until this plan passes independent review.
+- Active task: PR #89 local proof complete; awaiting push, review, and merge.
+- Task ledger: PR #89 is `implemented_locally`; PR #90, PR #91, and PR #92
+  remain `proposed` and are admitted only after their dependency merges.
+- PR #89 admission: branch `codex/fitcv-pr89-analytics-correctness`, base
+  `66b0ba6fb04cc4a3c88f75998872586cd58cc4a4`, owner `Codex`, write set
+  `scripts/fitcv_analytics.py`, `scripts/sql/fitcv_gold_views.sql`,
+  `config/analytics_metrics.yaml`, and focused analytics tests; local proof
+  is `python -m pytest -q tests/test_fitcv_analytics.py tests/test_acceptance_state.py`,
+  fixture digest replay, acceptance verifier, and `git diff --check`.
 - Admission rule: record branch name, base commit, owner, declared write set,
   and local verification command before each PR starts.
 - Checkpoint rule: after each PR's local proof, record accepted evidence paths,
@@ -234,18 +240,18 @@ correctness.
 
 ### Steps
 
-- [ ] Add failing fixtures for newer invalidation, mixed cohorts, valid-empty
+- [x] Add failing fixtures for newer invalidation, mixed cohorts, valid-empty
   postings, unknown extraction, missing accepted artifacts, optimization-state
   separation, mixed P1-A/P1-B evidence, and candidate revision changes.
-- [ ] Implement revision ordering and invalidation handling in
+- [x] Implement revision ordering and invalidation handling in
   `build_silver_facts` without deleting Bronze history.
-- [ ] Add posting-inventory and cohort-membership paths to Silver and update
+- [x] Add posting-inventory and cohort-membership paths to Silver and update
   `build_gold_requirement_demand` denominator/coverage logic.
-- [ ] Rebuild first-pass fields from accepted-artifact identity and regeneration
+- [x] Rebuild first-pass fields from accepted-artifact identity and regeneration
   lineage; update `config/analytics_metrics.yaml` wording and null policy.
-- [ ] Split acceptance and optimization projections; update SQL views and
+- [x] Split acceptance and optimization projections; update SQL views and
   generated acceptance-state references through canonical rebuild commands.
-- [ ] Add direct regression assertions for all four reproduced defects and
+- [x] Add direct regression assertions for all four reproduced defects and
   deterministic digest stability.
 
 ### Verification

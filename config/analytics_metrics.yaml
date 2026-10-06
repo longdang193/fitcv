@@ -47,11 +47,11 @@ metrics:
     version: 1
     source_model: gold_cohort_effort
     grain: cohort
-    numerator: jobs accepted without regeneration
+    numerator: jobs with generation attempt one accepted and durable canonical artifact without regeneration
     denominator: eligible attempted generation jobs
     dimensions: [cohort_id, cohort_type, source_mix, date_range]
     cohort_policy: compare equivalent generation cohorts only
-    null_policy: unavailable when denominator is zero or retry identity is incomplete
+    null_policy: unavailable when denominator is zero, retry identity is incomplete, or accepted-artifact identity is missing
     coverage_metric: generation_attempt_coverage
     owner: analytics
     description: First-pass acceptance rate.
@@ -83,12 +83,12 @@ metrics:
     version: 1
     source_model: gold_requirement_demand
     grain: requirement_and_cohort
-    numerator: distinct eligible postings containing requirement X
+    numerator: distinct eligible postings in imported opportunity corpus containing requirement X
     denominator: distinct eligible postings in cohort
     dimensions: [requirement, cohort_id, cohort_type, source_mix, date_range]
     cohort_policy: deduplicate requirement occurrences within one posting
-    null_policy: unavailable when posting identity or requirement extraction is incomplete
-    coverage_metric: posting_requirement_coverage
+    null_policy: unavailable when posting inventory or requirement extraction coverage is unknown or incomplete
+    coverage_metric: posting_inventory_coverage
     owner: analytics
     description: Requirement demand in imported opportunity corpus.
   - metric_id: evidence_gap
@@ -97,7 +97,7 @@ metrics:
     grain: requirement_and_cohort
     numerator: distinct requirements in one explicit gap category
     denominator: distinct eligible posting requirements in cohort
-    dimensions: [requirement, gap_category, cohort_id, cohort_type, source_mix, date_range]
+    dimensions: [requirement, gap_category, candidate_profile_id, candidate_profile_revision, candidate_profile_fingerprint, cohort_id, cohort_type, source_mix, date_range]
     cohort_policy: keep missing evidence, unmet qualifier, and uncertain interpretation separate
     null_policy: unavailable when candidate or posting coverage is incomplete
     coverage_metric: candidate_requirement_coverage
