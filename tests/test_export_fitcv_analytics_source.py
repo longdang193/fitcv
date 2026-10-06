@@ -638,6 +638,25 @@ def test_export_blocks_mixed_source_conflicting_acceptance_run_jobs(tmp_path: Pa
     assert metrics["acceptance_yield"]["value"] is None
 
 
+def test_export_consumes_valid_acceptance_aliases_once(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_cv_effort"] = [{"artifact_id": "cv-1", "run_job_id": "job-1", "accepted_outcome": True}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert not any(item["artifact_id"].startswith("unresolved:") for item in bundle["sources"]["accepted_artifact"])
+    assert metrics["acceptance_yield"]["value"] == 0.5
+
+
 def test_export_blocks_alternate_acceptance_with_foreign_run_id(tmp_path: Path) -> None:
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
@@ -799,9 +818,16 @@ def test_export_preserves_same_identifier_acceptance_rejections_per_run(tmp_path
         connection.commit()
 
     bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {
+        (item["metric_id"], item["cohort_id"]): item
+        for item in replay["gold"]["gold_semantic_metric"]
+    }
     invalid = [item for item in bundle["sources"]["accepted_artifact"] if item["validity"] == "invalid"]
 
     assert {item["cohort_id"] for item in invalid} == {"c1", "c2"}
+    assert metrics[("acceptance_yield", "c1")]["value"] is None
+    assert metrics[("acceptance_yield", "c2")]["value"] is None
 
 
 def test_export_preserves_job_rejection_when_job_has_multiple_versions(tmp_path: Path) -> None:

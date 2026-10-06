@@ -273,6 +273,7 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 )
             for event_index, value in enumerate(values):
                 value = dict(value)
+                value["_debug_record_groups"] = [f"{row['run_id']}:{source_key}:{event_index}"]
                 value["_debug_event_run_id"] = value.get("run_id")
                 value["_debug_event_run_job_id"] = value.get("run_job_id")
                 value["_debug_run_id"] = str(row["run_id"])
@@ -320,6 +321,9 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                         previous = records.get(record_key, {})
                         merged = {**previous, **sanitized}
                         merged["_debug_identifier"] = key
+                        merged["_debug_record_groups"] = sorted(set(
+                            previous.get("_debug_record_groups", []) + sanitized.get("_debug_record_groups", [])
+                        ))
                         merged["_debug_run_id_conflict"] = bool(previous.get("_debug_run_id_conflict")) or (
                             bool(previous.get("_debug_run_id"))
                             and previous.get("_debug_run_id") != sanitized.get("_debug_run_id")
@@ -597,6 +601,12 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         )
         if artifact_debug.get("_accepted_event_seen") or artifact_debug.get("_acceptance_evidence_seen"):
             consumed_debug_keys.add(artifact_debug_key)
+            consumed_groups = set(artifact_debug.get("_debug_record_groups", []))
+            if consumed_groups:
+                consumed_debug_keys.update(
+                    key for key, candidate in debug_by_artifact.items()
+                    if consumed_groups.intersection(candidate.get("_debug_record_groups", []))
+                )
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
         run_payload = run_payload if isinstance(run_payload, dict) else {}
@@ -737,7 +747,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         )
         _append(sources, "accepted_artifact", {
             "source_id": f"{run_id}:invalid-acceptance:{debug_identifier}",
-            "artifact_id": f"unresolved:{debug_identifier}",
+            "artifact_id": f"unresolved:{run_id}:{debug_identifier}",
             "run_id": run_id,
             "run_job_id": run_job_id,
             "cohort_id": debug.get("_debug_cohort_id") or "operational",
