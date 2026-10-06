@@ -70,3 +70,23 @@ SELECT json_extract(payload_json, '$.row_key') AS row_key,
        json_extract(payload_json, '$.optimization_status') AS optimization_status,
        payload_json
 FROM silver_optimization_state;
+
+DROP VIEW IF EXISTS gold_semantic_metric;
+CREATE VIEW gold_semantic_metric AS
+SELECT json_extract(payload_json, '$.metric_id') AS metric_id,
+       json_extract(payload_json, '$.metric_version') AS metric_version,
+       json_extract(payload_json, '$.cohort_id') AS cohort_id,
+       json_extract(payload_json, '$.cohort_type') AS cohort_type,
+       json_extract(payload_json, '$.dimension_key') AS dimension_key,
+       json_extract(payload_json, '$.numerator') AS numerator,
+       json_extract(payload_json, '$.denominator') AS denominator,
+       json_extract(payload_json, '$.value') AS value,
+       json_extract(payload_json, '$.coverage_status') AS coverage_status,
+       json_extract(payload_json, '$.coverage_numerator') AS coverage_numerator,
+       json_extract(payload_json, '$.coverage_denominator') AS coverage_denominator,
+       json_extract(payload_json, '$.unavailable_reason') AS unavailable_reason,
+       json_extract(payload_json, '$.source_commit') AS source_commit,
+       json_extract(payload_json, '$.input_fingerprint') AS input_fingerprint,
+       json_extract(payload_json, '$.material_digest') AS material_digest,
+       payload_json
+FROM gold_semantic_metric_rows;

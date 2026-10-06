@@ -63,6 +63,14 @@ def load_metric_registry(path: Path = DEFAULT_METRIC_REGISTRY) -> dict[str, Any]
     mapping = registry.get("claim_priority_map")
     if not isinstance(mapping, dict) or any(not isinstance(value, list) or not value for value in mapping.values()):
         raise ValueError("analytics_claim_priority_map_invalid")
+    semantic_fields = registry.get("semantic_output_fields")
+    if semantic_fields is not None and (not isinstance(semantic_fields, list) or not semantic_fields):
+        raise ValueError("analytics_semantic_output_fields_invalid")
+    if semantic_fields is not None and any(
+        not {"numerator_field", "denominator_field", "dimension_fields"} <= set(metric)
+        for metric in metrics
+    ):
+        raise ValueError("analytics_metric_semantic_definition_invalid")
     return registry
 
 
@@ -347,6 +355,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         generation_all = [fact for fact in facts if fact.get("observation_type") == "generation_attempt"]
         provider = [fact for fact in valid_facts if fact.get("observation_type") == "provider_attempt"]
         generation = [fact for fact in valid_facts if fact.get("observation_type") == "generation_attempt"]
+        review_all = [fact for fact in facts if fact.get("observation_type") == "review_action"]
         review = [fact for fact in valid_facts if fact.get("observation_type") == "review_action"]
         provider_calls = _known_sum([fact["payload"].get("provider_call_count") for fact in provider_all])
         tokens = _known_sum([fact["payload"].get("token_total") for fact in provider_all])
@@ -385,6 +394,8 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "render_proof_count": sum(bool(artifact.get("render_proof")) for artifact in artifacts),
                 "render_proof_coverage": "complete" if artifacts and all(bool(artifact.get("render_proof")) for artifact in artifacts) else "unavailable",
                 "attempted_work_count": len({fact["observation_id"] for fact in valid_facts}),
+                "manual_attempted_run_job_count": 1,
+                "review_action_coverage": "complete" if review_all and len(review) == len(review_all) else "unavailable",
                 "provider_attempt_count": len(provider),
                 "generation_attempt_count": len(generation),
                 "failed_generation_attempt_count": sum(
@@ -428,6 +439,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "cohort_id": cohort_id,
                 "cohort_type": cohort_type,
                 "attempted_job_count": len(rows),
+                "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in rows),
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
                 "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else None,
@@ -580,6 +592,69 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
     ]
 
 
+def build_gold_semantic_metric(
+    gold: dict[str, list[dict[str, Any]]],
+    registry: dict[str, Any],
+    *,
+    source_commit: str,
+    input_fingerprint: str,
+) -> list[dict[str, Any]]:
+    """Materialize registry formulas as one canonical metric relation."""
+    output: list[dict[str, Any]] = []
+    for definition in registry.get("metrics") or []:
+        metric_id = str(definition["metric_id"])
+        source_name = str(definition["source_model"])
+        numerator_field = str(definition["numerator_field"])
+        denominator_field = str(definition["denominator_field"])
+        coverage_field = str(definition["coverage_metric"])
+        dimension_fields = [str(field) for field in definition.get("dimension_fields") or []]
+        rows = list(gold.get(source_name) or []) or [{
+            "cohort_id": "__unavailable__",
+            "cohort_type": "__unavailable__",
+        }]
+        for row in rows:
+            numerator = row.get(numerator_field)
+            denominator = row.get(denominator_field)
+            coverage_value = row.get(coverage_field)
+            if coverage_value is None:
+                coverage_value = row.get("coverage")
+            coverage_status = "complete" if str(coverage_value or "complete").lower() == "complete" else "unavailable"
+            unavailable_reason = row.get("unavailable_reason")
+            if denominator in (None, 0):
+                coverage_status = "unavailable"
+                unavailable_reason = unavailable_reason or "denominator_zero_or_missing"
+            if numerator is None:
+                coverage_status = "unavailable"
+                unavailable_reason = unavailable_reason or "numerator_missing"
+            value = (
+                float(numerator) / float(denominator)
+                if coverage_status == "complete" and denominator not in (None, 0) and numerator is not None
+                else None
+            )
+            dimension_key = ":".join(
+                str(row.get(field) or "__unavailable__") for field in dimension_fields
+            ) or str(row.get("cohort_id") or "__unavailable__")
+            semantic = {
+                "metric_id": metric_id,
+                "metric_version": int(definition["version"]),
+                "cohort_id": row.get("cohort_id"),
+                "cohort_type": row.get("cohort_type"),
+                "dimension_key": dimension_key,
+                "numerator": numerator,
+                "denominator": denominator,
+                "value": value,
+                "coverage_status": coverage_status,
+                "coverage_numerator": denominator if coverage_status == "complete" else 0,
+                "coverage_denominator": denominator,
+                "unavailable_reason": unavailable_reason,
+                "source_commit": source_commit,
+                "input_fingerprint": input_fingerprint,
+            }
+            semantic["material_digest"] = _digest(semantic)
+            output.append(semantic)
+    return sorted(output, key=lambda row: (row["metric_id"], str(row["cohort_id"]), row["dimension_key"]))
+
+
 def build_gold_cv_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Compatibility adapter for callers migrating to run-job Gold."""
     rows = build_gold_run_job_effort(silver)
@@ -695,6 +770,7 @@ def write_analytics_sqlite(
     requirement_demand: list[dict[str, Any]] | None = None,
     candidate_gaps: list[dict[str, Any]] | None = None,
     optimization: list[dict[str, Any]] | None = None,
+    semantic_metrics: list[dict[str, Any]] | None = None,
 ) -> None:
     """Write disposable analytical projections and rebuild SQL views deterministically."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -706,6 +782,7 @@ def write_analytics_sqlite(
         _insert_json_rows(connection, "silver_candidate_gap", candidate_gaps or [])
         _insert_json_rows(connection, "silver_acceptance_evidence", acceptance)
         _insert_json_rows(connection, "silver_optimization_state", optimization or [])
+        _insert_json_rows(connection, "gold_semantic_metric_rows", semantic_metrics or [])
         connection.executescript(
             (Path(__file__).resolve().parent / "sql/fitcv_gold_views.sql").read_text(encoding="utf-8")
         )
@@ -731,12 +808,12 @@ def rebuild_analytics_bundle(
     cohorts = build_gold_cohort_effort(silver)
     requirement_demand = build_gold_requirement_demand(silver)
     candidate_gaps = build_gold_candidate_gap(silver)
-    acceptance = build_gold_acceptance_state(
-        dict(bundle.get("registry") or {}),
-        dict(bundle.get("state") or {}),
-    )
+    registry = dict(bundle.get("registry") or {})
+    if not registry.get("metrics"):
+        registry = load_metric_registry()
+    acceptance = build_gold_acceptance_state(registry, dict(bundle.get("state") or {}))
     optimization = build_gold_optimization_state(
-        dict(bundle.get("registry") or {}),
+        registry,
         dict(bundle.get("state") or {}),
     )
     material = {
@@ -749,6 +826,12 @@ def rebuild_analytics_bundle(
         "gold_acceptance_state": acceptance,
         "gold_optimization_state": optimization,
     }
+    material["gold_semantic_metric"] = build_gold_semantic_metric(
+        material,
+        registry,
+        source_commit=source_commit,
+        input_fingerprint=declared_input_fingerprint,
+    )
     return {
         "schema_version": ANALYTICS_SCHEMA_VERSION,
         "source_commit": source_commit,
@@ -789,6 +872,7 @@ def main() -> int:
             candidate_gaps=output["gold"]["gold_candidate_gap"],
             acceptance=output["gold"]["gold_acceptance_state"],
             optimization=output["gold"]["gold_optimization_state"],
+            semantic_metrics=output["gold"]["gold_semantic_metric"],
         )
     print(json.dumps({"status": "ok", "material_metrics_sha256": output["material_metrics_sha256"]}))
     return 0

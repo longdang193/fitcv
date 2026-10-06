@@ -98,9 +98,10 @@ path.
 ## Coordination state
 
 - Base commit: `66b0ba6fb04cc4a3c88f75998872586cd58cc4a4` (PR #88 merge).
-- Active task: PR #89 local proof complete; awaiting push, review, and merge.
-- Task ledger: PR #89 is `implemented_locally`; PR #90, PR #91, and PR #92
-  remain `proposed` and are admitted only after their dependency merges.
+- Active task: PR #90 source export and semantic metric implementation.
+- Task ledger: PR #89 is `merged` at `a890849c9d72d3ebf09bc6bd7a2d293928b67ab2`;
+  PR #90 is `admitted`; PR #91 and PR #92 remain `proposed` and are admitted
+  only after their dependency merges.
 - PR #89 admission: branch `codex/fitcv-pr89-analytics-correctness`, base
   `66b0ba6fb04cc4a3c88f75998872586cd58cc4a4`, owner `Codex`, write set
   `scripts/fitcv_analytics.py`, `scripts/sql/fitcv_gold_views.sql`,
@@ -109,8 +110,20 @@ path.
   fixture digest replay, acceptance verifier, and `git diff --check`.
 - Admission rule: record branch name, base commit, owner, declared write set,
   and local verification command before each PR starts.
+- PR #90 admission: branch `codex/fitcv-pr90-analytics-source`, base commit
+  `a890849c9d72d3ebf09bc6bd7a2d293928b67ab2`, owner `Codex`, write set
+  `scripts/export_fitcv_analytics_source.py`, `scripts/fitcv_analytics.py`,
+  `scripts/sql/fitcv_gold_views.sql`, `config/analytics_metrics.yaml`,
+  `src/fitcv_cp/sqlite_store.py`, and focused PR #90 tests; local proof is the
+  prescribed exporter/analytics/acceptance test selection plus source-byte,
+  replay, SQL, verifier, and `git diff --check` evidence.
 - Checkpoint rule: after each PR's local proof, record accepted evidence paths,
   test output, blockers, and next PR before push/merge.
+- PR #90 review checkpoint: first `review-1` pass found exporter aliasing,
+  free-text leakage, native compatibility-payload omission, status mismatch,
+  review lineage drift, acceptance-yield grain drift, metric-specific coverage
+  drift, and manual-effort denominator drift; all are patched with focused
+  regressions before second review.
 - Recovery rule: Git plus this plan are authoritative; runtime thread state,
   untracked scratch files, and chat summaries are not recovery sources.
 - Approval boundary: external push, pull-request creation, review assignment,
@@ -330,30 +343,36 @@ integration.
 
 ### Steps
 
-- [ ] Add a temporary SQLite fixture containing one run, one accepted artifact,
+- [x] Add a temporary SQLite fixture containing one run, one accepted artifact,
   one failed/retried job, imported postings, valid-empty extraction, candidate
   profile revision, review action, and render proof.
-- [ ] Implement read-only source collection with explicit table/API ownership;
+- [x] Implement read-only source collection with explicit table/API ownership;
   reject missing required source identity instead of silently dropping rows.
   Verify explicit database binding, URI read-only mode, one transaction
-  snapshot, no WAL/journal mutation, and no global database fallback.
-- [ ] Add sanitized export and replay tests, including byte-stable output,
+  snapshot, no WAL/journal mutation, and no global database fallback. If a
+  live `-wal`/`-shm` sidecar exists, fail closed unless a caller supplies a
+  separately checkpointed snapshot; never open the source in a way that creates
+  or mutates sidecars.
+- [x] Add sanitized export and replay tests, including byte-stable output,
   database non-mutation, secret-field exclusion, and source-hash mismatch.
-- [ ] Implement `build_gold_semantic_metric` and materialize one row per
+- [x] Implement `build_gold_semantic_metric` and materialize one row per
   registry metric/dimension/cohort.
-- [ ] Add SQL smoke queries and compare semantic values against direct Gold
+- [x] Add SQL smoke queries and compare semantic values against direct Gold
   builder outputs.
-- [ ] Document one clean rebuild command using the exported source bundle.
+- [x] Document one clean rebuild command using the exported source bundle.
 
 ### Verification
 
-- `python -m pytest -q tests/test_export_fitcv_analytics_source.py tests/test_fitcv_analytics.py tests/test_acceptance_state.py`
-- Export from disposable SQLite, hash before/after, and assert byte equality.
+- `python -m pytest -q tests/test_export_fitcv_analytics_source.py tests/test_fitcv_analytics.py tests/test_acceptance_state.py` (50 passed)
+- Export from disposable SQLite, hash database and any sidecars before/after,
+  and assert byte equality; verify live-WAL inputs fail closed without changing
+  source bytes.
 - Re-run export and analytics rebuild twice; compare source bundle and material
   digest bytes.
 - Execute `gold_semantic_metric` SQL view and assert all eight registry metrics
   appear with declared grain, coverage, and unavailable semantics.
-- `python scripts/verify_fitcv_acceptance.py --timeout-seconds 300 --output .tmp/pr90-acceptance-report.json`
+- `python scripts/verify_fitcv_acceptance.py --timeout-seconds 300 --output .tmp/pr90-acceptance-report.json` (passed at `a890849c9d72d3ebf09bc6bd7a2d293928b67ab2`)
+- `python -m pytest -q` (3262 passed, 8 skipped)
 - `git diff --check`
 
 ### Exit criteria

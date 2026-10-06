@@ -6,6 +6,22 @@ projection_inputs:
   - scripts/sql/fitcv_gold_views.sql
   - scripts/verify_fitcv_acceptance.py
   - tests/fixtures/analytics_semantic_contract.json
+semantic_output_fields:
+  - metric_id
+  - metric_version
+  - cohort_id
+  - cohort_type
+  - dimension_key
+  - numerator
+  - denominator
+  - value
+  - coverage_status
+  - coverage_numerator
+  - coverage_denominator
+  - unavailable_reason
+  - source_commit
+  - input_fingerprint
+  - material_digest
 metrics:
   - metric_id: acceptance_yield
     version: 1
@@ -19,6 +35,9 @@ metrics:
     coverage_metric: eligible_attempt_coverage
     owner: analytics
     description: Accepted CV yield across eligible attempted jobs.
+    numerator_field: successful_run_job_count
+    denominator_field: attempted_job_count
+    dimension_fields: [cohort_id]
   - metric_id: provider_calls_per_accepted_cv
     version: 1
     source_model: gold_cohort_effort
@@ -31,6 +50,9 @@ metrics:
     coverage_metric: provider_call_coverage
     owner: analytics
     description: Provider workload per accepted artifact.
+    numerator_field: provider_call_count
+    denominator_field: accepted_artifact_count
+    dimension_fields: [cohort_id]
   - metric_id: tokens_per_accepted_cv
     version: 1
     source_model: gold_cohort_effort
@@ -43,6 +65,9 @@ metrics:
     coverage_metric: token_coverage
     owner: analytics
     description: Provider tokens per accepted artifact.
+    numerator_field: token_total
+    denominator_field: accepted_artifact_count
+    dimension_fields: [cohort_id]
   - metric_id: first_pass_success
     version: 1
     source_model: gold_cohort_effort
@@ -55,6 +80,9 @@ metrics:
     coverage_metric: generation_attempt_coverage
     owner: analytics
     description: First-pass acceptance rate.
+    numerator_field: first_pass_success_count
+    denominator_field: attempted_job_count
+    dimension_fields: [cohort_id]
   - metric_id: manual_effort
     version: 1
     source_model: gold_run_job_effort
@@ -67,6 +95,9 @@ metrics:
     coverage_metric: review_action_coverage
     owner: analytics
     description: Durable human effort associated with one attempted run-job.
+    numerator_field: review_action_count
+    denominator_field: manual_attempted_run_job_count
+    dimension_fields: [run_job_id]
   - metric_id: verified_one_page_rate
     version: 1
     source_model: gold_cohort_effort
@@ -79,6 +110,9 @@ metrics:
     coverage_metric: render_proof_coverage
     owner: analytics
     description: Verified native one-page rate.
+    numerator_field: verified_one_page_count
+    denominator_field: render_proof_count
+    dimension_fields: [cohort_id]
   - metric_id: skill_demand
     version: 1
     source_model: gold_requirement_demand
@@ -91,6 +125,9 @@ metrics:
     coverage_metric: posting_inventory_coverage
     owner: analytics
     description: Requirement demand in imported opportunity corpus.
+    numerator_field: numerator_posting_count
+    denominator_field: denominator_posting_count
+    dimension_fields: [requirement]
   - metric_id: evidence_gap
     version: 1
     source_model: gold_candidate_gap
@@ -103,6 +140,9 @@ metrics:
     coverage_metric: candidate_requirement_coverage
     owner: analytics
     description: Candidate evidence gap by explicit category, never an unsupported inability claim.
+    numerator_field: numerator_requirement_count
+    denominator_field: denominator_requirement_count
+    dimension_fields: [requirement, gap_category, candidate_profile_id, candidate_profile_revision, candidate_profile_fingerprint]
 claim_priority_map:
   p0_acceptance_scope: [p0_a, p0_b, p0_c]
   p1_acceptance_scope: [p1_a, p1_b, p1_c]

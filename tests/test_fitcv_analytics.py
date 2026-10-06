@@ -7,6 +7,7 @@ from scripts.fitcv_analytics import (
     build_gold_candidate_gap,
     build_gold_cv_effort,
     build_gold_optimization_state,
+    build_gold_semantic_metric,
     build_gold_requirement_demand,
     build_silver_facts,
     compute_projection_input_fingerprint,
@@ -119,6 +120,56 @@ def test_rebuild_is_deterministic_and_sql_views_match_gold(tmp_path) -> None:
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT artifact_id FROM gold_cv_artifact").fetchone() == ("cv-1",)
         assert connection.execute("SELECT provider_call_count FROM gold_run_job_effort").fetchone() == (2,)
+
+
+def test_semantic_metric_builder_emits_registry_fields_and_expected_value() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    rebuilt = rebuild_analytics_bundle(
+        bundle,
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    rows = rebuilt["gold"]["gold_semantic_metric"]
+    acceptance = next(row for row in rows if row["metric_id"] == "acceptance_yield")
+    assert {"numerator", "denominator", "value", "coverage_status", "unavailable_reason"} <= set(acceptance)
+    assert acceptance["value"] is None
+    assert acceptance["coverage_status"] == "unavailable"
+    assert {row["metric_id"] for row in rows} == {metric["metric_id"] for metric in load_metric_registry()["metrics"]}
+
+
+def test_semantic_metric_uses_metric_coverage_and_run_job_denominators() -> None:
+    registry = load_metric_registry()
+    gold = {
+        "gold_cohort_effort": [{
+            "cohort_id": "c",
+            "cohort_type": "fixture",
+            "successful_run_job_count": 1,
+            "attempted_job_count": 1,
+            "verified_one_page_count": 1,
+            "render_proof_count": 1,
+            "coverage": "complete",
+            "render_proof_coverage": "unavailable",
+        }],
+        "gold_run_job_effort": [{
+            "run_job_id": "job-1",
+            "review_action_count": 1,
+            "manual_attempted_run_job_count": 1,
+            "review_action_coverage": "complete",
+            "coverage": "complete",
+        }],
+        "gold_requirement_demand": [],
+        "gold_candidate_gap": [],
+    }
+    rows = build_gold_semantic_metric(gold, registry, source_commit="head", input_fingerprint="input")
+    accepted = next(row for row in rows if row["metric_id"] == "acceptance_yield")
+    render = next(row for row in rows if row["metric_id"] == "verified_one_page_rate")
+    effort = next(row for row in rows if row["metric_id"] == "manual_effort")
+    assert accepted["value"] == 1.0
+    assert render["value"] is None
+    assert render["coverage_status"] == "unavailable"
+    assert effort["denominator"] == 1
+    assert effort["value"] == 1.0
 
 
 def test_run_job_gold_ignores_requirement_and_gap_sources() -> None:
