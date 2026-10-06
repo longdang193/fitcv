@@ -7,8 +7,8 @@
   "coverage": {},
   "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
   "evidence_status": "unavailable",
-  "declared_input_fingerprint": "84393017cd3ceaab251da927cd8fa952d77e6b9c65487434375262ff79d93ee7",
-  "material_metrics_sha256": "eba5b5adaab5ae3234eb1f9974daee477091b270d96ef218b27db7f23009c5d2",
+  "declared_input_fingerprint": "af30bab23c3179a7cd69e2fce72cfb499e74f345c0a151757e7beffb5c1e8647",
+  "material_metrics_sha256": "3dc07e4915495105e6bfacd57f574d9de70eada6246bf42462fc55398b03ddd9",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
   "schema_version": "fitcv_runtime_efficiency_baseline_v3",
   "selection": {
@@ -16,7 +16,7 @@
     "historical_record_count": 0,
     "run_count": 0
   },
-  "source_commit": "108e5a87ea0dfdeff2eb03b5a7a34e5116865708",
+  "source_commit": "6e8c46558571a04de4680fd3883c702c7e4e7af4",
   "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
   "status": "incomplete",
   "timing": {
