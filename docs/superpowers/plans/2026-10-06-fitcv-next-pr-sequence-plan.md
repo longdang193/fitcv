@@ -1,9 +1,10 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: proposed
 template_id: implementation-plan
 name: fitcv-next-pr-sequence
+superseded_by: docs/superpowers/plans/2026-10-06-fitcv-recommended-execution-sequence-plan.md
 targets:
   - scripts/fitcv_analytics.py
   - scripts/export_fitcv_analytics_source.py
@@ -23,6 +24,10 @@ targets:
   - frontend/e2e/analytics-dashboard.spec.ts
   - docs/superpowers/evidence/
 ---
+
+Superseded by `2026-10-06-fitcv-recommended-execution-sequence-plan.md` on
+2026-10-06 after PR #90 merged. Retained as historical evidence; no new task
+admission or lifecycle updates belong here.
 
 # FitCV Next PR Sequence
 
