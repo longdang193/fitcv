@@ -237,7 +237,7 @@ def _flatten_debug_values(value: Any) -> Iterable[dict[str, Any]]:
         return
     if not isinstance(value, dict):
         return
-    if any(str(key) in value for key in ("artifact_id", "artifact_version_id", "version_id", "cv_version_id", "run_job_id")):
+    if any(str(key) in value for key in ("artifact_id", "artifact_version_id", "version_id", "cv_version_id", "run_job_id", "accepted", "accepted_outcome", "final_status")):
         yield value
     for key in (
         "records", "debug_records", "cv_generation_debug_records", "accepted_artifact_events",
@@ -251,6 +251,10 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = {}
     for row in run_rows:
         parsed = _run_debug_payload(row)
+        compatibility = _json(row["compatibility_json"] if "compatibility_json" in row.keys() else None)
+        compatibility = compatibility if isinstance(compatibility, dict) else {}
+        cohort_id = compatibility.get("cohort_id") or "operational"
+        cohort_type = compatibility.get("cohort_type") or "imported"
         for source_key in ("debug_records", "cv_generation_debug_records", "accepted_artifact_events", "accepted_cv_effort", "cv_generation_trace"):
             raw_values = parsed.get(source_key) or []
             values = list(_flatten_debug_values(raw_values))
@@ -264,8 +268,8 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 value["_debug_event_run_id"] = value.get("run_id")
                 value["_debug_event_run_job_id"] = value.get("run_job_id")
                 value["_debug_run_id"] = str(row["run_id"])
-                value["_debug_cohort_id"] = parsed.get("cohort_id") or "operational"
-                value["_debug_cohort_type"] = parsed.get("cohort_type") or "imported"
+                value["_debug_cohort_id"] = cohort_id
+                value["_debug_cohort_type"] = cohort_type
                 if any(field in value for field in ("accepted", "accepted_outcome", "final_status")):
                     value["_acceptance_evidence_seen"] = True
                 if source_key == "accepted_artifact_events":
@@ -294,10 +298,12 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                     value.get("artifact_id"), value.get("artifact_version_id"),
                     value.get("version_id"), value.get("cv_version_id"), value.get("run_job_id"),
                 )
-                if source_key == "accepted_artifact_events":
+                if current_acceptance_evidence and not any(_valid_debug_identity(item) for item in identifiers):
+                    identifiers = [f"__unbound_acceptance__:{row['run_id']}:{source_key}:{event_index}"]
+                elif source_key == "accepted_artifact_events":
                     identifier = next((item for item in identifiers if _valid_debug_identity(item)), None)
                     identifiers = [identifier] if identifier is not None else [
-                        f"__unbound_acceptance__:{row['run_id']}:{event_index}"
+                        f"__unbound_acceptance__:{row['run_id']}:{source_key}:{event_index}"
                     ]
                 for identifier in identifiers:
                     if str(identifier or "").strip():
@@ -575,7 +581,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         debug["_debug_run_id_conflict"] = bool(
             job_debug_all.get("_debug_run_id_conflict") or artifact_debug.get("_debug_run_id_conflict")
         )
-        if artifact_debug.get("_accepted_event_seen"):
+        if artifact_debug.get("_acceptance_evidence_seen"):
             consumed_debug_keys.add(version_id)
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
@@ -705,7 +711,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             })
 
     for debug_key, debug in sorted(debug_by_artifact.items()):
-        if not debug.get("_accepted_event_seen") or debug_key in consumed_debug_keys:
+        if not debug.get("_acceptance_evidence_seen") or debug_key in consumed_debug_keys:
             continue
         run_id = str(debug.get("_debug_run_id") or "unknown")
         run_job_id = debug.get("run_job_id") if _valid_debug_identity(debug.get("run_job_id")) else f"unbound:{run_id}:{debug_key}"

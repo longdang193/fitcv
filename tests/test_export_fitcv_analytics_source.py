@@ -680,6 +680,30 @@ def test_export_preserves_invalid_null_lineage_on_alternate_acceptance_paths(
     assert metrics["acceptance_yield"]["value"] is None
 
 
+@pytest.mark.parametrize("source_key", ["debug_records", "accepted_cv_effort", "cv_generation_trace"])
+def test_export_retains_unbound_alternate_acceptance_evidence(tmp_path: Path, source_key: str) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"] = []
+        debug[source_key] = [{"artifact_id": None, "accepted_outcome": True}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    invalid = [item for item in bundle["sources"]["accepted_artifact"] if item["validity"] == "invalid"]
+    assert invalid
+    assert invalid[0]["run_id"] == "run-1"
+    assert invalid[0]["cohort_id"] == "c1"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
 def test_export_preserves_job_rejection_when_job_has_multiple_versions(tmp_path: Path) -> None:
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
