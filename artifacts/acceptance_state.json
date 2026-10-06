@@ -17,9 +17,9 @@
     "data/fitcv-p0-corpus/p0c/requirement_support_benchmark.json"
   ],
   "current_contract_evidence": {
-    "json": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json",
-    "markdown": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md",
-    "sha256": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.sha256"
+    "json": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json",
+    "markdown": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md",
+    "sha256": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.sha256"
   },
   "evaluation_freeze_commit": "5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50",
   "evidence_paths": [
@@ -283,11 +283,14 @@
   "runtime_efficiency": {
     "accepted_artifact_and_total_workload_metrics": true,
     "baseline_evidence": {
-      "json": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json",
-      "markdown": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md"
+      "json": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json",
+      "markdown": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md"
     },
-    "blocked_reasons": [],
-    "measurement_status": "measured",
+    "blocked_reasons": [
+      "retained_r5_manifest_unavailable",
+      "retained_r5_database_unavailable"
+    ],
+    "measurement_status": "incomplete",
     "p1_c": "deferred",
     "p2": "deferred"
   },
@@ -317,7 +320,7 @@
     "p1_b": {
       "acceptance_status": "passed",
       "implementation_status": "verified",
-      "measurement_status": "measured"
+      "measurement_status": "incomplete"
     },
     "p1_c": {
       "acceptance_status": "deferred",

@@ -18,7 +18,30 @@ records:
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md
       - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.sha256
-    status: current
+    status: historical
+    generated_at: 2026-10-05T00:00:00Z
+    last_refresh: 2026-10-05T00:00:00Z
+  - evidence_id: p1ab-current-contract-r6-unavailable-v1
+    claim: p1b_current_contract_measurement
+    schema_version: fitcv.p1_ab.current_contract.v1
+    source_commit: 108e5a87ea0dfdeff2eb03b5a7a34e5116865708
+    declared_inputs:
+      - config/analytics_metrics.yaml
+      - scripts/fitcv_analytics.py
+      - scripts/benchmark_cv_efficiency.py
+      - scripts/sql/fitcv_gold_views.sql
+      - scripts/verify_fitcv_acceptance.py
+      - tests/fixtures/analytics_semantic_contract.json
+    declared_input_fingerprint: f15679869948463e6b26ded5da84dfeb0b73dff0542a4ffa1c15d296011bba4d
+    fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
+    cohort_id: p1ab-current-contract-r6-unavailable
+    cohort_type: unavailable_retained_fixture_rebuild
+    material_metrics_sha256: ab8debd42c862ad12d0f3478fa7e0a0caef0380c97607b3c001f6190080f52ef
+    artifact_paths:
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md
+      - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.sha256
+    status: unavailable
     generated_at: 2026-10-05T00:00:00Z
     last_refresh: 2026-10-05T00:00:00Z
   - evidence_id: p1ab-current-contract-r4-historical-v1
@@ -70,10 +93,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    fixture_sha256: 95673d02bbbf257035cd720e6dda3c162ebb7e38389ee8cc2cd59d25fd8d35bb
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    material_metrics_sha256: 95673d02bbbf257035cd720e6dda3c162ebb7e38389ee8cc2cd59d25fd8d35bb
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -86,10 +109,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    fixture_sha256: 95673d02bbbf257035cd720e6dda3c162ebb7e38389ee8cc2cd59d25fd8d35bb
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    material_metrics_sha256: 95673d02bbbf257035cd720e6dda3c162ebb7e38389ee8cc2cd59d25fd8d35bb
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -102,10 +125,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    fixture_sha256: 95673d02bbbf257035cd720e6dda3c162ebb7e38389ee8cc2cd59d25fd8d35bb
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 58d5dc225d39684f66535b271e89fb108a4d4cfbe80c1953a40c45ddebc9f63a
+    material_metrics_sha256: 95673d02bbbf257035cd720e6dda3c162ebb7e38389ee8cc2cd59d25fd8d35bb
     artifact_paths:
       - config/acceptance_state.yaml
     status: current

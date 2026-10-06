@@ -46,7 +46,7 @@ status_dimensions:
   p1_b:
     implementation_status: verified
     acceptance_status: passed
-    measurement_status: measured
+    measurement_status: incomplete
   p1_c:
     implementation_status: deferred
     acceptance_status: deferred
@@ -98,9 +98,9 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.sha256
   - docs/superpowers/evidence/2026-10-04-fitcv-p1ab-provider-backed-convergence.json
 current_contract_evidence:
-  json: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json
-  markdown: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md
-  sha256: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.sha256
+  json: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json
+  markdown: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md
+  sha256: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.sha256
 optimization_result:
   experiment: complete
   promotion: rejected
@@ -111,12 +111,14 @@ optimization_result:
     - docs/superpowers/evidence/2026-10-04-fitcv-generation-format-defect-experiment.json
     - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence.json
 runtime_efficiency:
-  measurement_status: measured
+  measurement_status: incomplete
   baseline_evidence:
-    json: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json
-    markdown: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.md
+    json: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json
+    markdown: docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md
   accepted_artifact_and_total_workload_metrics: true
-  blocked_reasons: []
+  blocked_reasons:
+    - retained_r5_manifest_unavailable
+    - retained_r5_database_unavailable
   p1_c: deferred
   p2: deferred
 p0_b:

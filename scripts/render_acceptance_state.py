@@ -58,7 +58,7 @@ ALLOWED_MEASUREMENT_STATUSES = {
     "blocked",
 }
 ALLOWED_RUNTIME_MEASUREMENT_STATUSES = {"measured", "incomplete", "blocked"}
-EVIDENCE_REGISTRY_STATUSES = {"current", "historical", "superseded"}
+EVIDENCE_REGISTRY_STATUSES = {"current", "historical", "superseded", "unavailable"}
 OPTIMIZATION_RESULT_FIELDS = {
     "experiment",
     "promotion",

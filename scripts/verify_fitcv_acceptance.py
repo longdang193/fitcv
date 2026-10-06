@@ -31,6 +31,7 @@ from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE = REPO_ROOT / "config/acceptance_state.yaml"
 DEFAULT_OUTPUT = REPO_ROOT / ".tmp/fitcv-acceptance-report.json"
+DEFAULT_EVIDENCE_REGISTRY = REPO_ROOT / "config/evidence_registry.yaml"
 CHECKS = {
     "p0_b": [
         "tests/test_p0b_source_job_relevance_evaluator.py",
@@ -189,8 +190,30 @@ def _run_runtime_efficiency_evidence_check(
         failures.append("runtime_efficiency_markdown_missing")
     else:
         markdown = markdown_path.read_text(encoding="utf-8")
-        if "Evidence status: `canonical`" not in markdown:
+        if (
+            "Evidence status: `canonical`" not in markdown
+            and not (
+                runtime_efficiency.get("measurement_status") in {"incomplete", "blocked"}
+                and report.get("evidence_status") == "unavailable"
+            )
+        ):
             failures.append("runtime_efficiency_markdown_not_canonical")
+    if (
+        runtime_efficiency.get("measurement_status") in {"incomplete", "blocked"}
+        and report.get("evidence_status") == "unavailable"
+    ):
+        if not str(report.get("unavailable_reason") or "").strip():
+            failures.append("runtime_efficiency_unavailable_reason_missing")
+        return {
+            "passed": not failures,
+            "evidence_json": str(json_path),
+            "evidence_markdown": str(markdown_path),
+            "failures": failures,
+            "run_count": 0,
+            "measurement_status": runtime_efficiency.get("measurement_status"),
+            "measurement_eligible": False,
+            "measurement_gate_reasons": [str(report.get("unavailable_reason"))],
+        }
     if isinstance(report, dict):
         if report.get("schema_version") != "fitcv_runtime_efficiency_baseline_v3":
             failures.append("runtime_efficiency_schema_not_v3")
@@ -301,7 +324,14 @@ def _run_current_contract_evidence_check(
             failures.append("current_contract_evidence_json_invalid")
     if not markdown_path.is_file():
         failures.append("current_contract_evidence_markdown_missing")
-    elif "Evidence status: `canonical`" not in markdown_path.read_text(encoding="utf-8"):
+    elif (
+        "Evidence status: `canonical`" not in markdown_path.read_text(encoding="utf-8")
+        and not (
+            dict(state.get("runtime_efficiency") or {}).get("measurement_status") in {"incomplete", "blocked"}
+            and isinstance(evidence, dict)
+            and evidence.get("evidence_status") == "unavailable"
+        )
+    ):
         failures.append("current_contract_evidence_markdown_not_canonical")
     if not digest_path.is_file():
         failures.append("current_contract_evidence_digest_missing")
@@ -311,6 +341,20 @@ def _run_current_contract_evidence_check(
         if len(digest_line) != 2 or digest_line[0] != actual_digest or digest_line[1] != json_path.name:
             failures.append("current_contract_evidence_digest_mismatch")
     if isinstance(evidence, dict):
+        if (
+            evidence.get("evidence_status") == "unavailable"
+            and dict(state.get("runtime_efficiency") or {}).get("measurement_status") in {"incomplete", "blocked"}
+        ):
+            if not str(evidence.get("unavailable_reason") or "").strip():
+                failures.append("current_contract_evidence_unavailable_reason_missing")
+            return {
+                "passed": not failures,
+                "evidence_json": str(json_path),
+                "evidence_markdown": str(markdown_path),
+                "evidence_digest": str(digest_path),
+                "failures": failures,
+                "accepted_count": 0,
+            }
         if evidence.get("evidence_status") != "canonical":
             failures.append("current_contract_evidence_not_canonical")
         if evidence.get("evidence_schema_version") != "fitcv.p1_ab.current_contract.v1":
@@ -364,6 +408,62 @@ def _run_current_contract_evidence_check(
         "failures": failures,
         "accepted_count": int(dict(evidence.get("accepted_cv") or {}).get("count") or 0) if isinstance(evidence, dict) else 0,
     }
+
+
+def _run_registry_evidence_check(state: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    registry_path = Path(str(state.get("evidence_registry") or DEFAULT_EVIDENCE_REGISTRY))
+    if not registry_path.is_absolute():
+        registry_path = repo_root / registry_path
+    failures: list[str] = []
+    try:
+        registry = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+        try:
+            from scripts.render_acceptance_state import _validate_evidence_registry
+        except ModuleNotFoundError:
+            from render_acceptance_state import _validate_evidence_registry
+        _validate_evidence_registry(registry, repo_root)
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        return {"passed": False, "status": "checked", "failures": [f"evidence_registry_invalid:{exc}"]}
+    records = [record for record in list(registry.get("records") or []) if isinstance(record, dict)]
+    current = [record for record in records if record.get("claim") == "p1b_current_contract_measurement" and record.get("status") == "current"]
+    if len(current) == 0:
+        unavailable = [
+            record
+            for record in records
+            if record.get("claim") == "p1b_current_contract_measurement"
+            and record.get("status") == "unavailable"
+        ]
+        if (
+            len(unavailable) == 1
+            and dict(state.get("runtime_efficiency") or {}).get("measurement_status") in {"incomplete", "blocked"}
+        ):
+            references = dict(state.get("current_contract_evidence") or {})
+            expected_paths = {str(references.get(key) or "") for key in ("json", "markdown", "sha256")}
+            if expected_paths == set(unavailable[0].get("artifact_paths") or []):
+                return {"passed": True, "status": "checked", "failures": ["current_contract_evidence_unavailable"]}
+        failures.append("current_contract_registry_record_missing_or_ambiguous")
+    elif len(current) != 1:
+        failures.append("current_contract_registry_record_missing_or_ambiguous")
+    else:
+        record = current[0]
+        references = dict(state.get("current_contract_evidence") or {})
+        expected_paths = {str(references.get(key) or "") for key in ("json", "markdown", "sha256")}
+        actual_paths = {str(path) for path in list(record.get("artifact_paths") or [])}
+        if not expected_paths <= actual_paths:
+            failures.append("current_contract_registry_paths_do_not_match_state")
+        evidence_json = repo_root / str(references.get("json") or "")
+        if evidence_json.is_file():
+            try:
+                evidence = json.loads(evidence_json.read_text(encoding="utf-8"))
+                if evidence.get("material_metrics_sha256") != record.get("material_metrics_sha256"):
+                    failures.append("current_contract_registry_material_digest_mismatch")
+                if evidence.get("source_commit") != record.get("source_commit"):
+                    failures.append("current_contract_registry_source_commit_mismatch")
+                if evidence.get("input_manifest", {}).get("declared_input_fingerprint") != record.get("declared_input_fingerprint"):
+                    failures.append("current_contract_registry_input_fingerprint_mismatch")
+            except (OSError, json.JSONDecodeError):
+                failures.append("current_contract_registry_evidence_invalid")
+    return {"passed": not failures, "status": "checked", "failures": sorted(set(failures))}
 
 
 def build_acceptance_report(
@@ -665,12 +765,16 @@ def verify_acceptance(
     efficiency_check = _run_runtime_efficiency_evidence_check(state, repo_root)
     checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and efficiency_check["passed"]
     checks["p1_b"]["runtime_efficiency"] = efficiency_check
-    experiment_check = _run_experiment_report_check(
-        experiment_json,
-        experiment_markdown,
-        repo_root,
-        experiment_peer_json,
-        current_commit,
+    experiment_check = (
+        _run_experiment_report_check(
+            experiment_json,
+            experiment_markdown,
+            repo_root,
+            experiment_peer_json,
+            current_commit,
+        )
+        if any(value is not None for value in (experiment_json, experiment_markdown, experiment_peer_json))
+        else _run_registry_evidence_check(state, repo_root)
     )
     checks["p1_b"]["experiment"] = experiment_check
     checks["p1_b"]["passed"] = checks["p1_b"]["passed"] and experiment_check["passed"]

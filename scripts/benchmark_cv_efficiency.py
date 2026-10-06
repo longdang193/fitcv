@@ -25,6 +25,20 @@ from fitcv_cp.run_artifact_contracts import (
     collect_normalized_generation_traces,
 )
 from fitcv.contracts import EFFICIENCY_CONTRACT_VERSION
+try:
+    from scripts.fitcv_analytics import (
+        build_bronze_observations,
+        build_gold_cohort_effort,
+        build_silver_facts,
+        compute_projection_input_fingerprint,
+    )
+except ModuleNotFoundError:
+    from fitcv_analytics import (
+        build_bronze_observations,
+        build_gold_cohort_effort,
+        build_silver_facts,
+        compute_projection_input_fingerprint,
+    )
 
 DEFAULT_JSON = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.json"
 DEFAULT_MARKDOWN = REPO_ROOT / "docs/superpowers/evidence/2026-10-02-fitcv-runtime-efficiency-baseline.md"
@@ -1014,25 +1028,72 @@ def build_baseline(
     run_jobs_by_run_id: dict[str, Iterable[Any]] | None = None,
 ) -> dict[str, Any]:
     report = _build_baseline(runs, run_jobs_by_run_id=run_jobs_by_run_id)
+    report["projection_input_fingerprint"] = compute_projection_input_fingerprint(REPO_ROOT)
     workload = dict(report.get("workload") or {})
     accepted = dict(report.get("accepted_cv") or {})
     accepted_count = int(accepted.get("count") or 0)
+    cohort_id = ",".join(str(value) for value in report.get("selection", {}).get("run_ids", [])) or "unclassified"
+    source_rows: dict[str, list[dict[str, Any]]] = {
+        "provider_attempt": [{
+            "source_id": f"benchmark-provider:{cohort_id}",
+            "run_job_id": cohort_id,
+            "provider_call_count": workload.get("provider_call_count"),
+            "token_total": workload.get("token_total"),
+            "cohort_id": cohort_id,
+            "cohort_type": "benchmark",
+        }],
+        "generation_attempt": [
+            {
+                "source_id": f"benchmark-generation:{index}",
+                "run_job_id": cohort_id,
+                "status": "accepted" if outcome.get("accepted") else "failed",
+                "cohort_id": cohort_id,
+                "cohort_type": "benchmark",
+            }
+            for index, outcome in enumerate(list(report.get("attempted_outcomes") or []))
+            if isinstance(outcome, dict)
+        ],
+        "accepted_artifact": [
+            {
+                "source_id": f"benchmark-artifact:{index}",
+                "run_job_id": cohort_id,
+                "artifact_id": f"accepted-artifact:{index}",
+                "status": "accepted",
+                "cohort_id": cohort_id,
+                "cohort_type": "benchmark",
+            }
+            for index in range(accepted_count)
+        ],
+    }
+    bronze = build_bronze_observations(
+        source_rows,
+        source_commit="benchmark-report",
+        declared_input_fingerprint=material_report_digest(report),
+        ingested_at="report",
+    )
+    canonical_cohort = build_gold_cohort_effort(build_silver_facts(bronze))
+    report["gold_cohort_effort"] = canonical_cohort[0] if canonical_cohort else {
+        "metric": "gold_cohort_effort",
+        "grain": "cohort",
+        "cohort_id": cohort_id,
+        "cohort_type": "benchmark",
+        "attempted_job_count": 0,
+        "accepted_artifact_count": 0,
+        "provider_call_count": None,
+        "token_total": None,
+        "per_accepted_artifact": None,
+        "unavailable_reason": "no_attempted_jobs",
+    }
     report["gold_cv_effort"] = {
-        "schema_version": "fitcv.analytics.v1",
-        "metric": "gold_cv_effort",
-        "cohort_id": ",".join(str(value) for value in report.get("selection", {}).get("run_ids", [])),
-        "accepted_artifact_count": accepted_count,
-        "attempted_generation_job_count": workload.get("attempted_generation_job_count"),
-        "provider_call_count": workload.get("provider_call_count"),
-        "token_total": workload.get("token_total"),
-        "regeneration_count": workload.get("regeneration_count"),
-        "failed_work_included": True,
-        "per_accepted_artifact": (
-            dict(accepted.get("total_workload_cost_per_accepted_cv") or {})
-            if accepted_count
-            else None
-        ),
-        "unavailable_reason": None if accepted_count else "accepted_artifact_count_zero",
+        "alias_of": "gold_cohort_effort",
+        "metric": "gold_cohort_effort",
+        "cohort_id": report["gold_cohort_effort"].get("cohort_id"),
+        "accepted_artifact_count": report["gold_cohort_effort"].get("accepted_artifact_count"),
+        "attempted_generation_job_count": report["gold_cohort_effort"].get("attempted_job_count"),
+        "provider_call_count": report["gold_cohort_effort"].get("provider_call_count"),
+        "token_total": report["gold_cohort_effort"].get("token_total"),
+        "per_accepted_artifact": report["gold_cohort_effort"].get("per_accepted_artifact"),
+        "unavailable_reason": report["gold_cohort_effort"].get("unavailable_reason"),
     }
     report["failure_pareto"] = build_failure_pareto(report)
     report["optimization_gate"] = evaluate_promotion_gate({}, {})
@@ -1060,7 +1121,7 @@ def material_report_metrics(report: dict[str, Any]) -> dict[str, Any]:
             "attempted_outcomes",
             "input_manifest",
             "analysis_input_identity",
-            "gold_cv_effort",
+            "gold_cohort_effort",
             "failure_pareto",
             "optimization_gate",
         )
@@ -1112,7 +1173,7 @@ def _markdown(report: dict[str, Any]) -> str:
     attribution = dict(report.get("attribution") or {})
     timing = dict(report.get("timing") or {})
     scorecard = dict(report.get("optimization_scorecard") or {})
-    gold_effort = dict(report.get("gold_cv_effort") or {})
+    gold_effort = dict(report.get("gold_cohort_effort") or {})
     sections = dict(scorecard.get("sections") or {})
     return "\n".join(
         [

@@ -8,6 +8,7 @@ from scripts.benchmark_cv_efficiency import material_report_digest
 from scripts.verify_fitcv_acceptance import (
     _run_current_contract_evidence_check,
     _run_experiment_report_check,
+    _run_registry_evidence_check,
     _run_runtime_efficiency_evidence_check,
     build_acceptance_report,
     format_acceptance_summary,
@@ -17,6 +18,15 @@ from scripts.run_fitcv_repair_experiment import DECLARED_INPUTS
 
 def test_normalized_analysis_input_identity_rejects_empty_cohort() -> None:
     assert verifier._normalized_analysis_input_identity({"analysis_input_identity": []}) is None
+
+
+def test_registry_evidence_check_fails_closed_when_registry_missing(tmp_path: Path) -> None:
+    result = _run_registry_evidence_check(
+        {"evidence_registry": "missing-evidence-registry.yaml"},
+        tmp_path,
+    )
+    assert result["passed"] is False
+    assert result["failures"][0].startswith("evidence_registry_invalid:")
 
 
 def test_experiment_report_check_rejects_unavailable_report(tmp_path: Path) -> None:

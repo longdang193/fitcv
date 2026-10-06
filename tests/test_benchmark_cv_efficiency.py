@@ -498,7 +498,7 @@ def test_markdown_exposes_same_gold_metric_and_material_digest_as_json() -> None
     report = build_baseline([])
     report["material_metrics_sha256"] = material_report_digest(report)
     markdown = _markdown(report)
-    assert "Gold effort digest source: `gold_cv_effort`" in markdown
+    assert "Gold effort digest source: `gold_cohort_effort`" in markdown
     assert f"Material metrics SHA-256: `{report['material_metrics_sha256']}`" in markdown
 
 

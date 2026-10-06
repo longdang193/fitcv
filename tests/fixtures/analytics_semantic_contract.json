@@ -1,0 +1,94 @@
+{
+  "sources": {
+    "provider_attempt": [
+      {
+        "source_id": "provider-1",
+        "run_job_id": "job-1",
+        "provider_call_count": 2,
+        "token_total": 100,
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture"
+      }
+    ],
+    "generation_attempt": [
+      {
+        "source_id": "generation-1",
+        "run_job_id": "job-1",
+        "status": "succeeded",
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture"
+      }
+    ],
+    "accepted_artifact": [
+      {
+        "source_id": "artifact-1",
+        "run_job_id": "job-1",
+        "artifact_id": "cv-1",
+        "status": "accepted",
+        "accepted_at": "2026-10-05T00:00:00Z",
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture"
+      }
+    ],
+    "posting_requirement": [
+      {
+        "source_id": "posting-requirement-1",
+        "posting_id": "posting-1",
+        "requirement": "python",
+        "eligible": true,
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture"
+      },
+      {
+        "source_id": "posting-requirement-2",
+        "posting_id": "posting-2",
+        "requirement": "python",
+        "eligible": true,
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture"
+      }
+    ],
+    "candidate_gap": [
+      {
+        "source_id": "candidate-gap-1",
+        "posting_id": "posting-1",
+        "requirement": "python",
+        "gap_category": "missing_evidence",
+        "eligible": true,
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture"
+      }
+    ]
+  },
+  "registry": {
+    "claim_priority_map": {
+      "fixture_claim": ["p1_a"]
+    },
+    "records": [
+      {
+        "evidence_id": "fixture-evidence",
+        "claim": "fixture_claim",
+        "status": "current",
+        "cohort_id": "cohort-1",
+        "cohort_type": "fixture",
+        "source_commit": "fixture",
+        "declared_input_fingerprint": "fixture",
+        "material_metrics_sha256": "fixture"
+      }
+    ]
+  },
+  "state": {
+    "status_dimensions": {
+      "p1_a": {
+        "implementation_status": "verified",
+        "acceptance_status": "passed",
+        "measurement_status": "measured"
+      },
+      "p1_c": {
+        "implementation_status": "deferred",
+        "acceptance_status": "deferred",
+        "measurement_status": "not_applicable"
+      }
+    }
+  }
+}
