@@ -245,7 +245,7 @@ def _flatten_debug_values(
         if acceptance_items:
             for item in value:
                 if isinstance(item, dict):
-                    yield {**item, "_acceptance_container_context": True}
+                    yield from _flatten_debug_values(item, acceptance_context=True)
                 else:
                     yield {"_malformed_acceptance_event": True, "_acceptance_container_context": True}
             return
@@ -271,7 +271,9 @@ def _flatten_debug_values(
                 else:
                     yield {"_malformed_acceptance_event": True, "_acceptance_container_context": True}
             else:
-                yield from _flatten_debug_values(value[key])
+                yield from _flatten_debug_values(
+                    value[key], acceptance_context=acceptance_context and key != "cv_generation_trace"
+                )
 
 
 def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
