@@ -638,7 +638,7 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
         if not posting_id or not requirement or _eligibility(payload) is not True:
             continue
         if cohort not in inventory_cohorts:
-            postings_by_cohort[cohort].add(posting_id)
+            coverage_issues.setdefault(cohort, "posting_inventory_missing")
         elif posting_id not in inventory_by_cohort[cohort]:
             coverage_issues.setdefault(cohort, "requirement_posting_not_in_inventory")
             continue

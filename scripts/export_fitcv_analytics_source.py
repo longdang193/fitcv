@@ -158,17 +158,21 @@ def _valid_debug_identity(value: Any) -> bool:
 
 
 def _valid_accepted_debug_event(value: dict[str, Any]) -> bool:
-    identity_fields = ("artifact_id", "artifact_version_id", "version_id", "cv_version_id", "run_job_id")
-    if not any(_valid_debug_identity(value.get(field)) for field in identity_fields):
+    artifact_identity_fields = ("artifact_id", "artifact_version_id", "version_id", "cv_version_id")
+    if not any(_valid_debug_identity(value.get(field)) for field in artifact_identity_fields):
         return False
-    if any(field in value and not _valid_debug_identity(value[field]) for field in identity_fields):
+    if any(field in value and not _valid_debug_identity(value[field]) for field in artifact_identity_fields + ("run_job_id",)):
+        return False
+    aliases = [_normalized for field in artifact_identity_fields if (_normalized := value.get(field)) is not None]
+    if len({item.strip() for item in aliases if isinstance(item, str)}) > 1:
         return False
     for field in ("accepted", "accepted_outcome"):
         if field in value and (not isinstance(value[field], bool) or not value[field]):
             return False
     for field in ("final_status", "status"):
-        if field in value and not isinstance(value[field], str):
-            return False
+        if field in value:
+            if not isinstance(value[field], str) or value[field].strip().lower() not in {"accepted", "succeeded", "success"}:
+                return False
     return True
 
 
@@ -224,13 +228,22 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                     value["_usage_present"] = True
                 _mark_null_telemetry(value)
                 sanitized = _sanitize(value) or {}
-                for identifier in (
+                identifiers = (
+                    value.get("version_id"), value.get("cv_version_id"),
+                    value.get("artifact_version_id"), value.get("artifact_id"), value.get("run_job_id"),
+                ) if source_key == "accepted_artifact_events" else (
                     value.get("artifact_id"), value.get("artifact_version_id"),
                     value.get("version_id"), value.get("cv_version_id"), value.get("run_job_id"),
-                ):
+                )
+                if source_key == "accepted_artifact_events":
+                    identifier = next((item for item in identifiers if _valid_debug_identity(item)), None)
+                    identifiers = [identifier] if identifier is not None else []
+                for identifier in identifiers:
                     if str(identifier or "").strip():
-                        key = str(identifier)
+                        key = identifier.strip() if isinstance(identifier, str) else str(identifier)
                         records[key] = {**records.get(key, {}), **sanitized}
+                        if source_key == "accepted_artifact_events":
+                            break
     return records
 
 
@@ -503,6 +516,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         attempt_count = _debug_attempt_count(debug, ordinal or 1)
         provider_call_count = _debug_number(debug, "provider_call_count")
         token_total = _debug_number(debug, "token_total")
+        accepted_event_observed = artifact_debug.get("_accepted_event") is True
         accepted_event = bool(
             (
                 artifact_debug.get("_accepted_event")
@@ -518,6 +532,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 and _valid_accepted_debug_event(artifact_debug)
             )
         )
+        accepted_event_invalid = accepted_event_observed and not accepted_event
         _append(sources, "generation_attempt", {
             **common,
             "source_id": version_id,
@@ -534,13 +549,14 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             "token_total": token_total,
             "status": normalized_status,
         })
-        if status == "generated" and accepted_event and row["content_checksum"] and row["content_length"] is not None:
+        if status == "generated" and (accepted_event or accepted_event_invalid) and row["content_checksum"] and row["content_length"] is not None:
             artifact = {
                 **common,
                 "source_id": version_id,
                 "artifact_id": version_id,
                 "run_job_id": run_job_id,
                 "status": "accepted",
+                "validity": "invalid" if accepted_event_invalid else "valid",
                 "accepted_at": row["finished_at"] or row["created_at"],
                 "durable": True,
                 "generation_attempt": attempt_count,
@@ -560,6 +576,15 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                     "artifact_id": version_id,
                     **debug["render_acceptance"],
                 })
+        elif accepted_event_invalid:
+            _append(sources, "accepted_artifact", {
+                **common,
+                "source_id": version_id,
+                "artifact_id": version_id,
+                "run_job_id": run_job_id,
+                "status": "accepted",
+                "validity": "invalid",
+            })
 
     if _table_exists(connection, "cv_review_events"):
         version_by_id = {str(item["version_id"]): item for item in versions}

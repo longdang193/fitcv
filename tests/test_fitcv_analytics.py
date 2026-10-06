@@ -805,7 +805,8 @@ def test_requirement_and_gap_gold_have_explicit_grains_and_distinct_denominators
     gaps = build_gold_candidate_gap(silver)
     assert demand[0]["grain"] == "requirement_and_cohort"
     assert demand[0]["numerator_posting_count"] == 2
-    assert demand[0]["denominator_posting_count"] == 2
+    assert demand[0]["denominator_posting_count"] == 0
+    assert demand[0]["coverage"] == "unavailable"
     assert gaps[0]["grain"] == "requirement_and_gap_category_and_cohort"
     assert gaps[0]["numerator_requirement_count"] == 1
     assert gaps[0]["denominator_requirement_count"] == 2
