@@ -67,7 +67,8 @@ def _json(value: Any) -> Any:
 
 
 def _sanitize_string(value: str) -> str:
-    if not ("://" in value or value.startswith("//") or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:/", value)):
+    value = value.strip()
+    if not ("://" in value or value.startswith("//") or re.match(r"^(?:https?|wss?|ftp):", value, re.IGNORECASE)):
         return value
     try:
         parts = urlsplit(value)
@@ -92,7 +93,7 @@ def _sanitize_string(value: str) -> str:
         query = urlencode([
             (key, item)
             for key, item in parse_qsl(parts.query, keep_blank_values=True)
-            if key.lower() not in _SECRET_QUERY_PARTS
+            if key.lower().replace("-", "_") not in _SECRET_QUERY_PARTS
             and not any(secret in key.lower() for secret in ("auth", "credential", "secret", "token", "password", "signature"))
         ])
     except ValueError:
@@ -182,9 +183,14 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
     trace = debug.get("cv_generation_trace")
     if isinstance(trace, dict):
         candidates.append(trace.get("efficiency_summary"))
-    for candidate in candidates:
-        if isinstance(candidate, dict) and candidate.get(field) is not None:
-            return candidate[field]
+    if field == "token_total":
+        invalid_statuses = {"incomplete", "not_run", "unavailable"}
+        if any(
+            isinstance(candidate, dict)
+            and str(candidate.get("token_usage_status") or "").strip().lower() in invalid_statuses
+            for candidate in candidates
+        ):
+            return None
     if field == "token_total":
         def token_number(value: Any) -> int | None:
             if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -195,8 +201,18 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 return None
             return int(numeric) if math.isfinite(numeric) and numeric >= 0 and numeric.is_integer() else None
 
-        def usage_total(usage: Any) -> int | None:
+        def usage_total(usage: Any, provider_calls: Any) -> int | None:
+            expected_calls = token_number(provider_calls) if provider_calls is not None else None
+            if provider_calls is not None and expected_calls is None:
+                return None
+            if isinstance(usage, list):
+                if not usage or expected_calls is not None and expected_calls != len(usage):
+                    return None
+                totals = [usage_total(block, None) for block in usage]
+                return sum(total for total in totals) if all(total is not None for total in totals) else None
             if not isinstance(usage, dict):
+                return None
+            if expected_calls not in (None, 1):
                 return None
             for key in ("total_tokens", "token_total"):
                 if key in usage:
@@ -208,21 +224,25 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                     return left_value + right_value if left_value is not None and right_value is not None else None
             return None
 
+        usage_seen = False
         for candidate in candidates:
             if not isinstance(candidate, dict):
                 continue
-            usage = candidate.get("token_usage") or candidate.get("usage")
-            if isinstance(usage, list) and usage:
-                totals = [usage_total(block) for block in usage]
-                expected_calls = token_number(candidate.get("provider_call_count"))
-                if expected_calls is not None and expected_calls != len(usage):
-                    continue
-                if all(total is not None for total in totals):
-                    return sum(total for total in totals if total is not None)
-            elif isinstance(usage, dict):
-                total = usage_total(usage)
+            usage = candidate.get("token_usage") if "token_usage" in candidate else candidate.get("usage")
+            if usage is not None:
+                usage_seen = True
+                total = usage_total(usage, candidate.get("provider_call_count"))
                 if total is not None:
                     return total
+        if usage_seen:
+            return None
+        for candidate in candidates:
+            if isinstance(candidate, dict) and "token_total" in candidate:
+                return token_number(candidate.get("token_total"))
+        return None
+    for candidate in candidates:
+        if isinstance(candidate, dict) and candidate.get(field) is not None:
+            return candidate[field]
     return None
 
 

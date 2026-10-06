@@ -233,8 +233,11 @@ def test_export_redacts_malformed_url_without_leaking_fragment_or_credentials(tm
             "https:///job?access_token=PRIVATE#JWT",
             "https://?api_key=PRIVATE#JWT",
             "https:/job?access_token=PRIVATE#JWT",
+            "https:example.test/job?access_token=PRIVATE#JWT",
+            " https:/job?access_token=PRIVATE#JWT",
             "//user:PRIVATE@example.test/job?access_token=PRIVATE#JWT",
             "https://user:PRIVATE",
+            "https://example.test/job?api-key=PRIVATE",
         ):
             connection.execute(
                 "UPDATE run_jobs SET source_url=? WHERE run_job_id='job-1'",
@@ -287,6 +290,29 @@ def test_export_marks_oversized_token_telemetry_unavailable(tmp_path: Path) -> N
     bundle = export_bundle(database, source_commit="head")
     provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
     assert provider.get("token_total") is None
+
+
+def test_export_rejects_direct_and_aggregate_token_shortcuts(tmp_path: Path) -> None:
+    cases = [
+        ({"token_total": "10", "token_usage_status": "available"},),
+        ({"token_total": 0, "token_usage_status": "not_run"},),
+        ({"token_usage": {"total_tokens": 6}, "token_usage_status": "available"},),
+    ]
+    for index, (summary,) in enumerate(cases):
+        database = tmp_path / f"fitcv-{index}.sqlite3"
+        _seed_database(database)
+        with sqlite3.connect(database) as connection:
+            payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+            debug = json.loads(payload["cv_generation_debug_json"])
+            efficiency = debug["accepted_artifact_events"][0]["cv_generation_trace"]["efficiency_summary"]
+            efficiency.pop("token_usage", None)
+            efficiency.update(summary)
+            payload["cv_generation_debug_json"] = json.dumps(debug)
+            connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+            connection.commit()
+        bundle = export_bundle(database, source_commit="head")
+        provider = next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-1")
+        assert provider.get("token_total") is None
 
 
 def test_export_fails_closed_for_live_wal_without_touching_sidecars(tmp_path: Path) -> None:

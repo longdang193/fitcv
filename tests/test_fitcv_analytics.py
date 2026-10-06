@@ -211,6 +211,64 @@ def test_cohort_provider_metrics_ignore_incomplete_review_coverage() -> None:
     assert metrics["tokens_per_accepted_cv"]["value"] == 100.0
 
 
+def test_provider_call_metric_stays_known_when_tokens_are_missing() -> None:
+    bundle = json.loads(Path("tests/fixtures/analytics_semantic_contract.json").read_text(encoding="utf-8"))
+    bundle["sources"]["provider_attempt"][0]["token_total"] = None
+    result = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["provider_call_count"] == 2
+    assert cohort["provider_call_coverage"] == "complete"
+    assert cohort["token_coverage"] == "unavailable"
+    metrics = {row["metric_id"]: row for row in result["gold"]["gold_semantic_metric"]}
+    assert metrics["provider_calls_per_accepted_cv"]["value"] == 2.0
+    assert metrics["tokens_per_accepted_cv"]["value"] is None
+
+
+def test_oversized_token_totals_stay_unavailable_without_overflow() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [
+                    {"source_id": "provider-1", "run_job_id": "job-1", "provider_call_count": 1, "token_total": 10**400, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "provider-2", "run_job_id": "job-1", "provider_call_count": 1, "token_total": 1e308, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    row = result["gold"]["gold_run_job_effort"][0]
+    assert row["token_total"] is None
+    assert row["token_coverage"] == "unavailable"
+
+
+def test_acceptance_yield_excludes_artifacts_without_generation_history() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{"source_id": "generation", "run_job_id": "job-1", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"}],
+                "accepted_artifact": [
+                    {"source_id": "artifact-1", "run_job_id": "job-1", "artifact_id": "cv-1", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "artifact-2", "run_job_id": "job-2", "artifact_id": "cv-2", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["successful_run_job_count"] == 1
+    assert cohort["generation_job_count"] == 1
+    acceptance = next(row for row in result["gold"]["gold_semantic_metric"] if row["metric_id"] == "acceptance_yield")
+    assert acceptance["value"] == 1.0
+
+
 def test_direct_invalid_token_facts_become_unavailable() -> None:
     bronze = build_bronze_observations(
         {"provider_attempt": [{"source_id": "provider", "run_job_id": "job", "token_total": "not_recorded", "cohort_id": "c", "cohort_type": "fixture"}]},

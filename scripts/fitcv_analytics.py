@@ -222,12 +222,14 @@ def _known_sum(values: list[Any]) -> float | int | None:
             return None
         try:
             numeric = float(value)
-        except (TypeError, ValueError):
+        except (OverflowError, TypeError, ValueError):
             return None
         if numeric < 0 or not math.isfinite(numeric) or not numeric.is_integer():
             return None
         parsed.append(numeric)
     total = sum(parsed)
+    if not math.isfinite(total):
+        return None
     return int(total) if total.is_integer() else total
 
 
@@ -359,7 +361,9 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         review = [fact for fact in valid_facts if fact.get("observation_type") == "review_action"]
         provider_calls = _known_sum([fact["payload"].get("provider_call_count") for fact in provider_all])
         tokens = _known_sum([fact["payload"].get("token_total") for fact in provider_all])
-        provider_coverage_complete = bool(provider_all) and len(provider) == len(provider_all) and all(_coverage_issue(fact) is None for fact in provider_all) and provider_calls is not None and tokens is not None
+        provider_facts_complete = bool(provider_all) and len(provider) == len(provider_all) and all(_coverage_issue(fact) is None for fact in provider_all)
+        provider_call_coverage_complete = provider_facts_complete and provider_calls is not None
+        token_coverage_complete = provider_facts_complete and tokens is not None
         generation_coverage_complete = not generation_all or (len(generation) == len(generation_all) and all(
             str(fact["payload"].get("status") or "").strip().lower() in {
                 "accepted", "succeeded", "success", "failed", "generation_failed", "validation_failed"
@@ -368,8 +372,9 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
             and _coverage_issue(fact) is None
             for fact in generation_all
         ))
-        if not provider_coverage_complete:
+        if not provider_call_coverage_complete:
             provider_calls = None
+        if not token_coverage_complete:
             tokens = None
         generation_invalid = any(_coverage_issue(fact) is not None for fact in generation_all)
         eligible_attempt_coverage = "unavailable" if generation_invalid or not generation_coverage_complete else "complete"
@@ -400,8 +405,8 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "manual_attempted_run_job_count": 1,
                 "review_action_coverage": "complete" if review_all and len(review) == len(review_all) else "unavailable",
                 "provider_attempt_count": len(provider),
-                "provider_call_coverage": "complete" if provider_coverage_complete else "unavailable",
-                "token_coverage": "complete" if provider_coverage_complete else "unavailable",
+                "provider_call_coverage": "complete" if provider_call_coverage_complete else "unavailable",
+                "token_coverage": "complete" if token_coverage_complete else "unavailable",
                 "generation_attempt_count": len(generation),
                 "failed_generation_attempt_count": sum(
                     str(fact["payload"].get("status") or "") in {"failed", "generation_failed", "validation_failed"}
@@ -410,11 +415,11 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "review_action_count": len(review),
                 "provider_call_count": provider_calls,
                 "token_total": tokens,
-                "coverage": "unavailable" if invalid_facts or (generation_all and not generation_coverage_complete) or (provider_all and not provider_coverage_complete) else "complete",
+                "coverage": "unavailable" if invalid_facts or (generation_all and not generation_coverage_complete) or (provider_all and not provider_facts_complete) else "complete",
                 "unavailable_reason": (
                     _coverage_issue(invalid_facts[0])
                     if invalid_facts
-                    else "accepted_artifact_count_zero" if not artifacts else "generation_attempt_incomplete" if generation_all and not generation_coverage_complete else "provider_telemetry_incomplete" if provider_all and not provider_coverage_complete else None
+                    else "accepted_artifact_count_zero" if not artifacts else "generation_attempt_incomplete" if generation_all and not generation_coverage_complete else "provider_telemetry_incomplete" if provider_all and not provider_facts_complete else None
                 ),
                 "source_observation_ids": sorted(fact["observation_id"] for fact in valid_facts),
             }
@@ -447,8 +452,8 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "cohort_type": cohort_type,
                 "attempted_job_count": len(rows),
                 "generation_job_count": sum(bool(row.get("generation_observation_count") or row.get("generation_attempt_count")) for row in rows),
-                "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in rows),
-                "eligible_attempt_coverage": "complete" if rows and all(row.get("eligible_attempt_coverage") == "complete" for row in rows) else "unavailable",
+                "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")),
+                "eligible_attempt_coverage": "complete" if generation_jobs and all(row.get("eligible_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else "unavailable",
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
                 "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else None,
