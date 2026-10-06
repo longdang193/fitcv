@@ -260,7 +260,7 @@ dependency and no unsupported P1-C completion claim.
 - [x] Step 8: Add direct fixture assertions for all eight registry metrics, including first-pass, verified-one-page, `skill_demand`, and `evidence_gap`; assert each output names its grain and coverage fields.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_fitcv_analytics.py tests/test_acceptance_state.py`
+- [x] `python -m pytest -q tests/test_fitcv_analytics.py tests/test_acceptance_state.py` — `39 passed`.
 - Expected: every Gold relation has one declared grain; failed work remains visible; current evidence is not treated as acceptance; missing denominator data never becomes zero.
 
 **Exit Criteria:**
