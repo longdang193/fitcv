@@ -161,7 +161,7 @@ def _valid_accepted_debug_event(value: dict[str, Any]) -> bool:
     artifact_identity_fields = ("artifact_id", "artifact_version_id", "version_id", "cv_version_id")
     if not any(_valid_debug_identity(value.get(field)) for field in artifact_identity_fields):
         return False
-    if any(field in value and not _valid_debug_identity(value[field]) for field in artifact_identity_fields + ("run_job_id",)):
+    if any(field in value and not _valid_debug_identity(value[field]) for field in artifact_identity_fields + ("run_id", "run_job_id")):
         return False
     aliases = [_normalized for field in artifact_identity_fields if (_normalized := value.get(field)) is not None]
     if len({item.strip() for item in aliases if isinstance(item, str)}) > 1:
@@ -177,7 +177,12 @@ def _valid_accepted_debug_event(value: dict[str, Any]) -> bool:
 
 
 def _debug_matches_version(debug: dict[str, Any], version_id: str, run_job_id: str, run_id: str) -> bool:
-    if debug.get("_debug_run_id_conflict") or debug.get("_debug_run_id") != run_id:
+    if debug.get("_debug_run_id_conflict") or debug.get("_debug_event_run_id_conflict") or debug.get("_debug_run_job_id_conflict"):
+        return False
+    if debug.get("_debug_run_id") != run_id:
+        return False
+    event_run_id = debug.get("_debug_event_run_id")
+    if event_run_id is not None and (not _valid_debug_identity(event_run_id) or event_run_id.strip() != run_id):
         return False
     for field in ("artifact_id", "artifact_version_id", "version_id", "cv_version_id"):
         value = debug.get(field)
@@ -256,6 +261,9 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                 )
             for event_index, value in enumerate(values):
                 value = dict(value)
+                if source_key == "accepted_artifact_events":
+                    value["_debug_event_run_id"] = value.get("run_id")
+                    value["_debug_event_run_job_id"] = value.get("run_job_id")
                 value["_debug_run_id"] = str(row["run_id"])
                 value["_debug_cohort_id"] = parsed.get("cohort_id") or "operational"
                 value["_debug_cohort_type"] = parsed.get("cohort_type") or "imported"
@@ -295,6 +303,16 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
                         merged["_debug_run_id_conflict"] = bool(previous.get("_debug_run_id_conflict")) or (
                             bool(previous.get("_debug_run_id"))
                             and previous.get("_debug_run_id") != sanitized.get("_debug_run_id")
+                        )
+                        merged["_debug_event_run_id_conflict"] = bool(previous.get("_debug_event_run_id_conflict")) or (
+                            bool(previous.get("_debug_event_run_id"))
+                            and bool(sanitized.get("_debug_event_run_id"))
+                            and previous.get("_debug_event_run_id") != sanitized.get("_debug_event_run_id")
+                        )
+                        merged["_debug_run_job_id_conflict"] = bool(previous.get("_debug_run_job_id_conflict")) or (
+                            bool(previous.get("_debug_event_run_job_id"))
+                            and bool(sanitized.get("_debug_event_run_job_id"))
+                            and previous.get("_debug_event_run_job_id") != sanitized.get("_debug_event_run_job_id")
                         )
                         merged["_acceptance_rejection_present"] = bool(previous.get("_acceptance_rejection_present")) or current_rejection
                         merged["_acceptance_evidence_invalid"] = bool(previous.get("_acceptance_evidence_invalid")) or current_invalid
@@ -470,7 +488,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     jobs = []
     if _table_exists(connection, "run_jobs"):
         jobs = connection.execute("SELECT * FROM run_jobs ORDER BY run_job_id").fetchall()
-    known_run_job_ids = {str(row["run_job_id"]) for row in jobs}
+    run_job_run_ids = {str(row["run_job_id"]): str(row["run_id"]) for row in jobs}
     for row in jobs:
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
@@ -534,20 +552,21 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         ordinal = int(row["ordinal"] or 0)
         status = str(row["generation_status"] or "").lower()
         artifact_debug = debug_by_artifact.get(version_id, {})
+        job_debug_all = debug_by_artifact.get(run_job_id, {})
         job_debug = (
-            debug_by_artifact.get(run_job_id, {})
+            job_debug_all
             if len(versions_by_run_job.get(run_job_id, [])) == 1
             else {}
         )
         debug = {**job_debug, **artifact_debug}
         debug["_acceptance_rejection_present"] = bool(
-            job_debug.get("_acceptance_rejection_present") or artifact_debug.get("_acceptance_rejection_present")
+            job_debug_all.get("_acceptance_rejection_present") or artifact_debug.get("_acceptance_rejection_present")
         )
         debug["_acceptance_evidence_invalid"] = bool(
-            job_debug.get("_acceptance_evidence_invalid") or artifact_debug.get("_acceptance_evidence_invalid")
+            job_debug_all.get("_acceptance_evidence_invalid") or artifact_debug.get("_acceptance_evidence_invalid")
         )
         debug["_debug_run_id_conflict"] = bool(
-            job_debug.get("_debug_run_id_conflict") or artifact_debug.get("_debug_run_id_conflict")
+            job_debug_all.get("_debug_run_id_conflict") or artifact_debug.get("_debug_run_id_conflict")
         )
         if artifact_debug.get("_accepted_event_seen"):
             consumed_debug_keys.add(version_id)
@@ -592,7 +611,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         accepted_event_observed = artifact_debug.get("_accepted_event_seen") is True
         acceptance_rejection_present = bool(debug.get("_acceptance_rejection_present"))
         acceptance_evidence_invalid = bool(debug.get("_acceptance_evidence_invalid"))
-        lineage_available = not known_run_job_ids or run_job_id in known_run_job_ids
+        lineage_available = bool(run_job_id) and run_job_run_ids.get(run_job_id) == str(row["run_id"])
         accepted_event = bool(
             (
                 artifact_debug.get("_accepted_event_seen")

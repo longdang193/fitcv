@@ -544,6 +544,101 @@ def test_export_blocks_acceptance_when_referenced_run_job_is_missing(tmp_path: P
     assert metrics["acceptance_yield"]["value"] is None
 
 
+def test_export_blocks_acceptance_when_all_run_jobs_are_missing(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("DELETE FROM run_jobs")
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_blocks_acceptance_when_run_job_belongs_to_other_run(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE run_jobs SET run_id='run-2' WHERE run_job_id='job-1'")
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_blocks_acceptance_when_event_run_id_conflicts(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"][0]["run_id"] = "run-2"
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+@pytest.mark.parametrize("event_order", [("job-1", "job-2"), ("job-2", "job-1")])
+def test_export_blocks_conflicting_acceptance_event_run_jobs(tmp_path: Path, event_order: tuple[str, str]) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"] = [
+            {"artifact_id": "cv-1", "run_job_id": run_job_id, "accepted": True}
+            for run_job_id in event_order
+        ]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
+def test_export_preserves_job_rejection_when_job_has_multiple_versions(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["debug_records"] = [{"run_job_id": "job-1", "accepted_outcome": False}]
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.execute(
+            "INSERT INTO cv_versions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("cv-3", "job-1", "run-1", 2, "generation_failed", "2026-10-06T00:06:00Z", "2026-10-06T00:07:00Z", None, None),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")
+    metrics = {item["metric_id"]: item for item in replay["gold"]["gold_semantic_metric"]}
+
+    assert bundle["sources"]["accepted_artifact"][0]["validity"] == "invalid"
+    assert metrics["acceptance_yield"]["value"] is None
+
+
 def test_export_applies_run_job_rejection_to_artifact_acceptance(tmp_path: Path) -> None:
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
