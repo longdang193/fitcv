@@ -263,6 +263,13 @@ def _coverage_issue(fact: dict[str, Any]) -> str | None:
     return None
 
 
+def _eligibility(payload: dict[str, Any]) -> bool | None:
+    if "eligible" not in payload:
+        return True
+    value = payload.get("eligible")
+    return value if isinstance(value, bool) else None
+
+
 def _group_run_jobs(silver: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for fact in silver:
@@ -358,6 +365,18 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
     result: list[dict[str, Any]] = []
     for run_job_id, facts in sorted(grouped.items()):
         artifacts = _accepted_artifacts(facts, run_job_id)
+        accepted_artifact_facts = [
+            fact for fact in facts
+            if fact.get("observation_type") in {"artifact", "accepted_artifact"}
+            and str((fact.get("payload") or {}).get("status") or "") in {"accepted", "succeeded"}
+            and (fact.get("payload") or {}).get("accepted", True) is not False
+        ]
+        accepted_artifact_coverage_complete = bool(accepted_artifact_facts) and all(
+            fact.get("validity") == "valid"
+            and _coverage_issue(fact) is None
+            and bool(_artifact_identity(fact))
+            for fact in accepted_artifact_facts
+        )
         invalid_facts = [fact for fact in facts if _coverage_issue(fact)]
         valid_facts = [fact for fact in facts if fact.get("validity") == "valid"]
         provider_all = [fact for fact in facts if fact.get("observation_type") == "provider_attempt"]
@@ -384,8 +403,16 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         if not token_coverage_complete:
             tokens = None
         generation_invalid = any(_coverage_issue(fact) is not None for fact in generation_all)
-        eligible = not any(fact["payload"].get("eligible", True) is False for fact in generation_all)
-        eligible_attempt_coverage = "unavailable" if generation_invalid or not generation_coverage_complete else "complete"
+        eligibility_values = [_eligibility(dict(fact["payload"])) for fact in generation_all]
+        eligible = (
+            None if any(value is None for value in eligibility_values)
+            else not any(value is False for value in eligibility_values)
+        )
+        eligible_attempt_coverage = (
+            "unavailable"
+            if generation_invalid or not generation_coverage_complete or any(value is None for value in eligibility_values)
+            else "complete"
+        )
         result.append(
             {
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -397,6 +424,8 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "eligible": eligible,
                 "accepted_artifact_ids": [artifact["artifact_id"] for artifact in artifacts],
                 "accepted_artifact_count": len(artifacts),
+                "accepted_artifact_observation_count": len(accepted_artifact_facts),
+                "accepted_artifact_coverage": "complete" if accepted_artifact_coverage_complete else "unavailable",
                 "first_pass_success_count": int(
                     len(generation) == 1
                     and generation_coverage_complete
@@ -445,14 +474,34 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
     for (cohort_id, cohort_type), rows in sorted(grouped.items()):
         provider_calls = _known_sum([row["provider_call_count"] for row in rows])
         tokens = _known_sum([row["token_total"] for row in rows])
-        eligible_rows = [row for row in rows if row.get("eligible", True) and (row.get("generation_observation_count") or row.get("generation_attempt_count"))]
+        generation_rows = [row for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")]
+        eligible_rows = [row for row in generation_rows if row.get("eligible") is True]
         accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in rows)
         generation_jobs = len(eligible_rows)
         first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in eligible_rows)
         render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)
         verified_one_page = sum(int(row["verified_one_page_count"] or 0) for row in rows)
-        accepted_rows = [row for row in rows if row.get("accepted_artifact_count")]
+        accepted_rows = [row for row in rows if row.get("accepted_artifact_observation_count")]
         provider_rows = [row for row in rows if row.get("provider_attempt_count")]
+        accepted_artifact_coverage = (
+            "complete"
+            if accepted_rows and all(row.get("accepted_artifact_coverage") == "complete" for row in accepted_rows)
+            else "unavailable"
+        )
+        provider_call_coverage = (
+            "complete"
+            if provider_rows and provider_calls is not None
+            and accepted_artifact_coverage == "complete"
+            and all(row.get("provider_call_coverage") == "complete" for row in provider_rows)
+            else "unavailable"
+        )
+        token_coverage = (
+            "complete"
+            if provider_rows and tokens is not None
+            and accepted_artifact_coverage == "complete"
+            and all(row.get("token_coverage") == "complete" for row in provider_rows)
+            else "unavailable"
+        )
         result.append(
             {
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -463,7 +512,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "attempted_job_count": len(rows),
                 "generation_job_count": generation_jobs,
                 "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in eligible_rows),
-                "eligible_attempt_coverage": "complete" if generation_jobs and all(row.get("eligible_attempt_coverage") == "complete" for row in eligible_rows) else "unavailable",
+                "eligible_attempt_coverage": "complete" if generation_rows and len(eligible_rows) + sum(row.get("eligible") is False for row in generation_rows) == len(generation_rows) and all(row.get("eligible_attempt_coverage") == "complete" for row in generation_rows) else "unavailable",
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
                 "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in eligible_rows) else None,
@@ -472,8 +521,10 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "render_proof_count": render_proofs,
                 "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
                 "render_proof_coverage": "complete" if render_proofs and accepted_rows and all(row.get("render_proof_coverage") == "complete" for row in accepted_rows) else "unavailable",
-                "provider_call_coverage": "complete" if provider_rows and provider_calls is not None and all(row.get("provider_call_coverage") == "complete" for row in provider_rows) else "unavailable",
-                "token_coverage": "complete" if provider_rows and tokens is not None and all(row.get("token_coverage") == "complete" for row in provider_rows) else "unavailable",
+                "accepted_artifact_observation_count": sum(int(row.get("accepted_artifact_observation_count") or 0) for row in rows),
+                "accepted_artifact_coverage": accepted_artifact_coverage,
+                "provider_call_coverage": provider_call_coverage,
+                "token_coverage": token_coverage,
                 "provider_call_count": provider_calls,
                 "token_total": tokens,
                 "per_accepted_artifact": (
@@ -481,7 +532,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                         "provider_call_count": provider_calls / accepted_artifacts,
                         "token_total": tokens / accepted_artifacts,
                     }
-                    if accepted_artifacts and all(row.get("coverage") == "complete" for row in rows) and provider_calls is not None and tokens is not None
+                    if accepted_artifacts and accepted_artifact_coverage == "complete" and provider_call_coverage == "complete" and token_coverage == "complete"
                     else None
                 ),
                 "coverage": "unavailable" if any(row.get("coverage") == "unavailable" for row in rows) else "complete",
@@ -530,11 +581,14 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
             continue
+        if _eligibility(payload) is None:
+            coverage_issues.setdefault(cohort, "eligibility_incomplete")
+            continue
         if observation_type in POSTING_INVENTORY_OBSERVATION_TYPES:
-            if posting_id and payload.get("eligible", True) is not False:
+            if posting_id and _eligibility(payload) is True:
                 inventory_by_cohort[cohort].add(posting_id)
             continue
-        if not posting_id or not requirement or payload.get("eligible", True) is False:
+        if not posting_id or not requirement or _eligibility(payload) is not True:
             continue
         if cohort not in inventory_cohorts:
             postings_by_cohort[cohort].add(posting_id)
@@ -584,7 +638,10 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(partition, issue)
             continue
-        if not posting_id or not requirement or payload.get("eligible", True) is False:
+        if _eligibility(payload) is None:
+            coverage_issues.setdefault(partition, "eligibility_incomplete")
+            continue
+        if not posting_id or not requirement or _eligibility(payload) is not True:
             continue
         pair = (posting_id, requirement)
         if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:

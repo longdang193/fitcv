@@ -290,6 +290,10 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
                 usage_seen = True
                 if candidate.get("_provider_call_count_present"):
                     return None
+                if "provider_call_count" not in candidate and any(
+                    _contains_marker(item, "_provider_call_count_present") for item in candidates
+                ):
+                    return None
                 provider_calls = candidate.get("provider_call_count", inherited_provider_calls)
                 return usage_total(usage, provider_calls)
         if usage_seen:
@@ -358,16 +362,17 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "candidate_profile_revision": row["candidate_profile_revision"],
                 "candidate_profile_fingerprint": profile_fingerprint,
             }
-            _append(sources, "candidate_profile_revision", {
-                "source_id": f"{row['run_id']}:candidate-profile",
-                "candidate_profile_id": row["candidate_profile_id"],
-                "candidate_profile_revision": row["candidate_profile_revision"],
-                "candidate_profile_revision_id": row["candidate_profile_revision_id"],
-                "candidate_profile_fingerprint": profile_fingerprint,
-                "profile_schema_version": row["candidate_profile_schema_version"],
-                "run_id": row["run_id"],
-                "observed_at": row["created_at"],
-            })
+            if str(row["candidate_profile_id"] or "").strip():
+                _append(sources, "candidate_profile_revision", {
+                    "source_id": f"{row['run_id']}:candidate-profile",
+                    "candidate_profile_id": row["candidate_profile_id"],
+                    "candidate_profile_revision": row["candidate_profile_revision"],
+                    "candidate_profile_revision_id": row["candidate_profile_revision_id"],
+                    "candidate_profile_fingerprint": profile_fingerprint,
+                    "profile_schema_version": row["candidate_profile_schema_version"],
+                    "run_id": row["run_id"],
+                    "observed_at": row["created_at"],
+                })
 
     jobs = []
     if _table_exists(connection, "run_jobs"):

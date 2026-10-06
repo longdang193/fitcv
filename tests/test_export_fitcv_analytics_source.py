@@ -440,6 +440,23 @@ def test_export_uses_outer_provider_count_for_nested_usage(tmp_path: Path) -> No
     assert provider.get("token_total") is None
 
 
+def test_export_allows_unmanaged_run_without_candidate_profile_identity(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE run_inputs SET candidate_profile_id=NULL, candidate_profile_revision_id=NULL, candidate_profile_revision=NULL, candidate_profile_checksum=NULL, candidate_profile_json=NULL"
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+
+    assert "candidate_profile_revision" not in bundle["sources"]
+    requirement = bundle["sources"]["posting_requirement"][0]
+    assert "candidate_profile_id" not in requirement
+    assert "candidate_profile_revision" not in requirement
+
+
 def test_export_redacts_nested_url_query_values(tmp_path: Path) -> None:
     database = tmp_path / "fitcv.sqlite3"
     _seed_database(database)
