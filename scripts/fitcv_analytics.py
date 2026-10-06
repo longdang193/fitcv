@@ -340,7 +340,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         review = [fact for fact in valid_facts if fact.get("observation_type") == "review_action"]
         provider_calls = _known_sum([fact["payload"].get("provider_call_count") for fact in provider_all])
         tokens = _known_sum([fact["payload"].get("token_total") for fact in provider_all])
-        provider_coverage_complete = bool(provider_all) and len(provider) == len(provider_all) and provider_calls is not None and tokens is not None
+        provider_coverage_complete = bool(provider_all) and len(provider) == len(provider_all) and all(_coverage_issue(fact) is None for fact in provider_all) and provider_calls is not None and tokens is not None
         generation_coverage_complete = not generation_all or (len(generation) == len(generation_all) and all(
             str(fact["payload"].get("status") or "").strip().lower() in {
                 "accepted", "succeeded", "success", "failed", "generation_failed", "validation_failed"
@@ -432,7 +432,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                         "provider_call_count": provider_calls / accepted_artifacts,
                         "token_total": tokens / accepted_artifacts,
                     }
-                    if accepted_artifacts and provider_calls is not None and tokens is not None
+                    if accepted_artifacts and all(row.get("coverage") == "complete" for row in rows) and provider_calls is not None and tokens is not None
                     else None
                 ),
                 "coverage": "unavailable" if any(row.get("coverage") == "unavailable" for row in rows) else "complete",

@@ -150,6 +150,23 @@ def test_baseline_rejects_malformed_attempt_history_for_first_pass() -> None:
     assert report["gold_cohort_effort"]["generation_attempt_coverage"] == "unavailable"
 
 
+def test_baseline_rejects_reversed_attempt_sequence_for_first_pass() -> None:
+    trace = {
+        "trace_id": "trace-reversed-attempts",
+        "run_job_id": "job-reversed-attempts",
+        "attempts": [
+            {"attempt_index": 2, "provider_status": "accepted"},
+            {"attempt_index": 1, "provider_status": "failed"},
+        ],
+        "output_summary": {"final_status": "accepted"},
+    }
+
+    report = build_baseline([_run("run-reversed-attempts", {"cv_generation_trace": {"records": [trace]}})])
+
+    assert report["gold_cohort_effort"]["first_pass_success_rate"] is None
+    assert report["gold_cohort_effort"]["generation_attempt_coverage"] == "unavailable"
+
+
 def test_baseline_fallback_acceptance_matches_gold_first_pass_projection() -> None:
     trace = {
         "trace_id": "trace-fallback-status",

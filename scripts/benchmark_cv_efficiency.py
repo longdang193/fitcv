@@ -154,7 +154,7 @@ def _validated_attempts(trace: dict[str, Any]) -> tuple[list[dict[str, Any]], bo
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 return attempts, False
             indexes.append(value)
-        if sorted(indexes) != list(range(1, len(attempts) + 1)):
+        if indexes != list(range(1, len(attempts) + 1)):
             return attempts, False
     return attempts, True
 

@@ -240,6 +240,29 @@ def test_invalid_provider_fact_keeps_cost_ratio_unavailable() -> None:
     assert row["per_accepted_artifact"] is None
 
 
+def test_incomplete_provider_and_artifact_coverage_keeps_cost_ratio_unavailable() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "provider_attempt": [{"source_id": "provider", "run_job_id": "job", "provider_call_count": 2, "token_total": 10, "coverage": "incomplete", "cohort_id": "c", "cohort_type": "fixture"}],
+                "accepted_artifact": [
+                    {"source_id": "valid-artifact", "run_job_id": "job", "artifact_id": "cv", "status": "accepted", "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "invalid-artifact", "run_job_id": "job", "artifact_id": "cv-invalid", "status": "accepted", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    row = result["gold"]["gold_cohort_effort"][0]
+    assert row["coverage"] == "unavailable"
+    assert row["per_accepted_artifact"] is None
+
+
 def test_malformed_render_proof_stays_unavailable() -> None:
     for render_acceptance in (True, "bad", ["bad"], {"render_status": "pass", "page_count": True, "page_fit_status": "pass"}):
         result = rebuild_analytics_bundle(
