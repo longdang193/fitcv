@@ -350,6 +350,20 @@ def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> lis
     return [artifacts[key] for key in sorted(artifacts)]
 
 
+def _accepted_artifact_facts(facts: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    result = []
+    for fact in facts:
+        observation_type = fact.get("observation_type")
+        payload = dict(fact.get("payload") or {})
+        status = str(payload.get("status") or "").strip().lower()
+        if observation_type == "accepted_artifact" or (
+            observation_type == "artifact"
+            and (status in {"accepted", "succeeded"} or payload.get("accepted") is True)
+        ):
+            result.append(fact)
+    return result
+
+
 def build_gold_cv_artifact(silver: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build one row per accepted artifact identity."""
     result: list[dict[str, Any]] = []
@@ -365,16 +379,13 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
     result: list[dict[str, Any]] = []
     for run_job_id, facts in sorted(grouped.items()):
         artifacts = _accepted_artifacts(facts, run_job_id)
-        accepted_artifact_facts = [
-            fact for fact in facts
-            if fact.get("observation_type") in {"artifact", "accepted_artifact"}
-            and str((fact.get("payload") or {}).get("status") or "") in {"accepted", "succeeded"}
-            and (fact.get("payload") or {}).get("accepted", True) is not False
-        ]
+        accepted_artifact_facts = _accepted_artifact_facts(facts)
         accepted_artifact_coverage_complete = bool(accepted_artifact_facts) and all(
             fact.get("validity") == "valid"
             and _coverage_issue(fact) is None
             and bool(_artifact_identity(fact))
+            and str((fact.get("payload") or {}).get("status") or "").strip().lower() in {"accepted", "succeeded"}
+            and (fact.get("payload") or {}).get("accepted", True) is not False
             for fact in accepted_artifact_facts
         )
         invalid_facts = [fact for fact in facts if _coverage_issue(fact)]
@@ -488,6 +499,29 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             if accepted_rows and all(row.get("accepted_artifact_coverage") == "complete" for row in accepted_rows)
             else "unavailable"
         )
+        acceptance_evidence_coverage = (
+            "unavailable"
+            if any(
+                row.get("accepted_artifact_observation_count")
+                and row.get("accepted_artifact_coverage") != "complete"
+                for row in rows
+            )
+            else "complete"
+        )
+        eligibility_coverage_complete = (
+            bool(generation_rows)
+            and all(
+                row.get("eligible") in {True, False}
+                and row.get("eligible_attempt_coverage") == "complete"
+                for row in generation_rows
+            )
+        )
+        generation_coverage_complete = (
+            bool(generation_rows)
+            and eligibility_coverage_complete
+            and acceptance_evidence_coverage == "complete"
+            and all(row.get("generation_attempt_coverage") == "complete" for row in eligible_rows)
+        )
         provider_call_coverage = (
             "complete"
             if provider_rows and provider_calls is not None
@@ -512,11 +546,11 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "attempted_job_count": len(rows),
                 "generation_job_count": generation_jobs,
                 "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in eligible_rows),
-                "eligible_attempt_coverage": "complete" if generation_rows and len(eligible_rows) + sum(row.get("eligible") is False for row in generation_rows) == len(generation_rows) and all(row.get("eligible_attempt_coverage") == "complete" for row in generation_rows) else "unavailable",
+                "eligible_attempt_coverage": "complete" if eligibility_coverage_complete and acceptance_evidence_coverage == "complete" else "unavailable",
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
-                "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in eligible_rows) else None,
-                "generation_attempt_coverage": "complete" if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in eligible_rows) else "unavailable",
+                "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and generation_coverage_complete else None,
+                "generation_attempt_coverage": "complete" if generation_coverage_complete else "unavailable",
                 "verified_one_page_count": verified_one_page,
                 "render_proof_count": render_proofs,
                 "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
