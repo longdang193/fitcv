@@ -146,6 +146,7 @@ def test_semantic_metric_uses_metric_coverage_and_run_job_denominators() -> None
             "cohort_type": "fixture",
             "successful_run_job_count": 1,
             "attempted_job_count": 1,
+            "generation_job_count": 1,
             "verified_one_page_count": 1,
             "render_proof_count": 1,
             "coverage": "complete",
@@ -476,6 +477,7 @@ def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> Non
         "numerator_posting_count": 0,
         "denominator_posting_count": 0,
         "coverage": "unavailable",
+        "posting_inventory_coverage": "unavailable",
         "unavailable_reason": "invalid_source_fact",
     }]
 

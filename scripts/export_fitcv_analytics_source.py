@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
@@ -36,6 +38,7 @@ _REQUIRED_ID_FIELDS = {
     "artifact": "artifact_id",
     "render_proof": "render_proof_id",
 }
+_SECRET_QUERY_PARTS = {"access_token", "api_key", "apikey", "authorization", "password", "secret", "signature", "sig", "token"}
 
 
 def _digest_bytes(path: Path) -> str:
@@ -57,6 +60,27 @@ def _json(value: Any) -> Any:
     return value
 
 
+def _sanitize_string(value: str) -> str:
+    if "://" not in value:
+        return value
+    try:
+        parts = urlsplit(value)
+        if not parts.scheme or not parts.netloc:
+            return value
+        hostname = parts.hostname or ""
+        host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+        if parts.port is not None:
+            host = f"{host}:{parts.port}"
+        query = urlencode([
+            (key, item)
+            for key, item in parse_qsl(parts.query, keep_blank_values=True)
+            if key.lower() not in _SECRET_QUERY_PARTS
+        ])
+        return urlunsplit((parts.scheme, host, parts.path, query, parts.fragment))
+    except ValueError:
+        return value
+
+
 def _sanitize(value: Any, *, key: str = "") -> Any:
     lowered = key.lower()
     if any(part in lowered for part in _SECRET_PARTS):
@@ -71,6 +95,8 @@ def _sanitize(value: Any, *, key: str = "") -> Any:
         return [_sanitize(item, key=key) for item in value]
     if isinstance(value, (bytes, bytearray, memoryview)):
         return None
+    if isinstance(value, str):
+        return _sanitize_string(value)
     return value
 
 
@@ -90,26 +116,80 @@ def _table_exists(connection: Any, table: str) -> bool:
     ).fetchone() is not None
 
 
+def _flatten_debug_values(value: Any) -> Iterable[dict[str, Any]]:
+    if isinstance(value, list):
+        for item in value:
+            yield from _flatten_debug_values(item)
+        return
+    if not isinstance(value, dict):
+        return
+    if any(str(key) in value for key in ("artifact_id", "artifact_version_id", "version_id", "cv_version_id", "run_job_id")):
+        yield value
+    for key in (
+        "records", "debug_records", "cv_generation_debug_records", "accepted_artifact_events",
+        "accepted_cv_effort", "cv_generation_trace",
+    ):
+        if key in value:
+            yield from _flatten_debug_values(value[key])
+
+
 def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = {}
     for row in run_rows:
         parsed = _run_debug_payload(row)
-        values: list[Any] = []
-        for key in ("debug_records", "cv_generation_debug_records", "accepted_artifact_events", "accepted_cv_effort"):
-            candidate = parsed.get(key) or []
-            values.extend(list(candidate.values()) if isinstance(candidate, dict) else candidate)
-        for value in values:
-            if not isinstance(value, dict):
-                continue
-            sanitized = _sanitize(value) or {}
-            for identifier in (
-                value.get("artifact_id"), value.get("artifact_version_id"),
-                value.get("version_id"), value.get("run_job_id"),
-            ):
-                if str(identifier or "").strip():
-                    key = str(identifier)
-                    records[key] = {**records.get(key, {}), **sanitized}
+        for source_key in ("debug_records", "cv_generation_debug_records", "accepted_artifact_events", "accepted_cv_effort", "cv_generation_trace"):
+            for value in _flatten_debug_values(parsed.get(source_key) or []):
+                value = dict(value)
+                if source_key == "accepted_artifact_events":
+                    value["_accepted_event"] = True
+                trace = value.get("cv_generation_trace")
+                if isinstance(trace, dict):
+                    summary = trace.get("efficiency_summary") or {}
+                    if isinstance(summary, dict):
+                        value = {**value, **summary}
+                sanitized = _sanitize(value) or {}
+                for identifier in (
+                    value.get("artifact_id"), value.get("artifact_version_id"),
+                    value.get("version_id"), value.get("cv_version_id"), value.get("run_job_id"),
+                ):
+                    if str(identifier or "").strip():
+                        key = str(identifier)
+                        records[key] = {**records.get(key, {}), **sanitized}
     return records
+
+
+def _debug_number(debug: dict[str, Any], field: str) -> Any:
+    candidates = [debug, debug.get("efficiency"), debug.get("efficiency_summary")]
+    trace = debug.get("cv_generation_trace")
+    if isinstance(trace, dict):
+        candidates.append(trace.get("efficiency_summary"))
+    for candidate in candidates:
+        if isinstance(candidate, dict) and candidate.get(field) is not None:
+            return candidate[field]
+    if field == "token_total":
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            usage = candidate.get("token_usage") or candidate.get("usage")
+            if isinstance(usage, dict):
+                for key in ("total_tokens", "token_total"):
+                    if usage.get(key) is not None:
+                        return usage[key]
+                parts = [usage.get(key) for key in ("prompt_tokens", "completion_tokens", "input_tokens", "output_tokens")]
+                numeric = [int(value) for value in parts if isinstance(value, (int, float)) and not isinstance(value, bool)]
+                if numeric:
+                    return sum(numeric)
+    return None
+
+
+def _debug_attempt_count(debug: dict[str, Any], fallback: int) -> int:
+    value = _debug_number(debug, "attempt_count")
+    if value is None and isinstance(debug.get("attempts"), list):
+        value = len(debug["attempts"])
+    try:
+        return max(1, int(value)) if value is not None else max(1, fallback)
+    except (TypeError, ValueError):
+        return max(1, fallback)
 
 
 def _append(sources: dict[str, list[dict[str, Any]]], kind: str, row: dict[str, Any]) -> None:
@@ -216,23 +296,32 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             "cohort_type": run_payload.get("cohort_type") or "imported",
             "observed_at": row["created_at"],
         }
-        normalized_status = "succeeded" if status in {"generated", "review_required"} else status
+        normalized_status = "succeeded" if status == "generated" else status
+        attempt_count = _debug_attempt_count(debug, ordinal or 1)
+        provider_call_count = _debug_number(debug, "provider_call_count")
+        token_total = _debug_number(debug, "token_total")
+        accepted_event = bool(
+            debug.get("_accepted_event")
+            or debug.get("accepted_outcome") is True
+            or str(debug.get("final_status") or "").lower() == "accepted"
+        )
         _append(sources, "generation_attempt", {
             **common,
             "source_id": version_id,
             "generation_attempt_id": version_id,
-            "attempt_count": ordinal or 1,
+            "attempt_count": attempt_count,
+            "version_ordinal": ordinal or 1,
             "status": normalized_status,
         })
         _append(sources, "provider_attempt", {
             **common,
             "source_id": f"{version_id}:provider",
             "provider_attempt_id": f"{version_id}:provider",
-            "provider_call_count": debug.get("provider_call_count") or (debug.get("efficiency") or {}).get("provider_call_count"),
-            "token_total": debug.get("token_total") or (debug.get("efficiency") or {}).get("token_total"),
+            "provider_call_count": provider_call_count,
+            "token_total": token_total,
             "status": normalized_status,
         })
-        if status in {"generated", "review_required"} and row["content_checksum"] and row["content_length"] is not None:
+        if status == "generated" and accepted_event and row["content_checksum"] and row["content_length"] is not None:
             artifact = {
                 **common,
                 "source_id": version_id,
@@ -241,8 +330,9 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "status": "accepted",
                 "accepted_at": row["finished_at"] or row["created_at"],
                 "durable": True,
-                "generation_attempt": ordinal or 1,
-                "regeneration": ordinal > 1,
+                "generation_attempt": attempt_count,
+                "version_ordinal": ordinal or 1,
+                "regeneration": attempt_count > 1,
                 "content_checksum": row["content_checksum"],
                 "content_length": row["content_length"],
                 "render_acceptance": debug.get("render_acceptance"),
@@ -328,7 +418,11 @@ def export_to_path(
 ) -> dict[str, Any]:
     database = database.resolve()
     output = output.resolve()
-    if output in {database, Path(f"{database}-wal"), Path(f"{database}-shm")}:
+    source_files = [database, Path(f"{database}-wal"), Path(f"{database}-shm")]
+    if output in source_files or any(
+        output.exists() and source.exists() and os.path.samefile(output, source)
+        for source in source_files
+    ):
         raise ValueError("analytics_source_output_aliases_database")
     bundle = export_bundle(
         database,

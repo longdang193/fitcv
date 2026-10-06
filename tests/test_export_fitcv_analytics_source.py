@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -48,7 +49,7 @@ def _seed_database(path: Path) -> None:
             INSERT INTO run_jobs VALUES (
                 'job-1','run-1','posting-hash',
                 '{"extraction_status":"valid","requirements":["python"]}',
-                'https://example.test/job-1','Example job','Example Co'
+                'https://user:password@example.test/job-1?access_token=sk-private','Example job','Example Co'
             );
             INSERT INTO run_jobs VALUES (
                 'job-2','run-1','posting-hash-2',
@@ -76,8 +77,12 @@ def _seed_database(path: Path) -> None:
                 "cv_generation_debug_json": json.dumps({
                     "accepted_artifact_events": [{
                         "artifact_id": "cv-1",
-                        "provider_call_count": 2,
-                        "token_total": 10,
+                        "cv_generation_trace": {
+                            "efficiency_summary": {
+                                "provider_call_count": 2,
+                                "token_usage": {"total_tokens": 10},
+                            }
+                        },
                         "render_acceptance": {
                             "render_status": "pass",
                             "page_count": 1,
@@ -116,6 +121,8 @@ def test_export_is_replayable_sanitized_and_non_mutating(tmp_path: Path) -> None
     encoded = json.dumps(bundle, sort_keys=True)
     assert "sk-live" not in encoded
     assert "secret" not in encoded
+    assert "user:password" not in encoded
+    assert "access_token" not in encoded
     assert "credential=do-not-export" not in encoded
     assert bundle["sources"]["accepted_artifact"][0]["artifact_id"] == "cv-1"
     assert bundle["sources"]["posting_inventory"][1]["extraction_status"] == "valid-empty"
@@ -126,6 +133,10 @@ def test_export_is_replayable_sanitized_and_non_mutating(tmp_path: Path) -> None
     )
     with pytest.raises(ValueError, match="output_aliases_database"):
         export_to_path(database, database, source_commit="head")
+    hardlink = tmp_path / "hardlink.json"
+    os.link(database, hardlink)
+    with pytest.raises(ValueError, match="output_aliases_database"):
+        export_to_path(database, hardlink, source_commit="head")
 
     replay = rebuild_analytics_bundle(
         bundle,
@@ -173,6 +184,20 @@ def test_export_rejects_missing_path_and_hash_mismatch(tmp_path: Path) -> None:
     _seed_database(database)
     with pytest.raises(ValueError, match="source_hash_mismatch"):
         export_bundle(database, source_commit="head", expected_database_sha256="bad")
+
+
+def test_export_preserves_native_attempt_count(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"][0]["attempt_count"] = 2
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    assert bundle["sources"]["generation_attempt"][0]["attempt_count"] == 2
 
 
 def test_export_fails_closed_for_live_wal_without_touching_sidecars(tmp_path: Path) -> None:

@@ -36,7 +36,7 @@ metrics:
     owner: analytics
     description: Accepted CV yield across eligible attempted jobs.
     numerator_field: successful_run_job_count
-    denominator_field: attempted_job_count
+    denominator_field: generation_job_count
     dimension_fields: [cohort_id]
   - metric_id: provider_calls_per_accepted_cv
     version: 1

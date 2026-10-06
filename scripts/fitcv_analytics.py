@@ -371,6 +371,8 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
         if not provider_coverage_complete:
             provider_calls = None
             tokens = None
+        generation_invalid = any(_coverage_issue(fact) is not None for fact in generation_all)
+        eligible_attempt_coverage = "unavailable" if generation_invalid or not generation_coverage_complete else "complete"
         result.append(
             {
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -389,6 +391,7 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                     and bool(artifacts)
                 ),
                 "generation_attempt_coverage": "complete" if generation_coverage_complete else "unavailable",
+                "eligible_attempt_coverage": eligible_attempt_coverage,
                 "generation_observation_count": len(generation_all),
                 "verified_one_page_count": sum(bool(artifact.get("verified_one_page")) for artifact in artifacts),
                 "render_proof_count": sum(bool(artifact.get("render_proof")) for artifact in artifacts),
@@ -397,6 +400,8 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                 "manual_attempted_run_job_count": 1,
                 "review_action_coverage": "complete" if review_all and len(review) == len(review_all) else "unavailable",
                 "provider_attempt_count": len(provider),
+                "provider_call_coverage": "complete" if provider_coverage_complete else "unavailable",
+                "token_coverage": "complete" if provider_coverage_complete else "unavailable",
                 "generation_attempt_count": len(generation),
                 "failed_generation_attempt_count": sum(
                     str(fact["payload"].get("status") or "") in {"failed", "generation_failed", "validation_failed"}
@@ -439,7 +444,9 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "cohort_id": cohort_id,
                 "cohort_type": cohort_type,
                 "attempted_job_count": len(rows),
+                "generation_job_count": sum(bool(row.get("generation_observation_count") or row.get("generation_attempt_count")) for row in rows),
                 "successful_run_job_count": sum(bool(row.get("accepted_artifact_count")) for row in rows),
+                "eligible_attempt_coverage": "complete" if rows and all(row.get("eligible_attempt_coverage") == "complete" for row in rows) else "unavailable",
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
                 "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_observation_count") or row.get("generation_attempt_count")) else None,
@@ -526,6 +533,7 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             "numerator_posting_count": len(posting_ids),
             "denominator_posting_count": len(postings_by_cohort[(cohort_id, cohort_type)]),
             "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
+            "posting_inventory_coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
             "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
         }
         for (cohort_id, cohort_type, requirement) in sorted(dimension_keys | set(requirement_postings))
@@ -585,6 +593,7 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             "numerator_requirement_count": len(pairs),
             "denominator_requirement_count": len(denominator[(cohort_id, cohort_type)]),
             "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
+            "candidate_requirement_coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
             "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
         }
         for (cohort_id, cohort_type, requirement, category, profile_id, profile_revision, profile_fingerprint) in sorted(gap_keys | set(gaps))

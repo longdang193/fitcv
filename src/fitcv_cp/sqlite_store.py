@@ -32,6 +32,7 @@ from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from collections.abc import Iterator
 from typing import Any, Callable, Optional
+from urllib.parse import quote
 
 from fitcv.decision_feedback import (
     DecisionAlternative,
@@ -5258,7 +5259,7 @@ def open_readonly_snapshot(database_path: Path) -> Iterator[sqlite3.Connection]:
     }
     if path not in before:
         raise FileNotFoundError(path)
-    uri = f"file:{path.as_posix()}?mode=ro&immutable=1"
+    uri = f"file:{quote(path.as_posix(), safe='/:')}?mode=ro&immutable=1"
     conn = sqlite3.connect(uri, timeout=30, uri=True)
     try:
         conn.execute("PRAGMA query_only=ON")
