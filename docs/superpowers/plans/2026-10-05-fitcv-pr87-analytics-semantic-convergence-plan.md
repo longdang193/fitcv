@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: active
+status: completed
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-pr87-analytics-semantic-convergence
@@ -128,7 +128,13 @@ dependency and no unsupported P1-C completion claim.
 - [x] Verify unavailable-evidence material digest content, not only sidecar bytes and registry equality.
 - [x] Add regressions for valid and invalid render proof, retry identity, job-denominated first-pass rates, malformed attempt counts, malformed telemetry, mixed validity, fallback status, and forged material hashes.
 - [x] Rebuild projection fingerprint and material evidence digests after code/test changes; update registry and R6-unavailable evidence hashes.
-- [x] Rerun focused/full verification, acceptance verifier, deterministic rebuild, SQL smoke, and diff-scope proof — `3249 passed, 8 skipped`; verifier passed; deterministic digest `548a853b9a1000c521e723e682685206ce6ed345d8fb9b7de6677d039837d48b`; six SQL views; `git diff --check` passed.
+- [x] Rerun focused/full verification, acceptance verifier, deterministic rebuild, SQL smoke, and diff-scope proof — `3251 passed, 8 skipped`; verifier passed; deterministic digest `0393a759b9391077194de53e09b734cd47d6fc331e32b56df247e039712e8edb`; six SQL views; `git diff --check` passed.
+
+## Final Independent Review Corrections
+
+- [x] Reject reversed explicit attempt indexes instead of trusting list order.
+- [x] Keep cohort cost-per-artifact ratios null when any provider or accepted-artifact coverage is unavailable.
+- [x] Rerun focused/full proof after final corrections; no review findings remain unresolved.
 
 ## Evidence Recovery Contract
 
@@ -144,7 +150,7 @@ dependency and no unsupported P1-C completion claim.
 | Task 2 | `completed` | current | `none (lead controller)` | Task 1 | Silver reconciliation, all eight Gold metric builders, and state-mapping tests | `74 passed`; requirement/gap Gold rows and acceptance mapping verified |
 | Task 3 | `completed` | current | `none (lead controller)` | Task 2 | executable rebuild, SQL replacement, and projection-freshness tests | deterministic rebuild equal digest; six SQL Gold views smoke-tested |
 | Task 4 | `completed` | current | `none (lead controller)` | Task 2, Task 3 | benchmark/report/evidence convergence tests | R5 demoted to historical by explicit user instruction; R6-unavailable artifacts and fail-closed verifier pass |
-| Task 5 | `active` | current | `none (lead controller)` | Task 1–4 | final analytics, acceptance, and drift proof | current review corrections pending fresh proof |
+| Task 5 | `completed` | current | `none (lead controller)` | Task 1–4 | final analytics, acceptance, and drift proof | `3251 passed, 8 skipped`; verifier passed; deterministic digest `0393a759b9391077194de53e09b734cd47d6fc331e32b56df247e039712e8edb`; six SQL views |
 
 ## Task Breakdown
 
