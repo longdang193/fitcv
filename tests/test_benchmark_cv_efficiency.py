@@ -83,6 +83,61 @@ def test_baseline_supports_input_output_token_telemetry() -> None:
     assert report["gold_cohort_effort"]["token_total"] == 10
 
 
+def test_baseline_propagates_valid_render_proof_to_gold_metrics() -> None:
+    trace = {
+        "trace_id": "trace-render-proof",
+        "run_job_id": "job-render-proof",
+        "job_url": "job-render-proof",
+        "attempts": [{"provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-render-proof",
+        job_url="job-render-proof",
+        run_id="run-render-proof",
+        trace_id="trace-render-proof",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+
+    report = build_baseline([_run(
+        "run-render-proof",
+        {"cv_generation_trace": {"records": [trace]}, "accepted_artifact_events": [artifact]},
+    )])
+
+    assert report["gold_cohort_effort"]["verified_one_page_count"] == 1
+    assert report["gold_cohort_effort"]["verified_one_page_rate"] == 1.0
+
+
+def test_baseline_keeps_missing_render_proof_unavailable() -> None:
+    trace = {
+        "trace_id": "trace-no-render-proof",
+        "run_job_id": "job-no-render-proof",
+        "job_url": "job-no-render-proof",
+        "attempts": [{"provider_status": "accepted"}],
+        "output_summary": {"final_status": "accepted"},
+    }
+    artifact = accepted_cv_artifact_event_v1(
+        artifact_id="cv-no-render-proof",
+        job_url="job-no-render-proof",
+        run_id="run-no-render-proof",
+        trace_id="trace-no-render-proof",
+        acceptance_mode="automatic",
+        accepted_at="2026-10-02T00:01:00Z",
+        finalized_at="2026-10-02T00:01:00Z",
+    )
+    artifact["render_acceptance"] = {"render_status": "failed"}
+
+    report = build_baseline([_run(
+        "run-no-render-proof",
+        {"cv_generation_trace": {"records": [trace]}, "accepted_artifact_events": [artifact]},
+    )])
+
+    assert report["gold_cohort_effort"]["verified_one_page_count"] == 0
+    assert report["gold_cohort_effort"]["verified_one_page_rate"] is None
+
+
 def test_baseline_marks_malformed_or_negative_token_telemetry_unavailable() -> None:
     trace = {"trace_id": "trace-bad-tokens", "run_job_id": "job-bad-tokens", "job_url": "job-bad-tokens", "attempts": [{"provider_status": "accepted"}], "efficiency_summary": {"provider_call_count": 1, "token_usage": [{"input_tokens": "not_recorded", "output_tokens": 6}, {"input_tokens": -1, "output_tokens": 2}]}}
     artifact = accepted_cv_artifact_event_v1(artifact_id="cv-bad-tokens", job_url="job-bad-tokens", run_id="run-bad-tokens", trace_id="trace-bad-tokens", acceptance_mode="automatic", accepted_at="2026-10-02T00:01:00Z", finalized_at="2026-10-02T00:01:00Z")

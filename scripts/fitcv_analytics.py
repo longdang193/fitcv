@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import re
 import sqlite3
 import argparse
 from collections import defaultdict
@@ -196,7 +198,29 @@ def build_silver_facts(bronze: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
 def _known_sum(values: list[Any]) -> float | int | None:
     if not values or any(value is None for value in values):
         return None
-    return sum(values)
+    parsed: list[float] = []
+    for value in values:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        if numeric < 0 or not math.isfinite(numeric):
+            return None
+        parsed.append(numeric)
+    total = sum(parsed)
+    return int(total) if total.is_integer() else total
+
+
+def _attempt_count(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric) or numeric < 1 or not numeric.is_integer():
+        return None
+    return int(numeric)
 
 
 def _coverage_issue(fact: dict[str, Any]) -> str | None:
@@ -267,7 +291,16 @@ def _accepted_artifacts(facts: Iterable[dict[str, Any]], run_job_id: str) -> lis
         render = dict(payload.get("render_acceptance") or {})
         page_fit_status = str(payload.get("page_fit_status") or render.get("page_fit_status") or "").strip().lower()
         page_count = render.get("page_count")
-        render_proof = bool(render) and page_count is not None and bool(page_fit_status)
+        render_proof = (
+            str(render.get("render_status") or "").strip().lower() == "pass"
+            and page_count == 1
+            and page_fit_status == "pass"
+            and all(
+                bool(re.fullmatch(r"[0-9a-f]{64}", str(render.get(field) or "")))
+                for field in ("artifact_checksum", "content_sha256", "template_sha256", "render_config_fingerprint")
+            )
+            and bool(str(render.get("renderer_contract_version") or "").strip())
+        )
         row["render_proof"] = row["render_proof"] or render_proof
         row["verified_one_page"] = row["verified_one_page"] or (
             render_proof and page_count == 1 and page_fit_status == "pass"
@@ -314,11 +347,15 @@ def build_gold_run_job_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str
                     1,
                     sum(
                         str(fact["payload"].get("status") or "").lower() in {"accepted", "succeeded", "success"}
-                        and int(fact["payload"].get("attempt_index") or 1) == 1
+                        and _attempt_count(fact["payload"].get("attempt_count")) == 1
                         for fact in generation
                     ),
                 ),
-                "generation_attempt_coverage": "complete" if generation and all(str(fact["payload"].get("status") or "").strip() for fact in generation) else "unavailable",
+                "generation_attempt_coverage": "complete" if generation and all(
+                    str(fact["payload"].get("status") or "").strip()
+                    and _attempt_count(fact["payload"].get("attempt_count")) is not None
+                    for fact in generation
+                ) else "unavailable",
                 "verified_one_page_count": sum(bool(artifact.get("verified_one_page")) for artifact in artifacts),
                 "render_proof_count": sum(bool(artifact.get("render_proof")) for artifact in artifacts),
                 "render_proof_coverage": "complete" if artifacts and all(bool(artifact.get("render_proof")) for artifact in artifacts) else "unavailable",
@@ -355,6 +392,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         tokens = _known_sum([row["token_total"] for row in rows])
         accepted_artifacts = sum(int(row["accepted_artifact_count"] or 0) for row in rows)
         generation_attempts = sum(int(row["generation_attempt_count"] or 0) for row in rows)
+        generation_jobs = sum(bool(row["generation_attempt_count"]) for row in rows)
         first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in rows)
         render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)
         verified_one_page = sum(int(row["verified_one_page_count"] or 0) for row in rows)
@@ -368,11 +406,11 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "attempted_job_count": len(rows),
                 "accepted_artifact_count": accepted_artifacts,
                 "first_pass_success_count": first_pass_successes,
-                "first_pass_success_rate": first_pass_successes / generation_attempts if generation_attempts else None,
-                "generation_attempt_coverage": "complete" if generation_attempts and all(row.get("generation_attempt_coverage") == "complete" for row in rows) else "unavailable",
+                "first_pass_success_rate": first_pass_successes / generation_jobs if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_attempt_count")) else None,
+                "generation_attempt_coverage": "complete" if generation_jobs and all(row.get("generation_attempt_coverage") == "complete" for row in rows if row.get("generation_attempt_count")) else "unavailable",
                 "verified_one_page_count": verified_one_page,
                 "render_proof_count": render_proofs,
-                "verified_one_page_rate": verified_one_page / render_proofs if render_proofs else None,
+                "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
                 "render_proof_coverage": "complete" if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows) else "unavailable",
                 "provider_call_count": provider_calls,
                 "token_total": tokens,

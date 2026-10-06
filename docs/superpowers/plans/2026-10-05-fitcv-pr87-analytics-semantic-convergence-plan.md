@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: completed
+status: active
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-pr87-analytics-semantic-convergence
@@ -118,6 +118,15 @@ dependency and no unsupported P1-C completion claim.
 - [x] Add regressions for mixed-source isolation, legacy matching, malformed tokens, declared Gold fields, and deferred status.
 - [x] Rerun final full proof, update evidence fingerprints, commit, push, and request fresh independent review — full `3235 passed, 8 skipped`; acceptance verifier passed; deterministic material digest `eba5b5adaab5ae3234eb1f9974daee477091b270d96ef218b27db7f23009c5d2`; six SQL views; `git diff --check` passed.
 
+## Current Review Correction Ledger
+
+- [ ] Require complete native render proof before exposing verified-one-page metrics; failed or missing proof remains unavailable.
+- [ ] Propagate benchmark render metadata and generation attempt totals into analytics Gold without changing run-job grain.
+- [ ] Parse direct token and attempt-count facts fail-closed for malformed, negative, non-finite, or non-integral values.
+- [ ] Add regressions for valid and invalid render proof, job-denominated first-pass rates, malformed attempt counts, and direct malformed token facts.
+- [ ] Rebuild projection fingerprint and material evidence digests after code/test changes; update registry and R6-unavailable evidence hashes.
+- [ ] Rerun focused/full verification, acceptance verifier, deterministic rebuild, SQL smoke, and diff-scope proof before returning plan to `completed`.
+
 ## Evidence Recovery Contract
 
 - Authoritative R5 pair: `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` and the database path recorded by that manifest. The R5 evidence JSON records this pair as the source for the current contract; no arbitrary `data/control_plane.sqlite3` substitution is allowed.
@@ -132,7 +141,7 @@ dependency and no unsupported P1-C completion claim.
 | Task 2 | `completed` | current | `none (lead controller)` | Task 1 | Silver reconciliation, all eight Gold metric builders, and state-mapping tests | `74 passed`; requirement/gap Gold rows and acceptance mapping verified |
 | Task 3 | `completed` | current | `none (lead controller)` | Task 2 | executable rebuild, SQL replacement, and projection-freshness tests | deterministic rebuild equal digest; six SQL Gold views smoke-tested |
 | Task 4 | `completed` | current | `none (lead controller)` | Task 2, Task 3 | benchmark/report/evidence convergence tests | R5 demoted to historical by explicit user instruction; R6-unavailable artifacts and fail-closed verifier pass |
-| Task 5 | `completed` | current | `none (lead controller)` | Task 1–4 | final analytics, acceptance, and drift proof | `3218 passed, 8 skipped`; verifier passed; rebuild/SQL/diff proof passed |
+| Task 5 | `active` | current | `none (lead controller)` | Task 1–4 | final analytics, acceptance, and drift proof | current review corrections pending fresh proof |
 
 ## Task Breakdown
 

@@ -6,6 +6,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import platform
 import subprocess
@@ -372,7 +373,7 @@ def _trace_token_total(trace: dict[str, Any]) -> float | None:
             parsed_total = float(raw_total)
         except (TypeError, ValueError):
             return None
-        if parsed_total < 0:
+        if parsed_total < 0 or not math.isfinite(parsed_total):
             return None
         total += parsed_total
     return total
@@ -600,6 +601,7 @@ def _run_snapshot(run: Any) -> dict[str, Any] | None:
                         f"{run_id}:{record.get('job_url') or record.get('trace_id') or 'unknown'}",
                     )
                 ),
+                "render_acceptance": record.get("render_acceptance"),
             }
             for record in projected_records
             if str(record.get("artifact_version_id") or "").strip()
@@ -1121,6 +1123,7 @@ def build_baseline(
                 "source_id": f"benchmark-generation:{index}",
                 "run_job_id": str(outcome.get("run_job_id") or f"benchmark-job:{index}"),
                 "status": "accepted" if str(outcome.get("status") or "").lower() in {"accepted", "succeeded", "success"} else "failed",
+                "attempt_count": outcome.get("attempt_count"),
                 "cohort_id": cohort_id,
                 "cohort_type": "benchmark",
             }
@@ -1132,6 +1135,8 @@ def build_baseline(
                 "run_job_id": str(artifact.get("run_job_id") or f"benchmark-job:{index}"),
                 "artifact_id": str(artifact["artifact_id"]),
                 "status": "accepted",
+                "render_acceptance": artifact.get("render_acceptance"),
+                "page_fit_status": artifact.get("page_fit_status"),
                 "cohort_id": cohort_id,
                 "cohort_type": "benchmark",
             }

@@ -112,6 +112,65 @@ def test_gold_cohort_exposes_declared_first_pass_and_render_metrics() -> None:
     assert "verified_one_page_rate" in cohort
 
 
+def test_direct_invalid_token_facts_become_unavailable() -> None:
+    bronze = build_bronze_observations(
+        {"provider_attempt": [{"source_id": "provider", "run_job_id": "job", "token_total": "not_recorded", "cohort_id": "c", "cohort_type": "fixture"}]},
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+    row = rebuild_analytics_bundle({"sources": {"provider_attempt": [{"source_id": "provider", "run_job_id": "job", "token_total": -1, "cohort_id": "c", "cohort_type": "fixture"}]}, "registry": {}, "state": {}}, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_run_job_effort"][0]
+    assert row["token_total"] is None
+
+
+def test_malformed_attempt_count_is_unavailable_without_crashing() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [{
+                    "source_id": "generation",
+                    "run_job_id": "job",
+                    "status": "succeeded",
+                    "attempt_count": "not_recorded",
+                    "cohort_id": "c",
+                    "cohort_type": "fixture",
+                }],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    row = result["gold"]["gold_run_job_effort"][0]
+    assert row["first_pass_success_count"] == 0
+    assert row["generation_attempt_coverage"] == "unavailable"
+
+
+def test_first_pass_rate_uses_generation_jobs_not_attempt_rows() -> None:
+    result = rebuild_analytics_bundle(
+        {
+            "sources": {
+                "generation_attempt": [
+                    {"source_id": "first", "run_job_id": "job-1", "status": "failed", "attempt_count": 2, "cohort_id": "c", "cohort_type": "fixture"},
+                    {"source_id": "second", "run_job_id": "job-2", "status": "succeeded", "attempt_count": 1, "cohort_id": "c", "cohort_type": "fixture"},
+                ],
+            },
+            "registry": {},
+            "state": {},
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    cohort = result["gold"]["gold_cohort_effort"][0]
+    assert cohort["first_pass_success_count"] == 1
+    assert cohort["first_pass_success_rate"] == 0.5
+
+
 def test_deferred_status_dimension_sets_deferred_flag() -> None:
     rows = build_gold_acceptance_state(
         {"claim_priority_map": {"claim": ["p1_c"]}, "records": [{"evidence_id": "e", "claim": "claim", "status": "current"}]},
