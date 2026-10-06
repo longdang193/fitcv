@@ -167,7 +167,7 @@ def test_baseline_rejects_reversed_attempt_sequence_for_first_pass() -> None:
     assert report["gold_cohort_effort"]["generation_attempt_coverage"] == "unavailable"
 
 
-def test_baseline_fallback_acceptance_matches_gold_first_pass_projection() -> None:
+def test_baseline_fallback_acceptance_requires_durable_artifact_for_gold_first_pass() -> None:
     trace = {
         "trace_id": "trace-fallback-status",
         "run_job_id": "job-fallback-status",
@@ -177,8 +177,8 @@ def test_baseline_fallback_acceptance_matches_gold_first_pass_projection() -> No
     report = build_baseline([_run("run-fallback-status", {"cv_generation_trace": {"records": [trace]}})])
 
     assert report["yield"]["first_pass_acceptance_count"] == 1
-    assert report["gold_cohort_effort"]["first_pass_success_count"] == 1
-    assert report["gold_cohort_effort"]["first_pass_success_rate"] == 1.0
+    assert report["gold_cohort_effort"]["first_pass_success_count"] == 0
+    assert report["gold_cohort_effort"]["first_pass_success_rate"] == 0.0
 
 
 def test_baseline_rejects_fractional_and_boolean_trace_tokens() -> None:
