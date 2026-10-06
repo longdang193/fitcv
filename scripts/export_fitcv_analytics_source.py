@@ -38,7 +38,11 @@ _REQUIRED_ID_FIELDS = {
     "artifact": "artifact_id",
     "render_proof": "render_proof_id",
 }
-_SECRET_QUERY_PARTS = {"access_token", "api_key", "apikey", "authorization", "password", "secret", "signature", "sig", "token"}
+_SECRET_QUERY_PARTS = {
+    "access_token", "api_key", "apikey", "authorization", "client_secret",
+    "id_token", "password", "refresh_token", "secret", "signature", "sig", "token",
+}
+_SAFE_TELEMETRY_FIELDS = {"prompt_tokens", "completion_tokens", "input_tokens", "output_tokens", "total_tokens", "token_total"}
 
 
 def _digest_bytes(path: Path) -> str:
@@ -65,25 +69,37 @@ def _sanitize_string(value: str) -> str:
         return value
     try:
         parts = urlsplit(value)
-        if not parts.scheme or not parts.netloc:
-            return value
+    except ValueError:
+        return "[redacted-url]"
+    if not parts.scheme or not parts.netloc:
+        return value
+    raw_host = parts.netloc.rsplit("@", 1)[-1]
+    try:
         hostname = parts.hostname or ""
-        host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
-        if parts.port is not None:
-            host = f"{host}:{parts.port}"
+        port = parts.port
+    except ValueError:
+        hostname = ""
+        port = None
+    host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+    if host and port is not None:
+        host = f"{host}:{port}"
+    if not host:
+        host = raw_host
+    try:
         query = urlencode([
             (key, item)
             for key, item in parse_qsl(parts.query, keep_blank_values=True)
             if key.lower() not in _SECRET_QUERY_PARTS
+            and not any(secret in key.lower() for secret in ("auth", "credential", "secret", "token", "password", "signature"))
         ])
-        return urlunsplit((parts.scheme, host, parts.path, query, parts.fragment))
     except ValueError:
-        return value
+        query = ""
+    return urlunsplit((parts.scheme, host, parts.path, query, ""))
 
 
 def _sanitize(value: Any, *, key: str = "") -> Any:
     lowered = key.lower()
-    if any(part in lowered for part in _SECRET_PARTS):
+    if lowered not in _SAFE_TELEMETRY_FIELDS and any(part in lowered for part in _SECRET_PARTS):
         return None
     if isinstance(value, dict):
         return {
@@ -171,14 +187,22 @@ def _debug_number(debug: dict[str, Any], field: str) -> Any:
             if not isinstance(candidate, dict):
                 continue
             usage = candidate.get("token_usage") or candidate.get("usage")
-            if isinstance(usage, dict):
+            usage_blocks = usage if isinstance(usage, list) else [usage]
+            totals = []
+            for block in usage_blocks:
+                if not isinstance(block, dict):
+                    continue
                 for key in ("total_tokens", "token_total"):
-                    if usage.get(key) is not None:
-                        return usage[key]
-                parts = [usage.get(key) for key in ("prompt_tokens", "completion_tokens", "input_tokens", "output_tokens")]
-                numeric = [int(value) for value in parts if isinstance(value, (int, float)) and not isinstance(value, bool)]
-                if numeric:
-                    return sum(numeric)
+                    if block.get(key) is not None:
+                        totals.append(int(block[key]))
+                        break
+                else:
+                    parts = [block.get(key) for key in ("prompt_tokens", "completion_tokens", "input_tokens", "output_tokens")]
+                    numeric = [int(value) for value in parts if isinstance(value, (int, float)) and not isinstance(value, bool)]
+                    if numeric:
+                        totals.append(sum(numeric))
+            if totals:
+                return sum(totals)
     return None
 
 
@@ -278,14 +302,21 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     versions = []
     if _table_exists(connection, "cv_versions"):
         versions = connection.execute("SELECT * FROM cv_versions ORDER BY version_id").fetchall()
+    versions_by_run_job: dict[str, list[str]] = {}
+    for version in versions:
+        versions_by_run_job.setdefault(str(version["run_job_id"] or ""), []).append(str(version["version_id"]))
     for row in versions:
         version_id = str(row["version_id"])
         run_job_id = str(row["run_job_id"] or "")
         ordinal = int(row["ordinal"] or 0)
         status = str(row["generation_status"] or "").lower()
-        debug = debug_by_artifact.get(version_id, {})
-        if not debug:
-            debug = debug_by_artifact.get(run_job_id, {})
+        artifact_debug = debug_by_artifact.get(version_id, {})
+        job_debug = (
+            debug_by_artifact.get(run_job_id, {})
+            if len(versions_by_run_job.get(run_job_id, [])) == 1
+            else {}
+        )
+        debug = {**job_debug, **artifact_debug}
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
         run_payload = run_payload if isinstance(run_payload, dict) else {}
@@ -301,9 +332,9 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         provider_call_count = _debug_number(debug, "provider_call_count")
         token_total = _debug_number(debug, "token_total")
         accepted_event = bool(
-            debug.get("_accepted_event")
-            or debug.get("accepted_outcome") is True
-            or str(debug.get("final_status") or "").lower() == "accepted"
+            artifact_debug.get("_accepted_event")
+            or artifact_debug.get("accepted_outcome") is True
+            or str(artifact_debug.get("final_status") or "").lower() == "accepted"
         )
         _append(sources, "generation_attempt", {
             **common,
@@ -335,7 +366,7 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "regeneration": attempt_count > 1,
                 "content_checksum": row["content_checksum"],
                 "content_length": row["content_length"],
-                "render_acceptance": debug.get("render_acceptance"),
+                "render_acceptance": artifact_debug.get("render_acceptance"),
             }
             _append(sources, "accepted_artifact", artifact)
             _append(sources, "artifact", artifact)

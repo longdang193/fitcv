@@ -81,7 +81,7 @@ metrics:
     owner: analytics
     description: First-pass acceptance rate.
     numerator_field: first_pass_success_count
-    denominator_field: attempted_job_count
+    denominator_field: generation_job_count
     dimension_fields: [cohort_id]
   - metric_id: manual_effort
     version: 1

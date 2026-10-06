@@ -49,7 +49,7 @@ def _seed_database(path: Path) -> None:
             INSERT INTO run_jobs VALUES (
                 'job-1','run-1','posting-hash',
                 '{"extraction_status":"valid","requirements":["python"]}',
-                'https://user:password@example.test/job-1?access_token=sk-private','Example job','Example Co'
+                'https://user:password@example.test:not-a-port/job-1?access_token=sk-private&refresh_token=refresh#fragment-token','Example job','Example Co'
             );
             INSERT INTO run_jobs VALUES (
                 'job-2','run-1','posting-hash-2',
@@ -80,7 +80,7 @@ def _seed_database(path: Path) -> None:
                         "cv_generation_trace": {
                             "efficiency_summary": {
                                 "provider_call_count": 2,
-                                "token_usage": {"total_tokens": 10},
+                                "token_usage": [{"total_tokens": 6}, {"prompt_tokens": 2, "completion_tokens": 2}],
                             }
                         },
                         "render_acceptance": {
@@ -123,6 +123,8 @@ def test_export_is_replayable_sanitized_and_non_mutating(tmp_path: Path) -> None
     assert "secret" not in encoded
     assert "user:password" not in encoded
     assert "access_token" not in encoded
+    assert "refresh_token" not in encoded
+    assert "fragment-token" not in encoded
     assert "credential=do-not-export" not in encoded
     assert bundle["sources"]["accepted_artifact"][0]["artifact_id"] == "cv-1"
     assert bundle["sources"]["posting_inventory"][1]["extraction_status"] == "valid-empty"
@@ -150,6 +152,9 @@ def test_export_is_replayable_sanitized_and_non_mutating(tmp_path: Path) -> None
     assert job_rows["job-1"]["token_total"] == 10
     assert job_rows["job-1"]["first_pass_success_count"] == 1
     assert job_rows["job-1"]["render_proof_count"] == 1
+    cohort = replay["gold"]["gold_cohort_effort"][0]
+    assert cohort["verified_one_page_rate"] == 1.0
+    assert cohort["render_proof_coverage"] == "complete"
     assert {row["run_job_id"] for row in replay["gold"]["gold_run_job_effort"]} == {"job-1", "job-2"}
     semantic = replay["gold"]["gold_semantic_metric"]
     assert {row["metric_id"] for row in semantic} == {
@@ -157,6 +162,7 @@ def test_export_is_replayable_sanitized_and_non_mutating(tmp_path: Path) -> None
         "first_pass_success", "manual_effort", "verified_one_page_rate", "skill_demand",
         "evidence_gap",
     }
+    assert next(row for row in semantic if row["metric_id"] == "verified_one_page_rate")["value"] == 1.0
 
     projection = tmp_path / "analytics.sqlite3"
     write_analytics_sqlite(
@@ -198,6 +204,39 @@ def test_export_preserves_native_attempt_count(tmp_path: Path) -> None:
         connection.commit()
     bundle = export_bundle(database, source_commit="head")
     assert bundle["sources"]["generation_attempt"][0]["attempt_count"] == 2
+
+
+def test_export_keeps_acceptance_proof_artifact_specific(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO cv_versions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("cv-3", "job-1", "run-1", 3, "generated", "2026-10-06T00:06:00Z", "2026-10-06T00:07:00Z", "artifact-hash-3", 12),
+        )
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        debug = json.loads(payload["cv_generation_debug_json"])
+        debug["accepted_artifact_events"][0]["run_job_id"] = "job-1"
+        payload["cv_generation_debug_json"] = json.dumps(debug)
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+    bundle = export_bundle(database, source_commit="head")
+    assert [row["artifact_id"] for row in bundle["sources"]["accepted_artifact"]] == ["cv-1"]
+
+
+def test_export_redacts_malformed_url_without_leaking_fragment_or_credentials(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE run_jobs SET source_url=? WHERE run_job_id='job-1'",
+            ("https://user:password@example.test:not-a-port/job?refresh_token=secret#jwt",),
+        )
+        connection.commit()
+    encoded = json.dumps(export_bundle(database, source_commit="head"), sort_keys=True)
+    assert "user:password" not in encoded
+    assert "refresh_token" not in encoded
+    assert "secret#jwt" not in encoded
 
 
 def test_export_fails_closed_for_live_wal_without_touching_sidecars(tmp_path: Path) -> None:

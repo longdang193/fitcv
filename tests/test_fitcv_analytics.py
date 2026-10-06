@@ -147,6 +147,8 @@ def test_semantic_metric_uses_metric_coverage_and_run_job_denominators() -> None
             "successful_run_job_count": 1,
             "attempted_job_count": 1,
             "generation_job_count": 1,
+            "first_pass_success_count": 1,
+            "generation_attempt_coverage": "complete",
             "verified_one_page_count": 1,
             "render_proof_count": 1,
             "coverage": "complete",
@@ -164,9 +166,11 @@ def test_semantic_metric_uses_metric_coverage_and_run_job_denominators() -> None
     }
     rows = build_gold_semantic_metric(gold, registry, source_commit="head", input_fingerprint="input")
     accepted = next(row for row in rows if row["metric_id"] == "acceptance_yield")
+    first_pass = next(row for row in rows if row["metric_id"] == "first_pass_success")
     render = next(row for row in rows if row["metric_id"] == "verified_one_page_rate")
     effort = next(row for row in rows if row["metric_id"] == "manual_effort")
     assert accepted["value"] == 1.0
+    assert first_pass["value"] == 1.0
     assert render["value"] is None
     assert render["coverage_status"] == "unavailable"
     assert effort["denominator"] == 1

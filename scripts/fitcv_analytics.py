@@ -436,6 +436,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         first_pass_successes = sum(int(row["first_pass_success_count"] or 0) for row in rows)
         render_proofs = sum(int(row["render_proof_count"] or 0) for row in rows)
         verified_one_page = sum(int(row["verified_one_page_count"] or 0) for row in rows)
+        accepted_rows = [row for row in rows if row.get("accepted_artifact_count")]
         result.append(
             {
                 "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -454,7 +455,7 @@ def build_gold_cohort_effort(silver: Iterable[dict[str, Any]]) -> list[dict[str,
                 "verified_one_page_count": verified_one_page,
                 "render_proof_count": render_proofs,
                 "verified_one_page_rate": verified_one_page / render_proofs if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows if row.get("accepted_artifact_count")) else None,
-                "render_proof_coverage": "complete" if render_proofs and all(row.get("render_proof_coverage") == "complete" for row in rows) else "unavailable",
+                "render_proof_coverage": "complete" if render_proofs and accepted_rows and all(row.get("render_proof_coverage") == "complete" for row in accepted_rows) else "unavailable",
                 "provider_call_count": provider_calls,
                 "token_total": tokens,
                 "per_accepted_artifact": (
