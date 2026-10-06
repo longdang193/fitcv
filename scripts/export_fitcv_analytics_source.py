@@ -264,7 +264,11 @@ def _debug_records(run_rows: Iterable[Any]) -> dict[str, dict[str, Any]]:
         cohort_id = compatibility.get("cohort_id") or "operational"
         cohort_type = compatibility.get("cohort_type") or "imported"
         for source_key in ("debug_records", "cv_generation_debug_records", "accepted_artifact_events", "accepted_cv_effort", "cv_generation_trace"):
-            raw_values = parsed.get(source_key) or []
+            raw_value = parsed.get(source_key)
+            if source_key == "accepted_artifact_events" and raw_value is not None and not isinstance(raw_value, list):
+                raw_values = [{"_malformed_acceptance_container": True}]
+            else:
+                raw_values = raw_value or []
             values = list(_flatten_debug_values(raw_values))
             if source_key == "accepted_artifact_events" and isinstance(raw_values, list):
                 values.extend(
