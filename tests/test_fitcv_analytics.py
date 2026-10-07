@@ -875,9 +875,11 @@ def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> Non
         "requirement": "python",
         "cohort_id": "c",
         "cohort_type": "fixture",
-        "numerator_posting_count": 0,
-        "denominator_posting_count": 0,
-        "coverage": "unavailable",
+            "numerator_posting_count": 0,
+            "denominator_posting_count": 0,
+            "coverage_numerator": 0,
+            "coverage_denominator": 0,
+            "coverage": "unavailable",
         "posting_inventory_coverage": "unavailable",
         "unavailable_reason": "invalid_source_fact",
     }]
@@ -889,7 +891,7 @@ def test_candidate_gap_filters_unmatched_and_invalid_facts() -> None:
             "posting_requirement": [{"source_id": "pr", "posting_id": "post-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"}],
             "candidate_gap": [
                 {"source_id": "unmatched", "posting_id": "post-2", "requirement": "python", "gap_category": "missing_evidence", "cohort_id": "c", "cohort_type": "fixture"},
-                {"source_id": "invalid", "posting_id": "post-3", "requirement": "python", "gap_category": "missing_evidence", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "invalid", "posting_id": "post-1", "requirement": "python", "gap_category": "missing_evidence", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
             ],
         },
         source_commit="head",
@@ -900,7 +902,28 @@ def test_candidate_gap_filters_unmatched_and_invalid_facts() -> None:
     assert gaps[0]["numerator_requirement_count"] == 0
     assert gaps[0]["denominator_requirement_count"] == 1
     assert gaps[0]["coverage"] == "unavailable"
+    assert gaps[0]["unavailable_reason"] == "invalid_source_fact"
 
+
+def test_unevaluated_candidate_gap_keeps_coverage_unavailable() -> None:
+    bronze = build_bronze_observations(
+        {
+            "posting_requirement": [
+                {"source_id": "requirement", "posting_id": "post-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "candidate_gap": [
+                {"source_id": "gap", "posting_id": "post-1", "requirement": "python", "gap_category": "unevaluated", "evaluation_status": "unevaluated", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    gap = build_gold_candidate_gap(build_silver_facts(bronze))[0]
+
+    assert gap["coverage"] == "unavailable"
+    assert gap["unavailable_reason"] == "evaluation_status_incomplete"
 
 def test_invalid_only_candidate_gap_emits_unavailable_gold_row() -> None:
     bronze = build_bronze_observations(
@@ -938,6 +961,27 @@ def test_requirement_demand_uses_explicit_posting_inventory_denominator() -> Non
     assert row["coverage"] == "complete"
 
 
+def test_incomplete_extraction_preserves_imported_posting_demand_denominator() -> None:
+    bronze = build_bronze_observations(
+        {
+            "posting_inventory": [
+                {"source_id": "posting", "posting_id": "post-1", "eligible": True, "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "imported"},
+            ],
+            "posting_requirement": [
+                {"source_id": "requirement", "posting_id": "post-1", "requirement": "sql", "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "imported"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    demand = build_gold_requirement_demand(build_silver_facts(bronze))[0]
+
+    assert demand["numerator_posting_count"] == 1
+    assert demand["denominator_posting_count"] == 1
+    assert demand["coverage"] == "unavailable"
+
 def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None:
     bundle = {
         "sources": {
@@ -955,7 +999,7 @@ def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None
 
     row = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_requirement_demand"][0]
 
-    assert row["denominator_posting_count"] == 0
+    assert row["denominator_posting_count"] == 1
     assert row["coverage"] == "unavailable"
     assert row["unavailable_reason"] == "extraction_status_incomplete"
 
@@ -1000,12 +1044,33 @@ def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
     assert {row["denominator_requirement_count"] for row in gaps} == {1}
 
 
+def test_unevaluated_candidate_gap_counts_in_numerator() -> None:
+    bundle = {
+        "sources": {
+            "posting_requirement": [
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "candidate_gap": [
+                {"source_id": "gap-1", "posting_id": "posting-1", "requirement": "python", "gap_category": "unevaluated", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        "registry": {},
+        "state": {},
+    }
+
+    gaps = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_candidate_gap"]
+
+    assert gaps[0]["gap_category"] == "unevaluated"
+    assert gaps[0]["numerator_requirement_count"] == 1
+    assert gaps[0]["denominator_requirement_count"] == 1
+
+
 def test_acceptance_and_optimization_state_are_separate() -> None:
     result = rebuild_analytics_bundle(
         {
             "sources": {},
             "registry": {"records": [{"claim": "p1_acceptance_scope", "evidence_id": "evidence-1", "status": "unavailable"}]},
-            "state": {"status_dimensions": {"p1_b": {"implementation_status": "verified", "acceptance_status": "passed", "measurement_status": "incomplete", "optimization_status": "rejected"}}},
+            "state": {"optimization_result": {"experiment": "complete", "promotion": "rejected", "production_default": "unchanged", "evidence": []}},
         },
         source_commit="head",
         declared_input_fingerprint="inputs",
@@ -1014,6 +1079,7 @@ def test_acceptance_and_optimization_state_are_separate() -> None:
 
     assert "optimization_status" not in result["gold"]["gold_acceptance_state"][0]
     assert result["gold"]["gold_optimization_state"][0]["optimization_status"] == "rejected"
+    assert result["gold"]["gold_optimization_state"][0]["optimization_experiment"] == "complete"
 
 
 def test_projection_fingerprint_changes_with_declared_input(tmp_path) -> None:

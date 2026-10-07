@@ -188,7 +188,7 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     _seed_database(database)
     with sqlite3.connect(database) as connection:
         connection.execute("ALTER TABLE run_jobs ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'")
-        connection.execute("UPDATE run_jobs SET skills_json=? WHERE run_job_id='job-1'", (json.dumps([{"canonical": "Python"}]),))
+        connection.execute("UPDATE run_jobs SET skills_json=? WHERE run_job_id='job-1'", (json.dumps([{"canonical": "Python"}, {"canonical": "SQL"}]),))
         connection.execute("UPDATE run_inputs SET candidate_profile_checksum=NULL WHERE run_id='run-1'")
         connection.execute("UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'", (json.dumps({"extraction_status": "valid"}),))
         connection.execute(
@@ -210,6 +210,7 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     bundle = export_bundle(database, source_commit="head")
     assert any(row["requirement"] == "Python" for row in bundle["sources"]["posting_requirement"])
     assert any(row["gap_category"] == "missing_evidence" for row in bundle["sources"]["candidate_gap"])
+    assert any(row["gap_category"] == "unevaluated" and row["requirement"] == "SQL" for row in bundle["sources"]["candidate_gap"])
     gap = bundle["sources"]["candidate_gap"][0]
     assert gap["candidate_profile_id"] == "profile-1"
     assert gap["candidate_profile_revision"] == 1
@@ -218,6 +219,134 @@ def test_export_collects_native_requirements_and_evaluation_gaps(tmp_path: Path)
     replay = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint=bundle["input_fingerprint"], ingested_at="now")
     assert replay["gold"]["gold_requirement_demand"]
     assert replay["gold"]["gold_candidate_gap"]
+
+
+def test_export_separates_posting_identity_from_processing_and_keeps_orphan_attempts(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("job-3", "run-1", "posting-hash", json.dumps({"extraction_status": "valid", "requirements": ["Python"]}), "https://example.test/job-3", "Duplicate processing", "Example Co"),
+        )
+        payload = json.loads(connection.execute("SELECT compatibility_json FROM pipeline_runs").fetchone()[0])
+        payload["cv_generation_debug_json"] = json.dumps({
+            "debug_records": [{"run_job_id": "job-3", "status": "generation_failed", "provider_call_count": 3}],
+        })
+        connection.execute("UPDATE pipeline_runs SET compatibility_json=?", (json.dumps(payload),))
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    inventories = [row for row in bundle["sources"]["posting_inventory"] if row["run_job_id"] in {"job-1", "job-3"}]
+    assert {row["posting_id"] for row in inventories} == {"posting-hash"}
+    assert {row["processing_id"] for row in inventories} == {"job-1", "job-3"}
+    orphan = next(row for row in bundle["sources"]["generation_attempt"] if row["run_job_id"] == "job-3")
+    assert orphan["status"] == "generation_failed"
+    assert next(row for row in bundle["sources"]["provider_attempt"] if row["run_job_id"] == "job-3")["provider_call_count"] == 3
+
+
+def test_export_preserves_native_requirement_instance_identity(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("ALTER TABLE run_jobs ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'")
+        connection.execute(
+            "UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'",
+            (json.dumps({"extraction_status": "valid", "requirements": [{"requirement": "Python", "requirement_instance_id": "native-req-1"}]}),),
+        )
+        connection.execute(
+            """
+            CREATE TABLE cv_evaluations (
+                cv_evaluation_id TEXT PRIMARY KEY,
+                cv_version_id TEXT,
+                status TEXT,
+                evidence_json TEXT,
+                is_current INTEGER
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO cv_evaluations VALUES (?, ?, ?, ?, ?)",
+            ("evaluation-1", "cv-1", "succeeded", json.dumps({"requirement_coverage": [{"requirement": "Python", "requirement_instance_id": "native-req-1", "selected_support": "unsupported"}]}), 1),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    requirements = [row for row in bundle["sources"]["posting_requirement"] if row["posting_id"] == "posting-hash"]
+    assert requirements[0]["requirement_instance_id"] == "native-req-1"
+    assert not any(row["gap_category"] == "unevaluated" for row in bundle["sources"]["candidate_gap"])
+
+
+def test_export_reconciles_explicit_evaluation_id_to_string_requirement(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'",
+            (json.dumps({"extraction_status": "valid", "requirements": ["Python"]}),),
+        )
+        connection.execute(
+            """
+            CREATE TABLE cv_evaluations (
+                cv_evaluation_id TEXT PRIMARY KEY,
+                cv_version_id TEXT,
+                status TEXT,
+                evidence_json TEXT,
+                is_current INTEGER
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO cv_evaluations VALUES (?, ?, ?, ?, ?)",
+            ("evaluation-1", "cv-1", "succeeded", json.dumps({"requirement_coverage": [{"requirement": "Python", "requirement_instance_id": "native-req-1", "selected_support": "unsupported"}]}), 1),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    assert not any(row["gap_category"] == "unevaluated" for row in bundle["sources"]["candidate_gap"])
+
+
+def test_export_emits_unevaluated_for_job_without_version_or_debug(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("job-3", "run-1", "posting-hash-3", json.dumps({"requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    assert any(
+        row["run_job_id"] == "job-3"
+        and row["gap_category"] == "unevaluated"
+        and row["evaluation_status"] == "unevaluated"
+        for row in bundle["sources"]["candidate_gap"]
+    )
+
+
+def test_exported_unevaluated_gap_counts_with_unavailable_coverage(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("job-3", "run-1", "posting-hash-3", json.dumps({"requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    output = rebuild_analytics_bundle(
+        bundle,
+        source_commit="head",
+        declared_input_fingerprint=bundle["input_fingerprint"],
+        ingested_at="now",
+    )
+    gap = next(row for row in output["gold"]["gold_candidate_gap"] if row["gap_category"] == "unevaluated")
+
+    assert gap["numerator_requirement_count"] == 1
+    assert gap["denominator_requirement_count"] >= 1
+    assert gap["coverage"] == "unavailable"
 
 
 def test_export_rejects_missing_path_and_hash_mismatch(tmp_path: Path) -> None:

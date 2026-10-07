@@ -28,7 +28,7 @@ RUN_JOB_OBSERVATION_TYPES = RECONCILABLE_OBSERVATION_TYPES
 REQUIREMENT_DEMAND_OBSERVATION_TYPES = {"posting_requirement"}
 POSTING_INVENTORY_OBSERVATION_TYPES = {"posting_inventory"}
 CANDIDATE_GAP_OBSERVATION_TYPES = {"candidate_gap"}
-INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid"}
+INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid", "unevaluated"}
 DEFAULT_METRIC_REGISTRY = Path(__file__).resolve().parents[1] / "config/analytics_metrics.yaml"
 
 
@@ -629,6 +629,11 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             dimension_keys.add((*cohort, requirement))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
+            if issue == "extraction_status_incomplete" and _eligibility(payload) is True:
+                if observation_type in POSTING_INVENTORY_OBSERVATION_TYPES and posting_id:
+                    inventory_by_cohort[cohort].add(posting_id)
+                elif observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES and posting_id and requirement:
+                    requirement_postings[(*cohort, requirement)].add(posting_id)
             continue
         if _eligibility(payload) is None:
             coverage_issues.setdefault(cohort, "eligibility_incomplete")
@@ -657,6 +662,8 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             "cohort_type": cohort_type,
             "numerator_posting_count": len(posting_ids),
             "denominator_posting_count": len(postings_by_cohort[(cohort_id, cohort_type)]),
+            "coverage_numerator": len(postings_by_cohort[(cohort_id, cohort_type)]) if (cohort_id, cohort_type) not in coverage_issues else 0,
+            "coverage_denominator": len(postings_by_cohort[(cohort_id, cohort_type)]),
             "coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
             "posting_inventory_coverage": "unavailable" if (cohort_id, cohort_type) in coverage_issues else "complete",
             "unavailable_reason": coverage_issues.get((cohort_id, cohort_type)),
@@ -685,10 +692,27 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             "candidate_profile_id", "candidate_profile_revision", "candidate_profile_fingerprint"
         ))
         partition = (*cohort, *profile)
-        if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and posting_id and requirement and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+        if observation_type in CANDIDATE_GAP_OBSERVATION_TYPES and posting_id and requirement and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation", "unevaluated"}:
             gap_keys.add((*cohort, requirement, category, *profile))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(partition, issue)
+            if (
+                issue == "extraction_status_incomplete"
+                and observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES
+                and posting_id
+                and requirement
+                and _eligibility(payload) is True
+            ):
+                denominator[partition].add((posting_id, requirement))
+            if (
+                issue != "invalid_source_fact"
+                and observation_type in CANDIDATE_GAP_OBSERVATION_TYPES
+                and posting_id
+                and requirement
+                and _eligibility(payload) is True
+                and category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation", "unevaluated"}
+            ):
+                gaps[(*cohort, requirement, category, *profile)].add((posting_id, requirement))
             continue
         if _eligibility(payload) is None:
             coverage_issues.setdefault(partition, "eligibility_incomplete")
@@ -699,7 +723,7 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
             denominator[partition].add(pair)
             continue
-        if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+        if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation", "unevaluated"}:
             gaps[(*cohort, requirement, category, *profile)].add(pair)
     for key, pairs in list(gaps.items()):
         partition = key[:2] + key[4:]
@@ -721,6 +745,8 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             "candidate_profile_fingerprint": profile_fingerprint or None,
             "numerator_requirement_count": len(pairs),
             "denominator_requirement_count": len(denominator[(cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint)]),
+            "coverage_numerator": len(denominator[(cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint)]) if (cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint) not in coverage_issues else 0,
+            "coverage_denominator": len(denominator[(cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint)]),
             "coverage": "unavailable" if (cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint) in coverage_issues else "complete",
             "candidate_requirement_coverage": "unavailable" if (cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint) in coverage_issues else "complete",
             "unavailable_reason": coverage_issues.get((cohort_id, cohort_type, profile_id, profile_revision, profile_fingerprint)),
@@ -865,7 +891,10 @@ def build_gold_optimization_state(
     state: dict[str, Any],
 ) -> list[dict[str, Any]]:
     rows = build_gold_acceptance_state(registry, state)
-    dimensions = dict(state.get("status_dimensions") or {})
+    optimization_result = dict(state.get("optimization_result") or {})
+    if not optimization_result:
+        return []
+    promotion = optimization_result.get("promotion")
     return [
         {
             "schema_version": ANALYTICS_SCHEMA_VERSION,
@@ -876,12 +905,16 @@ def build_gold_optimization_state(
             "evidence_id": row["evidence_id"],
             "claim": row["claim"],
             "evidence_status": row["evidence_status"],
-            "measurement_status": dimensions.get(row["priority"], {}).get("measurement_status"),
-            "optimization_status": dimensions.get(row["priority"], {}).get("optimization_status"),
-            "deferred": dimensions.get(row["priority"], {}).get("optimization_status") == "deferred",
+            "measurement_status": row.get("measurement_status"),
+            "optimization_status": promotion,
+            "optimization_experiment": optimization_result.get("experiment"),
+            "optimization_promotion": promotion,
+            "optimization_production_default": optimization_result.get("production_default"),
+            "optimization_evidence": optimization_result.get("evidence"),
+            "deferred": promotion == "deferred",
         }
         for row in rows
-        if dimensions.get(row["priority"], {}).get("optimization_status") is not None
+        if promotion is not None
     ]
 
 
