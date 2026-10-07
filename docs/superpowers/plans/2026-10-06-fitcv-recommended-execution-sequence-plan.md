@@ -660,7 +660,7 @@ declared improvement in one target metric versus the same-input baseline.
 - [x] Compare accepted-CV cost, p95, calls, tokens, regeneration, human effort,
   grounding, and one-page correctness.
 - [x] Run `python scripts/compare_fitcv_optimization.py --baseline <baseline-package> --optimized <optimized-package> --min-relative-improvement <lead-controller-threshold> --output docs/superpowers/evidence/2026-10-06-fitcv-optimization-comparison.json`.
-- [x] Record `hold`; measured gains remain below the 5% promotion threshold.
+- [x] Record `hold`; workload metrics improve, but quality evidence is incomplete and current-contract acceptance is unavailable, so promotion remains blocked.
 
 **Verification:** Full applicable test suites, explicit experiment JSON/Markdown/
 peer JSON verifier arguments for each opposite-arm package, comparison-script
