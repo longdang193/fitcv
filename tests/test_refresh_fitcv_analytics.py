@@ -175,6 +175,45 @@ def test_refresh_rebuilds_release_when_gold_view_columns_are_corrupt(tmp_path: P
     assert columns[0] == "metric_id"
 
 
+def test_refresh_rebuilds_release_when_gold_view_values_are_corrupt(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    first = refresh_analytics(database, output_root, source_commit="head")
+    release = output_root / first["release"]
+    with sqlite3.connect(release / "analytics.sqlite3") as connection:
+        connection.execute("DROP VIEW gold_semantic_metric")
+        connection.execute(
+            """
+            CREATE VIEW gold_semantic_metric AS
+            SELECT 'corrupt' AS metric_id,
+                   json_extract(payload_json, '$.metric_version') AS metric_version,
+                   json_extract(payload_json, '$.cohort_id') AS cohort_id,
+                   json_extract(payload_json, '$.cohort_type') AS cohort_type,
+                   json_extract(payload_json, '$.dimension_key') AS dimension_key,
+                   json_extract(payload_json, '$.numerator') AS numerator,
+                   json_extract(payload_json, '$.denominator') AS denominator,
+                   json_extract(payload_json, '$.value') AS value,
+                   json_extract(payload_json, '$.coverage_status') AS coverage_status,
+                   json_extract(payload_json, '$.coverage_numerator') AS coverage_numerator,
+                   json_extract(payload_json, '$.coverage_denominator') AS coverage_denominator,
+                   json_extract(payload_json, '$.unavailable_reason') AS unavailable_reason,
+                   json_extract(payload_json, '$.source_commit') AS source_commit,
+                   json_extract(payload_json, '$.input_fingerprint') AS input_fingerprint,
+                   json_extract(payload_json, '$.material_digest') AS material_digest,
+                   payload_json
+            FROM gold_semantic_metric_rows
+            """
+        )
+        connection.commit()
+
+    refreshed = refresh_analytics(database, output_root, source_commit="head")
+
+    assert refreshed["release"] != first["release"]
+    with sqlite3.connect(output_root / refreshed["release"] / "analytics.sqlite3") as connection:
+        assert connection.execute("SELECT COUNT(*) FROM gold_semantic_metric WHERE metric_id = 'corrupt'").fetchone()[0] == 0
+
+
 def test_refresh_script_supports_direct_help_invocation() -> None:
     result = subprocess.run(
         [sys.executable, "scripts/refresh_fitcv_analytics.py", "--help"],

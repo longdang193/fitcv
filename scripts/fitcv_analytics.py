@@ -705,7 +705,8 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             ):
                 denominator[partition].add((posting_id, requirement))
             if (
-                observation_type in CANDIDATE_GAP_OBSERVATION_TYPES
+                issue != "invalid_source_fact"
+                and observation_type in CANDIDATE_GAP_OBSERVATION_TYPES
                 and posting_id
                 and requirement
                 and _eligibility(payload) is True

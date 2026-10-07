@@ -132,6 +132,19 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
                 ]
                 if sorted(map(_json, actual_view_rows)) != sorted(map(_json, expected_rows)):
                     return False
+                projection_columns = expected_columns[view_name][:-1]
+                for actual_row in connection.execute(f"SELECT * FROM {view_name}"):
+                    payload = json.loads(actual_row[-1])
+                    for index, column in enumerate(projection_columns):
+                        actual_value = actual_row[index]
+                        expected_value = payload.get(column)
+                        if isinstance(expected_value, (dict, list)) and isinstance(actual_value, str):
+                            try:
+                                actual_value = json.loads(actual_value)
+                            except json.JSONDecodeError:
+                                return False
+                        if actual_value != expected_value:
+                            return False
         finally:
             connection.close()
     except (OSError, sqlite3.Error, TypeError, ValueError, json.JSONDecodeError):

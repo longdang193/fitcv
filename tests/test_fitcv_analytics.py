@@ -891,7 +891,7 @@ def test_candidate_gap_filters_unmatched_and_invalid_facts() -> None:
             "posting_requirement": [{"source_id": "pr", "posting_id": "post-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"}],
             "candidate_gap": [
                 {"source_id": "unmatched", "posting_id": "post-2", "requirement": "python", "gap_category": "missing_evidence", "cohort_id": "c", "cohort_type": "fixture"},
-                {"source_id": "invalid", "posting_id": "post-3", "requirement": "python", "gap_category": "missing_evidence", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
+                {"source_id": "invalid", "posting_id": "post-1", "requirement": "python", "gap_category": "missing_evidence", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"},
             ],
         },
         source_commit="head",
@@ -902,6 +902,7 @@ def test_candidate_gap_filters_unmatched_and_invalid_facts() -> None:
     assert gaps[0]["numerator_requirement_count"] == 0
     assert gaps[0]["denominator_requirement_count"] == 1
     assert gaps[0]["coverage"] == "unavailable"
+    assert gaps[0]["unavailable_reason"] == "invalid_source_fact"
 
 
 def test_unevaluated_candidate_gap_keeps_coverage_unavailable() -> None:
