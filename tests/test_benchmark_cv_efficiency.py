@@ -688,6 +688,7 @@ def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
         "input_manifest": {
             "database_path": r"C:\Users\private\fitcv.sqlite3",
             "arm": "local_first",
+            "declared_input_fingerprint": "d" * 64,
         },
         "run": {
             "database_path": r"C:\Users\private\fitcv.sqlite3",
@@ -710,6 +711,23 @@ def test_canonical_evidence_redacts_local_paths_and_credentials() -> None:
     assert evidence["run"] == {"accepted": 1}
     assert "environment" not in evidence
     assert evidence["material_metrics_sha256"] == material_report_digest(evidence)
+
+
+
+def test_canonical_evidence_promotes_input_fingerprint_to_top_level() -> None:
+    report = {
+        "input_manifest": {"declared_input_fingerprint": "d" * 64},
+        "status": "incomplete",
+    }
+
+    evidence = build_canonical_evidence(
+        report,
+        source_commit="a" * 40,
+        fixture_sha256="b" * 64,
+        source_fixture_sha256="c" * 64,
+    )
+
+    assert evidence["declared_input_fingerprint"] == "d" * 64
 
 
 def test_baseline_reports_unavailable_avoidance_fields_without_inventing_zeroes() -> None:

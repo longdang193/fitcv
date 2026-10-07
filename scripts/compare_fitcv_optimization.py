@@ -42,10 +42,11 @@ def _metric(report: dict[str, Any], name: str) -> float | None:
         return _number(dict(dict(timing.get("stage_latency_ms") or {}).get("provider_generation") or {}).get("p95_ms"))
     if name == "human_actions":
         return _number(dict(report.get("optimization_scorecard") or {}).get("human_actions", {}).get("count"))
+    workload = dict(report.get("workload") or {})
     source = {
-        "provider_calls": aggregate.get("provider_call_count"),
-        "token_total": aggregate.get("token_total"),
-        "regeneration_count": aggregate.get("regeneration_count"),
+        "provider_calls": workload.get("provider_call_count", aggregate.get("provider_call_count")),
+        "token_total": workload.get("token_total", aggregate.get("token_total")),
+        "regeneration_count": workload.get("regeneration_count", aggregate.get("regeneration_count")),
     }.get(name)
     return _number(source)
 

@@ -164,9 +164,55 @@ def test_uncertainty_after_full_regeneration_stops_for_review(monkeypatch) -> No
     )
 
     assert final_validation["valid"] is False
-    assert repair_attempt["failure_category"] == "uncertainty"
-    assert repair_attempt["review_required"] is True
+    assert repair_attempt["failure_category"] == "deterministic"
+    assert repair_attempt.get("review_required") is not True
     assert repair_attempt["full_regeneration_attempted"] is True
+
+
+
+def test_full_regeneration_keeps_previous_artifact_when_final_validation_fails(monkeypatch) -> None:
+    initial_validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    regenerated_validation = {**initial_validation, "valid": True, "missing_sections": []}
+    final_validation = {**initial_validation, "grounding_violations": ["unsupported_claim"]}
+    monkeypatch.setattr(
+        "fitcv.agentic_cv_generation._run_generation_validations",
+        lambda *args, **kwargs: final_validation,
+    )
+    previous_cv = None
+    regenerated_cv = None
+    retry_executor = Mock(
+        side_effect=[
+            (None, "# targeted", initial_validation, None),
+            (regenerated_cv, "# regenerated", regenerated_validation, {"provider": "new"}),
+        ]
+    )
+
+    result_cv, result_markdown, result_validation, repair_attempt, provenance = _run_repair_cycle(
+        structured_cv=previous_cv,
+        markdown="# previous",
+        validation=initial_validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance={"provider": "old"},
+        repair_arm="provider_first",
+    )
+
+    assert result_cv is previous_cv
+    assert result_markdown == "# targeted"
+    assert result_validation is initial_validation
+    assert repair_attempt["full_regeneration_succeeded"] is False
+    assert provenance == {"provider": "old"}
 
 
 def test_failed_local_repair_is_preserved_when_provider_retry_succeeds(monkeypatch) -> None:

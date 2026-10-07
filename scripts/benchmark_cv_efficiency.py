@@ -484,6 +484,7 @@ def build_canonical_evidence(
             "evidence_status": "canonical",
             "sanitizer_version": SANITIZER_VERSION,
             "source_commit": source_commit,
+            "declared_input_fingerprint": dict(evidence.get("input_manifest") or {}).get("declared_input_fingerprint"),
             "fixture_sha256": fixture_sha256,
             "source_fixture_sha256": source_fixture_sha256,
         }
@@ -1393,6 +1394,7 @@ def main() -> int:
             "runtime": manifest.get("runtime"),
         }
         report = _apply_manifest_measurement_gate(report, manifest)
+        report["declared_input_fingerprint"] = manifest.get("declared_input_fingerprint")
     report["material_metrics_sha256"] = material_report_digest(report)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_markdown.parent.mkdir(parents=True, exist_ok=True)

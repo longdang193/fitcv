@@ -33,6 +33,22 @@ def test_compare_promotes_only_with_same_workload_and_quality_preserved() -> Non
     assert result["production_defaults_changed"] is False
 
 
+
+def test_compare_uses_total_workload_when_aggregate_excludes_failed_work() -> None:
+    baseline = _report(provider_calls=10, tokens=1000)
+    optimized = _report(provider_calls=8, tokens=800)
+    baseline["aggregate"].update({"provider_call_count": 0, "token_total": 0})
+    optimized["aggregate"].update({"provider_call_count": 0, "token_total": 0})
+    baseline["workload"] = {"provider_call_count": 30, "token_total": 143904, "regeneration_count": 2}
+    optimized["workload"] = {"provider_call_count": 30, "token_total": 143904, "regeneration_count": 1}
+
+    result = compare_reports(baseline, optimized, min_relative_improvement=0.1)
+
+    assert result["decision"] == "promote"
+    assert result["metrics"]["provider_calls"]["baseline"] == 30
+    assert result["metrics"]["token_total"]["optimized"] == 143904
+
+
 def test_compare_holds_on_workload_mismatch_or_quality_regression() -> None:
     baseline = _report(provider_calls=10, tokens=1000)
     optimized = _report(provider_calls=8, tokens=800, accepted=9)

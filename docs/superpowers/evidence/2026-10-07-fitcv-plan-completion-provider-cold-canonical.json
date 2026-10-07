@@ -4511,5 +4511,6 @@
   "sanitizer_version": "fitcv-evidence-sanitizer.v1",
   "source_commit": "7f29c76510b158667e731c0cfdb98411a8a76730",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
-  "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5"
+  "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
+  "declared_input_fingerprint": "bc7dd539372006ce1aab01739c28c0f1a8850a17a29728401d18865a99949423"
 }

@@ -1645,8 +1645,10 @@ def _run_repair_cycle(
         repair_attempt["full_regeneration_attempted"] = True
         repair_attempt["reason"] = "full_regeneration"
         previous_structured_cv = structured_cv
+        previous_markdown = markdown
+        previous_validation = validation
         try:
-            regenerated_cv, regenerated_markdown, regenerated_validation, regenerated_provenance = retry_executor([])
+            regenerated_cv, regenerated_markdown, _regenerated_validation, regenerated_provenance = retry_executor([])
         except Exception as exc:
             setattr(exc, "repair_attempt", repair_attempt)
             raise
@@ -1658,15 +1660,11 @@ def _run_repair_cycle(
             analysis_grounding=analysis_grounding,
         )
         if candidate_validation.get("valid"):
-            structured_cv, markdown = regenerated_cv, regenerated_markdown
+            structured_cv, markdown, validation = regenerated_cv, regenerated_markdown, candidate_validation
+            if regenerated_provenance is not None:
+                runtime_provenance = regenerated_provenance
         else:
-            structured_cv = previous_structured_cv
-        validation = candidate_validation
-        if not validation.get("valid") and regenerated_validation.get("valid"):
-            structured_cv, markdown = regenerated_cv, regenerated_markdown
-            validation = regenerated_validation
-        if regenerated_provenance is not None:
-            runtime_provenance = regenerated_provenance
+            structured_cv, markdown, validation = previous_structured_cv, previous_markdown, previous_validation
         repair_attempt["failure_category"] = _classify_repair_failure(
             validation,
             _determine_repair_targets(validation, structured_cv),

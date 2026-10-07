@@ -3552,5 +3552,6 @@
     "first_pass_acceptance_rate": 0.0,
     "retry_failure_count": 10,
     "retry_success_count": 0
-  }
+  },
+  "declared_input_fingerprint": "bc7dd539372006ce1aab01739c28c0f1a8850a17a29728401d18865a99949423"
 }

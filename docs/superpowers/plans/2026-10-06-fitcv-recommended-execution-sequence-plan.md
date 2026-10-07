@@ -149,8 +149,8 @@ paired measurement with no grounding or one-page regression.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-plan-completion`
 - Base commit: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` (`origin/main` after PR #94)
-- Current HEAD: `01cceb717d228af569f9a41744aa33b88ad28795` before final evidence/state updates
-- Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
+- Current HEAD: `ea094fc21692757f582197b912b9db010fcd9f84` before review-fix commit
+- Expected workspace: `tracked plans plus preserved untracked artifacts; named task disposables cleaned`
 - Next action: `publish verified branch, obtain review-1 approval, and merge after green checks; retain R5/R6 efficiency blocker`
 - Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
 
@@ -159,11 +159,11 @@ paired measurement with no grounding or one-page regression.
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
-| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 canonical paired reports, manifests, analytics rebuilds, and acceptance verifier passed |
+| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 reports and manifests retained; plan-completion local cohort has no accepted current-contract records, so P1-B remains blocked |
 | 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1526 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed; review-1 integrity findings fixed |
 | 5. Content-addressed reuse | `completed` | `codex/fitcv-plan-completion` | `codex` | 4 | hit/miss/invalidation and equivalence proof | reuse identity/provenance tests; 126-task regression set |
 | 6. Repair/escalation | `completed` | `codex/fitcv-plan-completion` | `codex` | 5 | ordered repair and fallback tests | bounded repair tests; 126-task regression set |
-| 7. Re-measure/promote | `completed` | `codex/fitcv-plan-completion` | `codex` | 5–6 | paired comparison and quality gate | fresh local/provider-first cold cohorts; comparison `hold`; acceptance verifier passed |
+| 7. Re-measure/promote | `completed` | `codex/fitcv-plan-completion` | `codex` | 5–6 | paired comparison and quality gate | fresh cohorts retained; total-workload comparison `hold`; current-contract acceptance unavailable, so measurement remains blocked; acceptance verifier passed |
 
 ## Task Breakdown
 
@@ -674,7 +674,7 @@ claim remains.
 
 After all admitted tasks finish:
 
-- [x] `python -m pytest -q` — 3390 passed, 8 skipped.
+- [x] `python -m pytest -q` — 3397 passed, 8 skipped.
 - [x] `npm --prefix frontend run typecheck`.
 - [x] `npm --prefix frontend test -- --run` — 339 passed.
 - [x] `pwsh -File scripts/run_fitcv_analytics_dashboard_e2e.ps1` — 2 passed with disposable backend harness.
