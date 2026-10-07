@@ -23,6 +23,7 @@ const apiPaths = [
   "/synonym-processing-runs",
   "/personalization",
   "/healthz",
+  "/analytics",
   "/cv-versions",
 ];
 

@@ -134,6 +134,13 @@ from fitcv.late_stage_contract import (
 )
 from fitcv.tracker import create_cv_version_record
 import fitcv_cp.sqlite_store as sqlite_store_module
+from fitcv_cp.analytics_dashboard import (
+    AnalyticsUnavailable,
+    dashboard_payload,
+    load_published_analytics,
+    trace_payload,
+    unavailable_payload,
+)
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp import provider_registry
 from fitcv_cp.company_catalog import BUNDLED_COMPANY_CATALOG
@@ -150,6 +157,8 @@ from fitcv_cp.models import (
     CandidateProfileReviewPatchRequest,
     CandidateProfileRetryRequest,
     CandidateProfileSourceBlockEnvelope,
+    AnalyticsDashboardEnvelope,
+    AnalyticsTraceEnvelope,
     CandidateProfileUndoRegenerationRequest,
     CandidateProfileConfirmationEnvelope,
     PipelineRun,
@@ -299,6 +308,7 @@ from fitcv_cp.app_run_support import (
     _run_status_allows_export,
     load_cv_generation_trace_payload,
 )
+REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
@@ -8628,6 +8638,32 @@ def create_app(
             in {"1", "true", "yes", "on"},
             "database_available": bool(configured_database_path and Path(configured_database_path).exists()),
         }
+
+    @app.get("/analytics/semantic-metrics", response_model=AnalyticsDashboardEnvelope)
+    def get_analytics_semantic_metrics() -> dict[str, Any]:
+        try:
+            return _data_response(dashboard_payload(load_published_analytics(REPO_ROOT)))
+        except AnalyticsUnavailable as exc:
+            return _data_response(unavailable_payload(str(exc)))
+
+    @app.get("/analytics/trace/{posting_id}", response_model=AnalyticsTraceEnvelope)
+    def get_analytics_trace(posting_id: str) -> dict[str, Any]:
+        try:
+            published = load_published_analytics(REPO_ROOT)
+        except AnalyticsUnavailable as exc:
+            payload = unavailable_payload(str(exc))
+            return _data_response(
+                {
+                    "coverage": payload["coverage"],
+                    "posting": None,
+                    "requirements": [],
+                    "candidate_evidence_gaps": [],
+                }
+            )
+        trace = trace_payload(published, posting_id)
+        if trace is None:
+            raise HTTPException(status_code=404, detail="Posting trace not found")
+        return _data_response(trace)
 
     @app.get("/admin/diagnostics/orchestration-schema")
     def admin_orchestration_schema_diagnostics() -> dict[str, Any]:
