@@ -2,9 +2,9 @@
   "decision": "hold",
   "metrics": {
     "generation_p95_ms": {
-      "baseline": 13095.949999999999,
-      "optimized": 19634.699999999993,
-      "relative_improvement": -0.499295583749174
+      "baseline": 16021.75,
+      "optimized": 15390.4,
+      "relative_improvement": 0.0394058077301169
     },
     "human_actions": {
       "baseline": 0.0,
@@ -13,8 +13,8 @@
     },
     "provider_calls": {
       "baseline": 10.0,
-      "optimized": 10.0,
-      "relative_improvement": 0.0
+      "optimized": 0.0,
+      "relative_improvement": 1.0
     },
     "regeneration_count": {
       "baseline": 0.0,
@@ -22,14 +22,15 @@
       "relative_improvement": null
     },
     "token_total": {
-      "baseline": 46309.0,
-      "optimized": 46279.0,
-      "relative_improvement": 0.0006478222375780086
+      "baseline": 48798.0,
+      "optimized": 0.0,
+      "relative_improvement": 1.0
     }
   },
   "minimum_relative_improvement": 0.05,
   "production_defaults_changed": false,
   "quality": {
+    "accepted_evidence_missing": false,
     "baseline": {
       "accepted_artifact_count": 10.0,
       "grounding": {
@@ -49,30 +50,31 @@
         "unavailable": 0
       }
     },
+    "cost_evidence_missing": false,
     "cost_regression": false,
-    "grounding_regression": false,
-    "one_page_regression": false,
+    "grounding_regression": true,
+    "one_page_regression": true,
     "optimized": {
-      "accepted_artifact_count": 10.0,
+      "accepted_artifact_count": 0.0,
       "grounding": {
-        "complete": true,
-        "matched": 10,
-        "measured": 10,
-        "rate": 1.0,
-        "total": 10,
+        "complete": false,
+        "matched": 0,
+        "measured": 0,
+        "rate": 0.0,
+        "total": 0,
         "unavailable": 0,
         "unmatched": 0
       },
       "one_page": {
-        "complete": true,
-        "measured": 10,
-        "rate": 1.0,
-        "total": 10,
+        "complete": false,
+        "measured": 0,
+        "rate": 0.0,
+        "total": 0,
         "unavailable": 0
       }
     },
-    "quality_evidence_missing": false,
-    "quality_regression": false
+    "quality_evidence_missing": true,
+    "quality_regression": true
   },
   "schema_version": "fitcv.optimization_comparison.v1",
   "status": "complete",

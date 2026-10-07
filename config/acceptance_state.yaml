@@ -22,8 +22,8 @@ statuses:
   p0_a: rejected
   p0_b: passed
   p0_c: passed
-  p1_a: passed
-  p1_b: passed
+  p1_a: blocked
+  p1_b: blocked
   p1_c: deferred
   p2: deferred
 status_dimensions:
@@ -41,12 +41,12 @@ status_dimensions:
     measurement_status: frozen_scope_only
   p1_a:
     implementation_status: verified
-    acceptance_status: passed
-    measurement_status: measured
+    acceptance_status: blocked
+    measurement_status: incomplete
   p1_b:
     implementation_status: verified
-    acceptance_status: passed
-    measurement_status: measured
+    acceptance_status: blocked
+    measurement_status: incomplete
   p1_c:
     implementation_status: deferred
     acceptance_status: deferred
@@ -135,14 +135,15 @@ optimization_result:
     - docs/superpowers/evidence/2026-10-04-fitcv-generation-format-defect-experiment.json
     - docs/superpowers/evidence/2026-10-05-fitcv-p1ab-provider-backed-convergence.json
 runtime_efficiency:
-  measurement_status: measured
+  measurement_status: incomplete
   baseline_evidence:
     json: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json
     markdown: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md
     peer_json: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.json
     peer_markdown: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.md
   accepted_artifact_and_total_workload_metrics: true
-  blocked_reasons: []
+  blocked_reasons:
+    - fresh provider-backed local_first cohort produced no current-contract accepted records after uncertainty routing
   p1_c: deferred
   p2: deferred
 p0_b:

@@ -6,8 +6,8 @@
     "seed_database_sha256": null,
     "upstream_reuse_policy": "cold_first_then_frozen"
   },
-  "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-plan-completion-local-r3.sqlite3",
-  "declared_input_fingerprint": "d2adba382d85976883f8e3b40afc90e68720d7efe4e462ad47af5d39128fb78e",
+  "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-plan-completion-local-r6.sqlite3",
+  "declared_input_fingerprint": "bc7dd539372006ce1aab01739c28c0f1a8850a17a29728401d18865a99949423",
   "declared_model": "fixture-model",
   "fixture": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tests\\fixtures\\fitcv-p1ab-repair-experiment.json",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
@@ -26,19 +26,19 @@
     "cx/gpt-5.6-luna"
   ],
   "run_ids": [
-    "de421bfe-d6ea-4025-893f-ce8bfce848d2",
-    "c0060666-5743-46b7-b9c5-23c21cf03422",
-    "811a6eb1-b1b5-40fc-a085-f06daa2737f8",
-    "e12dc560-a543-48a0-b3cc-ba560beb5b2b",
-    "0a176484-802a-4d84-8c56-6f07943136b8",
-    "c6bb7de8-e698-48ad-b820-27a2c748c0c8",
-    "bf071d59-ed0f-404c-a3a1-2159a6798473",
-    "4d3f05e9-8848-4aaa-9657-62a10ba4f530",
-    "51714b2b-66c4-41a4-9fe7-465a1033faf5",
-    "3e3122ec-0716-43fa-b5ae-a882ee012195"
+    "d6ca23ad-1cea-4a72-92bd-6bddbccfcc8c",
+    "ada3a409-abfa-4b96-9e38-380a9114246e",
+    "2087b3e2-0415-4204-aea3-05eddab779ff",
+    "ff8dfd16-2011-462e-a76f-425d14060682",
+    "c1e4c3d1-5f26-4911-aa10-51810d3cab53",
+    "5c75f4d5-cce2-4473-b3c7-873d3b76e9b0",
+    "b47cb3e6-2ea5-4b2b-850c-2f6ec626bdd5",
+    "ecb8cb91-01da-4f9e-986e-425f0fd37e74",
+    "7ce5cd63-f04c-43f8-98fb-fccf47fac66d",
+    "f967779f-6830-4ab4-bfe3-b5ec3b73a93a"
   ],
   "runtime": "fitcv-runtime",
   "schema_version": "fitcv.p1ab.repair_experiment_manifest.v1",
-  "source_commit": "dff6fff4d4b04bcc5f25f33637a79f44b0e94232",
-  "working_tree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  "source_commit": "7f29c76510b158667e731c0cfdb98411a8a76730",
+  "working_tree_diff_sha256": "d5d37913cd9e4dfc03951c5b276f7ef4f967aa371df4824513c1b21894426a73"
 }

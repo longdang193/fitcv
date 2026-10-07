@@ -312,8 +312,10 @@
       "peer_json": "docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.json",
       "peer_markdown": "docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.md"
     },
-    "blocked_reasons": [],
-    "measurement_status": "measured",
+    "blocked_reasons": [
+      "fresh provider-backed local_first cohort produced no current-contract accepted records after uncertainty routing"
+    ],
+    "measurement_status": "incomplete",
     "p1_c": "deferred",
     "p2": "deferred"
   },
@@ -336,14 +338,14 @@
       "measurement_status": "frozen_scope_only"
     },
     "p1_a": {
-      "acceptance_status": "passed",
+      "acceptance_status": "blocked",
       "implementation_status": "verified",
-      "measurement_status": "measured"
+      "measurement_status": "incomplete"
     },
     "p1_b": {
-      "acceptance_status": "passed",
+      "acceptance_status": "blocked",
       "implementation_status": "verified",
-      "measurement_status": "measured"
+      "measurement_status": "incomplete"
     },
     "p1_c": {
       "acceptance_status": "deferred",
@@ -360,8 +362,8 @@
     "p0_a": "rejected",
     "p0_b": "passed",
     "p0_c": "passed",
-    "p1_a": "passed",
-    "p1_b": "passed",
+    "p1_a": "blocked",
+    "p1_b": "blocked",
     "p1_c": "deferred",
     "p2": "deferred"
   },
