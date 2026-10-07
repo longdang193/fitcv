@@ -78,6 +78,8 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
         if json.loads((path / "manifest.json").read_text(encoding="utf-8")) != manifest:
             return False
         analytics = json.loads((path / "analytics.json").read_text(encoding="utf-8"))
+        if not isinstance(analytics, dict):
+            return False
         if analytics.get("material_metrics_sha256") != manifest["material_metrics_sha256"]:
             return False
         gold = analytics.get("gold")

@@ -142,6 +142,20 @@ def test_refresh_rejects_corrupt_release_contents(tmp_path: Path) -> None:
     assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))["release"] == refreshed["release"]
 
 
+def test_refresh_rebuilds_release_when_analytics_json_has_wrong_shape(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    first = refresh_analytics(database, output_root, source_commit="head")
+    release = output_root / first["release"]
+    (release / "analytics.json").write_text("[]\n", encoding="utf-8")
+
+    refreshed = refresh_analytics(database, output_root, source_commit="head")
+
+    assert refreshed["release"] != first["release"]
+    assert isinstance(json.loads((output_root / refreshed["release"] / "analytics.json").read_text(encoding="utf-8")), dict)
+
+
 def test_refresh_script_supports_direct_help_invocation() -> None:
     result = subprocess.run(
         [sys.executable, "scripts/refresh_fitcv_analytics.py", "--help"],

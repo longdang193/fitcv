@@ -629,14 +629,11 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             dimension_keys.add((*cohort, requirement))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
-            if (
-                issue == "extraction_status_incomplete"
-                and observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES
-                and posting_id
-                and requirement
-                and _eligibility(payload) is True
-            ):
-                requirement_postings[(*cohort, requirement)].add(posting_id)
+            if issue == "extraction_status_incomplete" and _eligibility(payload) is True:
+                if observation_type in POSTING_INVENTORY_OBSERVATION_TYPES and posting_id:
+                    inventory_by_cohort[cohort].add(posting_id)
+                elif observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES and posting_id and requirement:
+                    requirement_postings[(*cohort, requirement)].add(posting_id)
             continue
         if _eligibility(payload) is None:
             coverage_issues.setdefault(cohort, "eligibility_incomplete")

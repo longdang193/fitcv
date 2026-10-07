@@ -960,6 +960,27 @@ def test_requirement_demand_uses_explicit_posting_inventory_denominator() -> Non
     assert row["coverage"] == "complete"
 
 
+def test_incomplete_extraction_preserves_imported_posting_demand_denominator() -> None:
+    bronze = build_bronze_observations(
+        {
+            "posting_inventory": [
+                {"source_id": "posting", "posting_id": "post-1", "eligible": True, "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "imported"},
+            ],
+            "posting_requirement": [
+                {"source_id": "requirement", "posting_id": "post-1", "requirement": "sql", "extraction_status": "unknown", "cohort_id": "c", "cohort_type": "imported"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    demand = build_gold_requirement_demand(build_silver_facts(bronze))[0]
+
+    assert demand["numerator_posting_count"] == 1
+    assert demand["denominator_posting_count"] == 1
+    assert demand["coverage"] == "unavailable"
+
 def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None:
     bundle = {
         "sources": {
@@ -977,7 +998,7 @@ def test_unknown_posting_inventory_extraction_makes_demand_unavailable() -> None
 
     row = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_requirement_demand"][0]
 
-    assert row["denominator_posting_count"] == 0
+    assert row["denominator_posting_count"] == 1
     assert row["coverage"] == "unavailable"
     assert row["unavailable_reason"] == "extraction_status_incomplete"
 
