@@ -3993,7 +3993,7 @@
     ]
   },
   "input_manifest": {
-    "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-runtime-r8-20261007\\provider-first-manifest.json",
+    "path": "docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-manifest.json",
     "run_ids": [
       "a6362988-9c8e-4509-b18f-460f9d7dd901",
       "66334c24-548f-4dac-8cea-b03bebaa282f",
@@ -4015,7 +4015,7 @@
       "cx/gpt-5.6-luna"
     ]
   },
-  "material_metrics_sha256": "35f57c5e988c413b8f066a168d2495a273272f20277c6feced6ea9ae6c3c0057",
+  "material_metrics_sha256": "c7bee0fe0288dd6190ab2027c0d38277b3c902ae330903ea78c3bce42795de70",
   "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
   "evidence_status": "canonical",
   "sanitizer_version": "fitcv-evidence-sanitizer.v1",

@@ -93,10 +93,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 970e27a63864bc675c2f4839063e2217bbf5f79a89a8eb8077f8bcde3f6bcd1c
+    fixture_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 970e27a63864bc675c2f4839063e2217bbf5f79a89a8eb8077f8bcde3f6bcd1c
+    material_metrics_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -109,10 +109,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 970e27a63864bc675c2f4839063e2217bbf5f79a89a8eb8077f8bcde3f6bcd1c
+    fixture_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 970e27a63864bc675c2f4839063e2217bbf5f79a89a8eb8077f8bcde3f6bcd1c
+    material_metrics_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -125,10 +125,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 970e27a63864bc675c2f4839063e2217bbf5f79a89a8eb8077f8bcde3f6bcd1c
+    fixture_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 970e27a63864bc675c2f4839063e2217bbf5f79a89a8eb8077f8bcde3f6bcd1c
+    material_metrics_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -207,7 +207,7 @@ records:
     fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
     cohort_id: p1ab-runtime-efficiency-r8
     cohort_type: paired_provider_backed
-    material_metrics_sha256: bd571b8893f5d260555550f28482fc796f3d215af8fa08a43020f4f02e270f77
+    material_metrics_sha256: 80a9b8c638408c90e5b4e3c10b6d3b99115954ee16d8366cb907103c481af9d7
     artifact_paths:
       - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.json
       - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.md

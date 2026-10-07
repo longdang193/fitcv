@@ -1,11 +1,11 @@
 # FitCV Current Scorecard
 
-- Evidence status: `canonical`
-- Evidence schema: `fitcv.p1_ab.current_contract.v1`
-- Source commit: `a512ca2ceeb180df2dfda27d93f31f0189ec4125`
-- Fixture SHA-256: `56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5`
-- Source fixture SHA-256: `56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5`
-- Material metrics SHA-256: `80a9b8c638408c90e5b4e3c10b6d3b99115954ee16d8366cb907103c481af9d7`
+- Evidence status: `generated`
+- Evidence schema: `runtime-report`
+- Source commit: `not_recorded`
+- Fixture SHA-256: `not_recorded`
+- Source fixture SHA-256: `not_recorded`
+- Material metrics SHA-256: `438c8a09af4ec96d00e7d676a5c12b5018261b3cedbc0c3be89eefcaa90a7de1`
 - Status: `complete`
 - Persisted ordinary runs: `10`
 - Accepted CVs: `10`

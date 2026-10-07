@@ -362,6 +362,10 @@
       "reason": "current trace contract does not persist this field"
     }
   },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
   "runs": [
     {
       "run_id": "98430220-19f3-44fb-ae52-309334bda5c0",
@@ -4607,7 +4611,7 @@
     ]
   },
   "input_manifest": {
-    "path": "docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-manifest.json",
+    "path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-runtime-r8-20261007\\local-first-manifest.json",
     "run_ids": [
       "de87a5b9-275b-4c43-86e5-ba3e5fba9902",
       "8dc63b3f-b3fa-46ba-8335-78758dff08c2",
@@ -4621,6 +4625,7 @@
       "98430220-19f3-44fb-ae52-309334bda5c0"
     ],
     "repeat_count": 10,
+    "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-runtime-r8-20261007\\local-first.sqlite3",
     "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
     "declared_input_fingerprint": "bed5148b1905a130336894379ca1dd3eac7c5dcafa70a7b1f9967494a12b78f7",
     "arm": "local_first",
@@ -4629,11 +4634,5 @@
       "cx/gpt-5.6-luna"
     ]
   },
-  "material_metrics_sha256": "80a9b8c638408c90e5b4e3c10b6d3b99115954ee16d8366cb907103c481af9d7",
-  "evidence_schema_version": "fitcv.p1_ab.current_contract.v1",
-  "evidence_status": "canonical",
-  "sanitizer_version": "fitcv-evidence-sanitizer.v1",
-  "source_commit": "a512ca2ceeb180df2dfda27d93f31f0189ec4125",
-  "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
-  "source_fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5"
+  "material_metrics_sha256": "438c8a09af4ec96d00e7d676a5c12b5018261b3cedbc0c3be89eefcaa90a7de1"
 }
