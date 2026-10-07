@@ -18,6 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from fitcv.reuse_law_engine import build_identity, emit_provenance, evaluate_gate
+
 _EXACT = "exact"
 _EXACT_OR_CORE = "exact_or_core"
 _SUCCEEDED_ONLY = "succeeded_only"
@@ -121,6 +123,32 @@ def build_reuse_decision(
     ]
     if not resolved_affected_units and resolved_event == "invalidation":
         resolved_affected_units = affected_reuse_units(resolved_stage or "")
+    law_provenance: dict[str, Any] = {}
+    if resolved_stage and fingerprint:
+        try:
+            identity = build_identity(
+                resolved_stage,
+                {"field": resolved_stage, "canonical": fingerprint},
+                {"semantic_settings_hash": fingerprint},
+                stage_input_fingerprint=fingerprint,
+                source_fingerprint=fingerprint,
+            )
+            law_provenance = emit_provenance(
+                evaluate_gate(
+                    identity,
+                    {
+                        "seed_available": resolved_decision in {"reused", "reused_exact_match"},
+                        "runtime_match": resolved_reason != "runtime_mismatch",
+                        "semantic_match": resolved_reason != "semantic_mismatch",
+                        "identity_match": resolved_decision in {"reused", "reused_exact_match"},
+                        "artifact_match": resolved_decision in {"reused", "reused_exact_match"},
+                        "invalidated_units": resolved_affected_units,
+                    },
+                    {"enabled": resolved_decision != "reuse_disabled"},
+                )
+            )
+        except ValueError:
+            law_provenance = {}
     return {
         "decision": resolved_decision,
         "reason_code": resolved_reason,
@@ -134,5 +162,6 @@ def build_reuse_decision(
             or ("stage_and_downstream" if resolved_event == "invalidation" else None)
         ),
         "affected_units": resolved_affected_units,
-        "reuse_key": str(reuse_key or fingerprint or "").strip() or None,
+        "reuse_key": str(reuse_key or law_provenance.get("reuse_key") or fingerprint or "").strip() or None,
+        "identity_source": "reuse_law_engine" if law_provenance else None,
     }

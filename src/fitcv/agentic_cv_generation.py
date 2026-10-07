@@ -1555,6 +1555,7 @@ def _run_repair_cycle(
             "local_repair_attempted",
             "local_repair_succeeded",
             "local_repair_failed",
+            "failure_category",
         ):
             if previous_repair_attempt.get(field):
                 repair_attempt[field] = True
@@ -1595,8 +1596,20 @@ def _run_repair_cycle(
             structured_cv, markdown = repaired_cv, repaired_markdown
         if retry_provenance is not None:
             runtime_provenance = retry_provenance
+        repair_attempt["failure_category"] = _classify_repair_failure(
+            validation,
+            _determine_repair_targets(validation, structured_cv),
+        )
         repair_attempt["provider_retry_succeeded"] = bool(validation.get("valid"))
         repair_attempt["targeted_generation_succeeded"] = bool(validation.get("valid"))
+        if repair_attempt["failure_category"] == "uncertainty":
+            repair_attempt.update(
+                {
+                    "reason": "review_required_uncertainty",
+                    "review_required": True,
+                }
+            )
+            return structured_cv, markdown, validation, repair_attempt, runtime_provenance
 
     if repair_arm == "local_first" and not validation.get("valid") and not repair_attempt.get("local_repair_attempted"):
         structured_cv, repaired_keys = _backfill_required_sections_from_profile(

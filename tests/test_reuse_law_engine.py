@@ -77,3 +77,4 @@ def test_invalidation_stops_at_affected_downstream_units() -> None:
     )
     assert decision["provenance_event"] == "invalidation"
     assert decision["affected_units"] == ["cv_analysis", "cv_generation", "render"]
+    assert decision["identity_source"] == "reuse_law_engine"

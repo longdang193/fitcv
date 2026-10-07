@@ -1611,7 +1611,7 @@ def test_generate_from_analysis_direct_path_has_canonical_trace(
 
     result = generate_from_analysis(analysis_record, profile, config)
 
-    assert result["status"] in {"accepted", "validation_failed"}
+    assert result["status"] in {"accepted", "validation_failed", "review_required"}
     observation = result["llm_runtime_observations"][0]
     assert observation["evidence"]["provenance"]["adapter"] == "direct"
     assert observation["evidence"]["provenance"]["runtime_path"] == "fitcv_llm_direct"

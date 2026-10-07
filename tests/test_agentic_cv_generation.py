@@ -87,6 +87,44 @@ def test_uncertain_validation_stops_for_review_without_retry() -> None:
     retry_executor.assert_not_called()
 
 
+def test_uncertainty_after_targeted_retry_stops_before_full_regeneration() -> None:
+    initial_validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    uncertain_validation = {
+        **initial_validation,
+        "missing_sections": [],
+        "markdown_quality_review_flags": ["ambiguous_section_attribution"],
+    }
+    retry_executor = Mock(
+        return_value=(None, "# retry", uncertain_validation, None)
+    )
+
+    _, _, final_validation, repair_attempt, _ = _run_repair_cycle(
+        structured_cv=None,
+        markdown="# CV",
+        validation=initial_validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance=None,
+    )
+
+    assert final_validation["valid"] is False
+    assert repair_attempt["failure_category"] == "uncertainty"
+    assert repair_attempt["review_required"] is True
+    assert repair_attempt.get("full_regeneration_attempted") is not True
+    retry_executor.assert_called_once_with(["experience"])
+
+
 def test_failed_local_repair_is_preserved_when_provider_retry_succeeds(monkeypatch) -> None:
     validation = {
         "valid": False,
