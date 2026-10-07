@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -22,11 +24,33 @@ from scripts.fitcv_analytics import rebuild_analytics_bundle, write_analytics_sq
 
 
 def _json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True, default=str) + "\n"
 
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _value_digest(value: Any) -> str:
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _canonical_inputs() -> tuple[dict[str, Any], dict[str, Any]]:
+    metric_registry = yaml.safe_load((REPO_ROOT / "config/analytics_metrics.yaml").read_text(encoding="utf-8")) or {}
+    evidence_registry = yaml.safe_load((REPO_ROOT / "config/evidence_registry.yaml").read_text(encoding="utf-8")) or {}
+    state = yaml.safe_load((REPO_ROOT / "config/acceptance_state.yaml").read_text(encoding="utf-8")) or {}
+    claim_priority_map = metric_registry.get("claim_priority_map") or {}
+    registry = {
+        "metrics": metric_registry.get("metrics") or [],
+        "records": [
+            record
+            for record in evidence_registry.get("records") or []
+            if str(record.get("claim") or "") in claim_priority_map
+        ],
+        "claim_priority_map": claim_priority_map,
+    }
+    return registry, state
 
 
 def _write(path: Path, value: Any) -> None:
@@ -51,19 +75,37 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
         analytics = json.loads((path / "analytics.json").read_text(encoding="utf-8"))
         if analytics.get("material_metrics_sha256") != manifest["material_metrics_sha256"]:
             return False
-        expected_metrics = analytics.get("gold", {}).get("gold_semantic_metric")
-        if not isinstance(expected_metrics, list):
+        gold = analytics.get("gold")
+        if not isinstance(gold, dict):
             return False
+        if analytics.get("material_metrics_sha256") != _value_digest(gold):
+            return False
+        if manifest["material_metrics_sha256"] != _value_digest(gold):
+            return False
+        expected_tables = {
+            "gold_cv_artifact": "silver_cv_artifact",
+            "gold_run_job_effort": "silver_run_job_effort",
+            "gold_cohort_effort": "silver_cohort_effort",
+            "gold_requirement_demand": "silver_requirement_demand",
+            "gold_candidate_gap": "silver_candidate_gap",
+            "gold_acceptance_state": "silver_acceptance_evidence",
+            "gold_optimization_state": "silver_optimization_state",
+            "gold_semantic_metric": "gold_semantic_metric_rows",
+        }
         connection = sqlite3.connect(path / "analytics.sqlite3")
         try:
-            actual_metrics = [
-                json.loads(row[0])
-                for row in connection.execute(
-                    "SELECT payload_json FROM gold_semantic_metric_rows ORDER BY rowid"
-                )
-            ]
-            if actual_metrics != expected_metrics:
-                return False
+            for view_name, table_name in expected_tables.items():
+                expected_rows = gold.get(view_name)
+                if not isinstance(expected_rows, list):
+                    return False
+                actual_rows = [
+                    json.loads(row[0])
+                    for row in connection.execute(
+                        f"SELECT payload_json FROM {table_name} ORDER BY rowid"
+                    )
+                ]
+                if actual_rows != expected_rows:
+                    return False
         finally:
             connection.close()
     except (OSError, sqlite3.Error, TypeError, ValueError, json.JSONDecodeError):
@@ -85,6 +127,8 @@ def refresh_analytics(
         source_commit=source_commit,
         expected_database_sha256=expected_database_sha256,
     )
+    registry, state = _canonical_inputs()
+    bundle = {**bundle, "registry": registry, "state": state}
     output = rebuild_analytics_bundle(
         bundle,
         source_commit=source_commit,

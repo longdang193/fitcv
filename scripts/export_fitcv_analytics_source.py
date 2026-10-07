@@ -717,7 +717,8 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "requirement": requirement["requirement"],
                 "requirement_instance_id": requirement_instance_id,
                 "gap_category": "unevaluated",
-                "evaluation_status": str(evaluation["status"] or "unevaluated") if evaluation is not None else "unevaluated",
+                "evaluation_status": "unevaluated",
+                "evaluation_run_status": str(evaluation["status"] or "unknown") if evaluation is not None else "unknown",
             })
         normalized_status = "succeeded" if status == "generated" else status
         attempt_count = _debug_attempt_count(debug, ordinal or 1)

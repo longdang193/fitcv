@@ -318,7 +318,9 @@ def test_export_emits_unevaluated_for_job_without_version_or_debug(tmp_path: Pat
 
     bundle = export_bundle(database, source_commit="head")
     assert any(
-        row["run_job_id"] == "job-3" and row["gap_category"] == "unevaluated"
+        row["run_job_id"] == "job-3"
+        and row["gap_category"] == "unevaluated"
+        and row["evaluation_status"] == "unevaluated"
         for row in bundle["sources"]["candidate_gap"]
     )
 

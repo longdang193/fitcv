@@ -30,6 +30,23 @@ def test_refresh_replay_is_idempotent_and_publishes_valid_release(tmp_path: Path
         assert connection.execute("SELECT COUNT(*) FROM gold_semantic_metric").fetchone()[0] > 0
 
 
+def test_refresh_includes_canonical_acceptance_and_optimization_state(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+
+    result = refresh_analytics(database, output_root, source_commit="head")
+    release = output_root / result["release"]
+    analytics = json.loads((release / "analytics.json").read_text(encoding="utf-8"))
+
+    assert analytics["gold"]["gold_acceptance_state"]
+    assert analytics["gold"]["gold_optimization_state"]
+    assert any(
+        row["optimization_promotion"] == "rejected"
+        for row in analytics["gold"]["gold_optimization_state"]
+    )
+
+
 def test_refresh_failure_preserves_previous_pointer(tmp_path: Path) -> None:
     database = tmp_path / "fitcv.sqlite3"
     output_root = tmp_path / "analytics"
