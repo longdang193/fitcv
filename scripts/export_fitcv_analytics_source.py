@@ -587,7 +587,11 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 continue
             requirement_row = {
                 "requirement": str(requirement),
-                "requirement_instance_id": f"{_posting_id(row)}:{index}",
+                "requirement_instance_id": str(
+                    item.get("requirement_instance_id")
+                    if isinstance(item, dict) and item.get("requirement_instance_id")
+                    else f"{_posting_id(row)}:{index}"
+                ),
             }
             requirements_by_run_job[str(row["run_job_id"])].append(requirement_row)
             _append(sources, "posting_requirement", {
@@ -673,9 +677,18 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
             for index, item in enumerate(evidence.get("requirement_coverage") or []):
                 if not isinstance(item, dict) or not str(item.get("requirement") or "").strip():
                     continue
-                requirement_instance_id = str(
-                    item.get("requirement_instance_id") or f"{common['posting_id']}:{index}"
-                )
+                requirement_instance_id = str(item.get("requirement_instance_id") or "").strip()
+                if not requirement_instance_id:
+                    requirement_name = str(item["requirement"]).strip().casefold()
+                    requirement_instance_id = next(
+                        (
+                            str(requirement["requirement_instance_id"])
+                            for requirement in requirements_by_run_job.get(run_job_id, [])
+                            if str(requirement["requirement"]).strip().casefold() == requirement_name
+                            and str(requirement["requirement_instance_id"]) not in evaluated_requirements
+                        ),
+                        f"{common['posting_id']}:{index}",
+                    )
                 evaluated_requirements.add(requirement_instance_id)
                 selected_support = str(item.get("selected_support") or "").strip().lower()
                 gap_category = {

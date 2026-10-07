@@ -701,7 +701,7 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
         if observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES:
             denominator[partition].add(pair)
             continue
-        if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation"}:
+        if category in {"missing_evidence", "unmet_qualifier", "uncertain_interpretation", "unevaluated"}:
             gaps[(*cohort, requirement, category, *profile)].add(pair)
     for key, pairs in list(gaps.items()):
         partition = key[:2] + key[4:]

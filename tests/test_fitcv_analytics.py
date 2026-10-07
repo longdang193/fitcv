@@ -1002,6 +1002,27 @@ def test_candidate_gap_is_partitioned_by_candidate_profile_revision() -> None:
     assert {row["denominator_requirement_count"] for row in gaps} == {1}
 
 
+def test_unevaluated_candidate_gap_counts_in_numerator() -> None:
+    bundle = {
+        "sources": {
+            "posting_requirement": [
+                {"source_id": "requirement-1", "posting_id": "posting-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "candidate_gap": [
+                {"source_id": "gap-1", "posting_id": "posting-1", "requirement": "python", "gap_category": "unevaluated", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        "registry": {},
+        "state": {},
+    }
+
+    gaps = rebuild_analytics_bundle(bundle, source_commit="head", declared_input_fingerprint="inputs", ingested_at="now")["gold"]["gold_candidate_gap"]
+
+    assert gaps[0]["gap_category"] == "unevaluated"
+    assert gaps[0]["numerator_requirement_count"] == 1
+    assert gaps[0]["denominator_requirement_count"] == 1
+
+
 def test_acceptance_and_optimization_state_are_separate() -> None:
     result = rebuild_analytics_bundle(
         {

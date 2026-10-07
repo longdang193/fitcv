@@ -38,3 +38,17 @@ def test_refresh_failure_preserves_previous_pointer(tmp_path: Path) -> None:
         refresh_analytics(database, output_root, source_commit="head", expected_database_sha256="bad")
 
     assert (output_root / "CURRENT.json").read_text(encoding="utf-8") == before
+
+
+def test_refresh_repairs_invalid_existing_release_before_pointer_swap(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    first = refresh_analytics(database, output_root, source_commit="head")
+    release = output_root / first["release"]
+    (release / "analytics.sqlite3").unlink()
+
+    repaired = refresh_analytics(database, output_root, source_commit="head")
+
+    assert (output_root / repaired["release"] / "analytics.sqlite3").is_file()
+    assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))["release"] == repaired["release"]

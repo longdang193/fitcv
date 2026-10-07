@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import sqlite3
 import shutil
 import tempfile
 from pathlib import Path
@@ -26,6 +27,26 @@ def _digest(path: Path) -> str:
 def _write(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_json(value), encoding="utf-8")
+
+
+def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
+    required = ["source_bundle.json", "analytics.json", "analytics.sqlite3", "manifest.json"]
+    if not path.is_dir() or any(not (path / name).is_file() for name in required):
+        return False
+    try:
+        if json.loads((path / "manifest.json").read_text(encoding="utf-8")) != manifest:
+            return False
+        analytics = json.loads((path / "analytics.json").read_text(encoding="utf-8"))
+        if analytics.get("material_metrics_sha256") != manifest["material_metrics_sha256"]:
+            return False
+        connection = sqlite3.connect(path / "analytics.sqlite3")
+        try:
+            connection.execute("SELECT 1 FROM gold_semantic_metric LIMIT 1").fetchone()
+        finally:
+            connection.close()
+    except (OSError, sqlite3.Error, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    return True
 
 
 def refresh_analytics(
@@ -78,11 +99,18 @@ def refresh_analytics(
         if json.loads((stage / "analytics.json").read_text(encoding="utf-8"))["material_metrics_sha256"] != material_digest:
             raise ValueError("analytics_material_digest_mismatch")
         release = releases / material_digest
-        if not release.exists():
-            shutil.copytree(stage, release)
+        if not _release_is_valid(release, manifest):
+            repaired_release = releases / f"{material_digest}.rebuild"
+            if repaired_release.exists():
+                shutil.rmtree(repaired_release)
+            shutil.copytree(stage, repaired_release)
+            if not _release_is_valid(repaired_release, manifest):
+                raise ValueError("analytics_release_validation_failed")
+            release = repaired_release
+        release_reference = release.relative_to(output_root).as_posix()
         current = output_root / "CURRENT.json"
         pointer = output_root / f".CURRENT.{material_digest}.tmp"
-        _write(pointer, {"release": f"releases/{material_digest}", **manifest})
+        _write(pointer, {"release": release_reference, **manifest})
         os.replace(pointer, current)
     finally:
         if stage is not None and stage.exists():
@@ -90,7 +118,7 @@ def refresh_analytics(
                 shutil.rmtree(stage)
             except PermissionError:
                 pass
-    return {"status": "ok", "release": f"releases/{material_digest}", **manifest}
+    return {"status": "ok", "release": release_reference, **manifest}
 
 
 def main() -> int:
