@@ -148,7 +148,7 @@ paired measurement with no grounding or one-page regression.
 - Branch: `codex/fitcv-p1b-r7`
 - Base commit: `ea138c3b53bd05fad96b20378e80abd528d06a9c`
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `repair peer identity validation, verify R7 reports, then promote fresh evidence`
+- Next action: `open Task 4 planning lane after PR acceptance; retain R5/R6 efficiency blocker`
 - Blockers: `none for Task 3; R7 provider-backed reports retained under task-owned disposable root`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -156,7 +156,7 @@ paired measurement with no grounding or one-page regression.
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
-| 3. Fresh P1-B baseline | `in_progress` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 provider-backed reports retained under task-owned disposable root; verifier peer identity fix pending |
+| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 canonical paired reports, manifests, analytics rebuilds, and acceptance verifier passed |
 | 4. P1-C dashboard MVP | `pending` | fresh branch | `unresolved` | 3 | API, frontend, browser, accessibility proof | pending |
 | 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
 | 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
@@ -357,21 +357,17 @@ sources, not only generated reports.
   `tests/test_acceptance_state.py`; add generated evidence only under
   `docs/superpowers/evidence/`.
 - Use `scripts/run_fitcv_repair_experiment.py --produce-real` as the bounded
-  producer and add focused coverage around its report contract. It accepts
-  `--database`, `--output-root`, `--arm`, `--variant`, `--repeat-count`,
-  `--max-provider-calls`, and `--source-commit`, persists ten unique run IDs per
-  arm, and records database, fixture, candidate, provider/model, and input
-  fingerprints. It must execute the real configured provider-backed workload,
-  not mocked observations, and fail before the declared provider-call budget.
-- Add `scripts/compare_fitcv_optimization.py` and
-  `tests/test_compare_fitcv_optimization.py` to compare explicit
-  `variant=baseline|optimized` packages while preserving the existing
-  opposite-arm acceptance verifier.
+  producer with explicit `--arm`, `--database`, and `--manifest` paths. It
+  persists ten unique run IDs per arm and records database, fixture,
+  provider/model, and input fingerprints. It must execute the real configured
+  provider-backed workload, not mocked observations.
+- Keep optimization comparison outside Task 3; no optimization package is
+  promoted by this baseline measurement.
 - Modify only after successful proof: `config/acceptance_state.yaml`,
   `config/evidence_registry.yaml`, and canonical evidence sources required by
   `scripts/render_acceptance_state.py`; regenerate
-  `docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7-canonical.json` and
-  `docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7-canonical.md`.
+  `docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.json`, its peer report,
+  manifests, and matching SHA-256 files.
 
 **Dependencies:** Task 2 complete and retained replayable inputs exist.
 
@@ -383,25 +379,25 @@ sources, not only generated reports.
   evidence, or incomplete peer arm.
 
 **Steps:**
-- [ ] Run the bounded producer twice, once per opposite arm, with
+- [x] Run the bounded producer twice, once per opposite arm, with
   `--variant baseline --repeat-count 10 --max-provider-calls <declared-budget>`
   and the matching optimized/peer commands, one retained database per arm,
   identical fixture/input identity, explicit source commit, and a named
   provider/model environment.
-- [ ] Run benchmark and refresh analytics from the generated package.
-- [ ] Verify source/candidate/provider identity, coverage, accepted artifacts,
+- [x] Run benchmark and refresh analytics from the generated package.
+- [x] Verify source/candidate/provider identity, coverage, accepted artifacts,
   render proof, and digest.
-- [ ] Rebuild twice and compare material digests.
-- [ ] Classify failure/work categories without changing routing.
+- [x] Rebuild twice and compare material digests.
+- [x] Classify failure/work categories without changing routing.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_benchmark_cv_efficiency.py tests/test_acceptance_state.py`
-- [ ] Run verifier with explicit `--experiment-json`, `--experiment-markdown`,
+- [x] `python -m pytest -q tests/test_benchmark_cv_efficiency.py tests/test_acceptance_state.py`
+- [x] Run verifier with explicit `--experiment-json`, `--experiment-markdown`,
   and `--experiment-peer-json`; plain invocation cannot promote R7.
-- [ ] Render acceptance state from canonical YAML/registry sources and verify
+- [x] Render acceptance state from canonical YAML/registry sources and verify
   the measured transition; preserve historical evidence and keep production
   routing unchanged.
-- [ ] Verify exact output paths, registry references, source commit, input
+- [x] Verify exact output paths, registry references, source commit, input
   fingerprints, and material digests for both arms.
 
 **Exit Criteria:** Mark P1-B `measured` only after independent rebuild and
