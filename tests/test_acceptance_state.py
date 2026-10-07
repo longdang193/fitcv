@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -104,6 +105,28 @@ def test_committed_acceptance_registry_fixture_hashes_match_declared_input() -> 
     assert records
     assert {record["fixture_sha256"] for record in records} == {expected}
     assert {record["material_metrics_sha256"] for record in records} == {expected}
+
+
+def test_committed_r8_evidence_uses_tracked_manifests() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    for arm in ("local-first", "provider-first"):
+        evidence_path = repo_root / f"docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-{arm}-canonical.json"
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        manifest_name = evidence["input_manifest"]["path"]
+        manifest_path = repo_root / manifest_name
+
+        assert not Path(manifest_name).is_absolute()
+        assert manifest_path.is_file()
+        subprocess.run(
+            ["git", "ls-files", "--error-unmatch", manifest_name],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert "database_path" not in manifest
+        assert manifest["run_ids"] == evidence["input_manifest"]["run_ids"]
 
 
 @pytest.mark.parametrize(
