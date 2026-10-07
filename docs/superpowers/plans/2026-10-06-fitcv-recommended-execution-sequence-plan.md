@@ -147,11 +147,11 @@ paired measurement with no grounding or one-page regression.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/fitcv-runtime-r8`
-- Base commit: `6b08a0d033ed098e44bfc8cc70a329b93f385723` (`origin/main` at checkpoint)
-- Current HEAD: `91164025` (`fix: validate published analytics content`)
+- Branch: `codex/fitcv-plan-completion`
+- Base commit: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` (`origin/main` after PR #94)
+- Current HEAD: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` before Task 5–7 changes
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `admit Task 5 from the Task 4 checkpoint; retain R5/R6 efficiency blocker`
+- Next action: `complete Task 7 evidence and final verification; retain R5/R6 efficiency blocker`
 - Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -161,8 +161,8 @@ paired measurement with no grounding or one-page regression.
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
 | 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 canonical paired reports, manifests, analytics rebuilds, and acceptance verifier passed |
 | 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1526 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed; review-1 integrity findings fixed |
-| 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
-| 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
+| 5. Content-addressed reuse | `completed` | `codex/fitcv-plan-completion` | `codex` | 4 | hit/miss/invalidation and equivalence proof | reuse identity/provenance tests; 126-task regression set |
+| 6. Repair/escalation | `completed` | `codex/fitcv-plan-completion` | `codex` | 5 | ordered repair and fallback tests | bounded repair tests; 126-task regression set |
 | 7. Re-measure/promote | `pending` | fresh branch | `unresolved` | 5–6 | paired comparison and quality gate | pending |
 
 ## Task Breakdown
@@ -535,22 +535,22 @@ invalidate only affected units; no cross-candidate or stale reuse.
   or missing invalidation proof.
 
 **Steps:**
-- [ ] Map current fingerprints to extraction, support, generation, and render.
-- [ ] Extend `build_identity` with optional stage-input and candidate-revision
+- [x] Map current fingerprints to extraction, support, generation, and render.
+- [x] Extend `build_identity` with optional stage-input and candidate-revision
   fingerprints; preserve old callers and reject missing required identity
   instead of hashing arbitrary ignored payload.
-- [ ] Define bounded persisted stage-artifact lifetime and affected units:
+- [x] Define bounded persisted stage-artifact lifetime and affected units:
   extraction, requirement support, generation section/bullet, and render. Keep
   metadata-only reuse records in terminal-run mirrors, apply existing
   `pipeline_stage_artifacts.py` truncation limits, and never persist a global
   binary cache.
-- [ ] Add exact-match reuse and affected-unit invalidation.
-- [ ] Emit hit/miss/invalidation/rejection provenance.
-- [ ] Prove output equivalence and reduced repeated work.
+- [x] Add exact-match reuse and affected-unit invalidation.
+- [x] Emit hit/miss/invalidation/rejection provenance.
+- [x] Prove output equivalence and reduced repeated work.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline_stage_resume_parity.py`
-- [ ] Representative benchmark uses identical input with reuse disabled and
+- [x] `python -m pytest -q tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline_stage_resume_parity.py`
+- [x] Representative benchmark uses identical input with reuse disabled and
   enabled, and asserts hit/miss/invalidation provenance plus output equivalence.
 
 **Exit Criteria:** Reuse is bounded, observable, invalidation-safe, and improves
@@ -591,21 +591,21 @@ last; final artifact/render validation remains global.
   full regeneration as default.
 
 **Steps:**
-- [ ] Classify failures into deterministic, isolated semantic, uncertainty, and
+- [x] Classify failures into deterministic, isolated semantic, uncertainty, and
   global inconsistency.
-- [ ] Implement a decision table: deterministic local repair once; targeted
+- [x] Implement a decision table: deterministic local repair once; targeted
   generation for one isolated section/bullet once; review for uncertainty;
   full regeneration only after those paths fail, at most once per run.
-- [ ] Set numeric retry caps: one local repair, one targeted generation, and one
+- [x] Set numeric retry caps: one local repair, one targeted generation, and one
   full regeneration. Uncertainty emits `review_required` as terminal until an
   explicit resume action; emit repair, escalation, review, resume, and final-
   rejection outcomes.
-- [ ] Keep global validation after every repair.
-- [ ] Test each branch, retry cap, and final rejection.
+- [x] Keep global validation after every repair.
+- [x] Test each branch, retry cap, and final rejection.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_agentic_cv_generation.py tests/test_cv_render_acceptance.py`
-- [ ] Representative trace proves ordered local repair → targeted generation →
+- [x] `python -m pytest -q tests/test_agentic_cv_generation.py tests/test_cv_render_acceptance.py`
+- [x] Representative trace proves ordered local repair → targeted generation →
   full regeneration fallback and global validation after each path.
 
 **Exit Criteria:** Escalation is deterministic, bounded, observable, and safe.

@@ -31,6 +31,14 @@ _STAGE_DEFAULTS: dict[str, dict[str, str]] = {
     "synonym_triage": {"source_scope": _SUCCEEDED_OR_CHECKPOINTED, "match_mode": _EXACT_OR_CORE},
 }
 
+_STAGE_INVALIDATION_ORDER = (
+    "enrich",
+    "ranking",
+    "cv_analysis",
+    "cv_generation",
+    "render",
+)
+
 
 @dataclass(frozen=True)
 class ReuseStagePolicy:
@@ -38,6 +46,17 @@ class ReuseStagePolicy:
     enabled: bool
     source_scope: str
     match_mode: str
+
+
+def affected_reuse_units(stage: str, *, changed: bool = True) -> list[str]:
+    """Return bounded downstream units invalidated by a stage change."""
+    if not changed:
+        return []
+    stage_key = str(stage or "").strip().lower()
+    if stage_key not in _STAGE_INVALIDATION_ORDER:
+        return [stage_key] if stage_key else []
+    start = _STAGE_INVALIDATION_ORDER.index(stage_key)
+    return list(_STAGE_INVALIDATION_ORDER[start:])
 
 
 def _normalize_source_scope(value: Any, *, fallback: str) -> str:
@@ -78,11 +97,42 @@ def build_reuse_decision(
     fingerprint: str | None,
     source_run_id: str | None = None,
     source_artifact_type: str | None = None,
+    stage: str | None = None,
+    provenance_event: str | None = None,
+    invalidation_scope: str | None = None,
+    affected_units: list[str] | None = None,
+    reuse_key: str | None = None,
 ) -> dict[str, Any]:
+    resolved_stage = str(stage or source_artifact_type or "").strip() or None
+    resolved_decision = str(decision or "").strip()
+    resolved_reason = str(reason_code or "").strip()
+    if provenance_event:
+        resolved_event = str(provenance_event).strip()
+    elif resolved_decision in {"reused_exact_match", "reused"}:
+        resolved_event = "hit"
+    elif any(token in resolved_reason for token in ("mismatch", "stale", "changed", "invalidat")):
+        resolved_event = "invalidation"
+    else:
+        resolved_event = "rejection"
+    resolved_affected_units = [
+        str(unit).strip()
+        for unit in list(affected_units or [])
+        if str(unit).strip()
+    ]
+    if not resolved_affected_units and resolved_event == "invalidation":
+        resolved_affected_units = affected_reuse_units(resolved_stage or "")
     return {
-        "decision": str(decision or "").strip(),
-        "reason_code": str(reason_code or "").strip(),
+        "decision": resolved_decision,
+        "reason_code": resolved_reason,
         "fingerprint": str(fingerprint or "").strip() or None,
         "source_run_id": str(source_run_id or "").strip() or None,
         "source_artifact_type": str(source_artifact_type or "").strip() or None,
+        "stage": resolved_stage,
+        "provenance_event": resolved_event,
+        "invalidation_scope": (
+            str(invalidation_scope or "").strip()
+            or ("stage_and_downstream" if resolved_event == "invalidation" else None)
+        ),
+        "affected_units": resolved_affected_units,
+        "reuse_key": str(reuse_key or fingerprint or "").strip() or None,
     }

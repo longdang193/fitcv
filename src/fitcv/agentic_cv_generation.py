@@ -69,6 +69,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS as SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ACCEPTED_STATUS as ACCEPTED_STATUS,
     CV_GENERATION_FAILED_STATUS as GENERATION_FAILED_STATUS,
+    CV_GENERATION_REVIEW_REQUIRED_STATUS as REVIEW_REQUIRED_STATUS,
     CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
     GenerationStatus,
 )
@@ -165,6 +166,12 @@ class RepairAttempt(TypedDict, total=False):
     local_repair_failed: bool
     provider_retry_attempted: bool
     provider_retry_succeeded: bool
+    failure_category: str
+    targeted_generation_attempted: bool
+    targeted_generation_succeeded: bool
+    full_regeneration_attempted: bool
+    full_regeneration_succeeded: bool
+    review_required: bool
 
 
 class ValidationSnapshot(TypedDict):
@@ -639,6 +646,12 @@ def _empty_repair_attempt() -> RepairAttempt:
     return {
         "performed": False,
         "missing_sections": [],
+        "failure_category": "none",
+        "targeted_generation_attempted": False,
+        "targeted_generation_succeeded": False,
+        "full_regeneration_attempted": False,
+        "full_regeneration_succeeded": False,
+        "review_required": False,
     }
 
 
@@ -1087,6 +1100,24 @@ def _generation_format_defect_category(validation: Mapping[str, Any]) -> str | N
     return None
 
 
+def _classify_repair_failure(
+    validation: Mapping[str, Any],
+    repair_targets: list[str],
+) -> str:
+    if bool(validation.get("valid")):
+        return "none"
+    if list(validation.get("markdown_quality_review_flags") or []):
+        return "uncertainty"
+    if _generation_format_defect_category(validation):
+        return "deterministic"
+    if repair_targets and (
+        list(validation.get("grounding_violations") or [])
+        or list(validation.get("skill_violations") or [])
+    ):
+        return "isolated_semantic"
+    return "global_inconsistency"
+
+
 def _build_validation_grounding_payload(
     analysis_record: dict[str, Any],
     job: dict[str, Any],
@@ -1470,6 +1501,16 @@ def _run_repair_cycle(
         else None
     )
     repair_targets = _determine_repair_targets(validation, structured_cv)
+    failure_category = _classify_repair_failure(validation, repair_targets)
+    repair_attempt["failure_category"] = failure_category
+    if failure_category == "uncertainty":
+        repair_attempt.update(
+            {
+                "reason": "review_required_uncertainty",
+                "review_required": True,
+            }
+        )
+        return structured_cv, markdown, validation, repair_attempt, runtime_provenance
     if repair_targets:
         if repair_arm == "local_first" and _generation_format_defect_category(validation) == "missing_mandatory_section":
             repaired_cv, repaired_keys = _backfill_required_sections_from_profile(
@@ -1489,6 +1530,8 @@ def _run_repair_cycle(
                     structured_cv=repaired_cv,
                     analysis_grounding=analysis_grounding,
                 )
+                structured_cv = repaired_cv
+                markdown = repaired_markdown
                 if repaired_validation.get("valid"):
                     repair_attempt.update(
                         {
@@ -1515,7 +1558,10 @@ def _run_repair_cycle(
         ):
             if previous_repair_attempt.get(field):
                 repair_attempt[field] = True
-        repair_attempt["reason"] = "provider_retry"
+        repair_attempt["reason"] = (
+            "provider_retry" if failure_category == "deterministic" else "targeted_generation"
+        )
+        repair_attempt["targeted_generation_attempted"] = True
         repair_attempt["provider_retry_attempted"] = True
         try:
             repaired_cv, repaired_markdown, validation, retry_provenance = retry_executor(repair_targets)
@@ -1527,10 +1573,15 @@ def _run_repair_cycle(
                 section_key = str(section_name).strip().lower()
                 repaired_sections = repaired_cv.get("sections")
                 if isinstance(repaired_sections, dict) and section_key in repaired_sections:
+                    replacement = repaired_sections[section_key]
+                    existing_sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else {}
+                    existing_value = existing_sections.get(section_key) if isinstance(existing_sections, dict) else None
+                    if not replacement and existing_value:
+                        continue
                     structured_cv = merge_repaired_section(
                         structured_cv,
                         section_key,
-                        repaired_sections[section_key],
+                        replacement,
                     )
             markdown = render_cv_markdown(structured_cv, config)
             validation = _run_generation_validations(
@@ -1545,8 +1596,9 @@ def _run_repair_cycle(
         if retry_provenance is not None:
             runtime_provenance = retry_provenance
         repair_attempt["provider_retry_succeeded"] = bool(validation.get("valid"))
+        repair_attempt["targeted_generation_succeeded"] = bool(validation.get("valid"))
 
-    if repair_arm == "local_first" and not validation.get("valid"):
+    if repair_arm == "local_first" and not validation.get("valid") and not repair_attempt.get("local_repair_attempted"):
         structured_cv, repaired_keys = _backfill_required_sections_from_profile(
             structured_cv=structured_cv,
             profile=profile,
@@ -1575,6 +1627,34 @@ def _run_repair_cycle(
                 )
             else:
                 repair_attempt["local_repair_failed"] = True
+
+    if not validation.get("valid") and not repair_attempt.get("review_required"):
+        repair_attempt["full_regeneration_attempted"] = True
+        repair_attempt["reason"] = "full_regeneration"
+        previous_structured_cv = structured_cv
+        try:
+            regenerated_cv, regenerated_markdown, regenerated_validation, regenerated_provenance = retry_executor([])
+        except Exception as exc:
+            setattr(exc, "repair_attempt", repair_attempt)
+            raise
+        candidate_validation = _run_generation_validations(
+            regenerated_markdown,
+            profile=profile,
+            config=config,
+            structured_cv=regenerated_cv,
+            analysis_grounding=analysis_grounding,
+        )
+        if candidate_validation.get("valid"):
+            structured_cv, markdown = regenerated_cv, regenerated_markdown
+        else:
+            structured_cv = previous_structured_cv
+        validation = candidate_validation
+        if not validation.get("valid") and regenerated_validation.get("valid"):
+            structured_cv, markdown = regenerated_cv, regenerated_markdown
+            validation = regenerated_validation
+        if regenerated_provenance is not None:
+            runtime_provenance = regenerated_provenance
+        repair_attempt["full_regeneration_succeeded"] = bool(validation.get("valid"))
 
     return structured_cv, markdown, validation, repair_attempt, runtime_provenance
 
@@ -2526,7 +2606,13 @@ def _generate_fresh_from_analysis(
             runtime_provenance=_initial_runtime_evidence,
             repair_arm=_coerce_repair_arm(config.get("cv_generation_repair_arm")),
         )
-        result_status: GenerationStatus = ACCEPTED_STATUS if validation.get("valid") else VALIDATION_FAILED_STATUS
+        result_status: GenerationStatus = (
+            ACCEPTED_STATUS
+            if validation.get("valid")
+            else REVIEW_REQUIRED_STATUS
+            if repair_attempt.get("review_required")
+            else VALIDATION_FAILED_STATUS
+        )
         error: ErrorPayload | None = None
         structured_cv_final = structured_cv if result_status == ACCEPTED_STATUS else None
         markdown_final = markdown if result_status == ACCEPTED_STATUS else None
@@ -2559,6 +2645,12 @@ def _generate_fresh_from_analysis(
                 "local_repair_failed": bool(repair_attempt.get("local_repair_failed")),
                 "provider_retry_attempted": bool(repair_attempt.get("provider_retry_attempted")),
                 "provider_retry_succeeded": bool(repair_attempt.get("provider_retry_succeeded")),
+                "failure_category": str(repair_attempt.get("failure_category") or "none"),
+                "targeted_generation_attempted": bool(repair_attempt.get("targeted_generation_attempted")),
+                "targeted_generation_succeeded": bool(repair_attempt.get("targeted_generation_succeeded")),
+                "full_regeneration_attempted": bool(repair_attempt.get("full_regeneration_attempted")),
+                "full_regeneration_succeeded": bool(repair_attempt.get("full_regeneration_succeeded")),
+                "review_required": bool(repair_attempt.get("review_required")),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,

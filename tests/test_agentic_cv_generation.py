@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -55,6 +55,36 @@ def test_provider_retry_does_not_count_as_local_repair() -> None:
     savings = trace["efficiency_summary"]["savings"]
     assert savings["local_repair_attempted"] is False
     assert savings["local_repair_succeeded"] is False
+
+
+def test_uncertain_validation_stops_for_review_without_retry() -> None:
+    retry_executor = Mock()
+    validation = {
+        "valid": False,
+        "missing_sections": [],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": ["ambiguous_section_attribution"],
+    }
+
+    _, _, final_validation, repair_attempt, _ = _run_repair_cycle(
+        structured_cv=None,
+        markdown="# CV",
+        validation=validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance=None,
+    )
+
+    assert final_validation["valid"] is False
+    assert repair_attempt["failure_category"] == "uncertainty"
+    assert repair_attempt["review_required"] is True
+    retry_executor.assert_not_called()
 
 
 def test_failed_local_repair_is_preserved_when_provider_retry_succeeds(monkeypatch) -> None:
@@ -643,7 +673,7 @@ def test_retry_fallback_preserves_selected_evidence_scope(monkeypatch) -> None:
     }
     retry_executor = Mock(return_value=(structured_cv, "# retry", validation, None))
 
-    repaired_cv, _, _, _, _ = _run_repair_cycle(
+    repaired_cv, _, _, repair_attempt, _ = _run_repair_cycle(
         structured_cv=structured_cv,
         markdown="# CV",
         validation=validation,
@@ -674,7 +704,9 @@ def test_retry_fallback_preserves_selected_evidence_scope(monkeypatch) -> None:
         repair_arm="local_first",
     )
 
-    retry_executor.assert_called_once_with(["experience"])
+    assert retry_executor.call_args_list == [call(["experience"]), call([])]
+    assert repair_attempt["targeted_generation_attempted"] is True
+    assert repair_attempt["full_regeneration_attempted"] is True
     assert [
         item["company"] for item in repaired_cv["sections"]["experience"]
     ] == ["ACME"]

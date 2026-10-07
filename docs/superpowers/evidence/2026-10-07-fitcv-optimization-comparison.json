@@ -1,0 +1,78 @@
+{
+  "decision": "promote",
+  "metrics": {
+    "generation_p95_ms": {
+      "baseline": 32893.99999999994,
+      "optimized": 20058.299999999996,
+      "relative_improvement": 0.39021402079406486
+    },
+    "human_actions": {
+      "baseline": 0.0,
+      "optimized": 0.0,
+      "relative_improvement": null
+    },
+    "provider_calls": {
+      "baseline": 5.0,
+      "optimized": 15.0,
+      "relative_improvement": -2.0
+    },
+    "regeneration_count": {
+      "baseline": 0.0,
+      "optimized": 5.0,
+      "relative_improvement": null
+    },
+    "token_total": {
+      "baseline": 23802.0,
+      "optimized": 70713.0,
+      "relative_improvement": -1.9708847995966725
+    }
+  },
+  "minimum_relative_improvement": 0.05,
+  "production_defaults_changed": false,
+  "quality": {
+    "baseline": {
+      "accepted_artifact_count": 5.0,
+      "grounding": {
+        "complete": true,
+        "matched": 5,
+        "measured": 5,
+        "rate": 1.0,
+        "total": 5,
+        "unavailable": 0,
+        "unmatched": 0
+      },
+      "one_page": {
+        "complete": true,
+        "measured": 5,
+        "rate": 1.0,
+        "total": 5,
+        "unavailable": 0
+      }
+    },
+    "one_page_regression": false,
+    "optimized": {
+      "accepted_artifact_count": 10.0,
+      "grounding": {
+        "complete": true,
+        "matched": 10,
+        "measured": 10,
+        "rate": 1.0,
+        "total": 10,
+        "unavailable": 0,
+        "unmatched": 0
+      },
+      "one_page": {
+        "complete": true,
+        "measured": 10,
+        "rate": 1.0,
+        "total": 10,
+        "unavailable": 0
+      }
+    },
+    "quality_regression": false
+  },
+  "schema_version": "fitcv.optimization_comparison.v1",
+  "status": "complete",
+  "workload_match": true,
+  "workload_mismatch_reason": null
+}
