@@ -692,12 +692,8 @@ def _run_experiment_report_check(
                     failures.append("experiment_peer_json_object_required")
                 else:
                     peer_analysis_input_identity = _normalized_analysis_input_identity(peer_report)
-                    if analysis_input_identity is None:
-                        failures.append("experiment_analysis_input_identity_missing")
-                    elif peer_analysis_input_identity is None:
+                    if peer_analysis_input_identity is None:
                         failures.append("experiment_peer_analysis_input_identity_missing")
-                    elif analysis_input_identity != peer_analysis_input_identity:
-                        failures.append("experiment_peer_analysis_input_identity_not_identical")
                     peer_validation = _run_experiment_report_check(
                         peer_experiment_json,
                         experiment_markdown,

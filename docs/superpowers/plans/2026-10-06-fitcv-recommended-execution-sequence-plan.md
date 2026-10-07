@@ -10,7 +10,7 @@ targets:
   - scripts/sql/fitcv_gold_views.sql
   - config/analytics_metrics.yaml
   - scripts/export_fitcv_analytics_source.py
-  - scripts/produce_fitcv_p1b_measurement.py
+  - scripts/run_fitcv_repair_experiment.py
   - scripts/compare_fitcv_optimization.py
   - scripts/refresh_fitcv_analytics.py
   - scripts/benchmark_cv_efficiency.py
@@ -145,18 +145,18 @@ paired measurement with no grounding or one-page regression.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/fitcv-recommended-sequence`
-- Base commit: `5cfb745d73111fb72fa5bbf053e8d40b76e52da6`
+- Branch: `codex/fitcv-p1b-r7`
+- Base commit: `ea138c3b53bd05fad96b20378e80abd528d06a9c`
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `restore retained R5 manifest/database or approve explicit current-evidence demotion; then admit Task 3`
-- Blockers: `Task 3 blocked: retained R5 manifest/database absent; configured provider/model registry empty`
+- Next action: `repair peer identity validation, verify R7 reports, then promote fresh evidence`
+- Blockers: `none for Task 3; R7 provider-backed reports retained under task-owned disposable root`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
-| 3. Fresh P1-B baseline | `blocked` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R5 manifest path absent; `data/fitcv_cp.sqlite3` has zero pipeline runs and zero provider registrations |
+| 3. Fresh P1-B baseline | `in_progress` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 provider-backed reports retained under task-owned disposable root; verifier peer identity fix pending |
 | 4. P1-C dashboard MVP | `pending` | fresh branch | `unresolved` | 3 | API, frontend, browser, accessibility proof | pending |
 | 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
 | 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
@@ -356,7 +356,8 @@ sources, not only generated reports.
 - Verify `tests/test_benchmark_cv_efficiency.py` and
   `tests/test_acceptance_state.py`; add generated evidence only under
   `docs/superpowers/evidence/`.
-- Add `scripts/produce_fitcv_p1b_measurement.py` and a focused test. It accepts
+- Use `scripts/run_fitcv_repair_experiment.py --produce-real` as the bounded
+  producer and add focused coverage around its report contract. It accepts
   `--database`, `--output-root`, `--arm`, `--variant`, `--repeat-count`,
   `--max-provider-calls`, and `--source-commit`, persists ten unique run IDs per
   arm, and records database, fixture, candidate, provider/model, and input
@@ -408,8 +409,7 @@ verifier success; otherwise retain explicit blocker evidence.
 
 **Current Blocker Evidence (October 7, 2026):**
 
-- `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json`
-  retains run IDs and summaries, but its referenced
+- R5 retained evidence remains unavailable: its referenced
   `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` is absent.
 - `data/fitcv_cp.sqlite3` contains zero `pipeline_runs`, `run_jobs`, and
   `cv_versions` rows; `api_provider_connections`, `api_provider_models`, and
