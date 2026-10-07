@@ -380,10 +380,9 @@ sources, not only generated reports.
 
 **Steps:**
 - [x] Run the bounded producer twice, once per opposite arm, with
-  `--variant baseline --repeat-count 10 --max-provider-calls <declared-budget>`
-  and the matching optimized/peer commands, one retained database per arm,
-  identical fixture/input identity, explicit source commit, and a named
-  provider/model environment.
+  `python scripts/run_fitcv_repair_experiment.py --produce-real --arm <arm> --database <db> --manifest <manifest>`;
+  use one retained database and manifest per arm, identical fixture/input
+  identity, explicit source commit, and a named provider/model environment.
 - [x] Run benchmark and refresh analytics from the generated package.
 - [x] Verify source/candidate/provider identity, coverage, accepted artifacts,
   render proof, and digest.
@@ -395,8 +394,8 @@ sources, not only generated reports.
 - [x] Run verifier with explicit `--experiment-json`, `--experiment-markdown`,
   and `--experiment-peer-json`; plain invocation cannot promote R7.
 - [x] Render acceptance state from canonical YAML/registry sources and verify
-  the measured transition; preserve historical evidence and keep production
-  routing unchanged.
+  fresh P1-B acceptance evidence while retaining incomplete runtime-efficiency
+  status for unavailable R5/R6 proof; keep production routing unchanged.
 - [x] Verify exact output paths, registry references, source commit, input
   fingerprints, and material digests for both arms.
 
