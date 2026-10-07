@@ -1390,6 +1390,7 @@ def main() -> int:
             "arm": manifest.get("arm"),
             "declared_model": manifest.get("declared_model"),
             "resolved_models": list(manifest.get("resolved_models") or []),
+            "runtime": manifest.get("runtime"),
         }
         report = _apply_manifest_measurement_gate(report, manifest)
     report["material_metrics_sha256"] = material_report_digest(report)

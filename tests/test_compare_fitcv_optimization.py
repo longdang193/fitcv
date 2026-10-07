@@ -7,6 +7,9 @@ def _report(*, provider_calls: int, tokens: int, accepted: int = 10) -> dict:
             "declared_input_fingerprint": "same-input",
             "fixture_sha256": "same-fixture",
             "repeat_count": 10,
+            "declared_model": "fixture-model",
+            "resolved_models": ["fixture-model"],
+            "runtime": "fitcv-runtime",
         },
         "aggregate": {
             "provider_call_count": provider_calls,
@@ -76,3 +79,36 @@ def test_compare_holds_when_provider_cost_increases() -> None:
 
     assert result["decision"] == "hold"
     assert result["quality"]["cost_regression"] is True
+
+
+def test_compare_holds_when_accepted_or_cost_evidence_is_missing() -> None:
+    baseline = _report(provider_calls=10, tokens=1000)
+    optimized = _report(provider_calls=8, tokens=800)
+
+    del optimized["accepted_cv"]["count"]
+    result = compare_reports(baseline, optimized, min_relative_improvement=0.1)
+    assert result["decision"] == "hold"
+    assert result["quality"]["accepted_evidence_missing"] is True
+
+    optimized = _report(provider_calls=8, tokens=800)
+    del optimized["aggregate"]["token_total"]
+    result = compare_reports(baseline, optimized, min_relative_improvement=0.1)
+    assert result["decision"] == "hold"
+    assert result["quality"]["cost_evidence_missing"] is True
+
+
+def test_compare_holds_on_runtime_identity_mismatch() -> None:
+    baseline = _report(provider_calls=10, tokens=1000)
+    optimized = _report(provider_calls=8, tokens=800)
+    baseline["input_manifest"].update(
+        {"declared_model": "model-a", "resolved_models": ["model-a"], "runtime": "runtime-a"}
+    )
+    optimized["input_manifest"].update(
+        {"declared_model": "model-b", "resolved_models": ["model-b"], "runtime": "runtime-a"}
+    )
+
+    result = compare_reports(baseline, optimized, min_relative_improvement=0.1)
+
+    assert result["decision"] == "hold"
+    assert result["workload_match"] is False
+    assert result["workload_mismatch_reason"] == "workload_mismatch:declared_model"

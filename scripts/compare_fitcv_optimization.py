@@ -70,7 +70,14 @@ def _same_workload(baseline: dict[str, Any], optimized: dict[str, Any]) -> tuple
     right = dict(optimized.get("input_manifest") or {})
     if not left or not right:
         return False, "workload_manifest_missing"
-    for key in ("declared_input_fingerprint", "fixture_sha256", "repeat_count"):
+    for key in (
+        "declared_input_fingerprint",
+        "fixture_sha256",
+        "repeat_count",
+        "declared_model",
+        "resolved_models",
+        "runtime",
+    ):
         if not left.get(key) or not right.get(key) or left.get(key) != right.get(key):
             return False, f"workload_mismatch:{key}"
     return True, None
@@ -120,6 +127,14 @@ def compare_reports(
         _quality_complete(baseline_quality[name]) and _quality_complete(optimized_quality[name])
         for name in ("grounding", "one_page")
     )
+    accepted_evidence_missing = (
+        baseline_quality["accepted_artifact_count"] is None
+        or optimized_quality["accepted_artifact_count"] is None
+    )
+    cost_evidence_missing = any(
+        metrics[name]["baseline"] is None or metrics[name]["optimized"] is None
+        for name in ("provider_calls", "token_total")
+    )
     cost_regression = any(
         metrics[name]["baseline"] is not None
         and metrics[name]["optimized"] is not None
@@ -131,6 +146,8 @@ def compare_reports(
         and improvements
         and max(improvements) >= min_relative_improvement
         and not quality_evidence_missing
+        and not accepted_evidence_missing
+        and not cost_evidence_missing
     )
     decision = (
         "promote"
@@ -156,6 +173,8 @@ def compare_reports(
             "one_page_regression": page_fit_regression,
             "grounding_regression": grounding_regression,
             "quality_evidence_missing": quality_evidence_missing,
+            "accepted_evidence_missing": accepted_evidence_missing,
+            "cost_evidence_missing": cost_evidence_missing,
             "cost_regression": cost_regression,
         },
         "production_defaults_changed": False,

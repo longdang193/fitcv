@@ -1667,6 +1667,17 @@ def _run_repair_cycle(
             validation = regenerated_validation
         if regenerated_provenance is not None:
             runtime_provenance = regenerated_provenance
+        repair_attempt["failure_category"] = _classify_repair_failure(
+            validation,
+            _determine_repair_targets(validation, structured_cv),
+        )
+        if repair_attempt["failure_category"] == "uncertainty":
+            repair_attempt.update(
+                {
+                    "reason": "review_required_uncertainty",
+                    "review_required": True,
+                }
+            )
         repair_attempt["full_regeneration_succeeded"] = bool(validation.get("valid"))
 
     return structured_cv, markdown, validation, repair_attempt, runtime_provenance
