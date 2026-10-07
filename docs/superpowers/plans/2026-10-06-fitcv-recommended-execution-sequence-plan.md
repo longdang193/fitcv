@@ -148,15 +148,15 @@ paired measurement with no grounding or one-page regression.
 - Branch: `codex/fitcv-recommended-sequence`
 - Base commit: `5cfb745d73111fb72fa5bbf053e8d40b76e52da6`
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `admit Task 2 after Task 1 checkpoint`
-- Blockers: `none known; R5/R6 unavailable evidence stays unavailable`
+- Next action: `restore retained R5 manifest/database or approve explicit current-evidence demotion; then admit Task 3`
+- Blockers: `Task 3 blocked: retained R5 manifest/database absent; configured provider/model registry empty`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
-| 3. Fresh P1-B baseline | `pending` | fresh branch | `unresolved` | 2 | paired manifests and independent verifier | pending |
+| 3. Fresh P1-B baseline | `blocked` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R5 manifest path absent; `data/fitcv_cp.sqlite3` has zero pipeline runs and zero provider registrations |
 | 4. P1-C dashboard MVP | `pending` | fresh branch | `unresolved` | 3 | API, frontend, browser, accessibility proof | pending |
 | 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
 | 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
@@ -405,6 +405,17 @@ sources, not only generated reports.
 
 **Exit Criteria:** Mark P1-B `measured` only after independent rebuild and
 verifier success; otherwise retain explicit blocker evidence.
+
+**Current Blocker Evidence (October 7, 2026):**
+
+- `docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r5.json`
+  retains run IDs and summaries, but its referenced
+  `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` is absent.
+- `data/fitcv_cp.sqlite3` contains zero `pipeline_runs`, `run_jobs`, and
+  `cv_versions` rows; `api_provider_connections`, `api_provider_models`, and
+  `custom_api_providers` are empty.
+- `2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.*` remains the
+  canonical unavailable evidence. No R5/R6 claim is inferred from summaries.
 
 ### Task 4: Deliver small P1-C dashboard MVP
 
