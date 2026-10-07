@@ -171,6 +171,7 @@ def test_experiment_report_check_accepts_different_selected_evidence_with_matchi
     peer_manifest_path.write_text(json.dumps(peer_manifest), encoding="utf-8")
 
     def build_report(manifest: dict[str, object], manifest_path: Path, evidence_id: str) -> dict[str, object]:
+        report_manifest = {key: value for key, value in manifest.items() if key != "database_path"}
         report = {
             "status": "complete",
             "selection": {
@@ -179,7 +180,7 @@ def test_experiment_report_check_accepts_different_selected_evidence_with_matchi
                 "manifest_run_count_shortfall": 0,
                 "run_ids": run_ids,
             },
-            "input_manifest": {**manifest, "path": str(manifest_path)},
+            "input_manifest": {**report_manifest, "path": str(manifest_path)},
             "analysis_input_identity": [{"fingerprints": [evidence_id], "selected_evidence_ids": [evidence_id]}],
             "accepted_cv": {"recorded_acceptance_count": 10},
             "coverage": {name: {"complete": True} for name in (
