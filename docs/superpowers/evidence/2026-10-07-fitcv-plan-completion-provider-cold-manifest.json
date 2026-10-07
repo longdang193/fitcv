@@ -6,8 +6,8 @@
     "seed_database_sha256": null,
     "upstream_reuse_policy": "cold_first_then_frozen"
   },
-  "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-plan-completion-provider-cold.sqlite3",
-  "declared_input_fingerprint": "f8ad312b051eb0d87f2e2837857e5ad53611a3f6508626a11e69cde80a41c076",
+  "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-plan-completion-provider-cold-r3.sqlite3",
+  "declared_input_fingerprint": "d2adba382d85976883f8e3b40afc90e68720d7efe4e462ad47af5d39128fb78e",
   "declared_model": "fixture-model",
   "fixture": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tests\\fixtures\\fitcv-p1ab-repair-experiment.json",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
@@ -26,19 +26,19 @@
     "cx/gpt-5.6-luna"
   ],
   "run_ids": [
-    "b0a58ce9-0c20-4845-a856-2ac11ea0649f",
-    "79f30526-ed1f-483b-ab07-c9a7f6c2e3a6",
-    "9805b674-3a8b-4853-8039-433b3bdf7143",
-    "6170a348-3cef-4128-8b03-dde4699aad66",
-    "2196b0bb-464d-4a6a-8cc6-d804c4cb8cdb",
-    "75962cff-c67c-431d-ab3e-c4ce82cd44b0",
-    "70c03c28-7ac3-4042-bc72-521572497f94",
-    "c6a313b3-6bc7-4f43-bb8f-ab6074f64511",
-    "0646fb9e-07f1-4b31-92a8-b0ab5c165eef",
-    "fcc61b2c-0943-4fc9-b534-b36920f99b01"
+    "95ddd647-2fc2-4b49-8a9e-ed35ca96e167",
+    "613ef9bd-be35-4d99-82e5-71f57ce6acee",
+    "1f965cdf-74ce-43d9-b995-f2799ac6a106",
+    "ff1d53cf-b4f5-4188-b6a4-e76709c3f4f8",
+    "a3f0b0cc-53cf-436a-bf04-ff08757ff87c",
+    "c4372624-9190-4da8-bd53-00f1790ae6fd",
+    "90bf3520-ab46-43cf-97ff-ba648e72f6a7",
+    "1070afe3-0b56-403e-a1ed-dcfc6cd2bd2a",
+    "7a358a5e-ea02-484a-9101-96088e17d942",
+    "a0fa0504-b736-4656-8cd5-07e568d9abe1"
   ],
   "runtime": "fitcv-runtime",
   "schema_version": "fitcv.p1ab.repair_experiment_manifest.v1",
-  "source_commit": "01cceb717d228af569f9a41744aa33b88ad28795",
-  "working_tree_diff_sha256": "e95645bf5bf4f55298a482ae26008db92679d6c44d0084795f8811ba39db9ad1"
+  "source_commit": "dff6fff4d4b04bcc5f25f33637a79f44b0e94232",
+  "working_tree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }
