@@ -149,21 +149,21 @@ paired measurement with no grounding or one-page regression.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-plan-completion`
 - Base commit: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` (`origin/main` after PR #94)
-- Current HEAD: `ea094fc21692757f582197b912b9db010fcd9f84` before review-fix commit
+- Current HEAD: `91e226457aa9fded11acc4ce5f9e1f1077b88918` before R9 evidence commit
 - Expected workspace: `tracked plans plus preserved untracked artifacts; named task disposables cleaned`
-- Next action: `publish verified branch, obtain review-1 approval, and merge after green checks; retain R5/R6 efficiency blocker`
-- Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
+- Next action: `commit verified R9 evidence, publish branch, obtain review-1 approval, and merge after green checks`
+- Blockers: `none for P1-A/P1-B; R5/R6 remain historical unavailable and are not inferred`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
-| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 reports and manifests retained; plan-completion local cohort has no accepted current-contract records, so P1-B remains blocked |
+| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R9 paired reports: ten runs per arm, accepted current-contract records, matching setup and provenance |
 | 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1526 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed; review-1 integrity findings fixed |
 | 5. Content-addressed reuse | `completed` | `codex/fitcv-plan-completion` | `codex` | 4 | hit/miss/invalidation and equivalence proof | reuse identity/provenance tests; 126-task regression set |
 | 6. Repair/escalation | `completed` | `codex/fitcv-plan-completion` | `codex` | 5 | ordered repair and fallback tests | bounded repair tests; 126-task regression set |
-| 7. Re-measure/promote | `completed` | `codex/fitcv-plan-completion` | `codex` | 5–6 | paired comparison and quality gate | fresh cohorts retained; total-workload comparison `hold`; current-contract acceptance unavailable, so measurement remains blocked; acceptance verifier passed |
+| 7. Re-measure/promote | `completed` | `codex/fitcv-plan-completion` | `codex` | 5–6 | paired comparison and quality gate | R9 fresh paired evidence measured and verified; optimization remains `hold`; production default unchanged |
 
 ## Task Breakdown
 
@@ -397,23 +397,24 @@ sources, not only generated reports.
 - [x] Run verifier with explicit `--experiment-json`, `--experiment-markdown`,
   and `--experiment-peer-json`; plain invocation cannot promote R7.
 - [x] Render acceptance state from canonical YAML/registry sources and verify
-  fresh P1-B acceptance evidence while retaining incomplete runtime-efficiency
-  status for unavailable R5/R6 proof; keep production routing unchanged.
+  fresh P1-B acceptance evidence; retain R5/R6 as historical unavailable proof
+  and keep production routing unchanged.
 - [x] Verify exact output paths, registry references, source commit, input
   fingerprints, and material digests for both arms.
 
 **Exit Criteria:** Mark P1-B `measured` only after independent rebuild and
 verifier success; otherwise retain explicit blocker evidence.
 
-**Current Blocker Evidence (October 7, 2026):**
+**Resolved Evidence Record (October 7, 2026):**
 
-- R5 retained evidence remains unavailable: its referenced
-  `.tmp/fitcv-review-final-20261005-r5/incumbent-manifest.json` is absent.
-- `data/fitcv_cp.sqlite3` contains zero `pipeline_runs`, `run_jobs`, and
-  `cv_versions` rows; `api_provider_connections`, `api_provider_models`, and
-  `custom_api_providers` are empty.
-- `2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.*` remains the
-  canonical unavailable evidence. No R5/R6 claim is inferred from summaries.
+- R9 produced fresh provider-backed `local_first` and `provider_first` cohorts,
+  ten runs per arm, with ten accepted current-contract records per arm.
+- Independent benchmark rebuilds matched material digests:
+  `6cbe7558cabff365efb0f88261ad866a6b2b8e8f0d307fb0acbc5b59fbe7ebd3` for
+  `local_first` and `a3fd3fca71bf4ee7df085f86c3c79587da5d95874f807d5022c298b70d296db9`
+  for `provider_first`.
+- R5/R6 remain historical unavailable evidence. No R5/R6 claim is inferred;
+  R9 is current evidence for P1-A/P1-B acceptance and measurement.
 
 ### Task 4: Deliver small P1-C dashboard MVP
 
@@ -674,11 +675,11 @@ claim remains.
 
 After all admitted tasks finish:
 
-- [x] `python -m pytest -q` — 3397 passed, 8 skipped.
+- [x] `python -m pytest -q` — 3400 passed, 8 skipped.
 - [x] `npm --prefix frontend run typecheck`.
 - [x] `npm --prefix frontend test -- --run` — 339 passed.
 - [x] `pwsh -File scripts/run_fitcv_analytics_dashboard_e2e.ps1` — 2 passed with disposable backend harness.
-- [x] `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --experiment-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json --experiment-markdown docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md --experiment-peer-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold.json --output .tmp/final-acceptance-report.json` — passed.
+- [x] `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --experiment-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json --experiment-markdown docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md --experiment-peer-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.json --output .tmp/final-acceptance-report.json` — passed with P1-A/P1-B measured.
 - [x] `git diff --check`.
 - Full raw `npm --prefix frontend run test:e2e` requires a running backend; direct run was not used as acceptance proof because it failed before app load with `ERR_CONNECTION_REFUSED`.
 - `skill-verification-before-completion` with fresh outputs and evidence paths
@@ -701,5 +702,6 @@ grounding and one-page correctness, and R5/R6 evidence is never inferred.
    deferred.
 7. `skill-verification-before-completion` returns `verified`.
 
-Plan is `active` before Task 0 writes or commits coordination state. Change to
-`completed` only after final verification.
+Plan is `completed` after fresh R9 evidence, full tests, acceptance verification,
+and disposable-artifact cleanup. Branch publication and merge remain Git
+finishing actions.
