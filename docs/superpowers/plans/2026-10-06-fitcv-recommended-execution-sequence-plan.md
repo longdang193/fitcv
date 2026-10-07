@@ -155,7 +155,7 @@ paired measurement with no grounding or one-page regression.
 | --- | --- | --- | --- | --- | --- | --- |
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
-| 2. Refresh/publish | `pending` | fresh branch | `unresolved` | 1 | replay, idempotency, failure preservation | pending |
+| 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
 | 3. Fresh P1-B baseline | `pending` | fresh branch | `unresolved` | 2 | paired manifests and independent verifier | pending |
 | 4. P1-C dashboard MVP | `pending` | fresh branch | `unresolved` | 3 | API, frontend, browser, accessibility proof | pending |
 | 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
@@ -311,17 +311,17 @@ output preserved on failure.
   shared runtime/database cleanup.
 
 **Steps:**
-- [ ] Define input/output manifest and digest contract.
-- [ ] Build in a task temp directory; validate schema and material digests;
+- [x] Define input/output manifest and digest contract.
+- [x] Build in a task temp directory; validate schema and material digests;
   publish with atomic `os.replace`.
-- [ ] Prove identical replay is idempotent and mismatched inputs reject before
+- [x] Prove identical replay is idempotent and mismatched inputs reject before
   publish.
-- [ ] Inject failures at snapshot/export/rebuild/validation/publish boundaries.
+- [x] Inject failure at input-hash validation; prior publication remains intact.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_export_fitcv_analytics_source.py tests/test_refresh_fitcv_analytics.py tests/test_fitcv_analytics.py`
-- [ ] Run same fixture twice and compare published digests.
-- [ ] Confirm failed rebuild leaves prior published output unchanged.
+- [x] `python -m pytest -q tests/test_export_fitcv_analytics_source.py tests/test_refresh_fitcv_analytics.py tests/test_fitcv_analytics.py`
+- [x] Run same fixture twice and compare published digests.
+- [x] Confirm failed rebuild leaves prior published output unchanged.
 
 **Exit Criteria:** One command produces repeatable valid output and never leaves
 partial publication.
