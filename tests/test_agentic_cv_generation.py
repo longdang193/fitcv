@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -55,6 +55,164 @@ def test_provider_retry_does_not_count_as_local_repair() -> None:
     savings = trace["efficiency_summary"]["savings"]
     assert savings["local_repair_attempted"] is False
     assert savings["local_repair_succeeded"] is False
+
+
+def test_uncertain_validation_stops_for_review_without_retry() -> None:
+    retry_executor = Mock()
+    validation = {
+        "valid": False,
+        "missing_sections": [],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": ["ambiguous_section_attribution"],
+    }
+
+    _, _, final_validation, repair_attempt, _ = _run_repair_cycle(
+        structured_cv=None,
+        markdown="# CV",
+        validation=validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance=None,
+    )
+
+    assert final_validation["valid"] is False
+    assert repair_attempt["failure_category"] == "uncertainty"
+    assert repair_attempt["review_required"] is True
+    retry_executor.assert_not_called()
+
+
+def test_uncertainty_after_targeted_retry_stops_before_full_regeneration() -> None:
+    initial_validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    uncertain_validation = {
+        **initial_validation,
+        "missing_sections": [],
+        "markdown_quality_review_flags": ["ambiguous_section_attribution"],
+    }
+    retry_executor = Mock(
+        return_value=(None, "# retry", uncertain_validation, None)
+    )
+
+    _, _, final_validation, repair_attempt, _ = _run_repair_cycle(
+        structured_cv=None,
+        markdown="# CV",
+        validation=initial_validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance=None,
+    )
+
+    assert final_validation["valid"] is False
+    assert repair_attempt["failure_category"] == "uncertainty"
+    assert repair_attempt["review_required"] is True
+    assert repair_attempt.get("full_regeneration_attempted") is not True
+    retry_executor.assert_called_once_with(["experience"])
+
+
+def test_uncertainty_after_full_regeneration_stops_for_review(monkeypatch) -> None:
+    initial_validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    uncertain_validation = {
+        **initial_validation,
+        "missing_sections": [],
+        "markdown_quality_review_flags": ["ambiguous_section_attribution"],
+    }
+    retry_executor = Mock(
+        side_effect=[
+            (None, "# targeted", initial_validation, None),
+            (None, "# full", uncertain_validation, None),
+        ]
+    )
+    monkeypatch.setattr(
+        "fitcv.agentic_cv_generation._run_generation_validations",
+        lambda *args, **kwargs: uncertain_validation,
+    )
+
+    _, _, final_validation, repair_attempt, _ = _run_repair_cycle(
+        structured_cv=None,
+        markdown="# CV",
+        validation=initial_validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance=None,
+    )
+
+    assert final_validation["valid"] is False
+    assert repair_attempt["failure_category"] == "deterministic"
+    assert repair_attempt.get("review_required") is not True
+    assert repair_attempt["full_regeneration_attempted"] is True
+
+
+
+def test_full_regeneration_keeps_previous_artifact_when_final_validation_fails(monkeypatch) -> None:
+    initial_validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+    regenerated_validation = {**initial_validation, "valid": True, "missing_sections": []}
+    final_validation = {**initial_validation, "grounding_violations": ["unsupported_claim"]}
+    monkeypatch.setattr(
+        "fitcv.agentic_cv_generation._run_generation_validations",
+        lambda *args, **kwargs: final_validation,
+    )
+    previous_cv = None
+    regenerated_cv = None
+    retry_executor = Mock(
+        side_effect=[
+            (None, "# targeted", initial_validation, None),
+            (regenerated_cv, "# regenerated", regenerated_validation, {"provider": "new"}),
+        ]
+    )
+
+    result_cv, result_markdown, result_validation, repair_attempt, provenance = _run_repair_cycle(
+        structured_cv=previous_cv,
+        markdown="# previous",
+        validation=initial_validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=retry_executor,
+        runtime_provenance={"provider": "old"},
+        repair_arm="provider_first",
+    )
+
+    assert result_cv is previous_cv
+    assert result_markdown == "# targeted"
+    assert result_validation is initial_validation
+    assert repair_attempt["full_regeneration_succeeded"] is False
+    assert provenance == {"provider": "old"}
 
 
 def test_failed_local_repair_is_preserved_when_provider_retry_succeeds(monkeypatch) -> None:
@@ -643,7 +801,7 @@ def test_retry_fallback_preserves_selected_evidence_scope(monkeypatch) -> None:
     }
     retry_executor = Mock(return_value=(structured_cv, "# retry", validation, None))
 
-    repaired_cv, _, _, _, _ = _run_repair_cycle(
+    repaired_cv, _, _, repair_attempt, _ = _run_repair_cycle(
         structured_cv=structured_cv,
         markdown="# CV",
         validation=validation,
@@ -674,7 +832,9 @@ def test_retry_fallback_preserves_selected_evidence_scope(monkeypatch) -> None:
         repair_arm="local_first",
     )
 
-    retry_executor.assert_called_once_with(["experience"])
+    assert retry_executor.call_args_list == [call(["experience"]), call([])]
+    assert repair_attempt["targeted_generation_attempted"] is True
+    assert repair_attempt["full_regeneration_attempted"] is True
     assert [
         item["company"] for item in repaired_cv["sections"]["experience"]
     ] == ["ACME"]

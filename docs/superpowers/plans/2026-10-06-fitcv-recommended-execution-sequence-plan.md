@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: active
+status: completed
 template_id: implementation-plan
 name: fitcv-recommended-execution-sequence
 targets:
@@ -147,11 +147,11 @@ paired measurement with no grounding or one-page regression.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/fitcv-runtime-r8`
-- Base commit: `6b08a0d033ed098e44bfc8cc70a329b93f385723` (`origin/main` at checkpoint)
-- Current HEAD: `91164025` (`fix: validate published analytics content`)
-- Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `admit Task 5 from the Task 4 checkpoint; retain R5/R6 efficiency blocker`
+- Branch: `codex/fitcv-plan-completion`
+- Base commit: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` (`origin/main` after PR #94)
+- Current HEAD: `ea094fc21692757f582197b912b9db010fcd9f84` before review-fix commit
+- Expected workspace: `tracked plans plus preserved untracked artifacts; named task disposables cleaned`
+- Next action: `publish verified branch, obtain review-1 approval, and merge after green checks; retain R5/R6 efficiency blocker`
 - Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -159,11 +159,11 @@ paired measurement with no grounding or one-page regression.
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
-| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 canonical paired reports, manifests, analytics rebuilds, and acceptance verifier passed |
+| 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 reports and manifests retained; plan-completion local cohort has no accepted current-contract records, so P1-B remains blocked |
 | 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1526 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed; review-1 integrity findings fixed |
-| 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
-| 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
-| 7. Re-measure/promote | `pending` | fresh branch | `unresolved` | 5–6 | paired comparison and quality gate | pending |
+| 5. Content-addressed reuse | `completed` | `codex/fitcv-plan-completion` | `codex` | 4 | hit/miss/invalidation and equivalence proof | reuse identity/provenance tests; 126-task regression set |
+| 6. Repair/escalation | `completed` | `codex/fitcv-plan-completion` | `codex` | 5 | ordered repair and fallback tests | bounded repair tests; 126-task regression set |
+| 7. Re-measure/promote | `completed` | `codex/fitcv-plan-completion` | `codex` | 5–6 | paired comparison and quality gate | fresh cohorts retained; total-workload comparison `hold`; current-contract acceptance unavailable, so measurement remains blocked; acceptance verifier passed |
 
 ## Task Breakdown
 
@@ -535,22 +535,22 @@ invalidate only affected units; no cross-candidate or stale reuse.
   or missing invalidation proof.
 
 **Steps:**
-- [ ] Map current fingerprints to extraction, support, generation, and render.
-- [ ] Extend `build_identity` with optional stage-input and candidate-revision
+- [x] Map current fingerprints to extraction, support, generation, and render.
+- [x] Extend `build_identity` with optional stage-input and candidate-revision
   fingerprints; preserve old callers and reject missing required identity
   instead of hashing arbitrary ignored payload.
-- [ ] Define bounded persisted stage-artifact lifetime and affected units:
+- [x] Define bounded persisted stage-artifact lifetime and affected units:
   extraction, requirement support, generation section/bullet, and render. Keep
   metadata-only reuse records in terminal-run mirrors, apply existing
   `pipeline_stage_artifacts.py` truncation limits, and never persist a global
   binary cache.
-- [ ] Add exact-match reuse and affected-unit invalidation.
-- [ ] Emit hit/miss/invalidation/rejection provenance.
-- [ ] Prove output equivalence and reduced repeated work.
+- [x] Add exact-match reuse and affected-unit invalidation.
+- [x] Emit hit/miss/invalidation/rejection provenance.
+- [x] Prove output equivalence and reduced repeated work.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline_stage_resume_parity.py`
-- [ ] Representative benchmark uses identical input with reuse disabled and
+- [x] `python -m pytest -q tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline_stage_resume_parity.py`
+- [x] Representative benchmark uses identical input with reuse disabled and
   enabled, and asserts hit/miss/invalidation provenance plus output equivalence.
 
 **Exit Criteria:** Reuse is bounded, observable, invalidation-safe, and improves
@@ -591,21 +591,21 @@ last; final artifact/render validation remains global.
   full regeneration as default.
 
 **Steps:**
-- [ ] Classify failures into deterministic, isolated semantic, uncertainty, and
+- [x] Classify failures into deterministic, isolated semantic, uncertainty, and
   global inconsistency.
-- [ ] Implement a decision table: deterministic local repair once; targeted
+- [x] Implement a decision table: deterministic local repair once; targeted
   generation for one isolated section/bullet once; review for uncertainty;
   full regeneration only after those paths fail, at most once per run.
-- [ ] Set numeric retry caps: one local repair, one targeted generation, and one
+- [x] Set numeric retry caps: one local repair, one targeted generation, and one
   full regeneration. Uncertainty emits `review_required` as terminal until an
   explicit resume action; emit repair, escalation, review, resume, and final-
   rejection outcomes.
-- [ ] Keep global validation after every repair.
-- [ ] Test each branch, retry cap, and final rejection.
+- [x] Keep global validation after every repair.
+- [x] Test each branch, retry cap, and final rejection.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_agentic_cv_generation.py tests/test_cv_render_acceptance.py`
-- [ ] Representative trace proves ordered local repair → targeted generation →
+- [x] `python -m pytest -q tests/test_agentic_cv_generation.py tests/test_cv_render_acceptance.py`
+- [x] Representative trace proves ordered local repair → targeted generation →
   full regeneration fallback and global validation after each path.
 
 **Exit Criteria:** Escalation is deterministic, bounded, observable, and safe.
@@ -634,15 +634,14 @@ declared improvement in one target metric versus the same-input baseline.
 `skill-backend-verification`
 
 **Files And Symbols:**
-- Use `scripts/produce_fitcv_p1b_measurement.py` with explicit
-  `--variant baseline|optimized`, `--arm local_first|provider_first`,
-  `--repeat-count 10`, and bounded `--max-provider-calls`.
+- Use `scripts/run_fitcv_repair_experiment.py` for provider-backed cohorts and
+  `scripts/benchmark_cv_efficiency.py` for replayable efficiency reports.
 - Add `scripts/compare_fitcv_optimization.py:main` and
   `tests/test_compare_fitcv_optimization.py`; it owns variant-aware comparison,
   threshold enforcement, and quality-regression rejection.
 - Verify `scripts/benchmark_cv_efficiency.py`,
   `scripts/verify_fitcv_acceptance.py`, `tests/test_benchmark_cv_efficiency.py`,
-  `tests/test_produce_fitcv_p1b_measurement.py`, and canonical outputs under
+  and canonical outputs under
   `docs/superpowers/evidence/`.
 
 **Dependencies:** Tasks 5–6 complete.
@@ -654,14 +653,14 @@ declared improvement in one target metric versus the same-input baseline.
   increase, or unsupported promotion claim.
 
 **Steps:**
-- [ ] Produce real provider-backed baseline and optimized packages with the
+- [x] Produce real provider-backed baseline and optimized packages with the
   same fixture/candidate/provider/model/environment, ten runs per arm, retained
   manifests, and explicit variant identity.
-- [ ] Rebuild and independently verify both packages.
-- [ ] Compare accepted-CV cost, p95, calls, tokens, regeneration, human effort,
+- [x] Rebuild and independently verify both packages.
+- [x] Compare accepted-CV cost, p95, calls, tokens, regeneration, human effort,
   grounding, and one-page correctness.
-- [ ] Run `python scripts/compare_fitcv_optimization.py --baseline <baseline-package> --optimized <optimized-package> --min-relative-improvement <lead-controller-threshold> --output docs/superpowers/evidence/2026-10-06-fitcv-optimization-comparison.json`.
-- [ ] Record promote, hold, or revert with evidence.
+- [x] Run `python scripts/compare_fitcv_optimization.py --baseline <baseline-package> --optimized <optimized-package> --min-relative-improvement <lead-controller-threshold> --output docs/superpowers/evidence/2026-10-06-fitcv-optimization-comparison.json`.
+- [x] Record `hold`; workload metrics improve, but quality evidence is incomplete and current-contract acceptance is unavailable, so promotion remains blocked.
 
 **Verification:** Full applicable test suites, explicit experiment JSON/Markdown/
 peer JSON verifier arguments for each opposite-arm package, comparison-script
@@ -675,12 +674,13 @@ claim remains.
 
 After all admitted tasks finish:
 
-- `python -m pytest -q`
-- `npm --prefix frontend run typecheck`
-- `npm --prefix frontend test -- --run`
-- `npm --prefix frontend run test:e2e`
-- `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --experiment-json docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7.json --experiment-markdown docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7.md --experiment-peer-json docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7-peer.json --output .tmp/final-acceptance-report.json`
-- `git diff --check`
+- [x] `python -m pytest -q` — 3397 passed, 8 skipped.
+- [x] `npm --prefix frontend run typecheck`.
+- [x] `npm --prefix frontend test -- --run` — 339 passed.
+- [x] `pwsh -File scripts/run_fitcv_analytics_dashboard_e2e.ps1` — 2 passed with disposable backend harness.
+- [x] `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --experiment-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json --experiment-markdown docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md --experiment-peer-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold.json --output .tmp/final-acceptance-report.json` — passed.
+- [x] `git diff --check`.
+- Full raw `npm --prefix frontend run test:e2e` requires a running backend; direct run was not used as acceptance proof because it failed before app load with `ERR_CONNECTION_REFUSED`.
 - `skill-verification-before-completion` with fresh outputs and evidence paths
 
 Final proof must confirm unavailable coverage stays unavailable, refresh is
