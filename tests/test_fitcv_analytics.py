@@ -904,6 +904,26 @@ def test_candidate_gap_filters_unmatched_and_invalid_facts() -> None:
     assert gaps[0]["coverage"] == "unavailable"
 
 
+def test_unevaluated_candidate_gap_keeps_coverage_unavailable() -> None:
+    bronze = build_bronze_observations(
+        {
+            "posting_requirement": [
+                {"source_id": "requirement", "posting_id": "post-1", "requirement": "python", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+            "candidate_gap": [
+                {"source_id": "gap", "posting_id": "post-1", "requirement": "python", "gap_category": "unevaluated", "evaluation_status": "unevaluated", "cohort_id": "c", "cohort_type": "fixture"},
+            ],
+        },
+        source_commit="head",
+        declared_input_fingerprint="inputs",
+        ingested_at="now",
+    )
+
+    gap = build_gold_candidate_gap(build_silver_facts(bronze))[0]
+
+    assert gap["coverage"] == "unavailable"
+    assert gap["unavailable_reason"] == "evaluation_status_incomplete"
+
 def test_invalid_only_candidate_gap_emits_unavailable_gold_row() -> None:
     bronze = build_bronze_observations(
         {"candidate_gap": [{"source_id": "invalid", "posting_id": "post-1", "requirement": "python", "gap_category": "missing_evidence", "validity": "invalid", "cohort_id": "c", "cohort_type": "fixture"}]},

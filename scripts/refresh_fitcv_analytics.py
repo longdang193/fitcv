@@ -8,9 +8,14 @@ import json
 import os
 import sqlite3
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.export_fitcv_analytics_source import export_bundle
 from scripts.fitcv_analytics import rebuild_analytics_bundle, write_analytics_sqlite
@@ -34,14 +39,31 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
     if not path.is_dir() or any(not (path / name).is_file() for name in required):
         return False
     try:
+        source_bundle = json.loads((path / "source_bundle.json").read_text(encoding="utf-8"))
+        if not isinstance(source_bundle, dict):
+            return False
+        if source_bundle.get("database_sha256") != manifest["database_sha256"]:
+            return False
+        if source_bundle.get("input_fingerprint") != manifest["input_fingerprint"]:
+            return False
         if json.loads((path / "manifest.json").read_text(encoding="utf-8")) != manifest:
             return False
         analytics = json.loads((path / "analytics.json").read_text(encoding="utf-8"))
         if analytics.get("material_metrics_sha256") != manifest["material_metrics_sha256"]:
             return False
+        expected_metrics = analytics.get("gold", {}).get("gold_semantic_metric")
+        if not isinstance(expected_metrics, list):
+            return False
         connection = sqlite3.connect(path / "analytics.sqlite3")
         try:
-            connection.execute("SELECT 1 FROM gold_semantic_metric LIMIT 1").fetchone()
+            actual_metrics = [
+                json.loads(row[0])
+                for row in connection.execute(
+                    "SELECT payload_json FROM gold_semantic_metric_rows ORDER BY rowid"
+                )
+            ]
+            if actual_metrics != expected_metrics:
+                return False
         finally:
             connection.close()
     except (OSError, sqlite3.Error, TypeError, ValueError, json.JSONDecodeError):
@@ -98,16 +120,27 @@ def refresh_analytics(
         _write(stage / "manifest.json", manifest)
         if json.loads((stage / "analytics.json").read_text(encoding="utf-8"))["material_metrics_sha256"] != material_digest:
             raise ValueError("analytics_material_digest_mismatch")
-        release = releases / material_digest
+        release = releases / f"{material_digest}-{bundle['database_sha256']}"
         if not _release_is_valid(release, manifest):
-            repaired_release = releases / f"{material_digest}.rebuild"
-            if not _release_is_valid(repaired_release, manifest):
-                if repaired_release.exists():
-                    shutil.rmtree(repaired_release)
-                shutil.copytree(stage, repaired_release)
-            if not _release_is_valid(repaired_release, manifest):
-                raise ValueError("analytics_release_validation_failed")
-            release = repaired_release
+            current = output_root / "CURRENT.json"
+            current_release: Path | None = None
+            try:
+                pointer = json.loads(current.read_text(encoding="utf-8"))
+                current_release = output_root / str(pointer["release"])
+            except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+                pass
+            if current_release is not None and _release_is_valid(current_release, manifest):
+                release = current_release
+            else:
+                staged_release = Path(tempfile.mkdtemp(prefix=".release-", dir=releases))
+                try:
+                    shutil.copytree(stage, staged_release, dirs_exist_ok=True)
+                    if not _release_is_valid(staged_release, manifest):
+                        raise ValueError("analytics_release_validation_failed")
+                    release = staged_release
+                except Exception:
+                    shutil.rmtree(staged_release, ignore_errors=True)
+                    raise
         release_reference = release.relative_to(output_root).as_posix()
         current = output_root / "CURRENT.json"
         pointer = output_root / f".CURRENT.{material_digest}.tmp"

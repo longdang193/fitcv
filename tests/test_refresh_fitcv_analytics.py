@@ -1,5 +1,7 @@
 import json
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -77,3 +79,59 @@ def test_refresh_copy_failure_preserves_current_release(tmp_path: Path, monkeypa
 
     assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8")) == before
     assert (output_root / first["release"] / "manifest.json").is_file()
+
+
+def test_refresh_copy_failure_preserves_release_when_current_uses_rebuilt_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    first = refresh_analytics(database, output_root, source_commit="head")
+    before = json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE unexported (value TEXT)")
+        connection.commit()
+
+    original_copytree = refresh_module.shutil.copytree
+
+    def interrupted_copytree(source: Path, destination: Path, *args: object, **kwargs: object) -> Path:
+        original_copytree(source, destination, *args, **kwargs)
+        raise OSError("injected_copy_failure")
+
+    monkeypatch.setattr(refresh_module.shutil, "copytree", interrupted_copytree)
+    with pytest.raises(OSError, match="injected_copy_failure"):
+        refresh_analytics(database, output_root, source_commit="head")
+
+    assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8")) == before
+    assert (output_root / first["release"] / "manifest.json").is_file()
+
+
+def test_refresh_rejects_corrupt_release_contents(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    first = refresh_analytics(database, output_root, source_commit="head")
+    release = output_root / first["release"]
+    (release / "source_bundle.json").write_text("{}\n", encoding="utf-8")
+    with sqlite3.connect(release / "analytics.sqlite3") as connection:
+        connection.execute("DELETE FROM gold_semantic_metric_rows")
+        connection.commit()
+
+    refreshed = refresh_analytics(database, output_root, source_commit="head")
+
+    assert refreshed["release"] != first["release"]
+    assert (output_root / refreshed["release"] / "source_bundle.json").is_file()
+    assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))["release"] == refreshed["release"]
+
+
+def test_refresh_script_supports_direct_help_invocation() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/refresh_fitcv_analytics.py", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "--database" in result.stdout

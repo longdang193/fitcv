@@ -28,7 +28,7 @@ RUN_JOB_OBSERVATION_TYPES = RECONCILABLE_OBSERVATION_TYPES
 REQUIREMENT_DEMAND_OBSERVATION_TYPES = {"posting_requirement"}
 POSTING_INVENTORY_OBSERVATION_TYPES = {"posting_inventory"}
 CANDIDATE_GAP_OBSERVATION_TYPES = {"candidate_gap"}
-INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid"}
+INCOMPLETE_COVERAGE_VALUES = {"incomplete", "unavailable", "unknown", "invalid", "unevaluated"}
 DEFAULT_METRIC_REGISTRY = Path(__file__).resolve().parents[1] / "config/analytics_metrics.yaml"
 
 
