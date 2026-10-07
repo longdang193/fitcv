@@ -8,7 +8,7 @@
   },
   "declared_input_fingerprint": "e59e633c29e75f2acfb4eaa361c428138bfb0df7835cb214d4aac2fb7af1aca9",
   "declared_model": "fixture-model",
-  "fixture": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tests\\fixtures\\fitcv-p1ab-repair-experiment.json",
+  "fixture": "tests/fixtures/fitcv-p1ab-repair-experiment.json",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
   "job_types": [
     "Contract",
