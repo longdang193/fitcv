@@ -135,7 +135,7 @@ metrics:
     numerator: distinct requirements in one explicit gap category
     denominator: distinct eligible posting requirements in cohort
     dimensions: [requirement, gap_category, candidate_profile_id, candidate_profile_revision, candidate_profile_fingerprint, cohort_id, cohort_type, source_mix, date_range]
-    cohort_policy: keep missing evidence, unmet qualifier, and uncertain interpretation separate
+    cohort_policy: keep missing evidence, unmet qualifier, uncertain interpretation, and unevaluated separate
     null_policy: unavailable when candidate or posting coverage is incomplete
     coverage_metric: candidate_requirement_coverage
     owner: analytics

@@ -148,13 +148,13 @@ paired measurement with no grounding or one-page regression.
 - Branch: `codex/fitcv-recommended-sequence`
 - Base commit: `5cfb745d73111fb72fa5bbf053e8d40b76e52da6`
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `commit Task 0 checkpoint, then admit Task 1`
+- Next action: `admit Task 2 after Task 1 checkpoint`
 - Blockers: `none known; R5/R6 unavailable evidence stays unavailable`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0. Supersession/admission | `completed` | current plan branch | `codex` | none | tracked plan, reconciled predecessor, exact Git facts | branch/base recorded; predecessor superseded |
-| 1. Reporting correctness | `pending` | fresh branch | `unresolved` | 0 | focused analytics/export tests and verifier | pending |
+| 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `pending` | fresh branch | `unresolved` | 1 | replay, idempotency, failure preservation | pending |
 | 3. Fresh P1-B baseline | `pending` | fresh branch | `unresolved` | 2 | paired manifests and independent verifier | pending |
 | 4. P1-C dashboard MVP | `pending` | fresh branch | `unresolved` | 3 | API, frontend, browser, accessibility proof | pending |
@@ -256,18 +256,18 @@ canonical optimization source; dimensions and coverage counts stay explicit.
   missing source evidence, or destructive data mutation.
 
 **Steps:**
-- [ ] Map each defect to source row, grain, denominator, and regression.
-- [ ] Export attempts independently from `cv_versions`; derive canonical
+- [x] Map each defect to source row, grain, denominator, and regression.
+- [x] Export attempts independently from `cv_versions`; derive canonical
   posting identity; preserve cohorts; retain `unevaluated` outcomes.
-- [ ] Correct optimization source and expose structured dimensions/coverage.
-- [ ] Add failure, duplicate-processing, incomplete-evaluation, repeated-cohort,
+- [x] Correct optimization source and expose structured dimensions/coverage.
+- [x] Add failure, duplicate-processing, incomplete-evaluation, repeated-cohort,
   and unavailable-coverage fixtures.
-- [ ] Rebuild twice and compare material digests.
+- [x] Rebuild twice and compare material digests.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_export_fitcv_analytics_source.py`
-- [ ] `python -m pytest -q tests/test_fitcv_analytics.py tests/test_acceptance_state.py`
-- [ ] `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --output .tmp/task1-acceptance-report.json`
+- [x] `python -m pytest -q tests/test_export_fitcv_analytics_source.py`
+- [x] `python -m pytest -q tests/test_fitcv_analytics.py tests/test_acceptance_state.py`
+- [x] `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --output .tmp/task1-acceptance-report.json`
 - Expected: failed work remains counted, duplicate processing does not duplicate
   postings, cohorts remain distinct, and incomplete coverage is unavailable.
 

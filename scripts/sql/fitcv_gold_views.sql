@@ -68,6 +68,10 @@ SELECT json_extract(payload_json, '$.row_key') AS row_key,
        json_extract(payload_json, '$.evidence_id') AS evidence_id,
        json_extract(payload_json, '$.measurement_status') AS measurement_status,
        json_extract(payload_json, '$.optimization_status') AS optimization_status,
+       json_extract(payload_json, '$.optimization_experiment') AS optimization_experiment,
+       json_extract(payload_json, '$.optimization_promotion') AS optimization_promotion,
+       json_extract(payload_json, '$.optimization_production_default') AS optimization_production_default,
+       json_extract(payload_json, '$.optimization_evidence') AS optimization_evidence,
        payload_json
 FROM silver_optimization_state;
 

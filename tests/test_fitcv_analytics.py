@@ -875,9 +875,11 @@ def test_invalid_only_requirement_fact_still_emits_unavailable_gold_row() -> Non
         "requirement": "python",
         "cohort_id": "c",
         "cohort_type": "fixture",
-        "numerator_posting_count": 0,
-        "denominator_posting_count": 0,
-        "coverage": "unavailable",
+            "numerator_posting_count": 0,
+            "denominator_posting_count": 0,
+            "coverage_numerator": 0,
+            "coverage_denominator": 0,
+            "coverage": "unavailable",
         "posting_inventory_coverage": "unavailable",
         "unavailable_reason": "invalid_source_fact",
     }]
@@ -1005,7 +1007,7 @@ def test_acceptance_and_optimization_state_are_separate() -> None:
         {
             "sources": {},
             "registry": {"records": [{"claim": "p1_acceptance_scope", "evidence_id": "evidence-1", "status": "unavailable"}]},
-            "state": {"status_dimensions": {"p1_b": {"implementation_status": "verified", "acceptance_status": "passed", "measurement_status": "incomplete", "optimization_status": "rejected"}}},
+            "state": {"optimization_result": {"experiment": "complete", "promotion": "rejected", "production_default": "unchanged", "evidence": []}},
         },
         source_commit="head",
         declared_input_fingerprint="inputs",
@@ -1014,6 +1016,7 @@ def test_acceptance_and_optimization_state_are_separate() -> None:
 
     assert "optimization_status" not in result["gold"]["gold_acceptance_state"][0]
     assert result["gold"]["gold_optimization_state"][0]["optimization_status"] == "rejected"
+    assert result["gold"]["gold_optimization_state"][0]["optimization_experiment"] == "complete"
 
 
 def test_projection_fingerprint_changes_with_declared_input(tmp_path) -> None:

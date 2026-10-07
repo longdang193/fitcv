@@ -505,6 +505,11 @@ def _append(sources: dict[str, list[dict[str, Any]]], kind: str, row: dict[str, 
     sources.setdefault(kind, []).append(_sanitize(row) or {})
 
 
+def _posting_id(row: Any) -> str:
+    source_fingerprint = str(row["source_fingerprint"] or "").strip()
+    return source_fingerprint or str(row["run_job_id"] or "").strip()
+
+
 def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     """Collect only analytics-owned fields from one explicit read transaction."""
     sources: dict[str, list[dict[str, Any]]] = {}
@@ -545,6 +550,8 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
     if _table_exists(connection, "run_jobs"):
         jobs = connection.execute("SELECT * FROM run_jobs ORDER BY run_job_id").fetchall()
     run_job_run_ids = {str(row["run_job_id"]): str(row["run_id"]) for row in jobs}
+    requirements_by_run_job: dict[str, list[dict[str, Any]]] = {}
+    job_by_run_job = {str(row["run_job_id"]): row for row in jobs}
     for row in jobs:
         run = run_by_id.get(str(row["run_id"]))
         run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
@@ -555,7 +562,8 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         cohort_type = run_payload.get("cohort_type") or "imported"
         inventory = {
             "source_id": row["run_job_id"],
-            "posting_id": row["run_job_id"],
+            "posting_id": _posting_id(row),
+            "processing_id": row["run_job_id"],
             "run_id": row["run_id"],
             "run_job_id": row["run_job_id"],
             "cohort_id": cohort_id,
@@ -572,14 +580,21 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         requirements = snapshot.get("requirements") or snapshot.get("requirement_coverage") or _json(row["skills_json"] if "skills_json" in row.keys() else None) or []
         if isinstance(requirements, dict):
             requirements = list(requirements.values())
+        requirements_by_run_job[str(row["run_job_id"])] = []
         for index, item in enumerate(requirements):
             requirement = item if isinstance(item, str) else next((item.get(field) for field in ("requirement", "canonical", "name", "skill", "title") if item.get(field)), None) if isinstance(item, dict) else None
             if not str(requirement or "").strip():
                 continue
+            requirement_row = {
+                "requirement": str(requirement),
+                "requirement_instance_id": f"{_posting_id(row)}:{index}",
+            }
+            requirements_by_run_job[str(row["run_job_id"])].append(requirement_row)
             _append(sources, "posting_requirement", {
                 "source_id": f"{row['run_job_id']}:requirement:{index}",
-                "requirement_instance_id": f"{row['run_job_id']}:{index}",
-                "posting_id": row["run_job_id"],
+                "requirement_instance_id": requirement_row["requirement_instance_id"],
+                "posting_id": _posting_id(row),
+                "processing_id": row["run_job_id"],
                 "run_job_id": row["run_job_id"],
                 "requirement": str(requirement),
                 "cohort_id": cohort_id,
@@ -592,8 +607,10 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
 
     evaluations_by_version: dict[str, Any] = {}
     if _table_exists(connection, "cv_evaluations"):
-        for evaluation in connection.execute("SELECT * FROM cv_evaluations WHERE is_current=1 ORDER BY cv_evaluation_id"):
-            evaluations_by_version[str(evaluation["cv_version_id"])] = evaluation
+        for evaluation in connection.execute(
+            "SELECT * FROM cv_evaluations ORDER BY cv_version_id, is_current DESC, cv_evaluation_id DESC"
+        ):
+            evaluations_by_version.setdefault(str(evaluation["cv_version_id"]), evaluation)
 
     versions = []
     if _table_exists(connection, "cv_versions"):
@@ -641,6 +658,8 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         run_payload = run_payload if isinstance(run_payload, dict) else {}
         common = {
             "run_job_id": run_job_id,
+            "processing_id": run_job_id,
+            "posting_id": _posting_id(job_by_run_job[run_job_id]) if run_job_id in job_by_run_job else run_job_id,
             "run_id": row["run_id"],
             "cohort_id": run_payload.get("cohort_id") or "operational",
             "cohort_type": run_payload.get("cohort_type") or "imported",
@@ -649,10 +668,15 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         common.update(run_input_identity_by_id.get(str(row["run_id"]), {}))
         evaluation = evaluations_by_version.get(version_id)
         evidence = _json(evaluation["evidence_json"] if evaluation is not None and "evidence_json" in evaluation.keys() else None)
+        evaluated_requirements: set[str] = set()
         if isinstance(evidence, dict) and str(evaluation["status"] or "") == "succeeded":
             for index, item in enumerate(evidence.get("requirement_coverage") or []):
                 if not isinstance(item, dict) or not str(item.get("requirement") or "").strip():
                     continue
+                requirement_instance_id = str(
+                    item.get("requirement_instance_id") or f"{common['posting_id']}:{index}"
+                )
+                evaluated_requirements.add(requirement_instance_id)
                 selected_support = str(item.get("selected_support") or "").strip().lower()
                 gap_category = {
                     "unsupported": "missing_evidence",
@@ -664,12 +688,22 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                     _append(sources, "candidate_gap", {
                         **common,
                         "source_id": f"{version_id}:gap:{index}",
-                        "run_job_id": run_job_id,
-                        "posting_id": run_job_id,
                         "requirement": item["requirement"],
-                        "requirement_instance_id": item.get("requirement_instance_id") or f"{run_job_id}:{index}",
+                        "requirement_instance_id": requirement_instance_id,
                         "gap_category": gap_category,
                     })
+        for requirement in requirements_by_run_job.get(run_job_id, []):
+            requirement_instance_id = str(requirement["requirement_instance_id"])
+            if requirement_instance_id in evaluated_requirements:
+                continue
+            _append(sources, "candidate_gap", {
+                **common,
+                "source_id": f"{version_id}:unevaluated:{requirement_instance_id}",
+                "requirement": requirement["requirement"],
+                "requirement_instance_id": requirement_instance_id,
+                "gap_category": "unevaluated",
+                "evaluation_status": str(evaluation["status"] or "unevaluated") if evaluation is not None else "unevaluated",
+            })
         normalized_status = "succeeded" if status == "generated" else status
         attempt_count = _debug_attempt_count(debug, ordinal or 1)
         provider_call_count = _debug_number(debug, "provider_call_count")
@@ -761,6 +795,51 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 "run_job_id": run_job_id,
                 "status": "accepted",
                 "validity": "invalid",
+            })
+
+    for run_job_id in sorted(job_by_run_job):
+        if versions_by_run_job.get(run_job_id):
+            continue
+        job = job_by_run_job[run_job_id]
+        debug = debug_by_artifact.get(_debug_record_key(str(job["run_id"]), run_job_id), {})
+        if not debug:
+            continue
+        attempt_id = f"{run_job_id}:debug"
+        common = {
+            "run_job_id": run_job_id,
+            "processing_id": run_job_id,
+            "posting_id": _posting_id(job),
+            "run_id": job["run_id"],
+            "cohort_id": debug.get("_debug_cohort_id") or "operational",
+            "cohort_type": debug.get("_debug_cohort_type") or "imported",
+            "status": str(debug.get("status") or debug.get("final_status") or "failed").lower(),
+            "attempt_count": _debug_attempt_count(debug, 1),
+        }
+        _append(sources, "generation_attempt", {
+            **common,
+            "source_id": attempt_id,
+            "generation_attempt_id": attempt_id,
+        })
+        _append(sources, "provider_attempt", {
+            **common,
+            "source_id": f"{attempt_id}:provider",
+            "provider_attempt_id": f"{attempt_id}:provider",
+            "provider_call_count": _debug_number(debug, "provider_call_count"),
+            "token_total": _debug_number(debug, "token_total"),
+        })
+        for requirement in requirements_by_run_job.get(run_job_id, []):
+            _append(sources, "candidate_gap", {
+                "source_id": f"{attempt_id}:unevaluated:{requirement['requirement_instance_id']}",
+                "run_job_id": run_job_id,
+                "processing_id": run_job_id,
+                "posting_id": _posting_id(job),
+                "run_id": job["run_id"],
+                "cohort_id": common["cohort_id"],
+                "cohort_type": common["cohort_type"],
+                "requirement": requirement["requirement"],
+                "requirement_instance_id": requirement["requirement_instance_id"],
+                "gap_category": "unevaluated",
+                "evaluation_status": "unevaluated",
             })
 
     for debug_key, debug in sorted(debug_by_artifact.items()):
