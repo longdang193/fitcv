@@ -37,6 +37,11 @@ def _value_digest(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _source_fingerprint(value: Any) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _canonical_inputs() -> tuple[dict[str, Any], dict[str, Any]]:
     metric_registry = yaml.safe_load((REPO_ROOT / "config/analytics_metrics.yaml").read_text(encoding="utf-8")) or {}
     evidence_registry = yaml.safe_load((REPO_ROOT / "config/evidence_registry.yaml").read_text(encoding="utf-8")) or {}
@@ -71,7 +76,7 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
             return False
         if source_bundle.get("input_fingerprint") != manifest["input_fingerprint"]:
             return False
-        if _value_digest(source_bundle.get("sources")) != manifest["input_fingerprint"]:
+        if _source_fingerprint(source_bundle.get("sources")) != manifest["input_fingerprint"]:
             return False
         expected_registry, expected_state = _canonical_inputs()
         if source_bundle.get("registry") != expected_registry or source_bundle.get("state") != expected_state:

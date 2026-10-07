@@ -32,6 +32,21 @@ def test_refresh_replay_is_idempotent_and_publishes_valid_release(tmp_path: Path
         assert connection.execute("SELECT COUNT(*) FROM gold_semantic_metric").fetchone()[0] > 0
 
 
+def test_refresh_accepts_unicode_source_values(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE run_jobs SET title='Développeur' WHERE run_job_id='job-1'")
+        connection.commit()
+
+    result = refresh_analytics(database, output_root, source_commit="head")
+
+    assert result["status"] == "ok"
+    assert (output_root / "CURRENT.json").is_file()
+    assert (output_root / result["release"] / "manifest.json").is_file()
+
+
 def test_refresh_includes_canonical_acceptance_and_optimization_state(tmp_path: Path) -> None:
     database = tmp_path / "fitcv.sqlite3"
     output_root = tmp_path / "analytics"
