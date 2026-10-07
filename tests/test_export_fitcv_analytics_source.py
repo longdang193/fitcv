@@ -325,6 +325,30 @@ def test_export_emits_unevaluated_for_job_without_version_or_debug(tmp_path: Pat
     )
 
 
+def test_exported_unevaluated_gap_counts_with_unavailable_coverage(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("job-3", "run-1", "posting-hash-3", json.dumps({"extraction_status": "valid", "requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    output = rebuild_analytics_bundle(
+        bundle,
+        source_commit="head",
+        declared_input_fingerprint=bundle["input_fingerprint"],
+        ingested_at="now",
+    )
+    gap = next(row for row in output["gold"]["gold_candidate_gap"] if row["gap_category"] == "unevaluated")
+
+    assert gap["numerator_requirement_count"] == 1
+    assert gap["denominator_requirement_count"] >= 1
+    assert gap["coverage"] == "unavailable"
+
+
 def test_export_rejects_missing_path_and_hash_mismatch(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         export_bundle(tmp_path / "missing.sqlite3", source_commit="head")

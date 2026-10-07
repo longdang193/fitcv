@@ -50,7 +50,7 @@ def _canonical_inputs() -> tuple[dict[str, Any], dict[str, Any]]:
         ],
         "claim_priority_map": claim_priority_map,
     }
-    return registry, state
+    return json.loads(_json(registry)), json.loads(_json(state))
 
 
 def _write(path: Path, value: Any) -> None:
@@ -69,6 +69,11 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
         if source_bundle.get("database_sha256") != manifest["database_sha256"]:
             return False
         if source_bundle.get("input_fingerprint") != manifest["input_fingerprint"]:
+            return False
+        if _value_digest(source_bundle.get("sources")) != manifest["input_fingerprint"]:
+            return False
+        expected_registry, expected_state = _canonical_inputs()
+        if source_bundle.get("registry") != expected_registry or source_bundle.get("state") != expected_state:
             return False
         if json.loads((path / "manifest.json").read_text(encoding="utf-8")) != manifest:
             return False
@@ -105,6 +110,12 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
                     )
                 ]
                 if actual_rows != expected_rows:
+                    return False
+                actual_view_rows = [
+                    json.loads(row[0])
+                    for row in connection.execute(f"SELECT payload_json FROM {view_name}")
+                ]
+                if sorted(map(_json, actual_view_rows)) != sorted(map(_json, expected_rows)):
                     return False
         finally:
             connection.close()
