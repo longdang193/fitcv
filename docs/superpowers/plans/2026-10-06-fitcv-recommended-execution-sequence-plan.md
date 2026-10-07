@@ -17,12 +17,14 @@ targets:
   - scripts/verify_fitcv_acceptance.py
   - scripts/render_acceptance_state.py
   - src/fitcv_cp/app.py
+  - src/fitcv_cp/analytics_dashboard.py
   - src/fitcv_cp/models.py
   - src/fitcv/reuse.py
   - src/fitcv/reuse_law_engine.py
   - src/fitcv/agentic_cv_analysis.py
   - src/fitcv/agentic_cv_generation.py
   - frontend/src/app/route-registry.ts
+  - frontend/vite.config.ts
   - frontend/src/features/analytics-dashboard/
   - tests/test_fitcv_analytics.py
   - tests/test_export_fitcv_analytics_source.py
@@ -145,11 +147,12 @@ paired measurement with no grounding or one-page regression.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/fitcv-p1b-r7`
-- Base commit: `ea138c3b53bd05fad96b20378e80abd528d06a9c`
+- Branch: `codex/fitcv-runtime-r8`
+- Base commit: `6b08a0d033ed098e44bfc8cc70a329b93f385723` (`origin/main` at checkpoint)
+- Current HEAD: `91164025` (`fix: validate published analytics content`)
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `open Task 4 planning lane after PR acceptance; retain R5/R6 efficiency blocker`
-- Blockers: `none for Task 3; R7 provider-backed reports retained under task-owned disposable root`
+- Next action: `admit Task 5 from the Task 4 checkpoint; retain R5/R6 efficiency blocker`
+- Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -157,7 +160,7 @@ paired measurement with no grounding or one-page regression.
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
 | 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 canonical paired reports, manifests, analytics rebuilds, and acceptance verifier passed |
-| 4. P1-C dashboard MVP | `pending` | fresh branch | `unresolved` | 3 | API, frontend, browser, accessibility proof | pending |
+| 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1526 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed; review-1 integrity findings fixed |
 | 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
 | 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
 | 7. Re-measure/promote | `pending` | fresh branch | `unresolved` | 5–6 | paired comparison and quality gate | pending |
@@ -200,17 +203,17 @@ remain untouched.
   discard/cleanup, or base mutation.
 
 **Steps:**
-- [ ] Record exact branch, base commit, and preserved workspace condition from
+- [x] Record exact branch, base commit, and preserved workspace condition from
   Git in Coordination State; never record guessed values.
-- [ ] Reconcile predecessor tasks and mark its ledger historical only when
+- [x] Reconcile predecessor tasks and mark its ledger historical only when
   repository evidence supports that transition; otherwise record blocker.
-- [ ] Commit the tracked plan checkpoint before Task 1 admission.
+- [x] Commit the tracked plan checkpoint before Task 1 admission.
 
 **Verification:** `git status --short --branch`, `git diff --check`, and plan
 frontmatter/ledger inspection. Expected: one active ledger, exact Git facts, no
 discarded untracked artifacts.
 
-**Exit Criteria:** Task 1 has an exact recoverable branch/base/workspace
+**Exit Criteria:** Task 4 has an exact recoverable branch/base/workspace
 checkpoint and no competing active plan ownership.
 
 ### Task 1: Correct reporting populations and Gold semantics
@@ -438,8 +441,9 @@ claim market-wide demand or unsupported candidate inability.
 - Add readonly handlers `GET /analytics/semantic-metrics` and
   `GET /analytics/trace/{posting_id}` in `src/fitcv_cp/app.py`; add response
   contracts in `src/fitcv_cp/models.py`, backed by
-  `config/analytics_metrics.yaml:published_artifact.path` and helper
-  `_published_analytics_database`. Missing path, digest mismatch, or stale
+  `config/analytics_metrics.yaml:published_artifact.path` and
+  `src/fitcv_cp/analytics_dashboard.py` helper
+  `load_published_analytics`. Missing path, digest mismatch, or stale
   source commit returns explicit unavailable response; no operational DB
   fallback is allowed.
 - Add `frontend/src/features/analytics-dashboard/route.tsx`, API/types, and
@@ -466,26 +470,26 @@ claim market-wide demand or unsupported candidate inability.
   design-system expansion.
 
 **Steps:**
-- [ ] Define response envelope with coverage and unavailable reasons.
-- [ ] Add bounded readonly handlers with source/collection/revision metadata.
-- [ ] Add route-discovered feature with loading/error/empty/unavailable states,
+- [x] Define response envelope with coverage and unavailable reasons.
+- [x] Add bounded readonly handlers with source/collection/revision metadata.
+- [x] Add route-discovered feature with loading/error/empty/unavailable states,
   keyboard access, responsive layout, and supported themes.
-- [ ] Add auditable source-posting drill-down.
+- [x] Add auditable source-posting drill-down.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_fitcv_cp`
-- [ ] API boundary tests cover both endpoints, unavailable coverage, empty
+- [x] `python -m pytest -q tests/test_fitcv_cp` — 1523 passed, 1 skipped.
+- [x] API boundary tests cover both endpoints, unavailable coverage, empty
   result, and source-posting traceability.
-- [ ] `npm --prefix frontend run typecheck`
-- [ ] `npm --prefix frontend test -- --run`
-- [ ] `pwsh -File scripts/run_fitcv_analytics_dashboard_e2e.ps1`
-- [ ] Browser proof covers desktop/mobile viewport, supported theme, keyboard
+- [x] `npm --prefix frontend run typecheck`
+- [x] `npm --prefix frontend test -- --run` — 339 passed.
+- [x] `pwsh -File scripts/run_fitcv_analytics_dashboard_e2e.ps1` — 2 passed.
+- [x] Browser proof covers desktop/mobile viewport, supported theme, keyboard
   navigation, focus, contrast, loading/error/empty/unavailable states.
-- [ ] Remove `docs/superpowers/analytics-dashboard.integration.md` only after
-  canonical API/types/tests own every mapping.
+- [x] No temporary integration mapping retained; canonical API/types/tests own
+  every mapping.
 
 **Exit Criteria:** Dashboard is contract-tested, accessible, auditable, and
-consumes semantic projections only.
+consumes semantic projections only. Met on 2026-10-07.
 
 ### Task 5: Optimize work reuse with content-addressed identities
 

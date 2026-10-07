@@ -1,4 +1,6 @@
 schema_version: fitcv.analytics_metrics.v1
+published_artifact:
+  path: data/fitcv-analytics
 projection_inputs:
   - config/analytics_metrics.yaml
   - scripts/fitcv_analytics.py

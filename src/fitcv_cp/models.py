@@ -25,6 +25,44 @@ from pydantic import BaseModel, field_validator
 from fitcv_cp.run_artifact_contracts import stable_sha256_fingerprint
 
 
+class AnalyticsCoverage(BaseModel):
+    model_config = {"extra": "allow"}
+
+    status: Literal["available", "unavailable"]
+    sample_size: int = 0
+    source_mix: list[str] = []
+    collection_window: dict[str, Any] = {}
+    candidate_revisions: list[dict[str, Any]] = []
+    unavailable_reasons: list[str] = []
+
+
+class AnalyticsDashboardResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    coverage: AnalyticsCoverage
+    metadata: dict[str, Any] = {}
+    opportunity_landscape: list[dict[str, Any]] = []
+    requirement_demand: list[dict[str, Any]] = []
+    candidate_evidence_gaps: list[dict[str, Any]] = []
+
+
+class AnalyticsDashboardEnvelope(BaseModel):
+    data: AnalyticsDashboardResource
+
+
+class AnalyticsTraceResource(BaseModel):
+    model_config = {"extra": "allow"}
+
+    coverage: AnalyticsCoverage
+    posting: dict[str, Any] | None = None
+    requirements: list[dict[str, Any]] = []
+    candidate_evidence_gaps: list[dict[str, Any]] = []
+
+
+class AnalyticsTraceEnvelope(BaseModel):
+    data: AnalyticsTraceResource
+
+
 class CandidateProfileReviewOperation(BaseModel):
     operation: Literal["add", "replace", "remove"]
     path: str
