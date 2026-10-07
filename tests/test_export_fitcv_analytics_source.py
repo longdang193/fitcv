@@ -312,7 +312,7 @@ def test_export_emits_unevaluated_for_job_without_version_or_debug(tmp_path: Pat
     with sqlite3.connect(database) as connection:
         connection.execute(
             "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("job-3", "run-1", "posting-hash-3", json.dumps({"extraction_status": "valid", "requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
+            ("job-3", "run-1", "posting-hash-3", json.dumps({"requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
         )
         connection.commit()
 
@@ -331,7 +331,7 @@ def test_exported_unevaluated_gap_counts_with_unavailable_coverage(tmp_path: Pat
     with sqlite3.connect(database) as connection:
         connection.execute(
             "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("job-3", "run-1", "posting-hash-3", json.dumps({"extraction_status": "valid", "requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
+            ("job-3", "run-1", "posting-hash-3", json.dumps({"requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
         )
         connection.commit()
 

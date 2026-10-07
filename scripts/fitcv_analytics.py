@@ -629,6 +629,14 @@ def build_gold_requirement_demand(silver: Iterable[dict[str, Any]]) -> list[dict
             dimension_keys.add((*cohort, requirement))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(cohort, issue)
+            if (
+                issue == "extraction_status_incomplete"
+                and observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES
+                and posting_id
+                and requirement
+                and _eligibility(payload) is True
+            ):
+                requirement_postings[(*cohort, requirement)].add(posting_id)
             continue
         if _eligibility(payload) is None:
             coverage_issues.setdefault(cohort, "eligibility_incomplete")
@@ -691,6 +699,14 @@ def build_gold_candidate_gap(silver: Iterable[dict[str, Any]]) -> list[dict[str,
             gap_keys.add((*cohort, requirement, category, *profile))
         if (issue := _coverage_issue(fact)) is not None:
             coverage_issues.setdefault(partition, issue)
+            if (
+                issue == "extraction_status_incomplete"
+                and observation_type in REQUIREMENT_DEMAND_OBSERVATION_TYPES
+                and posting_id
+                and requirement
+                and _eligibility(payload) is True
+            ):
+                denominator[partition].add((posting_id, requirement))
             if (
                 observation_type in CANDIDATE_GAP_OBSERVATION_TYPES
                 and posting_id
