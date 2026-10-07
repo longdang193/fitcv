@@ -99,9 +99,22 @@ def _release_is_valid(path: Path, manifest: dict[str, Any]) -> bool:
             "gold_optimization_state": "silver_optimization_state",
             "gold_semantic_metric": "gold_semantic_metric_rows",
         }
+        expected_columns = {
+            "gold_cv_artifact": ["run_job_id", "artifact_id", "accepted_at", "payload_json"],
+            "gold_run_job_effort": ["run_job_id", "cohort_id", "accepted_artifact_count", "provider_call_count", "token_total", "payload_json"],
+            "gold_cohort_effort": ["cohort_id", "cohort_type", "attempted_job_count", "accepted_artifact_count", "provider_call_count", "token_total", "payload_json"],
+            "gold_requirement_demand": ["requirement", "cohort_id", "cohort_type", "numerator_posting_count", "denominator_posting_count", "payload_json"],
+            "gold_candidate_gap": ["requirement", "gap_category", "cohort_id", "cohort_type", "numerator_requirement_count", "denominator_requirement_count", "payload_json"],
+            "gold_acceptance_state": ["row_key", "priority", "evidence_id", "evidence_status", "implementation_status", "acceptance_status", "measurement_status", "payload_json"],
+            "gold_optimization_state": ["row_key", "priority", "evidence_id", "measurement_status", "optimization_status", "optimization_experiment", "optimization_promotion", "optimization_production_default", "optimization_evidence", "payload_json"],
+            "gold_semantic_metric": ["metric_id", "metric_version", "cohort_id", "cohort_type", "dimension_key", "numerator", "denominator", "value", "coverage_status", "coverage_numerator", "coverage_denominator", "unavailable_reason", "source_commit", "input_fingerprint", "material_digest", "payload_json"],
+        }
         connection = sqlite3.connect(path / "analytics.sqlite3")
         try:
             for view_name, table_name in expected_tables.items():
+                actual_columns = [row[1] for row in connection.execute(f"PRAGMA table_info({view_name})")]
+                if actual_columns != expected_columns[view_name]:
+                    return False
                 expected_rows = gold.get(view_name)
                 if not isinstance(expected_rows, list):
                     return False
