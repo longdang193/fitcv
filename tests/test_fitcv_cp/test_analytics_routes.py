@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -98,4 +99,36 @@ def test_stale_release_is_unavailable(tmp_path: Path, monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["data"]["coverage"]["unavailable_reasons"] == [
         "published_source_commit_stale"
+    ]
+
+
+def test_source_content_tampering_is_unavailable(tmp_path: Path, monkeypatch) -> None:
+    output_root = tmp_path / "analytics"
+    with _client(tmp_path, monkeypatch) as client:
+        pointer = json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))
+        release = output_root / pointer["release"]
+        source_path = release / "source_bundle.json"
+        source = json.loads(source_path.read_text(encoding="utf-8"))
+        source["sources"]["posting_inventory"][0]["title"] = "forged"
+        source_path.write_text(json.dumps(source), encoding="utf-8")
+        response = client.get("/analytics/semantic-metrics")
+
+    assert response.json()["data"]["coverage"]["unavailable_reasons"] == [
+        "published_input_fingerprint_mismatch"
+    ]
+
+
+def test_malformed_gold_is_unavailable(tmp_path: Path, monkeypatch) -> None:
+    output_root = tmp_path / "analytics"
+    with _client(tmp_path, monkeypatch) as client:
+        pointer = json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))
+        release = output_root / pointer["release"]
+        analytics_path = release / "analytics.json"
+        analytics = json.loads(analytics_path.read_text(encoding="utf-8"))
+        analytics["gold"] = None
+        analytics_path.write_text(json.dumps(analytics), encoding="utf-8")
+        response = client.get("/analytics/semantic-metrics")
+
+    assert response.json()["data"]["coverage"]["unavailable_reasons"] == [
+        "published_gold_invalid"
     ]

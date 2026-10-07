@@ -36,6 +36,11 @@ def _value_digest(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _source_fingerprint(value: Any) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _git_head(repo_root: Path) -> str | None:
     try:
         return subprocess.check_output(
@@ -81,17 +86,19 @@ def load_published_analytics(repo_root: Path) -> dict[str, Any]:
 
     analytics = _json(release / "analytics.json")
     gold = analytics.get("gold")
+    if not isinstance(gold, dict):
+        raise AnalyticsUnavailable("published_gold_invalid")
     material = {key: value for key, value in gold.items() if key not in {"generated_at", "ingested_at"}}
     if (
-        not isinstance(gold, dict)
-        or analytics.get("material_metrics_sha256") != manifest.get("material_metrics_sha256")
+        analytics.get("material_metrics_sha256") != manifest.get("material_metrics_sha256")
         or _value_digest(material) != manifest.get("material_metrics_sha256")
     ):
         raise AnalyticsUnavailable("published_metrics_digest_mismatch")
     source_bundle = _json(release / "source_bundle.json")
     if source_bundle.get("database_sha256") != manifest.get("database_sha256"):
         raise AnalyticsUnavailable("published_source_database_digest_mismatch")
-    if source_bundle.get("input_fingerprint") != manifest.get("input_fingerprint"):
+    sources = source_bundle.get("sources")
+    if not isinstance(sources, dict) or _source_fingerprint(sources) != manifest.get("input_fingerprint"):
         raise AnalyticsUnavailable("published_input_fingerprint_mismatch")
     if source_bundle.get("source_commit") != manifest.get("source_commit"):
         raise AnalyticsUnavailable("published_source_commit_mismatch")
