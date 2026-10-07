@@ -149,7 +149,7 @@ paired measurement with no grounding or one-page regression.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-runtime-r8`
 - Base commit: `6b08a0d033ed098e44bfc8cc70a329b93f385723` (`origin/main` at checkpoint)
-- Current HEAD: `9a0efac250d25c2b2ba91319f1347b9fbbaa2021`
+- Current HEAD: `8738807b` (`feat: add published analytics dashboard`)
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
 - Next action: `admit Task 5 from the Task 4 checkpoint; retain R5/R6 efficiency blocker`
 - Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
@@ -160,7 +160,7 @@ paired measurement with no grounding or one-page regression.
 | 1. Reporting correctness | `completed` | current plan branch | `codex` | 0 | focused analytics/export tests and verifier | 142 focused tests; acceptance verifier passed; deterministic Gold digest `b6b6b703cd0616229179d42b27cfb8e6ebe394f4f721c2935041eea375710872` |
 | 2. Refresh/publish | `completed` | current plan branch | `codex` | 1 | replay, idempotency, failure preservation | 135 focused tests; `CURRENT.json` pointer publication; prior pointer preserved on hash rejection |
 | 3. Fresh P1-B baseline | `completed` | current plan branch | `codex` | 2 | paired manifests and independent verifier | R7 canonical paired reports, manifests, analytics rebuilds, and acceptance verifier passed |
-| 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1523 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed |
+| 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1524 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed |
 | 5. Content-addressed reuse | `pending` | fresh branch | `unresolved` | 4 | hit/miss/invalidation and equivalence proof | pending |
 | 6. Repair/escalation | `pending` | fresh branch | `unresolved` | 5 | ordered repair and fallback tests | pending |
 | 7. Re-measure/promote | `pending` | fresh branch | `unresolved` | 5–6 | paired comparison and quality gate | pending |
