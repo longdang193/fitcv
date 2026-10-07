@@ -5,7 +5,7 @@
 - Source commit: `91e226457aa9fded11acc4ce5f9e1f1077b88918`
 - Fixture SHA-256: `56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5`
 - Source fixture SHA-256: `56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5`
-- Material metrics SHA-256: `e2e8e5506885d675499308c3f7708d101c96d195a8a6ec09fe00ec9c574efd4e`
+- Material metrics SHA-256: `a3fd3fca71bf4ee7df085f86c3c79587da5d95874f807d5022c298b70d296db9`
 - Status: `complete`
 - Persisted ordinary runs: `10`
 - Accepted CVs: `10`
