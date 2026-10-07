@@ -10,6 +10,7 @@ import sqlite3
 import shutil
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -226,7 +227,7 @@ def refresh_analytics(
                     raise
         release_reference = release.relative_to(output_root).as_posix()
         current = output_root / "CURRENT.json"
-        pointer = output_root / f".CURRENT.{material_digest}.tmp"
+        pointer = output_root / f".CURRENT.{material_digest}.{uuid.uuid4().hex}.tmp"
         _write(pointer, {"release": release_reference, **manifest})
         os.replace(pointer, current)
     finally:

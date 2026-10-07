@@ -2,7 +2,9 @@ import json
 import sqlite3
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier, Lock
 
 import pytest
 
@@ -212,6 +214,40 @@ def test_refresh_rebuilds_release_when_gold_view_values_are_corrupt(tmp_path: Pa
     assert refreshed["release"] != first["release"]
     with sqlite3.connect(output_root / refreshed["release"] / "analytics.sqlite3") as connection:
         assert connection.execute("SELECT COUNT(*) FROM gold_semantic_metric WHERE metric_id = 'corrupt'").fetchone()[0] == 0
+
+
+def test_concurrent_refreshes_publish_without_shared_pointer_temp_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    replace_barrier = Barrier(2)
+    replace_lock = Lock()
+    original_replace = refresh_module.os.replace
+
+    def synchronized_replace(source: str | Path, destination: str | Path) -> None:
+        if Path(source).name.startswith(".CURRENT."):
+            replace_barrier.wait(timeout=10)
+        with replace_lock:
+            original_replace(source, destination)
+
+    monkeypatch.setattr(refresh_module.os, "replace", synchronized_replace)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(
+            executor.map(
+                lambda _: refresh_analytics(database, output_root, source_commit="head"),
+                range(2),
+            )
+        )
+
+    assert results[0]["status"] == results[1]["status"] == "ok"
+    assert results[0]["database_sha256"] == results[1]["database_sha256"]
+    assert results[0]["input_fingerprint"] == results[1]["input_fingerprint"]
+    assert results[0]["material_metrics_sha256"] == results[1]["material_metrics_sha256"]
+    pointer = json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))
+    assert pointer["release"] in {result["release"] for result in results}
+    assert (output_root / pointer["release"] / "manifest.json").is_file()
 
 
 def test_refresh_script_supports_direct_help_invocation() -> None:
