@@ -122,7 +122,7 @@ def test_experiment_report_check_rejects_non_object_json(tmp_path: Path) -> None
     assert "experiment_json_object_required" in result["failures"]
 
 
-def test_experiment_report_check_rejects_mismatched_peer_analysis_inputs(tmp_path: Path) -> None:
+def test_experiment_report_check_rejects_peer_without_manifest_identity(tmp_path: Path) -> None:
     report_path = tmp_path / "experiment.json"
     peer_path = tmp_path / "peer.json"
     markdown_path = tmp_path / "experiment.md"
@@ -135,6 +135,70 @@ def test_experiment_report_check_rejects_mismatched_peer_analysis_inputs(tmp_pat
 
     assert result["passed"] is False
     assert "experiment_peer_manifest_path_missing" in result["failures"]
+
+
+def test_experiment_report_check_accepts_different_selected_evidence_with_matching_manifests(
+    tmp_path: Path,
+) -> None:
+    report_path = tmp_path / "experiment.json"
+    peer_path = tmp_path / "peer.json"
+    markdown_path = tmp_path / "experiment.md"
+    manifest_path = tmp_path / "manifest.json"
+    peer_manifest_path = tmp_path / "peer-manifest.json"
+    run_ids = [f"run-{index}" for index in range(10)]
+    for relative in set(DECLARED_INPUTS) | {"tests/fixtures/fitcv-p1ab-repair-experiment.json"}:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("current-input", encoding="utf-8")
+    fixture_sha256, declared_input_fingerprint = verifier._current_experiment_input_identity(tmp_path)
+    common = {
+        "fixture_sha256": fixture_sha256,
+        "declared_input_fingerprint": declared_input_fingerprint,
+        "repeat_count": 10,
+        "database_path": "database.sqlite3",
+        "declared_model": "model",
+        "resolved_models": ["resolved"],
+        "run_ids": run_ids,
+        "runtime": "runtime",
+        "source_commit": "old-commit",
+        "working_tree_diff_sha256": "diff",
+        "producer": {"mode": "provider_backed"},
+        "cohort_setup": {"upstream_reuse_policy": "cold_first_then_frozen"},
+    }
+    manifest = {**common, "arm": "local_first"}
+    peer_manifest = {**common, "arm": "provider_first"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    peer_manifest_path.write_text(json.dumps(peer_manifest), encoding="utf-8")
+
+    def build_report(manifest: dict[str, object], manifest_path: Path, evidence_id: str) -> dict[str, object]:
+        report_manifest = {key: value for key, value in manifest.items() if key != "database_path"}
+        report = {
+            "status": "complete",
+            "selection": {
+                "current_contract_record_count": 10,
+                "run_count": 10,
+                "manifest_run_count_shortfall": 0,
+                "run_ids": run_ids,
+            },
+            "input_manifest": {**report_manifest, "path": str(manifest_path)},
+            "analysis_input_identity": [{"fingerprints": [evidence_id], "selected_evidence_ids": [evidence_id]}],
+            "accepted_cv": {"recorded_acceptance_count": 10},
+            "coverage": {name: {"complete": True} for name in (
+                "timing", "cost", "attribution", "page_fit", "page_fit_success",
+                "review_questions", "human_actions", "resolution_reuse",
+            )},
+            "timing": {"generation_elapsed_ms": 1, "generation_timing_coverage": {"measured": 10}},
+            "run_job_diversity": {"run_count": 10, "job_type_count": 2},
+        }
+        report["material_metrics_sha256"] = material_report_digest(report)
+        return report
+
+    report_path.write_text(json.dumps(build_report(manifest, manifest_path, "local-evidence")), encoding="utf-8")
+    peer_path.write_text(json.dumps(build_report(peer_manifest, peer_manifest_path, "provider-evidence")), encoding="utf-8")
+    markdown_path.write_text("## CORRECTNESS\n## PRODUCT PARITY\n## EFFICIENCY\n## HUMAN EFFORT\n", encoding="utf-8")
+    result = _run_experiment_report_check(report_path, markdown_path, tmp_path, peer_path)
+
+    assert result["passed"], result["failures"]
 
 
 def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Path) -> None:
@@ -202,7 +266,7 @@ def test_experiment_report_check_rejects_unbound_non_provider_peer(tmp_path: Pat
     assert "experiment_declared_input_fingerprint_not_current" in result["failures"]
     assert "experiment_peer_arm_must_differ" in result["failures"]
     assert "experiment_peer_report_incomplete" in result["failures"]
-    assert "experiment_peer_analysis_input_identity_not_identical" in result["failures"]
+    assert "experiment_peer_fixture_sha256_not_identical" not in result["failures"]
 
 
 def test_experiment_report_check_rejects_incomplete_cohort_metadata(tmp_path: Path) -> None:

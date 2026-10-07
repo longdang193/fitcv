@@ -17,9 +17,9 @@
     "data/fitcv-p0-corpus/p0c/requirement_support_benchmark.json"
   ],
   "current_contract_evidence": {
-    "json": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.json",
-    "markdown": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.md",
-    "sha256": "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r6-unavailable.sha256"
+    "json": "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.json",
+    "markdown": "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.md",
+    "sha256": "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.sha256"
   },
   "evaluation_freeze_commit": "5cfd25ff31b3b620dbfda5f25e54a0718cb1cb50",
   "evidence_paths": [
@@ -58,7 +58,15 @@
     "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.json",
     "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.md",
     "docs/superpowers/evidence/2026-10-05-fitcv-p1ab-current-contract-r3.sha256",
-    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-provider-backed-convergence.json"
+    "docs/superpowers/evidence/2026-10-04-fitcv-p1ab-provider-backed-convergence.json",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.json",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.md",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7.sha256",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7-peer.json",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7-peer.md",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7-peer.sha256",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7-manifest.json",
+    "docs/superpowers/evidence/2026-10-07-fitcv-p1b-r7-peer-manifest.json"
   ],
   "evidence_registry": "config/evidence_registry.yaml",
   "optimization_result": {

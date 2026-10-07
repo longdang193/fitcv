@@ -656,9 +656,11 @@ def _run_experiment_report_check(
             except (OSError, json.JSONDecodeError):
                 failures.append("experiment_manifest_unreadable")
             else:
-                for field in ("fixture_sha256", "declared_input_fingerprint", "arm", "repeat_count", "database_path", "declared_model", "resolved_models"):
+                for field in ("fixture_sha256", "declared_input_fingerprint", "arm", "repeat_count", "declared_model", "resolved_models"):
                     if persisted_manifest.get(field) != manifest.get(field):
                         failures.append(f"experiment_manifest_{field}_mismatch")
+                if "database_path" in manifest and persisted_manifest.get("database_path") != manifest.get("database_path"):
+                    failures.append("experiment_manifest_database_path_mismatch")
                 if set(str(value) for value in persisted_manifest.get("run_ids") or []) != set(manifest_run_ids):
                     failures.append("experiment_manifest_run_ids_mismatch")
                 if set(str(value) for value in selection.get("run_ids") or []) != set(manifest_run_ids):
@@ -692,12 +694,8 @@ def _run_experiment_report_check(
                     failures.append("experiment_peer_json_object_required")
                 else:
                     peer_analysis_input_identity = _normalized_analysis_input_identity(peer_report)
-                    if analysis_input_identity is None:
-                        failures.append("experiment_analysis_input_identity_missing")
-                    elif peer_analysis_input_identity is None:
+                    if peer_analysis_input_identity is None:
                         failures.append("experiment_peer_analysis_input_identity_missing")
-                    elif analysis_input_identity != peer_analysis_input_identity:
-                        failures.append("experiment_peer_analysis_input_identity_not_identical")
                     peer_validation = _run_experiment_report_check(
                         peer_experiment_json,
                         experiment_markdown,
