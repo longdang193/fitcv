@@ -89,51 +89,51 @@ records:
   - evidence_id: acceptance-scope-p0-current-v1
     claim: p0_acceptance_scope
     schema_version: fitcv.acceptance_state.v2
-    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    source_commit: 91e226457aa9fded11acc4ce5f9e1f1077b88918
     declared_inputs:
       - config/acceptance_state.yaml
-    declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 0a1f4672ff707bd5f65976c4ea088737d817331bfb70286ccdab6c0c1a84a76b
+    declared_input_fingerprint: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
+    fixture_sha256: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 0a1f4672ff707bd5f65976c4ea088737d817331bfb70286ccdab6c0c1a84a76b
+    material_metrics_sha256: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
-    generated_at: 2026-10-05T00:00:00Z
-    last_refresh: 2026-10-05T00:00:00Z
+    generated_at: 2026-10-07T21:30:00Z
+    last_refresh: 2026-10-07T21:30:00Z
   - evidence_id: acceptance-scope-p1-current-v1
     claim: p1_acceptance_scope
     schema_version: fitcv.acceptance_state.v2
-    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    source_commit: 91e226457aa9fded11acc4ce5f9e1f1077b88918
     declared_inputs:
       - config/acceptance_state.yaml
-    declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 0a1f4672ff707bd5f65976c4ea088737d817331bfb70286ccdab6c0c1a84a76b
+    declared_input_fingerprint: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
+    fixture_sha256: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 0a1f4672ff707bd5f65976c4ea088737d817331bfb70286ccdab6c0c1a84a76b
+    material_metrics_sha256: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
-    generated_at: 2026-10-05T00:00:00Z
-    last_refresh: 2026-10-05T00:00:00Z
+    generated_at: 2026-10-07T21:30:00Z
+    last_refresh: 2026-10-07T21:30:00Z
   - evidence_id: optimization-default-local-first-v1
     claim: optimization_production_default
     schema_version: fitcv.acceptance_state.v2
-    source_commit: 94eaf089a07d5fe07c84755a84170f347a1b6d72
+    source_commit: 91e226457aa9fded11acc4ce5f9e1f1077b88918
     declared_inputs:
       - config/acceptance_state.yaml
-    declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: 0a1f4672ff707bd5f65976c4ea088737d817331bfb70286ccdab6c0c1a84a76b
+    declared_input_fingerprint: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
+    fixture_sha256: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: 0a1f4672ff707bd5f65976c4ea088737d817331bfb70286ccdab6c0c1a84a76b
+    material_metrics_sha256: 4610f6aff14ee6afefd05cb80b4b26f232b553e39e1f15ee1187fa166950aa5d
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
-    generated_at: 2026-10-05T00:00:00Z
-    last_refresh: 2026-10-05T00:00:00Z
+    generated_at: 2026-10-07T21:30:00Z
+    last_refresh: 2026-10-07T21:30:00Z
   - evidence_id: p1ab-current-contract-r2-historical-v1
     claim: p1b_current_contract_measurement
     schema_version: fitcv.p1_ab.current_contract.v1
@@ -197,17 +197,17 @@ records:
   - evidence_id: p1ab-plan-completion-current-v1
     claim: p1b_current_contract_measurement
     schema_version: fitcv.p1_ab.current_contract.v1
-    source_commit: 7f29c76510b158667e731c0cfdb98411a8a76730
+    source_commit: 91e226457aa9fded11acc4ce5f9e1f1077b88918
     declared_inputs:
       - scripts/run_fitcv_repair_experiment.py
       - scripts/benchmark_cv_efficiency.py
       - scripts/verify_fitcv_acceptance.py
       - tests/fixtures/fitcv-p1ab-repair-experiment.json
-    declared_input_fingerprint: bc7dd539372006ce1aab01739c28c0f1a8850a17a29728401d18865a99949423
+    declared_input_fingerprint: e59e633c29e75f2acfb4eaa361c428138bfb0df7835cb214d4aac2fb7af1aca9
     fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
-    cohort_id: p1ab-runtime-efficiency-r8
+    cohort_id: p1ab-runtime-efficiency-r9
     cohort_type: paired_provider_backed
-    material_metrics_sha256: cdf95798b93c12bce23e08845773d42af43578d0c142f364ac8924106e82ae72
+    material_metrics_sha256: 6cbe7558cabff365efb0f88261ad866a6b2b8e8f0d307fb0acbc5b59fbe7ebd3
     artifact_paths:
       - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json
       - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md
@@ -218,5 +218,5 @@ records:
       - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local-manifest.json
       - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-manifest.json
     status: current
-    generated_at: 2026-10-07T15:55:30Z
-    last_refresh: 2026-10-07T15:55:30Z
+    generated_at: 2026-10-07T21:30:00Z
+    last_refresh: 2026-10-07T21:30:00Z

@@ -6,8 +6,7 @@
     "seed_database_sha256": null,
     "upstream_reuse_policy": "cold_first_then_frozen"
   },
-  "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-plan-completion-local-r6.sqlite3",
-  "declared_input_fingerprint": "bc7dd539372006ce1aab01739c28c0f1a8850a17a29728401d18865a99949423",
+  "declared_input_fingerprint": "e59e633c29e75f2acfb4eaa361c428138bfb0df7835cb214d4aac2fb7af1aca9",
   "declared_model": "fixture-model",
   "fixture": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tests\\fixtures\\fitcv-p1ab-repair-experiment.json",
   "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
@@ -26,19 +25,19 @@
     "cx/gpt-5.6-luna"
   ],
   "run_ids": [
-    "d6ca23ad-1cea-4a72-92bd-6bddbccfcc8c",
-    "ada3a409-abfa-4b96-9e38-380a9114246e",
-    "2087b3e2-0415-4204-aea3-05eddab779ff",
-    "ff8dfd16-2011-462e-a76f-425d14060682",
-    "c1e4c3d1-5f26-4911-aa10-51810d3cab53",
-    "5c75f4d5-cce2-4473-b3c7-873d3b76e9b0",
-    "b47cb3e6-2ea5-4b2b-850c-2f6ec626bdd5",
-    "ecb8cb91-01da-4f9e-986e-425f0fd37e74",
-    "7ce5cd63-f04c-43f8-98fb-fccf47fac66d",
-    "f967779f-6830-4ab4-bfe3-b5ec3b73a93a"
+    "8355c2e4-bd3c-42cd-960f-80757db9b4b3",
+    "85ee9491-ee9f-4068-9a66-02b98bde2fd0",
+    "a370c1ec-55dc-4cd6-a787-9c82c6723c46",
+    "4dcad01e-ea91-4c2f-832d-6dc970239522",
+    "074fcf12-4c10-48c0-b1ad-fe4a95be1d42",
+    "0bd5b20a-b551-47be-ae5c-d056b2613655",
+    "cd3f7eab-3b42-480a-8589-17a6db058f6f",
+    "6e5a6152-a155-4d9d-9350-e10079c4054c",
+    "57fa973a-c217-4bb5-b550-142be3691e52",
+    "79c94493-1bb0-4882-8c7b-c4b0afacc6b4"
   ],
   "runtime": "fitcv-runtime",
   "schema_version": "fitcv.p1ab.repair_experiment_manifest.v1",
-  "source_commit": "7f29c76510b158667e731c0cfdb98411a8a76730",
-  "working_tree_diff_sha256": "d5d37913cd9e4dfc03951c5b276f7ef4f967aa371df4824513c1b21894426a73"
+  "source_commit": "91e226457aa9fded11acc4ce5f9e1f1077b88918",
+  "working_tree_diff_sha256": "814886e58aa7824fef3e3130eddc3121f142a101115e71f154f5e931b8615ded"
 }
