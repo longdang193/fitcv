@@ -277,6 +277,52 @@ def test_export_preserves_native_requirement_instance_identity(tmp_path: Path) -
     assert not any(row["gap_category"] == "unevaluated" for row in bundle["sources"]["candidate_gap"])
 
 
+def test_export_reconciles_explicit_evaluation_id_to_string_requirement(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id='job-1'",
+            (json.dumps({"extraction_status": "valid", "requirements": ["Python"]}),),
+        )
+        connection.execute(
+            """
+            CREATE TABLE cv_evaluations (
+                cv_evaluation_id TEXT PRIMARY KEY,
+                cv_version_id TEXT,
+                status TEXT,
+                evidence_json TEXT,
+                is_current INTEGER
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO cv_evaluations VALUES (?, ?, ?, ?, ?)",
+            ("evaluation-1", "cv-1", "succeeded", json.dumps({"requirement_coverage": [{"requirement": "Python", "requirement_instance_id": "native-req-1", "selected_support": "unsupported"}]}), 1),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    assert not any(row["gap_category"] == "unevaluated" for row in bundle["sources"]["candidate_gap"])
+
+
+def test_export_emits_unevaluated_for_job_without_version_or_debug(tmp_path: Path) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    _seed_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO run_jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("job-3", "run-1", "posting-hash-3", json.dumps({"extraction_status": "valid", "requirements": ["SQL"]}), "https://example.test/job-3", "No CV job", "Example Co"),
+        )
+        connection.commit()
+
+    bundle = export_bundle(database, source_commit="head")
+    assert any(
+        row["run_job_id"] == "job-3" and row["gap_category"] == "unevaluated"
+        for row in bundle["sources"]["candidate_gap"]
+    )
+
+
 def test_export_rejects_missing_path_and_hash_mismatch(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         export_bundle(tmp_path / "missing.sqlite3", source_commit="head")

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import scripts.refresh_fitcv_analytics as refresh_module
 from scripts.refresh_fitcv_analytics import refresh_analytics
 from tests.test_export_fitcv_analytics_source import _seed_database
 
@@ -52,3 +53,27 @@ def test_refresh_repairs_invalid_existing_release_before_pointer_swap(tmp_path: 
 
     assert (output_root / repaired["release"] / "analytics.sqlite3").is_file()
     assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))["release"] == repaired["release"]
+
+
+def test_refresh_copy_failure_preserves_current_release(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database = tmp_path / "fitcv.sqlite3"
+    output_root = tmp_path / "analytics"
+    _seed_database(database)
+    first = refresh_analytics(database, output_root, source_commit="head")
+    before = json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8"))
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE run_jobs SET title='Changed job' WHERE run_job_id='job-1'")
+        connection.commit()
+
+    original_copytree = refresh_module.shutil.copytree
+
+    def interrupted_copytree(source: Path, destination: Path, *args: object, **kwargs: object) -> Path:
+        original_copytree(source, destination, *args, **kwargs)
+        raise OSError("injected_copy_failure")
+
+    monkeypatch.setattr(refresh_module.shutil, "copytree", interrupted_copytree)
+    with pytest.raises(OSError, match="injected_copy_failure"):
+        refresh_analytics(database, output_root, source_commit="head")
+
+    assert json.loads((output_root / "CURRENT.json").read_text(encoding="utf-8")) == before
+    assert (output_root / first["release"] / "manifest.json").is_file()

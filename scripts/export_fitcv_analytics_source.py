@@ -678,16 +678,18 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
                 if not isinstance(item, dict) or not str(item.get("requirement") or "").strip():
                     continue
                 requirement_instance_id = str(item.get("requirement_instance_id") or "").strip()
-                if not requirement_instance_id:
-                    requirement_name = str(item["requirement"]).strip().casefold()
+                requirement_name = str(item["requirement"]).strip().casefold()
+                inventory_requirements = requirements_by_run_job.get(run_job_id, [])
+                inventory_ids = {str(requirement["requirement_instance_id"]) for requirement in inventory_requirements}
+                if requirement_instance_id not in inventory_ids:
                     requirement_instance_id = next(
                         (
                             str(requirement["requirement_instance_id"])
-                            for requirement in requirements_by_run_job.get(run_job_id, [])
+                            for requirement in inventory_requirements
                             if str(requirement["requirement"]).strip().casefold() == requirement_name
                             and str(requirement["requirement_instance_id"]) not in evaluated_requirements
                         ),
-                        f"{common['posting_id']}:{index}",
+                        requirement_instance_id or f"{common['posting_id']}:{index}",
                     )
                 evaluated_requirements.add(requirement_instance_id)
                 selected_support = str(item.get("selected_support") or "").strip().lower()
@@ -816,6 +818,23 @@ def collect_source(connection: Any) -> dict[str, list[dict[str, Any]]]:
         job = job_by_run_job[run_job_id]
         debug = debug_by_artifact.get(_debug_record_key(str(job["run_id"]), run_job_id), {})
         if not debug:
+            run = run_by_id.get(str(job["run_id"]))
+            run_payload = _json(run["compatibility_json"] if run is not None and "compatibility_json" in run.keys() else None)
+            run_payload = run_payload if isinstance(run_payload, dict) else {}
+            for requirement in requirements_by_run_job.get(run_job_id, []):
+                _append(sources, "candidate_gap", {
+                    "source_id": f"{run_job_id}:unevaluated:{requirement['requirement_instance_id']}",
+                    "run_job_id": run_job_id,
+                    "processing_id": run_job_id,
+                    "posting_id": _posting_id(job),
+                    "run_id": job["run_id"],
+                    "cohort_id": run_payload.get("cohort_id") or "operational",
+                    "cohort_type": run_payload.get("cohort_type") or "imported",
+                    "requirement": requirement["requirement"],
+                    "requirement_instance_id": requirement["requirement_instance_id"],
+                    "gap_category": "unevaluated",
+                    "evaluation_status": "unevaluated",
+                })
             continue
         attempt_id = f"{run_job_id}:debug"
         common = {

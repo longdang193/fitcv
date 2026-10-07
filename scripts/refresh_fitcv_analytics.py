@@ -101,9 +101,10 @@ def refresh_analytics(
         release = releases / material_digest
         if not _release_is_valid(release, manifest):
             repaired_release = releases / f"{material_digest}.rebuild"
-            if repaired_release.exists():
-                shutil.rmtree(repaired_release)
-            shutil.copytree(stage, repaired_release)
+            if not _release_is_valid(repaired_release, manifest):
+                if repaired_release.exists():
+                    shutil.rmtree(repaired_release)
+                shutil.copytree(stage, repaired_release)
             if not _release_is_valid(repaired_release, manifest):
                 raise ValueError("analytics_release_validation_failed")
             release = repaired_release
