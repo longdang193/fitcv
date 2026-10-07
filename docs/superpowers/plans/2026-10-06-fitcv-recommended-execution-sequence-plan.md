@@ -145,11 +145,12 @@ paired measurement with no grounding or one-page regression.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/fitcv-p1b-r7`
-- Base commit: `ea138c3b53bd05fad96b20378e80abd528d06a9c`
+- Branch: `codex/fitcv-runtime-r8`
+- Base commit: `6b08a0d033ed098e44bfc8cc70a329b93f385723` (`origin/main` at checkpoint)
+- Current HEAD: `9a0efac250d25c2b2ba91319f1347b9fbbaa2021`
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `open Task 4 planning lane after PR acceptance; retain R5/R6 efficiency blocker`
-- Blockers: `none for Task 3; R7 provider-backed reports retained under task-owned disposable root`
+- Next action: `admit Task 4 from this checkpoint; retain R5/R6 efficiency blocker`
+- Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -200,17 +201,17 @@ remain untouched.
   discard/cleanup, or base mutation.
 
 **Steps:**
-- [ ] Record exact branch, base commit, and preserved workspace condition from
+- [x] Record exact branch, base commit, and preserved workspace condition from
   Git in Coordination State; never record guessed values.
-- [ ] Reconcile predecessor tasks and mark its ledger historical only when
+- [x] Reconcile predecessor tasks and mark its ledger historical only when
   repository evidence supports that transition; otherwise record blocker.
-- [ ] Commit the tracked plan checkpoint before Task 1 admission.
+- [x] Commit the tracked plan checkpoint before Task 1 admission.
 
 **Verification:** `git status --short --branch`, `git diff --check`, and plan
 frontmatter/ledger inspection. Expected: one active ledger, exact Git facts, no
 discarded untracked artifacts.
 
-**Exit Criteria:** Task 1 has an exact recoverable branch/base/workspace
+**Exit Criteria:** Task 4 has an exact recoverable branch/base/workspace
 checkpoint and no competing active plan ownership.
 
 ### Task 1: Correct reporting populations and Gold semantics
