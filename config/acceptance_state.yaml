@@ -113,10 +113,18 @@ evidence_paths:
   - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-canonical.sha256
   - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-manifest.json
   - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-manifest.json
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.sha256
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local-manifest.json
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.json
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.md
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.sha256
+  - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-manifest.json
 current_contract_evidence:
-   json: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.json
-   markdown: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.md
-   sha256: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.sha256
+   json: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json
+   markdown: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md
+   sha256: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.sha256
 optimization_result:
   experiment: complete
   promotion: rejected
@@ -129,10 +137,10 @@ optimization_result:
 runtime_efficiency:
   measurement_status: measured
   baseline_evidence:
-    json: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.json
-    markdown: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.md
-    peer_json: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-canonical.json
-    peer_markdown: docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-canonical.md
+    json: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json
+    markdown: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md
+    peer_json: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.json
+    peer_markdown: docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.md
   accepted_artifact_and_total_workload_metrics: true
   blocked_reasons: []
   p1_c: deferred

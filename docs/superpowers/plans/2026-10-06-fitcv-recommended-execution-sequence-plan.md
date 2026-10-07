@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: active
+status: completed
 template_id: implementation-plan
 name: fitcv-recommended-execution-sequence
 targets:
@@ -149,9 +149,9 @@ paired measurement with no grounding or one-page regression.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-plan-completion`
 - Base commit: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` (`origin/main` after PR #94)
-- Current HEAD: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` before Task 5–7 changes
+- Current HEAD: `01cceb717d228af569f9a41744aa33b88ad28795` before final evidence/state updates
 - Expected workspace: `tracked plans plus preserved untracked artifacts; no cleanup`
-- Next action: `complete Task 7 evidence and final verification; retain R5/R6 efficiency blocker`
+- Next action: `publish verified branch, obtain review-1 approval, and merge after green checks; retain R5/R6 efficiency blocker`
 - Blockers: `R5/R6 efficiency evidence unavailable; R8 is current measured evidence`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -163,7 +163,7 @@ paired measurement with no grounding or one-page regression.
 | 4. P1-C dashboard MVP | `completed` | current plan branch | `codex` | 3 | API, frontend, browser, accessibility proof | 1526 backend tests; 339 frontend tests; typecheck; build; dashboard E2E 2 passed; review-1 integrity findings fixed |
 | 5. Content-addressed reuse | `completed` | `codex/fitcv-plan-completion` | `codex` | 4 | hit/miss/invalidation and equivalence proof | reuse identity/provenance tests; 126-task regression set |
 | 6. Repair/escalation | `completed` | `codex/fitcv-plan-completion` | `codex` | 5 | ordered repair and fallback tests | bounded repair tests; 126-task regression set |
-| 7. Re-measure/promote | `pending` | fresh branch | `unresolved` | 5–6 | paired comparison and quality gate | pending |
+| 7. Re-measure/promote | `completed` | `codex/fitcv-plan-completion` | `codex` | 5–6 | paired comparison and quality gate | fresh local/provider-first cold cohorts; comparison `hold`; acceptance verifier passed |
 
 ## Task Breakdown
 
@@ -634,15 +634,14 @@ declared improvement in one target metric versus the same-input baseline.
 `skill-backend-verification`
 
 **Files And Symbols:**
-- Use `scripts/produce_fitcv_p1b_measurement.py` with explicit
-  `--variant baseline|optimized`, `--arm local_first|provider_first`,
-  `--repeat-count 10`, and bounded `--max-provider-calls`.
+- Use `scripts/run_fitcv_repair_experiment.py` for provider-backed cohorts and
+  `scripts/benchmark_cv_efficiency.py` for replayable efficiency reports.
 - Add `scripts/compare_fitcv_optimization.py:main` and
   `tests/test_compare_fitcv_optimization.py`; it owns variant-aware comparison,
   threshold enforcement, and quality-regression rejection.
 - Verify `scripts/benchmark_cv_efficiency.py`,
   `scripts/verify_fitcv_acceptance.py`, `tests/test_benchmark_cv_efficiency.py`,
-  `tests/test_produce_fitcv_p1b_measurement.py`, and canonical outputs under
+  and canonical outputs under
   `docs/superpowers/evidence/`.
 
 **Dependencies:** Tasks 5–6 complete.
@@ -654,14 +653,14 @@ declared improvement in one target metric versus the same-input baseline.
   increase, or unsupported promotion claim.
 
 **Steps:**
-- [ ] Produce real provider-backed baseline and optimized packages with the
+- [x] Produce real provider-backed baseline and optimized packages with the
   same fixture/candidate/provider/model/environment, ten runs per arm, retained
   manifests, and explicit variant identity.
-- [ ] Rebuild and independently verify both packages.
-- [ ] Compare accepted-CV cost, p95, calls, tokens, regeneration, human effort,
+- [x] Rebuild and independently verify both packages.
+- [x] Compare accepted-CV cost, p95, calls, tokens, regeneration, human effort,
   grounding, and one-page correctness.
-- [ ] Run `python scripts/compare_fitcv_optimization.py --baseline <baseline-package> --optimized <optimized-package> --min-relative-improvement <lead-controller-threshold> --output docs/superpowers/evidence/2026-10-06-fitcv-optimization-comparison.json`.
-- [ ] Record promote, hold, or revert with evidence.
+- [x] Run `python scripts/compare_fitcv_optimization.py --baseline <baseline-package> --optimized <optimized-package> --min-relative-improvement <lead-controller-threshold> --output docs/superpowers/evidence/2026-10-06-fitcv-optimization-comparison.json`.
+- [x] Record `hold`; measured gains remain below the 5% promotion threshold.
 
 **Verification:** Full applicable test suites, explicit experiment JSON/Markdown/
 peer JSON verifier arguments for each opposite-arm package, comparison-script
@@ -675,12 +674,13 @@ claim remains.
 
 After all admitted tasks finish:
 
-- `python -m pytest -q`
-- `npm --prefix frontend run typecheck`
-- `npm --prefix frontend test -- --run`
-- `npm --prefix frontend run test:e2e`
-- `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --experiment-json docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7.json --experiment-markdown docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7.md --experiment-peer-json docs/superpowers/evidence/2026-10-06-fitcv-p1b-r7-peer.json --output .tmp/final-acceptance-report.json`
-- `git diff --check`
+- [x] `python -m pytest -q` — 3390 passed, 8 skipped.
+- [x] `npm --prefix frontend run typecheck`.
+- [x] `npm --prefix frontend test -- --run` — 339 passed.
+- [x] `pwsh -File scripts/run_fitcv_analytics_dashboard_e2e.ps1` — 2 passed with disposable backend harness.
+- [x] `python scripts/verify_fitcv_acceptance.py --state config/acceptance_state.yaml --experiment-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json --experiment-markdown docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md --experiment-peer-json docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold.json --output .tmp/final-acceptance-report.json` — passed.
+- [x] `git diff --check`.
+- Full raw `npm --prefix frontend run test:e2e` requires a running backend; direct run was not used as acceptance proof because it failed before app load with `ERR_CONNECTION_REFUSED`.
 - `skill-verification-before-completion` with fresh outputs and evidence paths
 
 Final proof must confirm unavailable coverage stays unavailable, refresh is

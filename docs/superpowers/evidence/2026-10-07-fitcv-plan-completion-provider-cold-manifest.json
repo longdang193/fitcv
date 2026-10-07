@@ -1,0 +1,44 @@
+{
+  "arm": "provider_first",
+  "cache_policy": "isolated_per_arm",
+  "cohort_setup": {
+    "freeze_upstream_from_repeat": 1,
+    "seed_database_sha256": null,
+    "upstream_reuse_policy": "cold_first_then_frozen"
+  },
+  "database_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\.tmp\\fitcv-plan-completion-provider-cold.sqlite3",
+  "declared_input_fingerprint": "f8ad312b051eb0d87f2e2837857e5ad53611a3f6508626a11e69cde80a41c076",
+  "declared_model": "fixture-model",
+  "fixture": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\tests\\fixtures\\fitcv-p1ab-repair-experiment.json",
+  "fixture_sha256": "56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5",
+  "job_types": [
+    "Contract",
+    "Part-time"
+  ],
+  "model": "cx/gpt-5.6-luna",
+  "producer": {
+    "mode": "provider_backed",
+    "provider_credentials": "loaded_from_dotenv_without_emission"
+  },
+  "provider_credentials": "loaded_from_existing_env_or_dotenv_only",
+  "repeat_count": 10,
+  "resolved_models": [
+    "cx/gpt-5.6-luna"
+  ],
+  "run_ids": [
+    "b0a58ce9-0c20-4845-a856-2ac11ea0649f",
+    "79f30526-ed1f-483b-ab07-c9a7f6c2e3a6",
+    "9805b674-3a8b-4853-8039-433b3bdf7143",
+    "6170a348-3cef-4128-8b03-dde4699aad66",
+    "2196b0bb-464d-4a6a-8cc6-d804c4cb8cdb",
+    "75962cff-c67c-431d-ab3e-c4ce82cd44b0",
+    "70c03c28-7ac3-4042-bc72-521572497f94",
+    "c6a313b3-6bc7-4f43-bb8f-ab6074f64511",
+    "0646fb9e-07f1-4b31-92a8-b0ab5c165eef",
+    "fcc61b2c-0943-4fc9-b534-b36920f99b01"
+  ],
+  "runtime": "fitcv-runtime",
+  "schema_version": "fitcv.p1ab.repair_experiment_manifest.v1",
+  "source_commit": "01cceb717d228af569f9a41744aa33b88ad28795",
+  "working_tree_diff_sha256": "e95645bf5bf4f55298a482ae26008db92679d6c44d0084795f8811ba39db9ad1"
+}

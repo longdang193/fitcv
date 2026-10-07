@@ -93,10 +93,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
+    fixture_sha256: ca6fa9617c298f01589f53ea4f7f4573b73630168db2a35465a53eb00dda96d1
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
+    material_metrics_sha256: ca6fa9617c298f01589f53ea4f7f4573b73630168db2a35465a53eb00dda96d1
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -109,10 +109,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
+    fixture_sha256: ca6fa9617c298f01589f53ea4f7f4573b73630168db2a35465a53eb00dda96d1
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
+    material_metrics_sha256: ca6fa9617c298f01589f53ea4f7f4573b73630168db2a35465a53eb00dda96d1
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -125,10 +125,10 @@ records:
     declared_inputs:
       - config/acceptance_state.yaml
     declared_input_fingerprint: 9cee64f4ee261c8ae294d5e3e248bf4af8c7516593bed70845e0e4e83fb820e9
-    fixture_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
+    fixture_sha256: ca6fa9617c298f01589f53ea4f7f4573b73630168db2a35465a53eb00dda96d1
     cohort_id: acceptance-state-head
     cohort_type: acceptance_fixture
-    material_metrics_sha256: e8ff9841f11ab59553db4fd04fd2c607147f391e68ecb05a1f43d24b01a98fe3
+    material_metrics_sha256: ca6fa9617c298f01589f53ea4f7f4573b73630168db2a35465a53eb00dda96d1
     artifact_paths:
       - config/acceptance_state.yaml
     status: current
@@ -194,29 +194,29 @@ records:
     status: historical
     generated_at: 2026-10-07T00:00:00Z
     last_refresh: 2026-10-07T00:00:00Z
-  - evidence_id: p1ab-runtime-efficiency-r8-current-v1
+  - evidence_id: p1ab-plan-completion-current-v1
     claim: p1b_current_contract_measurement
     schema_version: fitcv.p1_ab.current_contract.v1
-    source_commit: a512ca2ceeb180df2dfda27d93f31f0189ec4125
+    source_commit: 01cceb717d228af569f9a41744aa33b88ad28795
     declared_inputs:
       - scripts/run_fitcv_repair_experiment.py
       - scripts/benchmark_cv_efficiency.py
       - scripts/verify_fitcv_acceptance.py
       - tests/fixtures/fitcv-p1ab-repair-experiment.json
-    declared_input_fingerprint: bed5148b1905a130336894379ca1dd3eac7c5dcafa70a7b1f9967494a12b78f7
+    declared_input_fingerprint: f8ad312b051eb0d87f2e2837857e5ad53611a3f6508626a11e69cde80a41c076
     fixture_sha256: 56d06d363a0d393e19b1fc01c24db88136776bd18211bafdcbb5e04e8f8168b5
     cohort_id: p1ab-runtime-efficiency-r8
     cohort_type: paired_provider_backed
-    material_metrics_sha256: 80a9b8c638408c90e5b4e3c10b6d3b99115954ee16d8366cb907103c481af9d7
+    material_metrics_sha256: df0709eca0605d62b6fbf25b13054d1178b3857442fd4c3d4c6e218a2e2b287b
     artifact_paths:
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.json
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.md
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-canonical.sha256
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-canonical.json
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-canonical.md
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-canonical.sha256
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-local-first-manifest.json
-      - docs/superpowers/evidence/2026-10-07-fitcv-runtime-efficiency-r8-provider-first-manifest.json
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.json
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.md
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local.sha256
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.json
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.md
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-canonical.sha256
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-local-manifest.json
+      - docs/superpowers/evidence/2026-10-07-fitcv-plan-completion-provider-cold-manifest.json
     status: current
-    generated_at: 2026-10-07T15:14:15Z
-    last_refresh: 2026-10-07T15:14:15Z
+    generated_at: 2026-10-07T15:55:30Z
+    last_refresh: 2026-10-07T15:55:30Z
