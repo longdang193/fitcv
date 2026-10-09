@@ -147,11 +147,11 @@ paired measurement with no grounding or one-page regression.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/fitcv-plan-completion`
-- Base commit: `bc3298d21a1b533b98c2525d2cf606a0f9dd461d` (`origin/main` after PR #94)
-- Current HEAD: `91e226457aa9fded11acc4ce5f9e1f1077b88918` before R9 evidence commit
+- Branch: `main`
+- Base commit: `25cce00863cf38ede66c69e2947c2e7db1b37ae0` (`origin/main` after PR #97)
+- Current HEAD: `25cce00863cf38ede66c69e2947c2e7db1b37ae0` after PR #97 merge
 - Expected workspace: `tracked plans plus preserved untracked artifacts; named task disposables cleaned`
-- Next action: `commit verified R9 evidence, publish branch, obtain review-1 approval, and merge after green checks`
+- Next action: `none; plan complete`
 - Blockers: `none for P1-A/P1-B; R5/R6 remain historical unavailable and are not inferred`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
