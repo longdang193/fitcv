@@ -8,7 +8,9 @@ function runResource(backend_status: string) {
     run_id: runId,
     run_name: "Async Lifecycle Proof",
     backend_status,
-    display_status: backend_status === "succeeded" ? "Succeeded" : "Running",
+    display_status: backend_status === "awaiting_continue"
+      ? "Awaiting Continue"
+      : backend_status === "succeeded" ? "Succeeded" : "Running",
     created_at: "2026-09-14T09:00:00Z",
     finished_at: terminal ? "2026-09-14T09:02:00Z" : null,
     counts: { total: 1, passed: terminal ? 1 : 0, rejected: 0, skipped: 0, cvs_generated: 0 },
@@ -171,6 +173,56 @@ function pipelineSettings(revision: string, vectorSearchTopN: number) {
 }
 
 test.describe("Run Detail async lifecycle", () => {
+  test("refreshes jobs after a delayed event response pauses the run", async ({ page }) => {
+    let runReads = 0;
+    let jobsReads = 0;
+    let eventReads = 0;
+    let releaseCheckpointEvent = () => {};
+    let resolveCheckpointEventStarted: (() => void) | null = null;
+    const checkpointEventStarted = new Promise<void>((resolve) => {
+      resolveCheckpointEventStarted = resolve;
+    });
+
+    await page.route(`**/runs/${runId}`, async (route) => {
+      runReads += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: runResource(runReads <= 2 ? "running" : "awaiting_continue") }),
+      });
+    });
+
+    await page.route(`**/runs/${runId}/jobs**`, async (route) => {
+      jobsReads += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(jobsPage(jobsReads === 1 ? "Initial Job" : "Checkpoint Job")),
+      });
+    });
+
+    await page.route(`**/runs/${runId}/events**`, async (route) => {
+      eventReads += 1;
+      if (eventReads <= 2) {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(eventsPage([], null)) });
+        return;
+      }
+      resolveCheckpointEventStarted?.();
+      await new Promise<void>((resolve) => {
+        releaseCheckpointEvent = resolve;
+      });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(eventsPage([], null)) });
+    });
+
+    await page.goto(`/app/#/runs?run_id=${runId}`);
+    await checkpointEventStarted;
+    await expect(page.locator(".drawer-status")).toContainText("Awaiting Continue");
+    releaseCheckpointEvent();
+    await expect(page.getByText("Checkpoint Job", { exact: true })).toBeVisible();
+    expect(runReads).toBeGreaterThanOrEqual(2);
+    expect(jobsReads).toBeGreaterThanOrEqual(2);
+  });
+
   test("renders terminal status before final refresh settles and retries only unfinished operations", async ({ page }) => {
     let runReads = 0;
     let terminalAccepted = false;

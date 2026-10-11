@@ -28,6 +28,7 @@ import { parseRunSourceIds, parseRunsRoute } from "../features/runs/route";
 import { EventConsole } from "../features/run-detail/components/EventConsole";
 import { PROVIDER_SETTINGS_HREF, RunErrorAction } from "../features/runs/new-run-dialog";
 import { isDistinctStatusDetail, isRunTerminal } from "../features/runs/runs-list";
+import { isRunPollingActive } from "../features/runs/types";
 import { DataTable } from "../components/table";
 
 describe("runs feature route and api slice", () => {
@@ -50,6 +51,15 @@ describe("runs feature route and api slice", () => {
     expect(isDistinctStatusDetail(" Succeeded ", "Succeeded")).toBe(false);
     expect(isDistinctStatusDetail("Processing screening", "Running")).toBe(true);
     expect(isDistinctStatusDetail(null, "Succeeded")).toBe(false);
+    expect(isDistinctStatusDetail("awaiting_continue", "Awaiting Continue")).toBe(false);
+  });
+
+  it("polls only runs that can make execution progress", () => {
+    expect(isRunPollingActive("queued")).toBe(true);
+    expect(isRunPollingActive("running")).toBe(true);
+    expect(isRunPollingActive("cancelling")).toBe(true);
+    expect(isRunPollingActive("awaiting_continue")).toBe(false);
+    expect(isRunPollingActive("succeeded")).toBe(false);
   });
 
   it("registers and matches runs feature route", () => {

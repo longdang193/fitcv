@@ -27,6 +27,7 @@ import {
   RunEventsPage,
   RunEventRecord,
   RunStageId,
+  isRunPollingActive,
 } from "../runs/types";
 import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } from "../job-evaluation/api";
 import { getInterestRatingDisabledReason, InterestRating } from "../job-evaluation/components/InterestRating";
@@ -288,6 +289,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const isTerminal = useMemo(() => {
     return Boolean(run && isTerminalRunStatus(run.backend_status));
   }, [run]);
+  const isPollingActive = useMemo(() => {
+    return Boolean(run && isRunPollingActive(run.backend_status));
+  }, [run]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -466,6 +470,13 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     return Boolean(eventsRes && eventsRes.next_cursor == null);
   }, [pollEvents]);
 
+  const refreshPausedCheckpoint = useCallback(async () => {
+    await Promise.all([
+      drainEvents(undefined, eventsSessionRef.current),
+      loadJobs(undefined, undefined, true),
+    ]);
+  }, [drainEvents, loadJobs]);
+
   const finalizeTerminal = useCallback(async (session = finalizationSessionRef.current) => {
     if (!mountedRef.current || session !== finalizationSessionRef.current || terminalFinalizedRef.current) return;
     terminalFinalizedRef.current = true;
@@ -560,7 +571,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollTimerRef.current = null;
     }
 
-    if (!run || isTerminal) return;
+    if (!run || !isPollingActive) return;
 
     pollTimerRef.current = window.setInterval(async () => {
       if (pollInFlightRef.current) return;
@@ -583,6 +594,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         }
 
         setRun(updatedRun);
+        if (!isRunPollingActive(updatedRun.backend_status)) {
+          await refreshPausedCheckpoint();
+          return;
+        }
         await pollEvents(controller?.signal, eventsSessionRef.current);
         if (!mountedRef.current || pollingSession !== pollingSessionRef.current) return;
         await loadJobs(undefined, undefined, true);
@@ -605,7 +620,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollAbortRef.current?.abort();
       pollAbortRef.current = null;
     };
-  }, [runId, isTerminal, Boolean(run), pollEvents, finalizeTerminal, loadJobs]);
+  }, [runId, isPollingActive, pollEvents, finalizeTerminal, loadJobs, refreshPausedCheckpoint]);
 
   // Handlers for actions
   const handleCancel = async () => {
@@ -1605,7 +1620,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         <div className="section-content drawer-section-content">
           <EventConsole
             events={events}
-            isLive={!isTerminal}
+            isLive={isPollingActive}
             onRefresh={pollEvents}
             runId={run.run_id}
             onDownloadDebugBundle={run.debug_bundle?.status === "available" ? handleDownloadDebugBundle : undefined}
