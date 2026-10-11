@@ -11,6 +11,10 @@ export type RunDisplayStatus = "Running" | "Succeeded" | "Failed" | string;
 
 export type RunLifecycle = "active" | "archived" | "all";
 
+export function isRunPollingActive(status: string): boolean {
+  return ["queued", "running", "cancelling"].includes(status);
+}
+
 export type RunStageId =
   | "enrichment"
   | "screening"

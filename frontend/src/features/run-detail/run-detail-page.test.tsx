@@ -11,7 +11,7 @@ import {
   retainEventCursor,
   shouldLoadRunJobs,
 } from "./run-detail-page";
-import { PipelineRunResource, RunJobItem } from "../runs/types";
+import { isRunPollingActive, PipelineRunResource, RunJobItem } from "../runs/types";
 
 function createMockRun(runId: string, status: string = "running"): PipelineRunResource {
   return {
@@ -94,6 +94,13 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
       expect(isTerminalRunStatus("cancelled")).toBe(true);
       expect(isTerminalRunStatus("running")).toBe(false);
       expect(isTerminalRunStatus("awaiting_continue")).toBe(false);
+    });
+
+    it("does not treat a review checkpoint as an actively polling run", () => {
+      expect(isRunPollingActive("queued")).toBe(true);
+      expect(isRunPollingActive("running")).toBe(true);
+      expect(isRunPollingActive("cancelling")).toBe(true);
+      expect(isRunPollingActive("awaiting_continue")).toBe(false);
     });
 
     it("retains last request cursor when backend exhausts final page", () => {

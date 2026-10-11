@@ -49,8 +49,9 @@ def test_prototype_stage_registry_owns_order_labels_and_aliases() -> None:
     assert run_lifecycle.canonical_stage_id("unknown") is None
 
 def test_run_display_status_uses_prototype_labels() -> None:
-    for status in (RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE, RunStatus.CANCELLING):
+    for status in (RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.CANCELLING):
         assert run_lifecycle.run_display_status(status) == "Running"
+    assert run_lifecycle.run_display_status(RunStatus.AWAITING_CONTINUE) == "Awaiting Continue"
     assert run_lifecycle.run_display_status(RunStatus.SUCCEEDED) == "Succeeded"
     assert run_lifecycle.run_display_status(RunStatus.CANCELLED) == "Cancelled"
     assert run_lifecycle.run_display_status(RunStatus.FAILED) == "Failed"
@@ -113,6 +114,14 @@ def test_run_status_projection_marks_active_and_archived() -> None:
         "is_awaiting_continue": False,
         "is_archived": True,
     }
+
+
+def test_run_status_projection_labels_manual_review_checkpoint() -> None:
+    projection = run_status_projection(_run(RunStatus.AWAITING_CONTINUE))
+
+    assert projection["display_status"] == "Awaiting Continue"
+    assert projection["is_active"] is False
+    assert projection["is_awaiting_continue"] is True
 
 
 def test_cancel_retry_archive_and_unarchive_guards() -> None:

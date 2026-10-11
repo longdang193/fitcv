@@ -27,6 +27,7 @@ import {
   RunEventsPage,
   RunEventRecord,
   RunStageId,
+  isRunPollingActive,
 } from "../runs/types";
 import { setJobBookmark, clearJobBookmark, setJobInterest, clearJobInterest } from "../job-evaluation/api";
 import { getInterestRatingDisabledReason, InterestRating } from "../job-evaluation/components/InterestRating";
@@ -287,6 +288,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
 
   const isTerminal = useMemo(() => {
     return Boolean(run && isTerminalRunStatus(run.backend_status));
+  }, [run]);
+  const isPollingActive = useMemo(() => {
+    return Boolean(run && isRunPollingActive(run.backend_status));
   }, [run]);
 
   useEffect(() => {
@@ -560,7 +564,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollTimerRef.current = null;
     }
 
-    if (!run || isTerminal) return;
+    if (!run || !isPollingActive) return;
 
     pollTimerRef.current = window.setInterval(async () => {
       if (pollInFlightRef.current) return;
@@ -605,7 +609,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollAbortRef.current?.abort();
       pollAbortRef.current = null;
     };
-  }, [runId, isTerminal, Boolean(run), pollEvents, finalizeTerminal, loadJobs]);
+  }, [runId, isPollingActive, pollEvents, finalizeTerminal, loadJobs]);
 
   // Handlers for actions
   const handleCancel = async () => {
@@ -1605,7 +1609,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         <div className="section-content drawer-section-content">
           <EventConsole
             events={events}
-            isLive={!isTerminal}
+            isLive={isPollingActive}
             onRefresh={pollEvents}
             runId={run.run_id}
             onDownloadDebugBundle={run.debug_bundle?.status === "available" ? handleDownloadDebugBundle : undefined}

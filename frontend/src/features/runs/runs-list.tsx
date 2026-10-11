@@ -24,6 +24,7 @@ import {
   PipelineRunResource,
   RunLifecycle,
   DeleteArchivedRunsPreview,
+  isRunPollingActive,
 } from "./types";
 import { NewRunDialog } from "./new-run-dialog";
 
@@ -245,7 +246,7 @@ export function isRunTerminal(status: string): boolean {
 }
 
 export function isDistinctStatusDetail(detail: string | null | undefined, label: string): boolean {
-  const normalizedDetail = detail?.trim().toLocaleLowerCase();
+  const normalizedDetail = detail?.trim().replaceAll("_", " ").toLocaleLowerCase();
   return Boolean(normalizedDetail && normalizedDetail !== label.trim().toLocaleLowerCase());
 }
 
@@ -310,7 +311,7 @@ export const RunsListPage: React.FC<RunsListPageProps> = ({
 
   const createCoordinator = useCallback(() => new RunsPollingCoordinator({
       getQueryKey: () => activeQueryRef.current,
-      hasActiveRuns: () => runsRef.current.some((run) => !isRunTerminal(run.backend_status)),
+      hasActiveRuns: () => runsRef.current.some((run) => isRunPollingActive(run.backend_status)),
       fetchRuns: () => fetchRunsApi({
         view: viewRef.current,
         search: searchRef.current,

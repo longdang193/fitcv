@@ -52,7 +52,7 @@ _CANONICAL_STAGE_BY_ALIAS = {
 _RUN_DISPLAY_STATUS = {
     RunStatus.QUEUED: "Running",
     RunStatus.RUNNING: "Running",
-    RunStatus.AWAITING_CONTINUE: "Running",
+    RunStatus.AWAITING_CONTINUE: "Awaiting Continue",
     RunStatus.CANCELLING: "Running",
     RunStatus.SUCCEEDED: "Succeeded",
     RunStatus.CANCELLED: "Cancelled",
@@ -154,7 +154,7 @@ def run_status_projection(run: PipelineRun) -> dict[str, Any]:
     return {
         "status": status_value,
         "raw_status": raw_status,
-        "display_status": raw_status or status_value,
+        "display_status": raw_status or run_display_status(run.status),
         "is_active": status_value in ACTIVE_RUN_STATUS_VALUES,
         "is_terminal": status_value in TERMINAL_RUN_STATUS_VALUES,
         "is_awaiting_continue": status_value in AWAITING_CONTINUE_RUN_STATUS_VALUES,
