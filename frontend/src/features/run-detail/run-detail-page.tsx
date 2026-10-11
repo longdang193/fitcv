@@ -470,6 +470,13 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     return Boolean(eventsRes && eventsRes.next_cursor == null);
   }, [pollEvents]);
 
+  const refreshPausedCheckpoint = useCallback(async () => {
+    await Promise.all([
+      drainEvents(undefined, eventsSessionRef.current),
+      loadJobs(undefined, undefined, true),
+    ]);
+  }, [drainEvents, loadJobs]);
+
   const finalizeTerminal = useCallback(async (session = finalizationSessionRef.current) => {
     if (!mountedRef.current || session !== finalizationSessionRef.current || terminalFinalizedRef.current) return;
     terminalFinalizedRef.current = true;
@@ -587,6 +594,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         }
 
         setRun(updatedRun);
+        if (!isRunPollingActive(updatedRun.backend_status)) {
+          await refreshPausedCheckpoint();
+          return;
+        }
         await pollEvents(controller?.signal, eventsSessionRef.current);
         if (!mountedRef.current || pollingSession !== pollingSessionRef.current) return;
         await loadJobs(undefined, undefined, true);
@@ -609,7 +620,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       pollAbortRef.current?.abort();
       pollAbortRef.current = null;
     };
-  }, [runId, isPollingActive, pollEvents, finalizeTerminal, loadJobs]);
+  }, [runId, isPollingActive, pollEvents, finalizeTerminal, loadJobs, refreshPausedCheckpoint]);
 
   // Handlers for actions
   const handleCancel = async () => {
