@@ -4910,6 +4910,36 @@ def test_create_run_bundle_is_atomic_and_creates_six_stages_and_stable_jobs() ->
     ]
 
 
+def test_query_run_jobs_sorts_by_valid_score_before_pagination() -> None:
+    run = _make_run("run-score-sort")
+    jobs = [
+        {"title": "Alpha", "job_url": "https://example.com/a", "ai_score": 0.2},
+        {"title": "Zulu", "job_url": "https://example.com/z", "ai_score": 0.9},
+        {"title": "No Score", "job_url": "https://example.com/n", "score_status": "unscored"},
+    ]
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "jobs.json",
+            "media_type": "application/json",
+            "jobs_snapshot_json": json.dumps(jobs),
+            "jobs_manifest_json": "{}",
+            "candidate_profile_name": "Profile",
+            "candidate_profile_json": "{}",
+            "settings_revision": "settings-1",
+            "settings_snapshot_json": "{}",
+        },
+        jobs=jobs,
+    )
+
+    assert [row["title"] for row in sqlite_store.query_run_jobs(run.run_id)["items"]] == [
+        "Zulu", "Alpha", "No Score"
+    ]
+    assert [row["title"] for row in sqlite_store.query_run_jobs(run.run_id, sort="title_asc")["items"]] == [
+        "Alpha", "No Score", "Zulu"
+    ]
+
+
 def test_query_runs_searches_normalized_public_fields() -> None:
     run = _make_run("run-search-id")
     run.run_name = "Straße Run"

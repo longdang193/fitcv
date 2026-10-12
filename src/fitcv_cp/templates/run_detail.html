@@ -76,7 +76,7 @@ initializeFitCVPage(() => {
 function syncRunResultsUrl(fragmentUrl) {
   const params = new URL(fragmentUrl, location.origin).searchParams;
   const url = new URL(location.href);
-  ['stage', 'filter_name', 'q', 'page', 'page_size'].forEach(key => {
+  ['stage', 'filter_name', 'q', 'page', 'page_size', 'sort'].forEach(key => {
     const value = params.get(key);
     if (value && value !== '1') url.searchParams.set(key, value);
     else url.searchParams.delete(key);
@@ -316,6 +316,14 @@ document.addEventListener('click', async event => {
 });
 
 document.addEventListener('change', event => {
+  const sort = event.target.closest('#jobResultsSort');
+  if (sort) {
+    const form = sort.closest('[data-run-results-form]');
+    if (!form) return;
+    form.querySelector('[name="page"]').value = '1';
+    submitRunDetailTabForm(event, 'enriched', form);
+    return;
+  }
   const size = event.target.closest('[data-run-page-size]');
   if (!size) return;
   const form = document.querySelector('[data-run-results-form]');
@@ -351,7 +359,8 @@ const initialRunDetailResult = initialRunDetailParams.get('filter_name') || 'all
 const initialRunDetailSearch = initialRunDetailParams.get('q') || '';
 const initialRunDetailPage = initialRunDetailParams.get('page') || '1';
 const initialRunDetailPageSize = initialRunDetailParams.get('page_size') || '10';
-const initialRunDetailQuery = new URLSearchParams({stage: initialRunDetailStage, filter_name: initialRunDetailResult, q: initialRunDetailSearch, page: initialRunDetailPage, page_size: initialRunDetailPageSize});
+const initialRunDetailSort = initialRunDetailParams.get('sort') || 'score_desc';
+const initialRunDetailQuery = new URLSearchParams({stage: initialRunDetailStage, filter_name: initialRunDetailResult, q: initialRunDetailSearch, page: initialRunDetailPage, page_size: initialRunDetailPageSize, sort: initialRunDetailSort});
 ensureTabLoaded('enriched', '/admin/runs/{{ run.run_id }}/tabs/enriched?' + initialRunDetailQuery.toString());
 
 (function autoRefreshRunDetail() {

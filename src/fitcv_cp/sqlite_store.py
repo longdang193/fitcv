@@ -52,6 +52,7 @@ from fitcv.preference_policy import (
     build_training_run_identity,
 )
 from fitcv.shortlist_runtime import build_contract_fingerprint
+from fitcv.ranking_contract import normalize_score_state
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.candidate_profile_seeds import build_candidate_profile_seeds
 from fitcv_cp.company_catalog import BUNDLED_CATALOG_REVISION, BUNDLED_COMPANY_CATALOG, validate_catalog
@@ -13271,6 +13272,18 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
     return {key: value for key, value in payloads.items() if key}
 
 
+def _score_state_for_job(*payloads: Any) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        nested_scores = payload.get("scores")
+        if isinstance(nested_scores, dict):
+            merged.update(nested_scores)
+        merged.update(payload)
+    return normalize_score_state(merged)
+
+
 def _language_display(value: Any) -> str | None:
     values = value if isinstance(value, list) else [value]
     languages: list[str] = []
@@ -13334,6 +13347,11 @@ def _filtered_run_job_rows(
         if isinstance(run_compatibility, dict)
         else None
     )
+    export_by_url = {
+        str(row.get("job_url") or "").strip(): row
+        for row in (run_payload.get("results", []) if isinstance(run_payload, dict) else [])
+        if isinstance(row, dict) and str(row.get("job_url") or "").strip()
+    }
     decision_feedback_source = (
         run_payload.get("decision_feedback_source")
         if isinstance(run_payload, dict)
@@ -13390,6 +13408,11 @@ def _filtered_run_job_rows(
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
         canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        score_state = _score_state_for_job(
+            source_snapshot,
+            canonical,
+            export_by_url.get(str(job_row["source_url"] or "").strip()),
+        )
         if not skills:
             skills = _normalise_job_skill_values(canonical.get("required_skills_canonical"))
         if not skills:
@@ -13442,6 +13465,8 @@ def _filtered_run_job_rows(
                 **job_fields,
                 "source_snapshot": source_snapshot,
                 "skills": skills,
+                "ai_score": score_state["ai_score"],
+                "score_status": score_state["score_status"],
                 "stage_id": selected_result["stage_id"] if selected_result is not None else None,
                 "status": selected_result["status"] if selected_result is not None else "pending",
                 "outcome_code": outcome_code,
@@ -13491,11 +13516,14 @@ def _select_run_job_ids(
     stage: str | None,
     result_bucket: str | None,
     search: str,
+    sort: str,
 ) -> tuple[list[str], dict[str, int]]:
     if stage not in {None, "all", *(item.stage_id for item in PROTOTYPE_STAGES)}:
         raise ValueError("stage must be all or a canonical stage id")
     if result_bucket not in {None, "all", "passed", "rejected", "skipped"}:
         raise ValueError("result_bucket must be all, passed, rejected, or skipped")
+    if sort not in {"score_desc", "title_asc"}:
+        raise ValueError("sort must be score_desc or title_asc")
     jobs = conn.execute(
         "SELECT * FROM run_jobs WHERE run_id=? ORDER BY title COLLATE NOCASE, run_job_id",
         (run_id,),
@@ -13507,6 +13535,18 @@ def _select_run_job_ids(
         (run_id,),
     ).fetchall()
     structured_by_url = _run_structured_payloads(conn, run_id)
+    run_row = conn.execute(
+        "SELECT compatibility_json FROM pipeline_runs WHERE run_id=?", (run_id,)
+    ).fetchone()
+    compatibility = _decode_json_or_none(run_row["compatibility_json"]) if run_row else None
+    export_payload = _decode_json_or_none(
+        compatibility.get("results_export_json") if isinstance(compatibility, dict) else None
+    )
+    export_by_url = {
+        str(row.get("job_url") or "").strip(): row
+        for row in (export_payload.get("results", []) if isinstance(export_payload, dict) else [])
+        if isinstance(row, dict) and str(row.get("job_url") or "").strip()
+    }
     usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
     results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
     for result_row in result_rows:
@@ -13515,6 +13555,7 @@ def _select_run_job_ids(
         ] = result_row
     normalized_search = search.strip().casefold()
     selected_ids: list[str] = []
+    sort_fields: dict[str, tuple[float | None, str, str]] = {}
     totals = {"passed": 0, "rejected": 0, "skipped": 0}
     for job_row in jobs:
         run_job_id = str(job_row["run_job_id"])
@@ -13558,6 +13599,11 @@ def _select_run_job_ids(
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
         canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        score_state = _score_state_for_job(
+            source_snapshot,
+            canonical,
+            export_by_url.get(str(job_row["source_url"] or "").strip()),
+        )
         if not skills:
             skills = _normalise_job_skill_values(canonical.get("required_skills_canonical"))
         if not skills:
@@ -13607,6 +13653,20 @@ def _select_run_job_ids(
         if result_bucket not in {None, "all"} and selected_category != result_bucket:
             continue
         selected_ids.append(run_job_id)
+        sort_fields[run_job_id] = (
+            score_state["ai_score"],
+            str(job_fields.get("title") or "").casefold(),
+            str(job_fields.get("source_url") or job_fields.get("job_url") or ""),
+        )
+    if sort == "score_desc":
+        selected_ids.sort(
+            key=lambda job_id: (
+                sort_fields[job_id][0] is None,
+                -(sort_fields[job_id][0] or 0.0) if sort_fields[job_id][0] is not None else 0.0,
+                sort_fields[job_id][1],
+                sort_fields[job_id][2],
+            )
+        )
     return selected_ids, totals
 
 
@@ -13652,6 +13712,11 @@ def _hydrate_run_job_ids(
         if isinstance(run_compatibility, dict)
         else None
     )
+    export_by_url = {
+        str(row.get("job_url") or "").strip(): row
+        for row in (run_payload.get("results", []) if isinstance(run_payload, dict) else [])
+        if isinstance(row, dict) and str(row.get("job_url") or "").strip()
+    }
     decision_feedback_source = (
         run_payload.get("decision_feedback_source")
         if isinstance(run_payload, dict)
@@ -13693,6 +13758,11 @@ def _hydrate_run_job_ids(
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
         canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        score_state = _score_state_for_job(
+            source_snapshot,
+            canonical,
+            export_by_url.get(str(job_row["source_url"] or "").strip()),
+        )
         if not skills:
             skills = _normalise_job_skill_values(canonical.get("required_skills_canonical")) or _normalise_job_skill_values(canonical.get("required_skills"))
         if not skills and isinstance(source_snapshot, dict):
@@ -13712,6 +13782,8 @@ def _hydrate_run_job_ids(
         interest = interests.get(run_job_id)
         projected.append({
             **job_fields, "source_snapshot": source_snapshot, "skills": skills,
+            "ai_score": score_state["ai_score"],
+            "score_status": score_state["score_status"],
             "stage_id": selected_result["stage_id"] if selected_result is not None else None,
             "status": selected_result["status"] if selected_result is not None else "pending",
             "outcome_code": selected_result["outcome_code"] if selected_result is not None else None,
@@ -13748,6 +13820,7 @@ def query_run_jobs(
     search: str = "",
     stage: str | None = None,
     result_bucket: str | None = None,
+    sort: str = "score_desc",
 ) -> dict[str, Any]:
     if page_size not in {10, 20, 50}:
         raise ValueError("page_size must be 10, 20, or 50")
@@ -13758,7 +13831,7 @@ def query_run_jobs(
         _require_control_plane_schema(conn)
         conn.execute("BEGIN")
         matching_ids, totals = _select_run_job_ids(
-            conn, run_id, stage=stage, result_bucket=result_bucket, search=search
+            conn, run_id, stage=stage, result_bucket=result_bucket, search=search, sort=sort
         )
         offset = (page_number - 1) * page_size
         page_ids = matching_ids[offset:offset + page_size]
@@ -13792,10 +13865,22 @@ def iter_run_jobs_for_export(
     stage: str = "all",
     result_bucket: str = "all",
     search: str = "",
+    sort: str = "score_desc",
 ) -> Iterator[dict[str, Any]]:
     rows, _totals = _filtered_run_job_rows(
         run_id, stage=stage, result_bucket=result_bucket, search=search
     )
+    if sort not in {"score_desc", "title_asc"}:
+        raise ValueError("sort must be score_desc or title_asc")
+    if sort == "score_desc":
+        rows.sort(
+            key=lambda row: (
+                row.get("ai_score") is None,
+                -(float(row["ai_score"]) if row.get("ai_score") is not None else 0.0),
+                str(row.get("title") or "").casefold(),
+                str(row.get("job_url") or row.get("source_url") or ""),
+            )
+        )
     return iter(rows)
 
 

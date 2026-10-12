@@ -112,31 +112,33 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
   });
 
   describe("buildRunJobsQueryKey", () => {
-    it("builds canonical query identity string matching runId, stage, bucket, search, page, and size", () => {
-      const key = buildRunJobsQueryKey("run-123", "ranking", "all", "engineer", 1, 10);
-      expect(key).toBe("run-123::ranking::all::engineer::1::10");
+    it("includes sort in the canonical query identity", () => {
+      const key = buildRunJobsQueryKey("run-123", "ranking", "all", "engineer", "score_desc", 1, 10);
+      expect(key).toBe("run-123::ranking::all::engineer::score_desc::1::10");
     });
 
     it("trims whitespace from search parameter for identity stability", () => {
-      const key1 = buildRunJobsQueryKey("run-123", "ranking", "all", "  backend python  ", 1, 10);
-      const key2 = buildRunJobsQueryKey("run-123", "ranking", "all", "backend python", 1, 10);
-      expect(key1).toBe("run-123::ranking::all::backend python::1::10");
+      const key1 = buildRunJobsQueryKey("run-123", "ranking", "all", "  backend python  ", "score_desc", 1, 10);
+      const key2 = buildRunJobsQueryKey("run-123", "ranking", "all", "backend python", "score_desc", 1, 10);
+      expect(key1).toBe("run-123::ranking::all::backend python::score_desc::1::10");
       expect(key1).toBe(key2);
     });
 
     it("distinguishes queries across run IDs, stages, buckets, pages, and page sizes", () => {
-      const base = buildRunJobsQueryKey("run-1", "ranking", "all", "", 1, 10);
-      const differentRun = buildRunJobsQueryKey("run-2", "ranking", "all", "", 1, 10);
-      const differentStage = buildRunJobsQueryKey("run-1", "cv-analysis", "all", "", 1, 10);
-      const differentBucket = buildRunJobsQueryKey("run-1", "ranking", "passed", "", 1, 10);
-      const differentSearch = buildRunJobsQueryKey("run-1", "ranking", "all", "data", 1, 10);
-      const differentPage = buildRunJobsQueryKey("run-1", "ranking", "all", "", 2, 10);
-      const differentSize = buildRunJobsQueryKey("run-1", "ranking", "all", "", 1, 20);
+      const base = buildRunJobsQueryKey("run-1", "ranking", "all", "", "score_desc", 1, 10);
+      const differentRun = buildRunJobsQueryKey("run-2", "ranking", "all", "", "score_desc", 1, 10);
+      const differentStage = buildRunJobsQueryKey("run-1", "cv-analysis", "all", "", "score_desc", 1, 10);
+      const differentBucket = buildRunJobsQueryKey("run-1", "ranking", "passed", "", "score_desc", 1, 10);
+      const differentSearch = buildRunJobsQueryKey("run-1", "ranking", "all", "data", "score_desc", 1, 10);
+      const differentSort = buildRunJobsQueryKey("run-1", "ranking", "all", "", "title_asc", 1, 10);
+      const differentPage = buildRunJobsQueryKey("run-1", "ranking", "all", "", "score_desc", 2, 10);
+      const differentSize = buildRunJobsQueryKey("run-1", "ranking", "all", "", "score_desc", 1, 20);
 
       expect(base).not.toBe(differentRun);
       expect(base).not.toBe(differentStage);
       expect(base).not.toBe(differentBucket);
       expect(base).not.toBe(differentSearch);
+      expect(base).not.toBe(differentSort);
       expect(base).not.toBe(differentPage);
       expect(base).not.toBe(differentSize);
     });

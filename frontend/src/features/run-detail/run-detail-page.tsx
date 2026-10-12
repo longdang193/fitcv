@@ -111,10 +111,11 @@ export function buildRunJobsQueryKey(
   stage: string,
   resultBucket: string,
   search: string,
+  sort: string,
   page: number,
   pageSize: number
 ): string {
-  return `${runId}::${stage}::${resultBucket}::${search.trim()}::${page}::${pageSize}`;
+  return `${runId}::${stage}::${resultBucket}::${search.trim()}::${sort}::${page}::${pageSize}`;
 }
 
 export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, initialRun, initialJobs }) => {
@@ -249,6 +250,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsTotal, setJobsTotal] = useState(0);
   const [jobsPageSize, setJobsPageSize] = useState(10);
+  const [jobSort, setJobSort] = useState<"score_desc" | "title_asc">("score_desc");
   const [stageFilter, setStageFilter] = useState<RunStageId>(() => resolveDefaultResultsStage(initialRun));
   const [resultBucketFilter, setResultBucketFilter] = useState<string>("all");
   const [jobSearch, setJobSearch] = useState("");
@@ -362,6 +364,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         stageFilter,
         resultBucketFilter,
         activeJobSearch,
+        jobSort,
         targetPage,
         targetSize
       );
@@ -384,6 +387,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           stage: stageFilter,
           result_bucket: resultBucketFilter,
           search: activeJobSearch,
+          sort: jobSort,
           signal: controller?.signal,
         });
 
@@ -417,7 +421,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         }
       }
     },
-    [runId, jobsPage, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch]
+    [runId, jobsPage, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch, jobSort]
   );
 
   // Poll events without reloading page
@@ -691,6 +695,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         stage: stageFilter,
         result_bucket: resultBucketFilter,
         search: activeJobSearch,
+        sort: jobSort,
       });
     } catch (err: any) {
       setError(err.message || "Failed to export jobs CSV.");
@@ -706,6 +711,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         stage: stageFilter,
         result_bucket: resultBucketFilter,
         search: activeJobSearch,
+        sort: jobSort,
       });
     } catch (err: any) {
       setError(err.message || "Failed to export full job data.");
@@ -1306,6 +1312,21 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
               aria-label="Search pipeline results"
             />
             <div className="results-toolbar-actions">
+              <label className="run-page-size" htmlFor="jobResultsSort">
+                Sort by:
+                <select
+                  id="jobResultsSort"
+                  className="field"
+                  value={jobSort}
+                  onChange={(e) => {
+                    setJobSort(e.target.value as "score_desc" | "title_asc");
+                    setJobsPage(1);
+                  }}
+                >
+                  <option value="score_desc">Relevance score</option>
+                  <option value="title_asc">Title A–Z</option>
+                </select>
+              </label>
               <FilterTabs
                   className="pipeline-summary"
                   items={["all", "passed", "rejected"].map((id) => ({
