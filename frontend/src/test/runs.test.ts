@@ -302,6 +302,7 @@ describe("runs feature route and api slice", () => {
           stage: "screening",
           result_bucket: "passed",
           search: "Software",
+          sort: "score_desc",
           total_evaluated: 1,
           passed: 1,
           rejected: 0,
@@ -319,9 +320,10 @@ describe("runs feature route and api slice", () => {
       stage: "screening",
       result_bucket: "passed",
       search: "Software",
+      sort: "score_desc",
     });
 
-    expect(getSpy).toHaveBeenCalledWith("/runs/run-004/jobs?page=1&page_size=50&search=Software&stage=screening&result_bucket=passed");
+    expect(getSpy).toHaveBeenCalledWith("/runs/run-004/jobs?page=1&page_size=50&search=Software&stage=screening&result_bucket=passed&sort=score_desc");
     expect(res.data.length).toBe(1);
     expect(res.data[0].title).toBe("Software Engineer");
     expect(res.data[0].interest_rating).toBe(5);
@@ -493,9 +495,10 @@ describe("runs feature route and api slice", () => {
       stage: "screening",
       result_bucket: "passed",
       search: "Engineer",
+      sort: "title_asc",
     });
     expect(downloadSpy).toHaveBeenCalledWith(
-      "/runs/run-dbg-1/jobs/export.csv?search=Engineer&stage=screening&result_bucket=passed",
+      "/runs/run-dbg-1/jobs/export.csv?search=Engineer&stage=screening&result_bucket=passed&sort=title_asc",
       "fitcv-run-run-dbg-1-jobs.csv"
     );
 
@@ -503,9 +506,10 @@ describe("runs feature route and api slice", () => {
       stage: "screening",
       result_bucket: "passed",
       search: "Engineer",
+      sort: "title_asc",
     });
     expect(downloadSpy).toHaveBeenCalledWith(
-      "/runs/run-dbg-1/jobs/export.full.zip?search=Engineer&stage=screening&result_bucket=passed",
+      "/runs/run-dbg-1/jobs/export.full.zip?search=Engineer&stage=screening&result_bucket=passed&sort=title_asc",
       "fitcv-run-run-dbg-1-full-export.zip"
     );
   });

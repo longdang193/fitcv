@@ -4682,7 +4682,7 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
 
     stages = TestClient(app).get("/runs/run-1/stages")
     detail = TestClient(app).get("/runs/run-1")
-    jobs = TestClient(app).get("/runs/run-1/jobs?page=1&page_size=10")
+    jobs = TestClient(app).get("/runs/run-1/jobs?page=1&page_size=10&sort=title_asc")
 
     assert stages.status_code == 200
     assert stages.json()["data"][0]["stage_id"] == "enrichment"
@@ -4700,12 +4700,20 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
         "stage": "all",
         "result_bucket": "all",
         "search": "",
+        "sort": "title_asc",
         "total_evaluated": 1,
         "passed": 1,
         "rejected": 0,
         "skipped": 0,
     }
     assert detail_calls == ["run-1", "run-1"]
+
+
+def test_run_jobs_rejects_unknown_sort_value() -> None:
+    response = TestClient(_app()).get("/runs/run-1/jobs?sort=unknown")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_failed"
 
 
 def test_run_jobs_preserves_missing_run_error_contract() -> None:
@@ -13649,6 +13657,42 @@ def _run_detail_patches(
         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_results or []),
     )
 
+
+def test_enriched_rows_sort_by_score_with_unscored_rows_last() -> None:
+    from fitcv_cp.app import _sort_enriched_rows
+
+    rows = [
+        {"title": "Alpha", "job_url": "https://jobs.test/alpha", "scores": {"ai_score": 0.8}},
+        {"title": "Zulu", "job_url": "https://jobs.test/zulu", "ai_score": 0.9},
+        {"title": "Aardvark", "job_url": "https://jobs.test/aardvark", "ai_score": 0.9},
+        {"title": "No Score", "job_url": "https://jobs.test/no-score", "ai_score": None},
+    ]
+
+    assert [row["title"] for row in _sort_enriched_rows(rows, "score_desc")] == [
+        "Aardvark", "Zulu", "Alpha", "No Score"
+    ]
+
+
+def test_enriched_sort_is_preserved_in_pagination_urls() -> None:
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {"job_url": "https://jobs.test/1", "title": "A", "ai_score": 0.8},
+            {"job_url": "https://jobs.test/2", "title": "B", "ai_score": 0.9},
+        ],
+        filter_results=[
+            {"job_url": "https://jobs.test/1", "passed": True, "reasons": []},
+            {"job_url": "https://jobs.test/2", "passed": True, "reasons": []},
+        ],
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get(
+            "/admin/runs/run-detail-test/tabs/enriched?sort=title_asc"
+        )
+
+    assert response.status_code == 200
+    assert 'name="sort"' in response.text
+    assert 'value="title_asc"' in response.text
+
 def test_run_detail_uses_prototype_page_hierarchy() -> None:
     patches = _run_detail_patches()
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
@@ -13685,6 +13729,10 @@ def test_run_detail_uses_shared_recovery_and_url_owned_result_state() -> None:
     assert "history.replaceState({}, '', url)" in response.text
     assert "const initialRunDetailParams = new URLSearchParams(location.search)" in response.text
     assert "initialRunDetailParams.get('stage') || 'shortlisting'" in response.text
+    assert "initialRunDetailParams.get('sort') || 'score_desc'" in response.text
+    assert "'page_size', 'sort'" in response.text
+    assert "const sort = event.target.closest('#jobResultsSort')" in response.text
+    assert "form.querySelector('[name=\"page\"]').value = '1'" in response.text
     assert "event.key !== 'ArrowLeft' && event.key !== 'ArrowRight'" in response.text
     assert "[data-interest-rating], [data-clear-interest], [data-cv-regenerate]" in response.text
     assert "fitcvRenderAsyncState(actionState" in response.text
@@ -13909,7 +13957,7 @@ def test_run_detail_pipeline_results_normalize_invalid_stage_and_default_page_si
     assert response.status_code == 200
     assert '<input type="hidden" name="stage" value="shortlisting">' in response.text
     assert 'data-pipeline-stage="shortlisting"' in response.text
-    assert 'data-results-url="/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&amp;page_size=10&amp;filter_name=all"' in response.text
+    assert 'data-results-url="/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&amp;page_size=10&amp;filter_name=all&amp;sort=score_desc"' in response.text
     assert '<option value="10" selected>10</option>' in response.text
 
 
@@ -15448,11 +15496,11 @@ def test_run_detail_enriched_query_state_preserved_in_fragment_urls():
         )
     assert resp.status_code == 200
     prev_url = (
-        "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=1&page_size=25&filter_name=all&q=python"
+        "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=1&page_size=25&filter_name=all&sort=score_desc&q=python"
         "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
     )
     next_url = (
-        "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=3&page_size=25&filter_name=all&q=python"
+        "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=3&page_size=25&filter_name=all&sort=score_desc&q=python"
         "&pipeline_outcome=not_shortlisted&pipeline_outcome=scored_not_ranked"
     )
     assert f'data-tab-fragment-url="{prev_url}"' in resp.text
@@ -15554,6 +15602,42 @@ def test_export_full_run_jobs_includes_enriched_job_payload():
     assert row["raw_job"]["description"] == "raw"
     assert row["enriched_job"]["domain"] == "analytics"
     assert manifest["row_count"] == 1
+
+
+def test_export_full_run_jobs_rejects_unknown_sort_value() -> None:
+    response = TestClient(_app()).get("/runs/run-1/jobs/export.full.zip?sort=unknown")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_failed"
+
+
+def test_export_full_run_jobs_preserves_nested_score_sort() -> None:
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [
+        {"job_url": "https://j.test/alpha", "title": "Alpha", "scores": {"ai_score": 0.2}},
+        {"job_url": "https://j.test/zulu", "title": "Zulu", "scores": {"ai_score": 0.9}},
+    ]
+    jobs_input = _json.dumps([
+        {"jobUrl": "https://j.test/alpha", "title": "Alpha"},
+        {"jobUrl": "https://j.test/zulu", "title": "Zulu"},
+    ])
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[], jobs_input_json=jobs_input)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get("/runs/run-detail-test/jobs/export.full.zip")
+
+    with _zipfile.ZipFile(_io.BytesIO(response.content)) as archive:
+        rows = [
+            _json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+        manifest = _json.loads(archive.read("jobs.filtered.manifest.json"))
+
+    assert [row["job_url"] for row in rows] == ["https://j.test/zulu", "https://j.test/alpha"]
+    assert manifest["ordering"] == "score_desc"
 
 
 def test_export_full_run_jobs_accepts_source_snapshot_job_url():
@@ -15757,7 +15841,7 @@ def test_run_detail_enriched_tab_paginates_server_side():
     assert 'data-run-page-number="2"' in resp.text
     assert 'aria-current="page"' in resp.text
     assert "Job 1" not in resp.text
-    assert "Job 26" in resp.text
+    assert "Job 32" in resp.text
     assert "Job 50" in resp.text
 
 
@@ -15773,8 +15857,8 @@ def test_run_detail_enriched_pagination_fragment_urls_preserve_query_state():
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25&filter_name=all&q=python")
     assert resp.status_code == 200
-    prev_url = "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=1&page_size=25&filter_name=all&q=python"
-    next_url = "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=3&page_size=25&filter_name=all&q=python"
+    prev_url = "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=1&page_size=25&filter_name=all&sort=score_desc&q=python"
+    next_url = "/admin/runs/run-detail-test/tabs/enriched?stage=shortlisting&page=3&page_size=25&filter_name=all&sort=score_desc&q=python"
     assert f'data-tab-fragment-url="{prev_url}"' in resp.text
     assert f'data-tab-fragment-url="{next_url}"' in resp.text
 # ── Task 6: Composition consistency tests ──────────────────────────────────────

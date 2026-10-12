@@ -4798,6 +4798,7 @@ def _build_enriched_tab_url(
     page_size: int,
     filter_name: str,
     query: str,
+    sort: str,
     pipeline_outcomes: list[str],
 ) -> str:
     params: list[tuple[str, str]] = [
@@ -4805,6 +4806,7 @@ def _build_enriched_tab_url(
         ("page", str(page)),
         ("page_size", str(page_size)),
         ("filter_name", filter_name),
+        ("sort", sort),
     ]
     if query:
         params.append(("q", query))
@@ -4828,6 +4830,31 @@ _PIPELINE_RESULTS_STAGE_IDS = (
 def _normalize_pipeline_results_stage(value: str | None) -> str:
     stage = str(value or "").strip().lower()
     return stage if stage in _PIPELINE_RESULTS_STAGE_IDS else "shortlisting"
+
+
+def _sort_enriched_rows(rows: list[dict[str, Any]], sort: str = "score_desc") -> list[dict[str, Any]]:
+    if sort not in {"score_desc", "title_asc"}:
+        raise ValueError("sort must be score_desc or title_asc")
+    if sort == "title_asc":
+        return sorted(rows, key=lambda row: (
+            str(row.get("title") or row.get("job_url") or "").casefold(),
+            str(row.get("job_url") or ""),
+        ))
+
+    def key(row: dict[str, Any]) -> tuple[bool, float, str, str]:
+        score_source = dict(row)
+        nested_scores = row.get("scores")
+        if isinstance(nested_scores, dict):
+            score_source = {**nested_scores, **score_source}
+        score = normalize_score_state(score_source)["ai_score"]
+        return (
+            score is None,
+            -(score or 0.0) if score is not None else 0.0,
+            str(row.get("title") or row.get("job_url") or "").casefold(),
+            str(row.get("job_url") or ""),
+        )
+
+    return sorted(rows, key=key)
 
 
 def _pipeline_stage_result(
@@ -4938,8 +4965,11 @@ def _build_enriched_tab_context(
     pipeline_outcomes: list[str],
     page: int,
     page_size: int,
+    sort: str = "score_desc",
 ) -> dict[str, Any]:
     normalized_stage = _normalize_pipeline_results_stage(stage)
+    if sort not in {"score_desc", "title_asc"}:
+        raise ValueError("sort must be score_desc or title_asc")
     results_rows = _results_export_rows(run)
     decision_feedback_source = _decision_feedback_source_from_run(run)
     decision_feedback_alternatives = {
@@ -4997,6 +5027,24 @@ def _build_enriched_tab_context(
         enriched_jobs = _fallback_enriched_rows_from_stage_artifacts(run)
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_results_export(results_rows)
+    scores_by_url = {
+        str(row.get("job_url") or "").strip(): row
+        for row in results_rows
+        if str(row.get("job_url") or "").strip()
+    }
+    enriched_jobs = [
+        {
+            **job,
+            **{
+                key: scores_by_url[str(job.get("job_url") or "").strip()][key]
+                for key in ("ai_score", "score_status")
+                if str(job.get("job_url") or "").strip() in scores_by_url
+                and key in scores_by_url[str(job.get("job_url") or "").strip()]
+            },
+        }
+        for job in enriched_jobs
+    ]
+    enriched_jobs = _sort_enriched_rows(enriched_jobs, sort)
     enriched_jobs = [_with_required_skills_display(job) for job in enriched_jobs]
     filter_results = list_filter_results_for_run(run_id, client=client)
     if not filter_results:
@@ -5246,6 +5294,7 @@ def _build_enriched_tab_context(
             page_size=page_size,
             filter_name=normalized_filter,
             query=query,
+            sort=sort,
             pipeline_outcomes=normalized_pipeline_outcomes,
         )
     next_url = None
@@ -5257,6 +5306,7 @@ def _build_enriched_tab_context(
             page_size=page_size,
             filter_name=normalized_filter,
             query=query,
+            sort=sort,
             pipeline_outcomes=normalized_pipeline_outcomes,
         )
     page_numbers: list[dict[str, Any]] = []
@@ -5281,6 +5331,7 @@ def _build_enriched_tab_context(
                 page_size=page_size,
                 filter_name=normalized_filter,
                 query=query,
+                sort=sort,
                 pipeline_outcomes=normalized_pipeline_outcomes,
             ),
             "current": page_number == nav_pager["current_page"],
@@ -5292,6 +5343,7 @@ def _build_enriched_tab_context(
             [
                 ("stage", normalized_stage),
                 ("filter_name", normalized_filter),
+                ("sort", sort),
                 ("q", query),
                 *[("pipeline_outcome", value) for value in normalized_pipeline_outcomes],
             ],
@@ -5302,6 +5354,7 @@ def _build_enriched_tab_context(
     return {
         "run": run,
         "enriched_stage": normalized_stage,
+        "enriched_sort": sort,
         "enriched_stage_options": (
             ("all", "All Jobs"),
             ("enrichment", "Enrichment"),
@@ -5354,6 +5407,7 @@ def _build_enriched_tab_context(
             page_size=page_size,
             filter_name=normalized_filter,
             query=query,
+            sort=sort,
             pipeline_outcomes=normalized_pipeline_outcomes,
         ),
     }
@@ -11703,8 +11757,17 @@ def create_app(
         search: str = "",
         stage: str = "all",
         result_bucket: str = "all",
+        sort: str = "score_desc",
     ) -> dict[str, Any]:
         page, page_size = _validated_page(page, page_size)
+        if sort not in {"score_desc", "title_asc"}:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[{"field": "sort", "code": "invalid_value", "message": "Use score_desc or title_asc."}],
+                action="Choose a supported sort order and retry.",
+            )
         store = _resolve_run_store()
         if not sqlite_store_module.run_exists(run_id):
             raise ApiError(
@@ -11721,6 +11784,7 @@ def create_app(
                 search=search,
                 stage=stage,
                 result_bucket=result_bucket,
+                sort=sort,
             )
         except ValueError as exc:
             raise ApiError(
@@ -11742,6 +11806,7 @@ def create_app(
                 "stage": stage,
                 "result_bucket": result_bucket,
                 "search": search,
+                "sort": sort,
                 "total_evaluated": int(result.get("total_evaluated") or 0),
                 "passed": int(result.get("passed") or 0),
                 "rejected": int(result.get("rejected") or 0),
@@ -12028,6 +12093,7 @@ def create_app(
         search: str = "",
         stage: str = "all",
         result_bucket: str = "all",
+        sort: str = "score_desc",
     ) -> Response:
         store = _resolve_run_store()
         if store.get_run_detail(run_id) is None:
@@ -12038,6 +12104,7 @@ def create_app(
                 search=search,
                 stage=stage,
                 result_bucket=result_bucket,
+                sort=sort,
             )
             output = io.StringIO(newline="")
             writer = csv.writer(output, lineterminator="\n")
@@ -12069,13 +12136,23 @@ def create_app(
         search: str = "",
         stage: str = "all",
         result_bucket: str = "all",
+        sort: str = "score_desc",
     ) -> Response:
+        if sort not in {"score_desc", "title_asc"}:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[{"field": "sort", "code": "invalid_value", "message": "Use score_desc or title_asc."}],
+                action="Choose a supported sort order and retry.",
+            )
         return _build_enriched_filtered_export_zip(
             request=request,
             run_id=run_id,
             stage=stage,
             filter_name=result_bucket,
             q=search,
+            sort=sort,
             include_enriched=True,
             filename=f"fitcv-run-{run_id}-full-export.zip",
         )
@@ -16044,10 +16121,13 @@ def create_app(
         page_size: int = 10,
         filter_name: str = "all",
         q: str = "",
+        sort: str = "score_desc",
     ) -> HTMLResponse:
         run = require_run_or_404(run_id, detail="")
         page = _coerce_positive_int(page, default=1, minimum=1, maximum=10000)
         page_size = _coerce_positive_int(page_size, default=10, minimum=10, maximum=100)
+        if sort not in {"score_desc", "title_asc"}:
+            raise HTTPException(status_code=422, detail="sort must be score_desc or title_asc")
         selected_pipeline_outcomes = _normalize_pipeline_outcomes(
             request.query_params.getlist("pipeline_outcome")
         )
@@ -16058,6 +16138,7 @@ def create_app(
             stage=stage,
             filter_name=filter_name,
             query=q,
+            sort=sort,
             pipeline_outcomes=selected_pipeline_outcomes,
             page=page,
             page_size=page_size,
@@ -16074,6 +16155,7 @@ def create_app(
         stage: str = "shortlisting",
         filter_name: str = "all",
         q: str = "",
+        sort: str = "score_desc",
         include_enriched: bool = False,
         filename: str | None = None,
     ) -> Response:
@@ -16088,6 +16170,7 @@ def create_app(
             stage=stage,
             filter_name=filter_name,
             query=q,
+            sort=sort,
             pipeline_outcomes=selected_pipeline_outcomes,
             page=1,
             page_size=1_000_000,
@@ -16139,7 +16222,15 @@ def create_app(
                 export_row["enriched_job"] = job
             export_rows.append(export_row)
 
-        export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
+        if include_enriched:
+            ordered_jobs = _sort_enriched_rows(
+                [dict(item.get("enriched_job") or {}, job_url=item.get("job_url")) for item in export_rows],
+                sort,
+            )
+            order = {str(job.get("job_url") or ""): index for index, job in enumerate(ordered_jobs)}
+            export_rows.sort(key=lambda row: order.get(str(row.get("job_url") or ""), len(order)))
+        else:
+            export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
         jsonl_text = "\n".join(_json.dumps(row, ensure_ascii=False) for row in export_rows)
         jsonl_bytes = (jsonl_text + ("\n" if jsonl_text else "")).encode("utf-8")
         checksum = hashlib.sha256(jsonl_bytes).hexdigest()
@@ -16155,7 +16246,7 @@ def create_app(
                 "pipeline_outcome": selected_outcomes,
             },
             "row_count": len(export_rows),
-            "ordering": "job_url_asc",
+            "ordering": sort if include_enriched else "job_url_asc",
             "jsonl_file": "jobs.filtered.jsonl",
             "checksum_sha256": checksum,
             "warnings": dropped_rows,

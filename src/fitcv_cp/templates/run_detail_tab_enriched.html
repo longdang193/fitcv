@@ -14,7 +14,7 @@
   <div class="stage-filter">
     <div class="pipeline-stage-tabs" role="tablist" aria-label="Pipeline stages">
       {% for stage_id, stage_label in enriched_stage_options %}
-      <button class="btn" type="button" role="tab" data-pipeline-stage="{{ stage_id }}" data-results-url="/admin/runs/{{ run.run_id }}/tabs/enriched?stage={{ stage_id }}&amp;page_size={{ enriched_page_size }}&amp;filter_name=all" aria-selected="{{ 'true' if stage_id == enriched_stage else 'false' }}" tabindex="{{ '0' if stage_id == enriched_stage else '-1' }}">{{ stage_label }}</button>
+      <button class="btn" type="button" role="tab" data-pipeline-stage="{{ stage_id }}" data-results-url="/admin/runs/{{ run.run_id }}/tabs/enriched?stage={{ stage_id }}&amp;page_size={{ enriched_page_size }}&amp;filter_name=all&amp;sort={{ enriched_sort }}" aria-selected="{{ 'true' if stage_id == enriched_stage else 'false' }}" tabindex="{{ '0' if stage_id == enriched_stage else '-1' }}">{{ stage_label }}</button>
       {% endfor %}
     </div>
   </div>
@@ -25,6 +25,7 @@
   <input type="hidden" name="page" value="1">
   <input type="hidden" name="page_size" value="{{ enriched_page_size }}">
   <input type="hidden" name="filter_name" value="{{ enriched_filter }}" data-run-result-value>
+  <label class="run-page-size" for="jobResultsSort">Sort by:<select class="field" id="jobResultsSort" name="sort"><option value="score_desc" {% if enriched_sort == 'score_desc' %}selected{% endif %}>Relevance score</option><option value="title_asc" {% if enriched_sort == 'title_asc' %}selected{% endif %}>Title A–Z</option></select></label>
   <input class="field results-search" id="jobResultsSearch" name="q" type="search" value="{{ enriched_query }}" placeholder="Search jobs, attributes, skills, or outcomes" aria-label="Search pipeline results">
   <div class="results-toolbar-actions">
     <div class="pipeline-summary" role="tablist" aria-label="Pipeline result filter">
