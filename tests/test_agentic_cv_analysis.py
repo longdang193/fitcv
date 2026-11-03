@@ -129,6 +129,26 @@ def test_loose_routes_project_backed_experience_gap_as_stretch() -> None:
     assert result["experience_evidence_summary"]["gaps"]
 
 
+def test_loose_does_not_route_project_gap_for_senior_target() -> None:
+    profile = {
+        "skills": [{"name": "Power BI"}],
+        "years_experience": 2,
+        "preferences": {"seniority_target": "senior"},
+        "experiences": [],
+        "projects": [{"name": "Sales dashboard", "skills": ["Power BI"]}],
+    }
+    job = {
+        "job_url": "https://example.com/job/senior",
+        "title": "Senior BI Analyst",
+        "seniority": "senior",
+        "baseline_fit": 0.2,
+        "required_skills": ["Power BI commercial experience"],
+    }
+    config = {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}}
+
+    assert should_route_loose_experience_review(job, profile, config) is False
+
+
 def test_full_and_strict_keep_unresolved_project_experience_blocked() -> None:
     profile = {
         "skills": [{"name": "Power BI"}],
@@ -699,7 +719,7 @@ def test_analyze_ranked_job_ignores_retired_cv_analysis_sleep(
 
 
 
-def test_resolve_ranked_job_fit_uses_persisted_baseline_label_only() -> None:
+def test_resolve_ranked_job_fit_recomputes_persisted_label_from_numeric_score() -> None:
     base_job = _job()
     base_job["baseline_fit_label"] = "stretch"
     base_job["fit_label"] = "skip"
@@ -711,8 +731,8 @@ def test_resolve_ranked_job_fit_uses_persisted_baseline_label_only() -> None:
     job_b["matched_strengths"] = ["Different"]
     job_b["key_risks"] = ["Different"]
 
-    assert resolve_ranked_job_fit(job_a, _config()) == "stretch"
-    assert resolve_ranked_job_fit(job_b, _config()) == "stretch"
+    assert resolve_ranked_job_fit(job_a, _config()) == "strong"
+    assert resolve_ranked_job_fit(job_b, _config()) == "strong"
 
 
 def test_resolve_ranked_job_fit_derives_from_baseline_score_then_marks_missing_score_unknown() -> None:
@@ -1502,7 +1522,7 @@ def test_analyze_ranked_job_compatibility_label_does_not_change_semantics(
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-def test_analyze_ranked_job_blocks_reranker_skip_before_analysis_dependencies(
+def test_analyze_ranked_job_ignores_contradictory_persisted_skip_label(
     mock_fingerprint,
     mock_bundle,
     mock_gap,
@@ -1512,12 +1532,10 @@ def test_analyze_ranked_job_blocks_reranker_skip_before_analysis_dependencies(
 
     result = analyze_ranked_job(job, _profile(), _config())
 
-    assert result["status"] == "blocked_by_reranker_fit"
-    assert result["outcome_reason"]["stage"] == "reranker_fit"
-    assert result["error"] is None
-    mock_fingerprint.assert_not_called()
-    mock_bundle.assert_not_called()
-    mock_gap.assert_not_called()
+    assert result["status"] == "ready_for_generation"
+    mock_fingerprint.assert_called_once()
+    mock_bundle.assert_called_once()
+    mock_gap.assert_called_once()
 
 
 @patch("fitcv.agentic_cv_analysis.resolve_ranked_job_fit", side_effect=["strong", "skip"])

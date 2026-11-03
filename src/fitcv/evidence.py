@@ -451,7 +451,14 @@ def _project_acceptance_is_affirmed(text: str, marker: str) -> bool:
     if not match:
         return False
     context = normalized[max(0, match.start() - 48):match.end() + 48]
-    return not bool(re.search(r"\b(?:do\s+not|does\s+not|not|never|without|no)\b", context))
+    return not bool(
+        re.search(
+            r"\b(?:do\s+not|does\s+not|don't|doesn't|not|never|without|no|"
+            r"insufficient|rejected|reject|not\s+accepted|not\s+considered|"
+            r"do\s+not\s+count|does\s+not\s+count|don't\s+count)\b",
+            context,
+        )
+    )
 
 
 def experience_requirement_policy(

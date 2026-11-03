@@ -48,6 +48,13 @@ authority of `requirement_coverage`.
   ownership, leadership, or production requirements. A job that explicitly
   accepts academic or project evidence remains eligible.
 
+Loose routing is conservative when signals conflict: explicit professional
+wording in the job requirement outranks normalized target seniority, which
+outranks the candidate's declared seniority preference; profile tenure is
+supporting evidence, not an automatic mode selector. Senior/lead/manager/
+director contexts and explicit employment requirements therefore cannot be
+promoted from project evidence alone.
+
 Every analysis persists `experience_evidence_summary` with separate capability
 and professional-experience verdicts. Recommendation labels and evidence
 verdicts are rendered separately. CV generation continues to use verified

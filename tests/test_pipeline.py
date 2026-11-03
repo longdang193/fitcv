@@ -183,6 +183,7 @@ def _build_cv_generation_debug_record(
             fit_classification=fit_classification,
             cv_analysis_status=cv_analysis_status,
             cv_status=cv_status,
+            ranking_fit_label=ranking_fit_label,
         ),
         "analysis_input_summary": dict(analysis_input_summary or {}),
         "evidence_used": list(evidence_used),
@@ -520,6 +521,7 @@ def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
         evidence_selection_summary=None,
         gap_summary=None,
         fit_classification="skip",
+        ranking_fit_label="strong",
         error=None,
         requirement_coverage=None,
         section_confidence_hints=None,
@@ -529,7 +531,7 @@ def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "baseline_fit_label",
+        "source": "baseline_fit_thresholds",
         "label": "strong",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -645,7 +647,7 @@ def test_blocked_by_reranker_fit_keeps_cv_analysis_stage_authority() -> None:
     assert record["ranking_fit_label"] == "stretch"
     assert record["fit_classification"] == "strong"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "baseline_fit_label",
+        "source": "baseline_fit_thresholds",
         "label": "stretch",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -678,13 +680,14 @@ def test_skipped_fit_gate_keeps_cv_analysis_stage_authority() -> None:
         section_confidence_hints=None,
         do_not_claim=[],
         fit_classification="skip",
+        ranking_fit_label="strong",
         error=outcome_reason,
     )
 
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "baseline_fit_label",
+        "source": "baseline_fit_thresholds",
         "label": "strong",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -741,7 +744,7 @@ def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"] == {
-        "source": "baseline_fit_label",
+        "source": "baseline_fit_thresholds",
         "label": "strong",
     }
     assert record["decision_chain"]["cv_analysis"] == {
@@ -790,7 +793,7 @@ def test_cv_generation_terminal_statuses_keep_baseline_primary_fit_authority_mat
     assert record["ranking_fit_label"] == "strong"
     assert record["fit_classification"] == "skip"
     assert record["decision_chain"]["primary_fit"]["label"] == record["ranking_fit_label"]
-    assert record["decision_chain"]["primary_fit"]["source"] == "baseline_fit_label"
+    assert record["decision_chain"]["primary_fit"]["source"] == "baseline_fit_thresholds"
 def test_review_required_reason_code_mapping_for_markdown_review() -> None:
     reason_code = _normalize_review_required_reason_code(
         status="review_required",
@@ -8526,7 +8529,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "baseline_fit_label",
+            "source": "baseline_fit_thresholds",
             "label": "strong",
         },
         "cv_analysis": {
@@ -8551,7 +8554,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "baseline_fit_label",
+            "source": "baseline_fit_thresholds",
             "label": "skip",
         },
         "cv_analysis": {
@@ -8594,7 +8597,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "baseline_fit_label",
+            "source": "baseline_fit_thresholds",
             "label": "strong",
         },
         "cv_analysis": {
@@ -8617,7 +8620,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "advanced_to_scoring": True,
         },
         "primary_fit": {
-            "source": "baseline_fit_label",
+            "source": "baseline_fit_thresholds",
             "label": "skip",
         },
         "cv_analysis": {

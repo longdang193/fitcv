@@ -256,6 +256,18 @@ This setting is not inferred from student or senior status. Users choose it per
 run and may override any suggestion. It does not alter hard eligibility filters,
 ranking ownership, or the verified-claim authority used by CV generation.
 
+### Managed Scan Title Filters
+
+Managed Scan `job_titles` is the optional inclusion list and
+`excluded_job_titles` is the optional exclusion list. Matching is
+case-insensitive whole-word or phrase matching: OR within each list and AND
+between lists. Empty inclusion means any title unless an exclusion matches.
+For example, inclusion `AI` plus exclusion `duales` keeps `AI/ML Engineer` and
+`Working Student - AI Analytics`, excludes `Duales Studium - AI Engineering`,
+and excludes `Retail Analytics Intern` because it has no inclusion match.
+Provider search terms are recall-preserving optimizations only; canonical
+post-acquisition filtering is authoritative and records the rejection reason.
+
 Policy meaning:
 
 - `required_match.min_ratio_by_fit.<fit>`: minimum `matched_required / matchable_required_count` ratio to remain eligible for auto-accept.

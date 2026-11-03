@@ -167,6 +167,7 @@ from fitcv.ranking_contract import (
     fit_label_from_score,
     normalize_score_state,
     project_legacy_ranking_aliases,
+    resolve_fit_label_for_row,
 )
 from fitcv.rule_filter import (
     DEFAULT_SELECTED_RULE_FILTERS,
@@ -671,7 +672,9 @@ def _build_export_results(
     vector_search_top_n: int,
     run_id: str = "unknown",
     stage_transition_artifacts: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    ranking_config = config if config is not None else load_config()
     def _identity_seed(row: dict[str, Any]) -> dict[str, Any]:
         seeded = dict(row)
         seeded["source_job_url"] = extract_job_url(seeded)
@@ -875,9 +878,9 @@ def _build_export_results(
         else:
             shortlist_status = "not_applicable"
 
-        ranking_fit_label = str(score_source.get("baseline_fit_label") or "").strip() or None
+        ranking_fit_label = resolve_fit_label_for_row(score_source, ranking_config)
         ranking_fit_source = (
-            "baseline_fit_label"
+            "baseline_fit_thresholds"
             if ranking_fit_label is not None
             else "baseline_fit_thresholds"
             if score_source.get("baseline_fit") is not None
@@ -910,7 +913,7 @@ def _build_export_results(
         score_projection = project_legacy_ranking_aliases(
             {
                 "baseline_fit": score_source.get("baseline_fit"),
-                "baseline_fit_label": score_source.get("baseline_fit_label"),
+                "baseline_fit_label": ranking_fit_label,
                 "baseline_rank": score_source.get("baseline_rank"),
             }
         )
@@ -1378,10 +1381,12 @@ def _restore_pipeline_state(
     *,
     run_id: str,
     checkpoint_payload: dict[str, Any] | None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return PipelineState.from_checkpoint_payload(
         run_id=run_id,
         checkpoint_payload=checkpoint_payload,
+        ranking_config=config,
     ).as_state_dict()
 
 
@@ -1426,12 +1431,17 @@ def _canonical_resume_start_stage(
     requested_start_stage: str | None,
     checkpoint_payload: dict[str, Any] | None,
     run_id: str,
+    config: dict[str, Any] | None = None,
 ) -> str | None:
     validated_start_stage = _validate_pipeline_stage_name(requested_start_stage)
     if not checkpoint_payload:
         return validated_start_stage
 
-    resume_state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
+    resume_state = _restore_pipeline_state(
+        run_id=run_id,
+        checkpoint_payload=checkpoint_payload,
+        config=config,
+    )
     last_completed_stage = _infer_last_completed_stage_from_state(resume_state)
     canonical_next_stage = next_pipeline_stage(last_completed_stage)
     if canonical_next_stage:
@@ -2043,9 +2053,7 @@ def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: str | None,
 ) -> str | None:
-    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
-    if ranked_fit_raw in _FIT_LABEL_ORDER:
-        return ranked_fit_raw
+    del job
     fallback_fit_raw = str(fit_classification or "").strip().lower()
     return fallback_fit_raw or None
 
@@ -2472,7 +2480,11 @@ def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]], config:
         if score_status == SCORE_STATUS_INVALID:
             invalid_count += 1
             continue
-        fit_label = str(row.get("baseline_fit_label") or "").strip().lower()
+        fit_label = (
+            resolve_fit_label_for_row(row, config)
+            if isinstance(config, dict)
+            else None
+        )
         if fit_label == "strong":
             strong_count += 1
         elif fit_label == "stretch":
@@ -2843,7 +2855,7 @@ def _build_stage_transition_artifacts(
     )
     ranking_fit_distribution: dict[str, int] = {}
     for row in ranking_inputs:
-        fit_label = str(row.get("baseline_fit_label") or "")
+        fit_label = resolve_fit_label_for_row(row, config)
         if fit_label:
             ranking_fit_distribution[fit_label] = ranking_fit_distribution.get(fit_label, 0) + 1
     ranking_policy = dict(config.get("ranking_policy") or {})
@@ -3297,6 +3309,7 @@ def run_pipeline(
             requested_start_stage=start_stage,
             checkpoint_payload=checkpoint_payload,
             run_id=run_id,
+            config=config,
         ) or PIPELINE_STAGE_SEQUENCE[0]
         stop_after_stage = _validate_pipeline_stage_name(stop_after_stage)
         if stop_after_stage is not None:
@@ -3307,7 +3320,11 @@ def run_pipeline(
         logger.info("Pipeline run started [run_id=%s]", run_id)
         if reporter is not None:
             reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
-        state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
+        state = _restore_pipeline_state(
+            run_id=run_id,
+            checkpoint_payload=checkpoint_payload,
+            config=config,
+        )
         effective_strategy = _validate_checkpoint_retrieval_strategy(state)
         checkpoint_policy = dict(state.get("resolved_preference_policy") or {})
         if effective_strategy == "lexical_v1" and checkpoint_policy.get("diagnostic_code") not in {
@@ -5227,6 +5244,7 @@ def run_pipeline(
                 vector_search_top_n=vector_top_n,
                 run_id=run_id,
                 stage_transition_artifacts=stage_transition_artifacts,
+                config=config,
             ),
         }
         logger.info("Pipeline run complete [run_id=%s] summary=%s", run_id, summary)

@@ -26,6 +26,7 @@ def test_scan_create_request_normalizes_ordered_lists() -> None:
         scan_name="  Germany data roles  ",
         company_ids=[" company-2 ", "company-1", "company-2"],
         job_titles=[" Data Engineer ", "Data Engineer", "Analytics Engineer"],
+        excluded_job_titles=[" duales ", "duales", "Contractor"],
         locations=[" Berlin ", "Berlin", "Remote"],
         published_window="past_7_days",
         total_rows=80,
@@ -34,6 +35,7 @@ def test_scan_create_request_normalizes_ordered_lists() -> None:
     assert request.scan_name == "Germany data roles"
     assert request.company_ids == ["company-2", "company-1"]
     assert request.job_titles == ["Data Engineer", "Analytics Engineer"]
+    assert request.excluded_job_titles == ["duales", "Contractor"]
     assert request.locations == ["Berlin", "Remote"]
 
 

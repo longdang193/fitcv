@@ -113,6 +113,7 @@ class ScanCreateRequest(BaseModel):
     scan_name: str | None = Field(default=None, max_length=120)
     company_ids: list[str]
     job_titles: list[str] = Field(default_factory=list)
+    excluded_job_titles: list[str] = Field(default_factory=list)
     locations: list[str] = Field(default_factory=list)
     published_window: PublishedWindow = PublishedWindow.ANY
     total_rows: int = Field(default=50, ge=1, le=200)
@@ -134,6 +135,11 @@ class ScanCreateRequest(BaseModel):
     @field_validator("job_titles")
     @classmethod
     def normalize_job_titles(cls, value: list[str]) -> list[str]:
+        return _ordered_trimmed(value, max_items=50, max_length=120)
+
+    @field_validator("excluded_job_titles")
+    @classmethod
+    def normalize_excluded_job_titles(cls, value: list[str]) -> list[str]:
         return _ordered_trimmed(value, max_items=50, max_length=120)
 
     @field_validator("locations")

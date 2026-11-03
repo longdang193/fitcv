@@ -51,6 +51,7 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
   const [scanName, setScanName] = useState("");
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [jobTitles, setJobTitles] = useState("");
+  const [excludedJobTitles, setExcludedJobTitles] = useState("");
   const [locations, setLocations] = useState("");
   const [publishedWindow, setPublishedWindow] = useState<PublishedWindow>("any");
   const [totalRows, setTotalRows] = useState(50);
@@ -156,6 +157,7 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
     if (open) {
       setScanName("");
       setJobTitles("");
+      setExcludedJobTitles("");
       setLocations("");
       setPublishedWindow("any");
       setTotalRows(50);
@@ -238,6 +240,7 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
         scan_name: scanName.trim() || undefined,
         company_ids: selectedCompanyIds,
         job_titles: splitLines(jobTitles),
+        excluded_job_titles: splitLines(excludedJobTitles),
         locations: splitLines(locations),
         published_window: publishedWindow,
         total_rows: Number(totalRows),
@@ -341,6 +344,16 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
             placeholder="Software Engineer&#10;Data Scientist"
             value={jobTitles}
             onChange={(e) => setJobTitles(e.target.value)}
+          />
+
+          <Field
+            label="Exclude Job Titles"
+            type="textarea"
+            rows={2}
+            hint="One keyword or phrase per line. Matching titles are excluded."
+            placeholder="duales\ncontractor"
+            value={excludedJobTitles}
+            onChange={(e) => setExcludedJobTitles(e.target.value)}
           />
 
           <Field

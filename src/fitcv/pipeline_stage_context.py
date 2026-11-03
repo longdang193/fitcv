@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from fitcv.ranking_contract import adapt_legacy_ranking_row
+from fitcv.ranking_contract import adapt_legacy_ranking_row, resolve_fit_label_for_row
 
 
 def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
@@ -93,6 +93,7 @@ class PipelineState:
         *,
         run_id: str,
         checkpoint_payload: dict[str, Any] | None,
+        ranking_config: dict[str, Any] | None = None,
     ) -> "PipelineState":
         root_payload = dict(checkpoint_payload or {})
         payload = root_payload
@@ -142,6 +143,12 @@ class PipelineState:
                             continue
                         is_legacy = any(name in item for name in ("final_score", "fit_label", "final_rank"))
                         adapted = adapt_legacy_ranking_row(item)
+                        if ranking_config is not None:
+                            resolved_label = resolve_fit_label_for_row(adapted, ranking_config)
+                            if resolved_label is None:
+                                adapted.pop("baseline_fit_label", None)
+                            else:
+                                adapted["baseline_fit_label"] = resolved_label
                         if is_legacy:
                             adapted["legacy_checkpoint_default_applied"] = [
                                 factor_id

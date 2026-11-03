@@ -5,6 +5,7 @@ from typing import Any
 
 from fitcv.job_sources import acquire_scanner_jobs, build_scanner_request
 from fitcv.ingest import canonicalize_jobs
+from fitcv.rule_filter import evaluate_title_filter
 from fitcv_cp import sqlite_store
 from fitcv_cp.models import build_process_event
 
@@ -59,7 +60,8 @@ def execute_scan(scan_id: str, job_id: str | None = None) -> None:
         if detail is None:
             raise RuntimeError("scan_not_found")
         logical_input = dict(detail.get("input") or {})
-        titles = [str(value).casefold() for value in logical_input.get("job_titles") or []]
+        titles = list(logical_input.get("job_titles") or [])
+        excluded_titles = list(logical_input.get("excluded_job_titles") or [])
         locations = [str(value).casefold() for value in logical_input.get("locations") or []]
         cutoff = _published_at(detail.get("publication_cutoff"))
         limit = int(logical_input.get("total_rows") or 50)
@@ -74,12 +76,15 @@ def execute_scan(scan_id: str, job_id: str | None = None) -> None:
             remaining_rows = limit - len(jobs)
             if remaining_rows <= 0:
                 break
+            request_max_jobs = min(remaining_rows, 200)
+            if titles or excluded_titles:
+                request_max_jobs = 200
             request = build_scanner_request(
                 provider=str(company["provider_id"]),
                 company_name=str(company["company_name"]),
                 careers_url=str(company["careers_url"]),
-                keywords=tuple(logical_input.get("job_titles") or []),
-                max_jobs=min(remaining_rows, 200),
+                keywords=(),
+                max_jobs=request_max_jobs,
                 timeout_seconds=60,
                 trusted_provider_config=company.get("provider_config"),
             )
@@ -99,7 +104,12 @@ def execute_scan(scan_id: str, job_id: str | None = None) -> None:
             if not sqlite_store.update_scan_heartbeat(scan_id, claim_id=claim_id):
                 raise RuntimeError("scan_claim_lost")
             for job in acquired_jobs:
-                if titles and not any(value in str(job.get("title") or "").casefold() for value in titles):
+                title_result = evaluate_title_filter(
+                    job.get("title") or job.get("job_title"),
+                    include_keywords=titles,
+                    exclude_keywords=excluded_titles,
+                )
+                if not title_result["passed"]:
                     continue
                 if locations and not any(value in str(job.get("location") or "").casefold() for value in locations):
                     continue

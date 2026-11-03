@@ -34,6 +34,51 @@ def test_execute_scan_claims_and_commits_canonical_output(monkeypatch, tmp_path:
     assert {event.operation for event in events["events"]} >= {"claim", "provider", "output"}
 
 
+def test_execute_scan_applies_whole_word_include_and_exclude_title_filters(monkeypatch, tmp_path: Path) -> None:
+    database_path = tmp_path / "scan-worker-title-filter.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(database_path))
+    monkeypatch.setattr(sqlite_store, "get_backend_runtime", lambda: None)
+    company = sqlite_store.create_tracked_company(
+        company_name="Acme", careers_url="https://acme.jobs.personio.de/",
+        provider_id="personio", provider_label="Personio", database_path=database_path,
+    )
+    scan = sqlite_store.create_scan(
+        request={
+            "company_ids": [company["company_id"]],
+            "job_titles": ["AI"],
+            "excluded_job_titles": ["duales"],
+            "locations": [],
+            "published_window": "any",
+            "total_rows": 10,
+        },
+        database_path=database_path,
+    )
+    artifact = canonicalize_jobs([
+        {"jobUrl": "https://jobs.example/1", "title": "Working Student - AI Analytics", "companyName": "Acme", "description": "Build analytics", "contractType": "Full-time", "experienceLevel": "Entry level"},
+        {"jobUrl": "https://jobs.example/2", "title": "Duales Studium - AI Engineering", "companyName": "Acme", "description": "Build analytics", "contractType": "Full-time", "experienceLevel": "Entry level"},
+        {"jobUrl": "https://jobs.example/3", "title": "Retail Analytics Intern", "companyName": "Acme", "description": "Build analytics", "contractType": "Full-time", "experienceLevel": "Entry level"},
+        {"jobUrl": "https://jobs.example/4", "title": "AI/ML Engineer", "companyName": "Acme", "description": "Build analytics", "contractType": "Full-time", "experienceLevel": "Mid-level"},
+    ])
+    captured_keywords: list[tuple[str, ...]] = []
+    captured_limits: list[int] = []
+
+    def acquire(request):
+        captured_keywords.append(request.keywords)
+        captured_limits.append(request.max_jobs)
+        return type("Result", (), {"artifact": artifact})()
+
+    monkeypatch.setattr(scan_worker, "acquire_scanner_jobs", acquire)
+    scan_worker.execute_scan(scan["scan_id"])
+
+    output = sqlite_store.get_scan_output(scan["scan_id"], database_path=database_path)
+    assert [row["title"] for row in json.loads(output["output_json"])] == [
+        "Working Student - AI Analytics",
+        "AI/ML Engineer",
+    ]
+    assert captured_keywords == [()]
+    assert captured_limits == [200]
+
+
 def test_execute_scan_applies_global_cap_to_provider_requests(monkeypatch, tmp_path: Path) -> None:
     database_path = tmp_path / "scan-worker-cap.sqlite3"
     monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(database_path))

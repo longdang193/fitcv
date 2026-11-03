@@ -117,6 +117,12 @@ describe("scans feature route and api slice", () => {
     expect(newScanDialogSource).toContain("Search by company name, ATS / source platform, or domain");
   });
 
+  it("exposes separate inclusion and exclusion title controls", () => {
+    expect(newScanDialogSource).toContain('label="Job Titles"');
+    expect(newScanDialogSource).toContain('label="Exclude Job Titles"');
+    expect(newScanDialogSource).toContain("excluded_job_titles");
+  });
+
   it("fetches scans collection with query parameters", async () => {
     const mockResponse = {
       data: {

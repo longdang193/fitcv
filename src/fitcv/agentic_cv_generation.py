@@ -2411,13 +2411,18 @@ def _build_result(
         "job_url": extract_job_url(job),
         "job_title": extract_job_title(job),
         "status": status,
-        "ranking_fit_label": str(fit_classification or "").strip() or None,
+        "ranking_fit_label": (
+            str(analysis_record.get("ranking_fit_label") or fit_classification or "").strip() or None
+        ),
         "fit_classification": fit_classification,
         "decision_chain": build_decision_chain(
             job=job,
             fit_classification=fit_classification,
             cv_analysis_status=cv_analysis_status,
             cv_status=cv_status,
+            ranking_fit_label=(
+                str(analysis_record.get("ranking_fit_label") or "").strip() or None
+            ),
         ),
         "analysis_input_summary": build_analysis_input_summary(job),
         "evidence_used": evidence_used,

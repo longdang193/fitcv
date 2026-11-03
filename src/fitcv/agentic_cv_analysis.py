@@ -17,7 +17,6 @@ lifecycle:
 
 import hashlib
 import json
-import math
 import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
@@ -42,7 +41,7 @@ from fitcv.evidence import (
     _is_professional_experience_evidence,
 )
 from fitcv.gap_analysis import compute_gap
-from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms
+from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms, _normalise_seniority
 from fitcv.pipeline_stages.common import extract_job_url, job_identity_keys
 from fitcv.reuse import build_reuse_decision
 from fitcv.pipeline_contracts import (
@@ -59,7 +58,11 @@ from fitcv.late_stage_contract import (
     shortlist_status_for_ranked_job,
     validation_status_for_cv_status,
 )
-from fitcv.ranking_contract import SCORE_STATUS_VALID, fit_label_from_score, normalize_score_state
+from fitcv.ranking_contract import (
+    SCORE_STATUS_VALID,
+    normalize_score_state,
+    resolve_fit_label_for_row,
+)
 
 _FIT_LABEL_ORDER = {"strong", "stretch", "skip"}
 FitClassification = Literal["strong", "stretch", "skip"]
@@ -269,6 +272,8 @@ def should_route_loose_experience_review(
     """Return whether Loose should review a project-backed experience gap."""
     if resolve_experience_evidence_mode(config) != "loose":
         return False
+    if not _loose_project_review_allowed(job, profile, config):
+        return False
     facts = _experience_evidence_facts(job, profile, config)
     if not facts or not any(item["experience_shaped"] for item in facts):
         return False
@@ -288,6 +293,40 @@ def should_route_loose_experience_review(
         elif not qualified_ids:
             return False
     return project_backed_gap
+
+
+def _loose_project_review_allowed(
+    job: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> bool:
+    """Keep Loose project promotion conservative for senior/professional roles."""
+    seniority_values = [
+        job.get("seniority"),
+        job.get("experience_level"),
+        dict(profile.get("preferences") or {}).get("seniority_target"),
+    ]
+    normalized = {
+        _normalise_seniority(str(value), config)
+        for value in seniority_values
+        if str(value or "").strip()
+    }
+    if normalized.intersection({"senior", "lead", "manager", "director"}):
+        return False
+    try:
+        if float(profile.get("years_experience")) >= 5.0:
+            return False
+    except (TypeError, ValueError):
+        pass
+    for descriptor in _experience_requirement_descriptors(job, _experience_mode_config(config, "full")):
+        requirement_text = str(descriptor.get("requirement") or "").casefold()
+        policy = experience_requirement_policy(requirement_text, descriptor)
+        if policy["experience_shaped"] and re.search(
+            r"\b(?:professional|employment|employed|work history)\b",
+            requirement_text,
+        ) and not policy["explicit_project_acceptance"]:
+            return False
+    return True
 
 
 def build_experience_evidence_summary(
@@ -372,10 +411,6 @@ def build_experience_evidence_summary(
         "gaps": gaps,
     }
 
-def _fit_label_from_baseline_score(score: float, config: dict[str, Any]) -> FitClassification:
-    return cast(FitClassification, fit_label_from_score(score, config))
-
-
 def resolve_ranked_job_fit(
     job: dict[str, Any],
     config: dict[str, Any],
@@ -387,19 +422,8 @@ def resolve_ranked_job_fit(
     score_state = normalize_score_state(job)
     if score_state["score_status"] != SCORE_STATUS_VALID:
         return None
-    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
-    if ranked_fit_raw in _FIT_LABEL_ORDER:
-        return cast(FitClassification, ranked_fit_raw)
-    raw_baseline_fit = job.get("baseline_fit")
-    if raw_baseline_fit is None:
-        return None
-    try:
-        baseline_fit = float(raw_baseline_fit)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(baseline_fit):
-        return None
-    return _fit_label_from_baseline_score(baseline_fit, config)
+    resolved_label = resolve_fit_label_for_row(job, config)
+    return cast(FitClassification, resolved_label) if resolved_label in _FIT_LABEL_ORDER else None
 
 
 
@@ -408,9 +432,7 @@ def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: FitClassification | None,
 ) -> FitClassification | None:
-    ranked_fit_raw = str(job.get("baseline_fit_label") or "").strip().lower()
-    if ranked_fit_raw in _FIT_LABEL_ORDER:
-        return cast(FitClassification, ranked_fit_raw)
+    del job
     if fit_classification is None:
         return None
     return fit_classification
@@ -511,13 +533,16 @@ def build_decision_chain(
     fit_classification: FitClassification | None,
     cv_analysis_status: str,
     cv_status: str,
+    ranking_fit_label: FitClassification | None = None,
 ) -> dict[str, Any]:
-    ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
+    resolved_ranking_fit_label = (
+        ranking_fit_label
+        if ranking_fit_label in _FIT_LABEL_ORDER
+        else _authoritative_ranking_fit_label(job, fit_classification)
+    )
     ranking_fit_source = (
-        "baseline_fit_label"
-        if str(job.get("baseline_fit_label") or "").strip().lower() in _FIT_LABEL_ORDER
-        else "baseline_fit_thresholds"
-        if job.get("baseline_fit") is not None
+        "baseline_fit_thresholds"
+        if resolved_ranking_fit_label is not None
         else "missing_baseline_fit"
     )
     return {
@@ -527,7 +552,7 @@ def build_decision_chain(
         },
         "primary_fit": {
             "source": ranking_fit_source,
-            "label": ranking_fit_label,
+            "label": resolved_ranking_fit_label,
         },
         "cv_analysis": {
             "status": cv_analysis_status,
@@ -556,6 +581,7 @@ def build_cv_analysis_record(
     section_confidence_hints: dict[str, str] | None,
     do_not_claim: list[str] | None,
     fit_classification: FitClassification | None,
+    ranking_fit_label: FitClassification | None = None,
     error: ErrorPayload | None,
     experience_evidence_summary: dict[str, Any] | None = None,
     analysis_input_components: dict[str, Any] | None = None,
@@ -622,13 +648,18 @@ def build_cv_analysis_record(
         "analysis_input_components": dict(analysis_input_components or {}),
         "analysis_reuse_status": analysis_reuse_status,
         "reuse_decision": dict(resolved_reuse_decision),
-        "ranking_fit_label": _authoritative_ranking_fit_label(job, fit_classification),
+        "ranking_fit_label": (
+            ranking_fit_label
+            if ranking_fit_label in _FIT_LABEL_ORDER
+            else _authoritative_ranking_fit_label(job, fit_classification)
+        ),
         "fit_classification": fit_classification,
         "decision_chain": build_decision_chain(
             job=job,
             fit_classification=fit_classification,
             cv_analysis_status=status,
             cv_status=cv_status,
+            ranking_fit_label=ranking_fit_label,
         ),
         "job_snapshot": dict(job),
         "evidence_payload": resolved_evidence_payload,
@@ -1237,6 +1268,11 @@ def _rebuild_reused_record(
         section_confidence_hints=dict(reusable_record.get("section_confidence_hints") or {}),
         do_not_claim=list(reusable_record.get("do_not_claim") or []),
         fit_classification=fit_classification,
+        ranking_fit_label=(
+            cast(FitClassification, str(reusable_record.get("ranking_fit_label") or ""))
+            if str(reusable_record.get("ranking_fit_label") or "") in _FIT_LABEL_ORDER
+            else None
+        ),
         error=cast(ErrorPayload | None, prior_error),
     )
 
@@ -1270,6 +1306,7 @@ def analyze_ranked_job(
     else:
         requirement_resolutions = []
     ranking_fit_label: FitClassification | None = None
+    resolved_baseline_fit_label = resolve_fit_label_for_row(job, config)
     analysis_input_fingerprint: str | None = None
     analysis_input_components: dict[str, Any] = {}
     reuse_reason = "no_reusable_snapshot_match"
@@ -1304,6 +1341,7 @@ def analyze_ranked_job(
                 section_confidence_hints={},
                 do_not_claim=[],
                 fit_classification=ranking_fit_label,
+                ranking_fit_label=resolved_baseline_fit_label,
                 error={
                     "stage": "ranking",
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
@@ -1334,6 +1372,7 @@ def analyze_ranked_job(
                 section_confidence_hints={},
                 do_not_claim=[],
                 fit_classification=ranking_fit_label,
+                ranking_fit_label=resolved_baseline_fit_label,
                 error={
                     "stage": "reranker_fit",
                     "message": f"Blocked {extract_job_url(job)} before CV analysis (reranker fit=skip)",
@@ -1473,15 +1512,14 @@ def analyze_ranked_job(
             evidence=evidence,
             config=config,
         )
-        should_surface_loose = (
-            resolve_experience_evidence_mode(config) == "loose"
+        should_surface_loose = loose_experience_review
+        mandatory_professional_gap = (
+            resolve_experience_evidence_mode(config) in {"full", "strict"}
             and bool(experience_evidence_summary["professional_experience"].get("unverified_requirement_ids"))
-            and bool(experience_evidence_summary["gaps"])
-            and bool(experience_evidence_summary["capability"].get("supported_requirement_ids"))
         )
         if fit_classification == "skip" and (loose_experience_review or should_surface_loose):
             fit_classification = "stretch"
-        if fit_classification == "skip":
+        if fit_classification == "skip" or mandatory_professional_gap:
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, SKIPPED_FIT_GATE_STATUS),
@@ -1497,12 +1535,17 @@ def analyze_ranked_job(
                 section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
                 do_not_claim=missing_skills,
                 fit_classification=fit_classification,
+                ranking_fit_label=resolved_baseline_fit_label,
                 candidate_profile_id=str(profile.get("candidate_profile_id") or ""),
                 candidate_profile_revision=str(profile.get("revision") or ""),
                 requirement_resolutions=requirement_resolutions,
                 error={
                     "stage": "fit_gate",
-                    "message": f"Skipped {extract_job_url(job)} (fit=skip)",
+                    "message": (
+                        f"Skipped {extract_job_url(job)} (unresolved professional evidence)"
+                        if mandatory_professional_gap
+                        else f"Skipped {extract_job_url(job)} (fit=skip)"
+                    ),
                 },
             )
 
@@ -1521,6 +1564,7 @@ def analyze_ranked_job(
             section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
             do_not_claim=missing_skills,
             fit_classification=fit_classification,
+            ranking_fit_label=resolved_baseline_fit_label,
             candidate_profile_id=str(profile.get("candidate_profile_id") or ""),
             candidate_profile_revision=str(profile.get("revision") or ""),
             requirement_resolutions=requirement_resolutions,
@@ -1546,6 +1590,7 @@ def analyze_ranked_job(
             section_confidence_hints={},
             do_not_claim=[],
             fit_classification=ranking_fit_label,
+            ranking_fit_label=resolved_baseline_fit_label,
             error={
                 "stage": "analysis",
                 "message": str(exc),

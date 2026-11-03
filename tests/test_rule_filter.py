@@ -17,6 +17,7 @@ from fitcv.rule_filter import (
     check_location_type,
     check_must_have_skills,
     check_seniority,
+    evaluate_title_filter,
 )
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -88,6 +89,34 @@ def test_passes_when_no_filters_violated() -> None:
     result = apply_rule_filters([_job()], _prefs(must_have_skills=["SQL"]))
     assert len(result["passed"]) == 1
     assert len(result["rejected"]) == 0
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("Working Student – AI Analytics", True),
+        ("Duales Studium – AI Engineering", False),
+        ("Retail Analytics Intern", False),
+        ("AI/ML Engineer", True),
+    ],
+)
+def test_title_filters_use_inclusion_and_exclusion_with_whole_word_matching(title: str, expected: bool) -> None:
+    result = evaluate_title_filter(
+        title,
+        include_keywords=["AI"],
+        exclude_keywords=["duales"],
+    )
+    assert result["passed"] is expected
+
+
+def test_title_filters_are_applied_by_rule_filter_and_explain_rejection() -> None:
+    result = apply_rule_filters(
+        [_job(title="Duales Studium – AI Engineering")],
+        _prefs(job_title_include_keywords=["AI"], job_title_exclude_keywords=["duales"]),
+    )
+    assert result["passed"] == []
+    assert result["rejected"][0]["reasons"] == ["title_excluded"]
+    assert result["rejected"][0]["marks"][0]["details"]["matched_keyword"] == "duales"
 
 
 def test_unselected_must_have_skill_missing_emits_mark_not_reject_by_default() -> None:

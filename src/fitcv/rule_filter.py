@@ -18,6 +18,7 @@ lifecycle:
 
 
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -39,6 +40,8 @@ RULE_FILTER_SIGNALS: tuple[dict[str, Any], ...] = (
     {"code": "experience_level_excluded", "label": "Experience level excluded", "default_selected": True},
     {"code": "must_have_skill_missing", "label": "Missing must-have skills", "default_selected": False},
     {"code": "domain_not_preferred", "label": "Domain not preferred", "default_selected": False},
+    {"code": "title_not_included", "label": "Title does not match inclusion keywords", "default_selected": False},
+    {"code": "title_excluded", "label": "Title matches exclusion keywords", "default_selected": False},
 )
 
 RULE_FILTER_SIGNAL_LABELS: dict[str, str] = {
@@ -83,6 +86,64 @@ def _normalized_string_list(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(item).strip().lower() for item in value if str(item).strip()]
     return []
+
+
+def normalize_title_keywords(values: Any) -> list[str]:
+    """Return ordered, case-folded title keywords without empty duplicates."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values if isinstance(values, (list, tuple)) else ():
+        keyword = " ".join(str(value or "").split()).casefold()
+        if keyword and keyword not in seen:
+            seen.add(keyword)
+            normalized.append(keyword)
+    return normalized
+
+
+def _title_keyword_pattern(keyword: str) -> re.Pattern[str]:
+    escaped = re.escape(keyword).replace(r"\ ", r"\s+")
+    return re.compile(rf"(?<!\w){escaped}(?!\w)", re.IGNORECASE)
+
+
+def evaluate_title_filter(
+    title: Any,
+    *,
+    include_keywords: Any = None,
+    exclude_keywords: Any = None,
+) -> dict[str, Any]:
+    """Evaluate title inclusion/exclusion with OR-within and AND-between semantics."""
+    title_text = " ".join(str(title or "").split())
+    includes = normalize_title_keywords(include_keywords)
+    excludes = normalize_title_keywords(exclude_keywords)
+    matched_exclusion = next(
+        (keyword for keyword in excludes if _title_keyword_pattern(keyword).search(title_text)),
+        None,
+    )
+    if matched_exclusion:
+        return {
+            "passed": False,
+            "reason_code": "title_excluded",
+            "matched_keyword": matched_exclusion,
+            "title": title_text,
+        }
+    if includes:
+        matched_inclusion = next(
+            (keyword for keyword in includes if _title_keyword_pattern(keyword).search(title_text)),
+            None,
+        )
+        if matched_inclusion is None:
+            return {
+                "passed": False,
+                "reason_code": "title_not_included",
+                "required_keywords": includes,
+                "title": title_text,
+            }
+        return {
+            "passed": True,
+            "matched_keyword": matched_inclusion,
+            "title": title_text,
+        }
+    return {"passed": True, "title": title_text}
 
 
 def _safe_int(value: Any, fallback: int) -> int:
@@ -329,6 +390,21 @@ def _build_rule_filter_mark(
                 "preferred_domains": _get_preferred_domains(prefs),
             },
         }
+    if reason_code in {"title_not_included", "title_excluded"}:
+        title_result = evaluate_title_filter(
+            job.get("title") or job.get("job_title"),
+            include_keywords=prefs.get("job_title_include_keywords") or prefs.get("job_titles"),
+            exclude_keywords=prefs.get("job_title_exclude_keywords") or prefs.get("excluded_job_titles"),
+        )
+        return {
+            "code": reason_code,
+            "message": RULE_FILTER_SIGNAL_LABELS[reason_code],
+            "details": {
+                key: value
+                for key, value in title_result.items()
+                if key not in {"passed", "reason_code"}
+            },
+        }
     return {
         "code": reason_code,
         "message": RULE_FILTER_SIGNAL_LABELS.get(reason_code, reason_code.replace("_", " ")),
@@ -490,6 +566,14 @@ def apply_rule_filters(
         reasons: list[str] = []
         marks: list[dict[str, Any]] = []
         eligibility_fields: dict[str, Any] = {}
+        title_result = evaluate_title_filter(
+            job.get("title") or job.get("job_title"),
+            include_keywords=prefs.get("job_title_include_keywords") or prefs.get("job_titles"),
+            exclude_keywords=prefs.get("job_title_exclude_keywords") or prefs.get("excluded_job_titles"),
+        )
+        if not title_result["passed"]:
+            reasons.append(str(title_result["reason_code"]))
+            marks.append(_build_rule_filter_mark(str(title_result["reason_code"]), job, prefs, config))
         if eligibility_policy is not None and candidate_fit_context is not None:
             eligibility = evaluate_fit_factors(
                 actual_location=job.get("actual_location"),

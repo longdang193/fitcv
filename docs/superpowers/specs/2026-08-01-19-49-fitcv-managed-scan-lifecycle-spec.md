@@ -243,6 +243,7 @@ List resources contain summary fields only: identity, name, execution status, li
 | `scan_name` | Optional trimmed string, maximum 120 characters. Blank creates a server-generated time-based display name. |
 | `company_ids` | Required non-empty ordered list of tracked-company IDs; trimmed, deduplicated preserving order, maximum 500. Selecting every tracked company uses the same list field. |
 | `job_titles` | Optional ordered list of trimmed non-empty strings; deduplicated preserving order; maximum 50 items and 120 characters each. Empty means any title. |
+| `excluded_job_titles` | Optional ordered list of trimmed non-empty strings; deduplicated preserving order; maximum 50 items and 120 characters each. Empty means no title exclusions. |
 | `locations` | Optional ordered list of trimmed non-empty strings; deduplicated preserving order; maximum 50 items and 200 characters each. Empty means any location. |
 | `published_window` | Required enum: `any`, `past_12_hours`, `past_24_hours`, `past_7_days`, `past_30_days`, or `past_180_days`; default `any`. |
 | `total_rows` | Integer from 1 through 200; default 50. This is one global output cap across selected companies. |
@@ -265,7 +266,10 @@ If execution stops after action reservation but before Scan persistence, retry c
 ### Retrieval, Filtering, and Ordering
 
 - all filters are evaluated against provider-adapted canonical fields, not provider-native shapes
-- values within `job_titles` use case-insensitive Unicode substring OR matching
+- values within `job_titles` use case-insensitive whole-word or phrase OR matching
+- values within `excluded_job_titles` use the same matching and reject a title when any exclusion matches
+- inclusion and exclusion combine with AND semantics: a title must match at least one inclusion when inclusions are present and must match no exclusions
+- raw provider substring prefilters are not authoritative; canonical title filtering runs after acquisition for every source
 - values within `locations` use case-insensitive Unicode substring OR matching
 - title, location, and publication filters combine with AND semantics
 - `any` applies no publication cutoff; every other window compares publication time inclusively against the stored UTC cutoff

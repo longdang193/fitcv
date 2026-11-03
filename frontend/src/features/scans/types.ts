@@ -73,6 +73,7 @@ export interface ScanInputData {
   scan_name?: string | null;
   company_ids: string[];
   job_titles: string[];
+  excluded_job_titles: string[];
   locations: string[];
   published_window: PublishedWindow;
   total_rows: number;
@@ -159,6 +160,7 @@ export interface ScanCreatePayload {
   scan_name?: string | null;
   company_ids: string[];
   job_titles?: string[];
+  excluded_job_titles?: string[];
   locations?: string[];
   published_window?: PublishedWindow;
   total_rows?: number;

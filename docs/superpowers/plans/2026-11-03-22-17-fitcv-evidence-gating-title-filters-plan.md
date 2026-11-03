@@ -3,11 +3,12 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: proposed
+status: in_progress
 name: fitcv-evidence-gating-title-filters
 targets:
   - src/fitcv/evidence.py
   - src/fitcv/agentic_cv_analysis.py
+  - src/fitcv/agentic_cv_generation.py
   - src/fitcv/ranking_contract.py
   - src/fitcv/rule_filter.py
   - src/fitcv/pipeline.py
@@ -218,13 +219,13 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Stop for: a required change to persistence schema, a new mode beyond `loose`, `full`, or `strict`, or a behavior change that conflates numeric baseline fit with evidence readiness.
 
 **Steps:**
-- [ ] Step 1: Define the seniority/requirement decision table in tests before changing routing: project-only entry-level, project-only senior, professional evidence, and explicit project acceptance.
-- [ ] Step 2: Make Loose promotion require an allowed project-equivalence context and refuse promotion when the role or requirement is senior/professional-only without professional evidence.
-- [ ] Step 3: Make Full/Strict return an explicit unresolved-professional verdict/readiness reason while preserving the baseline fit and evidence payload.
-- [ ] Step 4: Ensure the effective mode and evidence policy version remain present in the analysis artifact and run trace.
+- [x] Step 1: Define the seniority/requirement decision table in tests before changing routing: project-only entry-level, project-only senior, professional evidence, and explicit project acceptance.
+- [x] Step 2: Make Loose promotion require an allowed project-equivalence context and refuse promotion when the role or requirement is senior/professional-only without professional evidence.
+- [x] Step 3: Make Full/Strict return an explicit unresolved-professional verdict/readiness reason while preserving the baseline fit and evidence payload.
+- [x] Step 4: Ensure the effective mode and evidence policy version remain present in the analysis artifact and run trace.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline.py -q`
+- [x] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline.py -q`
 - Expected: project-only senior cases do not promote; allowed entry-level/project cases can produce the documented Loose stretch; Full/Strict preserve a separate unresolved-professional verdict; existing hard filters remain unchanged.
 
 **Exit Criteria:**
@@ -267,12 +268,12 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Stop for: an ambiguous language rule that cannot be covered by deterministic tests; record the example for product clarification instead.
 
 **Steps:**
-- [ ] Step 1: Add affirmative, negated, insufficient, and mixed-context examples for every existing project marker.
-- [ ] Step 2: Replace the broad local negation check with a bounded pattern that recognizes insufficiency/rejection wording without rejecting independent positive clauses.
-- [ ] Step 3: Re-run the evidence policy tests and confirm the resulting policy fields used by Task 1.
+- [x] Step 1: Add affirmative, negated, insufficient, and mixed-context examples for every existing project marker.
+- [x] Step 2: Replace the broad local negation check with a bounded pattern that recognizes insufficiency/rejection wording without rejecting independent positive clauses.
+- [x] Step 3: Re-run the evidence policy tests and confirm the resulting policy fields used by Task 1.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_evidence.py -q`
+- [x] `python -m pytest tests/test_evidence.py -q`
 - Expected: positive acceptance is true; negative/insufficient acceptance is false; unrelated requirement parsing remains green.
 
 **Exit Criteria:**
@@ -319,12 +320,12 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Stop for: a requirement to migrate stored ranking rows or change the active ranking policy; document that as a separate migration decision.
 
 **Steps:**
-- [ ] Step 1: Add mismatch fixtures for valid numeric scores paired with each incorrect label.
-- [ ] Step 2: Centralize the choice to recompute or reject mismatched labels and apply it to legacy aliases as well as canonical fields.
-- [ ] Step 3: Add boundary, missing, invalid, and finite-range tests while retaining the checked-in `1.0/0.0` baseline behavior.
+- [x] Step 1: Add mismatch fixtures for valid numeric scores paired with each incorrect label.
+- [x] Step 2: Centralize the choice to recompute or reject mismatched labels and apply it to legacy aliases as well as canonical fields.
+- [x] Step 3: Add boundary, missing, invalid, and finite-range tests while retaining the checked-in `1.0/0.0` baseline behavior.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_ranking_contract.py tests/test_agentic_cv_analysis.py -q`
+- [x] `python -m pytest tests/test_ranking_contract.py tests/test_agentic_cv_analysis.py -q`
 - Expected: score/label pairs are consistent, invalid inputs remain unclassified, and every threshold boundary passes.
 
 **Exit Criteria:**
@@ -383,14 +384,14 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Stop for: a database migration requirement beyond JSON input/artifact compatibility, provider-specific semantics that cannot preserve the canonical predicate, or any request to apply raw substring matching.
 
 **Steps:**
-- [ ] Step 1: Add normalized include/exclude fields to the scan contract and preserve legacy `job_titles` as an inclusion alias.
-- [ ] Step 2: Implement one casefolded whole-word/phrase matcher and a structured decision result containing `passed`, `reason_code`, and matched term.
-- [ ] Step 3: Apply the predicate at the deterministic post-acquisition rule-filter boundary; keep provider keyword filtering as a bounded prefetch optimization.
-- [ ] Step 4: Persist the input lists and title rejection details in scan/run artifacts so users can explain missing jobs.
-- [ ] Step 5: Add provider and uploaded-job parity tests for the four acceptance examples and empty-list behavior.
+- [x] Step 1: Add normalized include/exclude fields to the scan contract and preserve legacy `job_titles` as an inclusion alias.
+- [x] Step 2: Implement one casefolded whole-word/phrase matcher and a structured decision result containing `passed`, `reason_code`, and matched term.
+- [x] Step 3: Apply the predicate at the deterministic post-acquisition rule-filter boundary; keep provider keyword filtering as a bounded prefetch optimization.
+- [x] Step 4: Persist the input lists and title rejection details in scan/run artifacts so users can explain missing jobs.
+- [x] Step 5: Add provider and uploaded-job parity tests for the four acceptance examples and empty-list behavior.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py -q`
+- [x] `python -m pytest tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py -q`
 - Expected: inclusion/exclusion logic is identical across source paths, legacy positive title inputs still work, and rejection artifacts contain the matched reason.
 
 **Exit Criteria:**
@@ -446,16 +447,16 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Stop for: a required redesign, new route, or incompatible payload migration; escalate rather than silently adding parallel settings.
 
 **Steps:**
-- [ ] Step 1: Add/retain explicit frontend assertions that the settings page renders all three strictness options and round-trips the canonical key through GET/PATCH/reset.
-- [ ] Step 2: Add include/exclude title controls to the existing New Scan dialog and show the persisted values in Scan Details.
+- [x] Step 1: Add/retain explicit frontend assertions that the settings page renders all three strictness options and round-trips the canonical key through GET/PATCH/reset.
+- [x] Step 2: Add include/exclude title controls to the existing New Scan dialog and show the persisted values in Scan Details.
 - [ ] Step 3: Verify disabled, loading, validation-error, save, reset, and keyboard-accessible states without changing unrelated visual design.
-- [ ] Step 4: Run the focused frontend tests and type checking.
+- [x] Step 4: Run the focused frontend tests and type checking.
 
 **Verification:**
-- [ ] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
-- [ ] `npm --prefix frontend test -- --run src/test/scans.test.ts`
+- [x] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
+- [x] `npm --prefix frontend test -- --run src/test/scans.test.ts`
 - [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts`
-- [ ] `npm --prefix frontend run typecheck`
+- [x] `npm --prefix frontend run typecheck`
 - Expected: the strictness selector is visible and editable; title lists serialize to the backend contract; no duplicate control or raw substring behavior is introduced.
 
 **Exit Criteria:**
@@ -499,23 +500,37 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Stop for: any failed required check, stale generated surface, unexpected diff, or evidence that the implementation diverged from the validated findings.
 
 **Steps:**
-- [ ] Step 1: Document the mode decision table and title-filter examples, including the distinction between baseline fit and evidence readiness.
-- [ ] Step 2: Run focused backend/frontend checks, then the repository-required broader checks for touched surfaces.
-- [ ] Step 3: Inspect `git diff --check`, changed-file scope, and test output; record blockers rather than weakening acceptance criteria.
+- [x] Step 1: Document the mode decision table and title-filter examples, including the distinction between baseline fit and evidence readiness.
+- [x] Step 2: Run focused backend/frontend checks, then the repository-required broader checks for touched surfaces.
+- [x] Step 3: Inspect `git diff --check`, changed-file scope, and test output; record blockers rather than weakening acceptance criteria.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_ranking_contract.py tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
-- [ ] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
-- [ ] `npm --prefix frontend test -- --run src/test/scans.test.ts`
+- [x] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_ranking_contract.py tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
+- [x] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
+- [x] `npm --prefix frontend test -- --run src/test/scans.test.ts`
 - [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts`
-- [ ] `npm --prefix frontend run typecheck`
-- [ ] `npm --prefix frontend run build`
-- [ ] `git diff --check`
-- [ ] `git status --short`
+- [x] `npm --prefix frontend run typecheck`
+- [x] `npm --prefix frontend run build`
+- [x] `git diff --check`
+- [x] `git status --short`
 - Expected: all required checks pass; only plan-authorized files are changed; unrelated untracked artifacts remain untouched.
 
 **Exit Criteria:**
 - Documentation, backend contracts, persisted artifacts, frontend controls, and tests agree; `skill-verification-before-completion` can return `verified` without unresolved required work.
+
+## Execution Evidence
+
+Executed on `main` after the amended plan publication:
+
+- Backend: `1341 passed, 1 skipped` for the required focused suite.
+- Frontend unit: pipeline settings `27 passed`; scan feature `18 passed`.
+- Frontend typecheck: passed.
+- Frontend production build: passed; Vite emitted only the existing chunk-size warning.
+- `git diff --check`: passed.
+- Browser E2E remains open: the required command cannot start without
+  `FITCV_E2E_MANIFEST`, and the configured backend at `127.0.0.1:8000` was
+  unavailable (`ERR_CONNECTION_REFUSED`). No code was weakened to bypass this
+  prerequisite.
 
 ## Verification
 

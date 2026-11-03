@@ -95,6 +95,30 @@ def fit_label_from_score(score: float, config: dict[str, Any]) -> str:
     return _fit_label_from_thresholds(score, ranking_policy.get("fit_label_thresholds"))
 
 
+def resolve_fit_label_for_row(
+    row: Mapping[str, Any],
+    config: dict[str, Any],
+) -> str | None:
+    """Resolve a ranking label from the canonical numeric score and thresholds."""
+    normalized = dict(row)
+    if normalized.get("baseline_fit") is None and normalized.get("final_score") is not None:
+        normalized["baseline_fit"] = normalized["final_score"]
+    score_state = normalize_score_state(normalized)
+    if score_state["score_status"] != SCORE_STATUS_VALID:
+        return None
+    ranking_policy = dict(config.get("ranking_policy") or {})
+    baseline_weights = dict(ranking_policy.get("baseline_weights") or {})
+    if normalized.get("baseline_fit") is None and baseline_weights == {
+        "holistic_ai_fit": 1.0,
+        "structured_fit": 0.0,
+    }:
+        normalized["baseline_fit"] = score_state.get("ai_score")
+    raw_score = normalized.get("baseline_fit")
+    if not is_finite_score(raw_score):
+        return None
+    return fit_label_from_score(float(raw_score), config)
+
+
 def is_finite_score(value: Any) -> bool:
     return (
         isinstance(value, (int, float))

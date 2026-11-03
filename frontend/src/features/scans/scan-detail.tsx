@@ -529,6 +529,8 @@ export const ScanDetailPage: React.FC<ScanDetailProps> = ({ scanId, onBack }) =>
             <div style={{ marginBottom: 8 }}>
               <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Job Titles</dt>
               <dd style={{ margin: 0 }}>{scan.input?.job_titles?.join(", ") || "Any"}</dd>
+              <dt>Excluded Job Titles</dt>
+              <dd style={{ margin: 0 }}>{scan.input?.excluded_job_titles?.join(", ") || "None"}</dd>
             </div>
             <div style={{ marginBottom: 8 }}>
               <dt style={{ color: "var(--muted)", fontWeight: 600 }}>Locations</dt>
