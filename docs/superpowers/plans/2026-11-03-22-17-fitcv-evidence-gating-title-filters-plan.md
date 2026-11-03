@@ -455,7 +455,8 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 **Verification:**
 - [x] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
 - [x] `npm --prefix frontend test -- --run src/test/scans.test.ts`
-- [x] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (via `scripts/run_fitcv_review_e2e.ps1`; 2 review tests passed)
+- [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (full integration spec remains open)
+- [x] `npm --prefix frontend run test:e2e -- integration-flows.spec.ts -g "review"` (via `scripts/run_fitcv_review_e2e.ps1`; 2 review tests passed)
 - [x] `npm --prefix frontend run typecheck`
 - Expected: the strictness selector is visible and editable; title lists serialize to the backend contract; no duplicate control or raw substring behavior is introduced.
 
@@ -508,7 +509,8 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - [x] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_ranking_contract.py tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
 - [x] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
 - [x] `npm --prefix frontend test -- --run src/test/scans.test.ts`
-- [x] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (via `scripts/run_fitcv_review_e2e.ps1`; 2 review tests passed and cleanup exited cleanly)
+- [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (full integration spec remains open)
+- [x] `npm --prefix frontend run test:e2e -- integration-flows.spec.ts -g "review"` (via `scripts/run_fitcv_review_e2e.ps1`; 2 review tests passed and cleanup exited cleanly)
 - [x] `npm --prefix frontend run typecheck`
 - [x] `npm --prefix frontend run build`
 - [x] `git diff --check`
