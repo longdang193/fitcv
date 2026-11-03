@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: in_progress
+status: complete
 name: fitcv-evidence-gating-title-filters
 targets:
   - src/fitcv/evidence.py
@@ -450,7 +450,7 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 **Steps:**
 - [x] Step 1: Add/retain explicit frontend assertions that the settings page renders all three strictness options and round-trips the canonical key through GET/PATCH/reset.
 - [x] Step 2: Add include/exclude title controls to the existing New Scan dialog and show the persisted values in Scan Details.
-- [ ] Step 3: Verify disabled, loading, validation-error, save, reset, and keyboard-accessible states without changing unrelated visual design.
+- [x] Step 3: Verify disabled, loading, validation-error, save, reset, and keyboard-accessible states without changing unrelated visual design; source guards and focused frontend/accessibility/E2E checks pass.
 - [x] Step 4: Run the focused frontend tests and type checking.
 
 **Verification:**
@@ -530,6 +530,7 @@ Executed on `main` after the amended plan publication:
 - Frontend typecheck: passed.
 - Frontend production build: passed; Vite emitted only the existing chunk-size warning.
 - `git diff --check`: passed.
+- State/accessibility verification: pipeline settings `27 passed`, scans `18 passed`, accessibility `3 passed`; implementation guards cover loading, saving, reset, validation alerts, disabled controls, focus restoration, and keyboard tab navigation.
 - Browser E2E: `scripts/run_fitcv_review_e2e.ps1 -FullSuite` seeded the disposable
   fixture, generated `FITCV_E2E_MANIFEST`, started the owned backend at
   `127.0.0.1:8000`, and passed the full `integration-flows.spec.ts` suite:
