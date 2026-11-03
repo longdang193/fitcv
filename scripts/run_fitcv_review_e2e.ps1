@@ -53,6 +53,19 @@ try {
         Wait-Process -Id $server.Id -Timeout 10 -ErrorAction SilentlyContinue
     }
     if (Test-Path -LiteralPath $e2eRoot) {
-        Remove-Item -LiteralPath $e2eRoot -Recurse -Force
+        $cleanupFailure = $null
+        for ($attempt = 0; $attempt -lt 20; $attempt++) {
+            try {
+                Remove-Item -LiteralPath $e2eRoot -Recurse -Force -ErrorAction Stop
+                $cleanupFailure = $null
+                break
+            } catch {
+                $cleanupFailure = $_
+                Start-Sleep -Milliseconds 250
+            }
+        }
+        if ($cleanupFailure) {
+            Write-Warning ("e2e_cleanup_deferred: {0}" -f $cleanupFailure.Exception.Message)
+        }
     }
 }
