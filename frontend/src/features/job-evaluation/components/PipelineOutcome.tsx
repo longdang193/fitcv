@@ -11,6 +11,9 @@ export interface PipelineOutcomeProps {
     stage_outcome_reason?: string | null;
     evidence?: any;
     outcome?: any;
+    fit_classification?: string | null;
+    ranking_fit_label?: string | null;
+    experience_evidence_summary?: any;
     latest_cv_review_state?: string | null;
     cv_review_state?: string | null;
   };
@@ -45,6 +48,20 @@ export const PipelineOutcome: React.FC<PipelineOutcomeProps> = ({ item, showRevi
       : "Pending");
 
   const reason = formatOutcomeReason(item);
+  const evidence = item.evidence && typeof item.evidence === "object" ? item.evidence : {};
+  const recommendation =
+    item.fit_classification ||
+    evidence.recommendation ||
+    evidence.fit_classification ||
+    item.outcome?.fit_classification;
+  const evidenceSummary =
+    item.experience_evidence_summary || evidence.experience_evidence_summary;
+  const evidenceGaps = Array.isArray(evidenceSummary?.gaps) ? evidenceSummary.gaps : [];
+  const evidenceVerdict = evidenceGaps.length
+    ? `${evidenceGaps.length} experience evidence gap${evidenceGaps.length === 1 ? "" : "s"}`
+    : evidenceSummary?.professional_experience?.verified_requirement_ids?.length
+    ? "Professional experience verified"
+    : null;
   const isStretch = Boolean(
     showReviewTag &&
       (item.latest_cv_review_state === "stretch" || (item as any).cv_review_state === "stretch")
@@ -53,6 +70,8 @@ export const PipelineOutcome: React.FC<PipelineOutcomeProps> = ({ item, showRevi
   return (
     <div className="pipeline-outcome">
       <StatusBadge status={badgeStatus} label={label} />
+      {recommendation && <span className="recommendation-label">Recommendation: {recommendation}</span>}
+      {evidenceVerdict && <span className="evidence-verdict">Evidence: {evidenceVerdict}</span>}
       {reason && <span className="outcome-reason">{reason}</span>}
       {isStretch && <span className="cv-review-tag">Stretch review</span>}
     </div>

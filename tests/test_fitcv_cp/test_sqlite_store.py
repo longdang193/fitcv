@@ -6688,6 +6688,50 @@ def test_persist_pipeline_snapshot_maps_stage_aliases_and_job_outcomes() -> None
     assert ("ranking", "skipped") in rows
 
 
+def test_persist_pipeline_snapshot_projects_experience_evidence_summary() -> None:
+    run_job_id = _create_normalized_run_with_jobs(
+        "run-experience-summary",
+        [{"title": "Analyst", "job_url": "https://example.com/experience"}],
+    )[0]
+    summary = {
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "export_results": [
+            {
+                "job_url": "https://example.com/experience",
+                "fit_classification": "stretch",
+                "ranking_fit_label": "skip",
+                "experience_evidence_summary": {
+                    "mode": "loose",
+                    "gaps": [{"requirement": "commercial experience"}],
+                },
+                "job_outcome": {
+                    "job_key": "input:0",
+                    "stage": "cv-analysis",
+                    "outcome": "accepted",
+                    "reason_code": "ready_for_generation",
+                    "evidence_ref": {"artifact": "cv-analysis.json"},
+                },
+            }
+        ],
+    }
+
+    sqlite_store.persist_pipeline_snapshot(
+        "run-experience-summary",
+        summary,
+        run_status=RunStatus.RUNNING,
+        snapshot_at=datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc),
+    )
+
+    hydrated = sqlite_store.get_run_job("run-experience-summary", run_job_id)
+    assert hydrated is not None
+    assert hydrated["evidence"]["recommendation"] == "stretch"
+    assert hydrated["evidence"]["ranking_fit_label"] == "skip"
+    assert hydrated["evidence"]["experience_evidence_summary"]["mode"] == "loose"
+
+
 def test_insert_run_with_snapshot_creates_atomic_normalized_bundle() -> None:
     run = _make_run("run-trigger-bundle")
     run.jobs_input_json = json.dumps(

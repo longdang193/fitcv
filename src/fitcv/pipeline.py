@@ -966,6 +966,21 @@ def _build_export_results(
                 if isinstance(mark, dict) and str(mark.get("code") or "")
             ],
             "cv_status": cv_status,
+            "recommendation": (
+                str(analysis_row.get("fit_classification") or "").strip() or None
+                if isinstance(analysis_row, dict)
+                else None
+            ),
+            "ranking_fit_label": (
+                str(analysis_row.get("ranking_fit_label") or "").strip() or None
+                if isinstance(analysis_row, dict)
+                else None
+            ),
+            "experience_evidence_summary": (
+                dict(analysis_row.get("experience_evidence_summary") or {})
+                if isinstance(analysis_row, dict)
+                else {}
+            ),
         }
         evidence_bytes = json.dumps(
             evidence_record,
@@ -1079,6 +1094,9 @@ def _build_export_results(
                         "status": analysis_row.get("status"),
                         "analysis_reuse_status": analysis_row.get("analysis_reuse_status"),
                         "analysis_input_fingerprint": analysis_row.get("analysis_input_fingerprint"),
+                        "fit_classification": analysis_row.get("fit_classification"),
+                        "ranking_fit_label": analysis_row.get("ranking_fit_label"),
+                        "experience_evidence_summary": analysis_row.get("experience_evidence_summary") or {},
                     }
                     if analysis_row is not None
                     else None

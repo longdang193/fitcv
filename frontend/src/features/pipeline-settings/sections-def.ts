@@ -383,6 +383,7 @@ export const PIPELINE_SECTIONS: PipelineSectionDef[] = [
     description: "Control how CV evidence is compared with each job.",
     ownedKeys: [
       "pipeline.evidence_top_k",
+      "cv_analysis.experience_evidence_mode",
       "cv_analysis.semantic_alignment.enabled",
       "cv_analysis.semantic_alignment.required_skill_lexical_weight",
       "cv_analysis.semantic_alignment.required_skill_semantic_weight",
@@ -406,6 +407,18 @@ export const PIPELINE_SECTIONS: PipelineSectionDef[] = [
             max: 20,
             step: 1,
             defaultValue: 5,
+          },
+          {
+            key: "cv_analysis.experience_evidence_mode",
+            label: "Match strictness",
+            description: "Choose how strictly project evidence must match professional experience qualifiers.",
+            type: "select",
+            defaultValue: "full",
+            options: [
+              { value: "loose", label: "Loose" },
+              { value: "full", label: "Full" },
+              { value: "strict", label: "Strict" },
+            ],
           },
         ],
       },

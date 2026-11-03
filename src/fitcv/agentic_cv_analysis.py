@@ -26,14 +26,20 @@ from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skil
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
+    _assess_responsibility_support,
     _build_support_fragments,
     _descriptor_requirement_ref,
+    EXPERIENCE_EVIDENCE_POLICY_VERSION,
     REQUIREMENT_SUPPORT_POLICY_VERSION,
     build_evidence_projection,
     build_required_skill_descriptors,
     build_cv_analysis_input_fingerprint,
     retrieve_evidence,
     retrieve_evidence_bundle,
+    resolve_experience_evidence_mode,
+    experience_requirement_policy,
+    _is_project_evidence,
+    _is_professional_experience_evidence,
 )
 from fitcv.gap_analysis import compute_gap
 from fitcv.rule_filter import canonicalize_skill, get_skill_synonyms
@@ -80,6 +86,7 @@ class CvAnalysisRecord(TypedDict, total=False):
     evidence_payload: list[dict[str, Any]]
     evidence_used: list[dict[str, Any]]
     evidence_selection_summary: dict[str, Any]
+    experience_evidence_summary: dict[str, Any]
     gap_summary: dict[str, Any] | None
     requirement_coverage: list[dict[str, Any]]
     section_confidence_hints: dict[str, str]
@@ -137,6 +144,232 @@ def build_analysis_input_summary(job: dict[str, Any]) -> dict[str, Any]:
         key: value
         for key, value in summary.items()
         if value not in (None, "", [])
+    }
+
+
+def _experience_mode_config(config: dict[str, Any], mode: str) -> dict[str, Any]:
+    resolved = dict(config)
+    cv_analysis = dict(resolved.get("cv_analysis") or {})
+    cv_analysis["experience_evidence_mode"] = mode
+    resolved["cv_analysis"] = cv_analysis
+    return resolved
+
+
+def _experience_requirement_descriptors(
+    job: dict[str, Any],
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    descriptors = list(build_required_skill_descriptors(job, config))
+    seen_ids = {_descriptor_requirement_ref(item) for item in descriptors}
+    for entity in list(job.get("responsibility_entities") or []):
+        if not isinstance(entity, dict):
+            continue
+        requirement_id = str(
+            entity.get("source_requirement_id")
+            or entity.get("requirement_instance_id")
+            or entity.get("id")
+            or ""
+        ).strip()
+        requirement = str(
+            entity.get("text")
+            or entity.get("requirement_text")
+            or entity.get("raw_text")
+            or ""
+        ).strip()
+        if not requirement_id or not requirement or requirement_id in seen_ids:
+            continue
+        descriptors.append(
+            {
+                "requirement_id": requirement_id,
+                "requirement_instance_id": requirement_id,
+                "source_requirement_id": requirement_id,
+                "requirement": requirement,
+                "original_requirements": [requirement],
+                "canonical_skill": "",
+                "requirement_type": "responsibility",
+                "requirement_priority": "must_have",
+            }
+        )
+        seen_ids.add(requirement_id)
+    return descriptors
+
+
+def _experience_evidence_facts(
+    job: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    items = list(build_evidence_projection(profile).get("items") or [])
+    full_config = _experience_mode_config(config, "full")
+    facts: list[dict[str, Any]] = []
+    for descriptor in _experience_requirement_descriptors(job, full_config):
+        requirement_ref = _descriptor_requirement_ref(descriptor)
+        requirement_text = str(descriptor.get("requirement") or "")
+        policy = experience_requirement_policy(requirement_text, descriptor)
+        capability_ids: list[str] = []
+        qualified_ids: list[str] = []
+        professional_ids: list[str] = []
+        qualified_professional_ids: list[str] = []
+        project_ids: list[str] = []
+        for item in items:
+            evidence_id = str(item.get("evidence_id") or "").strip()
+            if not evidence_id:
+                continue
+            if descriptor.get("requirement_type") == "responsibility":
+                text = " ".join(
+                    str(item.get(field) or "")
+                    for field in ("text", "name", "title", "role", "business_value")
+                )
+                assessment = _assess_responsibility_support(
+                    requirement_text,
+                    text,
+                    item,
+                    full_config,
+                )
+                capability_match = bool(assessment.get("candidate_match"))
+                qualified_match = bool(assessment.get("verified_support"))
+            else:
+                assessment = _assess_requirement_support(item, descriptor, full_config)
+                capability_match = bool(assessment.get("canonical_match"))
+                qualified_match = bool(assessment.get("qualified_support"))
+            if not capability_match:
+                continue
+            capability_ids.append(evidence_id)
+            if qualified_match:
+                qualified_ids.append(evidence_id)
+            if _is_project_evidence(item):
+                project_ids.append(evidence_id)
+            if _is_professional_experience_evidence(item):
+                professional_ids.append(evidence_id)
+                if qualified_match:
+                    qualified_professional_ids.append(evidence_id)
+        facts.append(
+            {
+                "requirement_id": requirement_ref,
+                "requirement": requirement_text,
+                "requirement_type": descriptor.get("requirement_type") or "skill",
+                "experience_shaped": bool(policy["experience_shaped"]),
+                "explicit_project_acceptance": bool(policy["explicit_project_acceptance"]),
+                "gap_reasons": list(policy["gap_reasons"]),
+                "capability_evidence_ids": list(dict.fromkeys(capability_ids)),
+                "qualified_evidence_ids": list(dict.fromkeys(qualified_ids)),
+                "project_evidence_ids": list(dict.fromkeys(project_ids)),
+                "professional_evidence_ids": list(dict.fromkeys(professional_ids)),
+                "qualified_professional_evidence_ids": list(dict.fromkeys(qualified_professional_ids)),
+            }
+        )
+    return facts
+
+
+def should_route_loose_experience_review(
+    job: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> bool:
+    """Return whether Loose should review a project-backed experience gap."""
+    if resolve_experience_evidence_mode(config) != "loose":
+        return False
+    facts = _experience_evidence_facts(job, profile, config)
+    if not facts or not any(item["experience_shaped"] for item in facts):
+        return False
+    project_backed_gap = False
+    for item in facts:
+        capability_ids = list(item["capability_evidence_ids"])
+        qualified_ids = list(item["qualified_evidence_ids"])
+        if not capability_ids:
+            return False
+        if item["experience_shaped"] and not item["explicit_project_acceptance"]:
+            if item["qualified_professional_evidence_ids"]:
+                continue
+            if item["project_evidence_ids"]:
+                project_backed_gap = True
+            else:
+                return False
+        elif not qualified_ids:
+            return False
+    return project_backed_gap
+
+
+def build_experience_evidence_summary(
+    *,
+    requirement_coverage: list[dict[str, Any]],
+    evidence: list[dict[str, Any]],
+    config: dict[str, Any] | None,
+) -> dict[str, Any]:
+    mode = resolve_experience_evidence_mode(config)
+    evidence_by_id = {
+        str(item.get("evidence_id") or ""): item
+        for item in evidence
+        if isinstance(item, dict) and str(item.get("evidence_id") or "")
+    }
+    capability_supported: list[str] = []
+    professional_verified: list[str] = []
+    professional_unverified: list[str] = []
+    gaps: list[dict[str, Any]] = []
+    for row in requirement_coverage:
+        if not isinstance(row, dict):
+            continue
+        requirement_id = str(
+            row.get("requirement_instance_id")
+            or row.get("requirement_id")
+            or row.get("source_requirement_id")
+            or ""
+        ).strip()
+        if not requirement_id:
+            continue
+        requirement = str(row.get("requirement") or "")
+        policy = experience_requirement_policy(requirement, row)
+        selected_ids = [
+            str(value)
+            for value in list(row.get("supporting_evidence_ids") or [])
+            if str(value)
+        ]
+        related_ids = selected_ids or [
+            str(item.get("evidence_id") or "")
+            for item in evidence
+            if isinstance(item, dict)
+            and requirement_id in set(str(value) for value in list(item.get("canonical_requirement_ids") or []))
+        ]
+        project_ids = [
+            evidence_id
+            for evidence_id in related_ids
+            if _is_project_evidence(evidence_by_id.get(evidence_id))
+        ]
+        professional_ids = [
+            evidence_id
+            for evidence_id in related_ids
+            if _is_professional_experience_evidence(evidence_by_id.get(evidence_id))
+        ]
+        if str(row.get("selected_support") or "") == "verified" or related_ids:
+            capability_supported.append(requirement_id)
+        if not policy["experience_shaped"]:
+            continue
+        if professional_ids and str(row.get("selected_support") or "") == "verified":
+            professional_verified.append(requirement_id)
+        elif project_ids or str(row.get("selected_support") or "") in {
+            "relevant_unverified",
+            "not_selected",
+        }:
+            professional_unverified.append(requirement_id)
+            gaps.append(
+                {
+                    "requirement_id": requirement_id,
+                    "requirement": requirement,
+                    "reasons": list(policy["gap_reasons"]),
+                    "evidence_ids": list(dict.fromkeys(project_ids or related_ids)),
+                }
+            )
+    return {
+        "policy_version": EXPERIENCE_EVIDENCE_POLICY_VERSION,
+        "mode": mode,
+        "capability": {
+            "supported_requirement_ids": list(dict.fromkeys(capability_supported)),
+        },
+        "professional_experience": {
+            "verified_requirement_ids": list(dict.fromkeys(professional_verified)),
+            "unverified_requirement_ids": list(dict.fromkeys(professional_unverified)),
+        },
+        "gaps": gaps,
     }
 
 def _fit_label_from_baseline_score(score: float, config: dict[str, Any]) -> FitClassification:
@@ -324,6 +557,7 @@ def build_cv_analysis_record(
     do_not_claim: list[str] | None,
     fit_classification: FitClassification | None,
     error: ErrorPayload | None,
+    experience_evidence_summary: dict[str, Any] | None = None,
     analysis_input_components: dict[str, Any] | None = None,
     reuse_decision: dict[str, Any] | None = None,
     uncertainties: list[dict[str, Any]] | None = None,
@@ -344,6 +578,20 @@ def build_cv_analysis_record(
         requirement_resolutions,
     )
     evidence_used = build_evidence_used(resolved_evidence_payload)
+    resolved_experience_evidence_summary = dict(
+        experience_evidence_summary
+        or build_experience_evidence_summary(
+            requirement_coverage=list(requirement_coverage or []),
+            evidence=resolved_evidence_payload,
+            config={
+                "cv_analysis": {
+                    "experience_evidence_mode": str(
+                        (analysis_input_components or {}).get("experience_evidence_mode") or "full"
+                    )
+                }
+            },
+        )
+    )
     trace_record = _build_cv_analysis_trace_record(
         job=job,
         status=status,
@@ -386,6 +634,7 @@ def build_cv_analysis_record(
         "evidence_payload": resolved_evidence_payload,
         "evidence_used": evidence_used,
         "evidence_selection_summary": dict(evidence_selection_summary or {}),
+        "experience_evidence_summary": resolved_experience_evidence_summary,
         "gap_summary": gap_summary,
         "requirement_coverage": list(requirement_coverage or []),
         "section_confidence_hints": dict(section_confidence_hints or {}),
@@ -874,6 +1123,13 @@ def _build_analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
         payload.get("requirement_support_policy_version")
         or REQUIREMENT_SUPPORT_POLICY_VERSION
     )
+    components["experience_evidence_policy_version"] = str(
+        payload.get("experience_evidence_policy_version")
+        or EXPERIENCE_EVIDENCE_POLICY_VERSION
+    )
+    components["experience_evidence_mode"] = str(
+        payload.get("experience_evidence_mode") or "full"
+    )
     components["requirement_resolutions_hash"] = _hash(list(payload.get("requirement_resolutions") or []))
     return components
 
@@ -912,6 +1168,12 @@ def _reuse_rejection_reason(
         return "contract_fingerprint_changed"
     if str(prior_components.get("requirement_support_policy_version") or "") != REQUIREMENT_SUPPORT_POLICY_VERSION:
         return "requirement_support_policy_version_changed"
+    if str(prior_components.get("experience_evidence_policy_version") or EXPERIENCE_EVIDENCE_POLICY_VERSION) != EXPERIENCE_EVIDENCE_POLICY_VERSION:
+        return "experience_evidence_policy_version_changed"
+    if str(prior_components.get("experience_evidence_mode") or "full") != str(
+        analysis_input_components.get("experience_evidence_mode") or "full"
+    ):
+        return "experience_evidence_mode_changed"
     return None
 
 
@@ -988,6 +1250,7 @@ def analyze_ranked_job(
     evidence: list[dict[str, Any]] = []
     evidence_selection_summary: dict[str, Any] = {}
     gap_summary: dict[str, Any] | None = None
+    loose_experience_review = False
     try:
         profile = converge_candidate_profile_for_runtime(profile)
         ranking_fit_label = resolve_ranked_job_fit(
@@ -1020,7 +1283,12 @@ def analyze_ranked_job(
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
                 },
             )
-        if ranking_fit_label == "skip":
+        loose_experience_review = should_route_loose_experience_review(
+            job,
+            profile,
+            config,
+        )
+        if ranking_fit_label == "skip" and not loose_experience_review:
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, BLOCKED_BY_RERANKER_STATUS),
@@ -1165,6 +1433,27 @@ def analyze_ranked_job(
         missing_skills = [
             str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)
         ]
+        requirement_coverage = _build_requirement_coverage(
+            job,
+            evidence,
+            gap_summary=gap_summary,
+            evidence_selection_summary=evidence_selection_summary,
+            config=config,
+            requirement_resolutions=requirement_resolutions,
+        )
+        experience_evidence_summary = build_experience_evidence_summary(
+            requirement_coverage=requirement_coverage,
+            evidence=evidence,
+            config=config,
+        )
+        should_surface_loose = (
+            resolve_experience_evidence_mode(config) == "loose"
+            and bool(experience_evidence_summary["professional_experience"].get("unverified_requirement_ids"))
+            and bool(experience_evidence_summary["gaps"])
+            and bool(experience_evidence_summary["capability"].get("supported_requirement_ids"))
+        )
+        if fit_classification == "skip" and (loose_experience_review or should_surface_loose):
+            fit_classification = "stretch"
         if fit_classification == "skip":
             return build_cv_analysis_record(
                 job=job,
@@ -1176,14 +1465,8 @@ def analyze_ranked_job(
                 evidence_payload=evidence,
                 evidence_selection_summary=evidence_selection_summary,
                 gap_summary=gap_summary,
-                requirement_coverage=_build_requirement_coverage(
-                    job,
-                    evidence,
-                    gap_summary=gap_summary,
-                    evidence_selection_summary=evidence_selection_summary,
-                    config=config,
-                    requirement_resolutions=requirement_resolutions,
-                ),
+                requirement_coverage=requirement_coverage,
+                experience_evidence_summary=experience_evidence_summary,
                 section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
                 do_not_claim=missing_skills,
                 fit_classification=fit_classification,
@@ -1205,15 +1488,9 @@ def analyze_ranked_job(
             reuse_decision=reuse_decision,
             evidence_payload=evidence,
             evidence_selection_summary=evidence_selection_summary,
+            experience_evidence_summary=experience_evidence_summary,
             gap_summary=gap_summary,
-            requirement_coverage=_build_requirement_coverage(
-                job,
-                evidence,
-                gap_summary=gap_summary,
-                evidence_selection_summary=evidence_selection_summary,
-                config=config,
-                requirement_resolutions=requirement_resolutions,
-            ),
+            requirement_coverage=requirement_coverage,
             section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
             do_not_claim=missing_skills,
             fit_classification=fit_classification,

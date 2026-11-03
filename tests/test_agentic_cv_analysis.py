@@ -26,6 +26,7 @@ from fitcv.agentic_cv_analysis import (
     build_analysis_input_summary,
     extract_job_url,
     resolve_ranked_job_fit,
+    should_route_loose_experience_review,
 )
 from fitcv.contracts import CV_ANALYSIS_REUSE_SCHEMA_VERSION
 from fitcv.evidence import (
@@ -91,6 +92,70 @@ def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
     assert coverage[0]["selected_support"] == "verified"
     assert coverage[0]["support_method"] == "responsibility_direct_support"
     assert coverage[0]["supporting_evidence_ids"] == ["ev-sql"]
+
+
+def test_loose_routes_project_backed_experience_gap_as_stretch() -> None:
+    profile = {
+        "name": "Candidate",
+        "skills": [{"name": "Power BI"}],
+        "experiences": [],
+        "projects": [
+            {
+                "name": "Sales dashboard",
+                "skills": ["Power BI"],
+                "highlights": ["Built a Power BI dashboard from sales data."],
+            }
+        ],
+    }
+    job = {
+        "job_url": "https://example.com/job/loose",
+        "title": "BI Analyst",
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "required_skills": ["Power BI commercial experience"],
+    }
+    config = {
+        **_config(),
+        "cv_analysis": {"experience_evidence_mode": "loose"},
+    }
+
+    assert should_route_loose_experience_review(job, profile, config) is True
+    result = analyze_ranked_job(job, profile, config)
+
+    assert result["status"] == "ready_for_generation"
+    assert result["ranking_fit_label"] == "skip"
+    assert result["fit_classification"] == "stretch"
+    assert result["experience_evidence_summary"]["mode"] == "loose"
+    assert result["experience_evidence_summary"]["gaps"]
+
+
+def test_full_and_strict_keep_unresolved_project_experience_blocked() -> None:
+    profile = {
+        "skills": [{"name": "Power BI"}],
+        "experiences": [],
+        "projects": [
+            {
+                "name": "Sales dashboard",
+                "skills": ["Power BI"],
+                "highlights": ["Built a Power BI dashboard from sales data."],
+            }
+        ],
+    }
+    job = {
+        "job_url": "https://example.com/job/blocked",
+        "title": "BI Analyst",
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "required_skills": ["Power BI commercial experience"],
+    }
+    for mode in ("full", "strict"):
+        result = analyze_ranked_job(
+            job,
+            profile,
+            {**_config(), "cv_analysis": {"experience_evidence_mode": mode}},
+        )
+        assert result["status"] == "blocked_by_reranker_fit"
+        assert result["fit_classification"] == "skip"
 
 
 def test_extract_job_url_accepts_indeed_url_alias() -> None:

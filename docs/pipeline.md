@@ -32,6 +32,28 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract owns fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; pipeline persists canonical `accepted` results only
 
+### Experience Evidence Strictness
+
+`cv_analysis.experience_evidence_mode` is a run-scoped setting with `full` as
+the default. It controls how project evidence is interpreted when a job asks
+for professional context; it does not change hard eligibility filters or the
+authority of `requirement_coverage`.
+
+- `loose` can route a concrete project capability into CV analysis as a
+  `stretch` recommendation when a professional qualifier is not proven.
+- `full` preserves the baseline behavior: a project can directly support the
+  requirement it demonstrates, while commercial, production, duration, or
+  ownership claims remain unverified unless evidenced.
+- `strict` requires professional evidence for explicit tenure, seniority,
+  ownership, leadership, or production requirements. A job that explicitly
+  accepts academic or project evidence remains eligible.
+
+Every analysis persists `experience_evidence_summary` with separate capability
+and professional-experience verdicts. Recommendation labels and evidence
+verdicts are rendered separately. CV generation continues to use verified
+claims only; no mode may turn a project into a claim of employment duration or
+professional ownership.
+
 Shared LLM runtime rule: `enrich`, `ranking`, `cv_generation`, and auxiliary synonym triage build owner-local prompts and parse owner-local outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, transport, wire fallback, normalized operational failures, provenance, and the only persistable per-call evidence projection. Embeddings and deterministic builtin synonym triage remain outside this generative spine.
 
 ## Candidate Evidence Projection

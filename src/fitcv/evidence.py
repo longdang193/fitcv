@@ -62,6 +62,8 @@ from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_fa
 from fitcv.rule_filter import canonicalize_skill
 
 REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v6"
+EXPERIENCE_EVIDENCE_POLICY_VERSION = "experience-evidence-v1"
+EXPERIENCE_EVIDENCE_MODES = frozenset({"loose", "full", "strict"})
 _QUALIFIER_CONTEXT_TERMS = (
     "enterprise",
     "production",
@@ -75,6 +77,8 @@ _QUALIFIER_CONTEXT_TERMS = (
 _QUALIFIER_CONTEXT_ALIASES = {
     "enterprise": ("enterprise", "unternehmensumfeld"),
     "production": ("production", "produktion", "produktionsumgebung"),
+    "commercial": ("commercial", "business"),
+    "professional": ("professional", "workplace"),
     "cloud": ("cloud",),
     "classroom": ("classroom",),
     "training": ("training",),
@@ -411,6 +415,83 @@ def _parse_requirement_qualifiers(text: str) -> dict[str, Any]:
     return qualifiers
 
 
+_EXPERIENCE_REQUIREMENT_MARKERS = (
+    "commercial",
+    "employment",
+    "leadership",
+    "owned",
+    "ownership",
+    "professional",
+    "production",
+    "senior",
+    "tenure",
+    "years of experience",
+    "year of experience",
+    "previous experience",
+    "workplace",
+)
+_WRITTEN_DURATION_MARKER = re.compile(
+    r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|several)\s+years?\b"
+)
+_PROJECT_ACCEPTANCE_MARKERS = (
+    "academic project",
+    "academic projects",
+    "coursework",
+    "student project",
+    "student projects",
+    "project experience",
+    "projects accepted",
+    "projects considered",
+)
+
+
+def experience_requirement_policy(
+    requirement_text: str,
+    descriptor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    normalized = _normalize_optional_text(requirement_text).casefold()
+    qualifiers = dict((descriptor or {}).get("qualifiers") or _parse_requirement_qualifiers(requirement_text))
+    reasons = [
+        marker
+        for marker in _EXPERIENCE_REQUIREMENT_MARKERS
+        if marker in normalized
+    ]
+    if "duration" in qualifiers:
+        reasons.append("duration")
+    if any(term in set(dict(qualifiers.get("context") or {}).get("all_of") or []) for term in ("production", "enterprise")):
+        reasons.append("context")
+    if "level" in qualifiers:
+        reasons.append("seniority")
+    if _WRITTEN_DURATION_MARKER.search(normalized):
+        reasons.append("duration")
+    return {
+        "experience_shaped": bool(reasons),
+        "explicit_project_acceptance": any(marker in normalized for marker in _PROJECT_ACCEPTANCE_MARKERS),
+        "gap_reasons": list(dict.fromkeys(reasons)),
+    }
+
+
+def _is_project_evidence(item: dict[str, Any] | None) -> bool:
+    metadata = item or {}
+    evidence_type = str(metadata.get("evidence_type") or "").strip().lower()
+    source_section = str(metadata.get("source_section") or "").strip().lower()
+    return evidence_type == "project_entry" or (
+        evidence_type == "candidate_evidence" and source_section == "projects"
+    )
+
+
+def _is_professional_experience_evidence(item: dict[str, Any] | None) -> bool:
+    metadata = item or {}
+    evidence_type = str(metadata.get("evidence_type") or "").strip().lower()
+    source_section = str(metadata.get("source_section") or "").strip().lower()
+    return evidence_type == "experience_entry" or source_section in {
+        "experience",
+        "experiences",
+        "employment",
+        "work_history",
+    }
+
+
 def _strip_requirement_qualifiers(text: str) -> str:
     stripped = _normalize_optional_text(text).casefold()
     stripped = re.sub(
@@ -694,6 +775,11 @@ def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any
     return _semantic_alignment_settings_model(config).as_dict()
 
 
+def resolve_experience_evidence_mode(config: dict[str, Any] | None) -> str:
+    value = str(dict(config or {}).get("cv_analysis", {}).get("experience_evidence_mode") or "full").strip().lower()
+    return value if value in EXPERIENCE_EVIDENCE_MODES else "full"
+
+
 def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
     payload = {
         "skills": list(profile.get("skills") or []),
@@ -717,6 +803,8 @@ def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, 
     payload = {
         "schema_version": CV_ANALYSIS_REUSE_SCHEMA_VERSION,
         "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
+        "experience_evidence_policy_version": EXPERIENCE_EVIDENCE_POLICY_VERSION,
+        "experience_evidence_mode": resolve_experience_evidence_mode(config),
         "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
         "semantic_alignment": _semantic_alignment_settings(config),
         "selection_policy": _cv_analysis_policy_settings(config),
@@ -2404,6 +2492,7 @@ def _assess_responsibility_support(
     requirement_text: str,
     evidence_text: str,
     evidence_metadata: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     constraints = _responsibility_constraints(requirement_text)
     action = str(constraints["action"])
@@ -2463,6 +2552,15 @@ def _assess_responsibility_support(
         and qualifier_status == "satisfied"
         and not contradicted
     )
+    policy = experience_requirement_policy(requirement_text)
+    professional_evidence_required = (
+        policy["experience_shaped"]
+        and _is_project_evidence(evidence_metadata)
+        and resolve_experience_evidence_mode(config) == "strict"
+        and not policy["explicit_project_acceptance"]
+    )
+    if professional_evidence_required:
+        verified_support = False
     return {
         "candidate_match": candidate_match,
         "action_match": action_match,
@@ -2473,6 +2571,8 @@ def _assess_responsibility_support(
         "qualifier_status": "contradicted" if contradicted else qualifier_status,
         "contradicted": contradicted,
         "verified_support": verified_support,
+        "professional_evidence_required": professional_evidence_required,
+        "experience_gap_reasons": policy["gap_reasons"] if professional_evidence_required else [],
     }
 
 
@@ -2611,6 +2711,19 @@ def _assess_requirement_support(
         for fragment in fragment_assessments
         for qualifier in fragment["contradicting_qualifiers"]
     ))
+    policy = experience_requirement_policy(str(descriptor.get("requirement") or ""), descriptor)
+    professional_evidence_required = (
+        policy["experience_shaped"]
+        and _is_project_evidence(item)
+        and resolve_experience_evidence_mode(config) == "strict"
+        and not policy["explicit_project_acceptance"]
+    )
+    if professional_evidence_required:
+        assessment["qualified_support"] = False
+        if assessment["qualifier_status"] == "supported":
+            assessment["qualifier_status"] = "unverified"
+    assessment["professional_evidence_required"] = professional_evidence_required
+    assessment["experience_gap_reasons"] = policy["gap_reasons"] if professional_evidence_required else []
     return assessment
 
 
@@ -2657,6 +2770,7 @@ def _requirement_support_map(
 def _responsibility_support_map(
     items: list[dict[str, Any]],
     entities: list[dict[str, Any]],
+    config: dict[str, Any] | None = None,
 ) -> dict[str, list[str]]:
     support: dict[str, list[str]] = {}
     for entity in entities:
@@ -2681,6 +2795,7 @@ def _responsibility_support_map(
                     requirement_text,
                     str(fragment.get("text") or ""),
                     item,
+                    config,
                 )["verified_support"]
                 for fragment in _support_fragments(item)
             )
@@ -2692,8 +2807,9 @@ def _responsibility_support_map(
 def _annotate_responsibility_support(
     items: list[dict[str, Any]],
     entities: list[dict[str, Any]],
+    config: dict[str, Any] | None = None,
 ) -> dict[str, list[str]]:
-    support = _responsibility_support_map(items, entities)
+    support = _responsibility_support_map(items, entities, config)
     evidence_to_requirements: dict[str, list[str]] = {}
     for requirement_id, evidence_ids in support.items():
         for evidence_id in evidence_ids:
@@ -3208,6 +3324,7 @@ def retrieve_evidence_bundle(
     canonical_responsibility_support = _annotate_responsibility_support(
         base_items,
         responsibility_entities,
+        config,
     )
     canonical_items = copy.deepcopy(base_items)
     selection_policy = _cv_analysis_policy_settings(config)
@@ -3225,6 +3342,35 @@ def retrieve_evidence_bundle(
         )
         for channel in RETRIEVAL_CHANNELS
     }
+    if resolve_experience_evidence_mode(config) == "loose":
+        loose_candidates = [
+            {
+                **item,
+                "channel": REQUIRED_SKILL_SUPPORT_CHANNEL,
+                "channel_score": 1.0,
+                "channel_subscore": {"loose_capability_support": 1.0},
+                "channel_rationale": ["loose_capability_support"],
+            }
+            for item in base_items
+            if item.get("canonical_requirement_ids")
+            and any(
+                experience_requirement_policy(
+                    str(descriptor.get("requirement") or ""),
+                    descriptor,
+                )["experience_shaped"]
+                for descriptor in list(coerced_job_context.get("requirement_descriptors") or [])
+                if _descriptor_requirement_ref(descriptor)
+                in set(str(value) for value in list(item.get("canonical_requirement_ids") or []))
+            )
+        ]
+        if loose_candidates:
+            channel_pools[REQUIRED_SKILL_SUPPORT_CHANNEL] = sorted(
+                [*channel_pools.get(REQUIRED_SKILL_SUPPORT_CHANNEL, []), *loose_candidates],
+                key=lambda item: (
+                    -float(item.get("channel_score") or 0.0),
+                    str(item.get("evidence_id") or ""),
+                ),
+            )[: int(semantic_settings["channel_pool_size"])]
     requirement_candidates: list[dict[str, Any]] = []
     seen_requirement_candidate_ids: set[str] = set()
     for entity in responsibility_entities:

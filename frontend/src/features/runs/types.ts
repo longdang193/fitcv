@@ -205,6 +205,20 @@ export interface RunJobItem {
     available?: boolean;
     pending_count?: number;
   };
+  experience_evidence_summary?: {
+    mode?: "loose" | "full" | "strict" | string;
+    capability?: { supported_requirement_ids?: string[] };
+    professional_experience?: {
+      verified_requirement_ids?: string[];
+      unverified_requirement_ids?: string[];
+    };
+    gaps?: Array<{
+      requirement_id?: string;
+      requirement?: string;
+      reasons?: string[];
+      evidence_ids?: string[];
+    }>;
+  } | null;
   [key: string]: unknown;
 }
 

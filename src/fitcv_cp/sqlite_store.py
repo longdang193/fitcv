@@ -15033,6 +15033,9 @@ def persist_pipeline_snapshot(
                     "evidence_ref": outcome.get("evidence_ref"),
                     "skip_is_terminal_rejection": False,
                     "pipeline_status": result_row.get("pipeline_status"),
+                    "recommendation": result_row.get("fit_classification") or result_row.get("recommendation"),
+                    "ranking_fit_label": result_row.get("ranking_fit_label"),
+                    "experience_evidence_summary": result_row.get("experience_evidence_summary") or {},
                 }
                 conn.execute(
                     """INSERT INTO run_job_stage_results (

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-experience-evidence-strictness
@@ -13,6 +13,7 @@ targets:
   - src/fitcv/agentic_cv_analysis.py
   - src/fitcv/pipeline.py
   - src/fitcv_cp/worker_job.py
+  - src/fitcv_cp/sqlite_store.py
   - frontend/src/features/pipeline-settings/types.ts
   - frontend/src/features/pipeline-settings/sections-def.ts
   - frontend/src/features/pipeline-settings/pipeline-settings-dialog.tsx
@@ -24,6 +25,7 @@ targets:
   - tests/test_fitcv_cp/test_settings_schema.py
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_worker_job.py
+  - tests/test_fitcv_cp/test_sqlite_store.py
   - tests/test_agentic_cv_analysis.py
   - tests/test_evidence.py
   - frontend/src/test/pipeline-settings.test.tsx
@@ -84,6 +86,47 @@ carried into this plan:
 The review did **not** validate a need for a new service, database table, new
 settings endpoint, universal project-score multiplier, or automatic student/senior
 defaulting. Those are excluded below.
+
+## Current Review Corrections
+
+The GPT-5.6-Sol High review of immutable commit
+`ffcb2e92d925ae88992cca42557fa3029b9a96b4` supersedes the earlier review list
+above for implementation execution. Each correction was checked against the
+pinned plan and source at that commit.
+
+1. **High — Loose routing has a second skip gate.** Task 3 bypasses only the
+   early `ranking_fit_label == "skip"` path, but
+   `src/fitcv/agentic_cv_analysis.py:1157-1171` still returns the skipped status
+   after evidence retrieval, and `src/fitcv/pipeline.py:1748-1755` discards the
+   gap fit. Add an explicit Loose-only downstream transition to
+   `fit_classification="stretch"` for an experience-only gap and test the final
+   status/classification. Confidence: 99%.
+2. **High — Responsibility evidence is outside the source policy.** Task 3 names
+   `_assess_requirement_support()`, but production/ownership/leadership claims
+   use `_assess_responsibility_support()` through
+   `_responsibility_support_map()` and `_annotate_responsibility_support()` at
+   `src/fitcv/evidence.py:2403-2465`, `:2657-2689`, and `:3207-3211`.
+   Include this path in the mode-aware policy or unify both paths behind one
+   helper, with project/employment fixtures for all modes. Confidence: 99%.
+3. **High — CV-evaluation persistence is not the run-job projection source.**
+   Task 4 writes `cv_evaluations.evidence_json`, while `/runs/{run_id}/jobs`
+   hydrates `run_job_stage_results.evidence_json` through
+   `src/fitcv_cp/sqlite_store.py:13788-13840`. Add the projection bridge and a
+   store/API test asserting the actual response. Confidence: 99%.
+4. **Medium — Replay signatures need legacy compatibility.** Adding mode/version
+   fields to the unversioned `_policy_envelope_signature()` can make old manual
+   checkpoints fail strict replay even when omitted mode resolves to Full.
+   Version the replay envelope or validate legacy signatures before emitting the
+   new signature, and add a prior-signature checkpoint regression. Confidence:
+   97%.
+5. **Medium — The new key can receive `cv_generation` metadata.** The schema
+   metadata special case only covers `cv_analysis.semantic_alignment.*`; the
+   generic `cv_` fallback assigns `cv_generation`. Task 1 must explicitly assign
+   `stage=cv_analysis` and `control_surface=agentic_runtime`, with a metadata
+   regression. Confidence: 98%.
+
+All five findings are independently confirmed by separate source paths; no
+second-model corroboration was requested for this execution.
 
 ## Goal
 
@@ -224,8 +267,9 @@ profile that reliably handles typed configuration and compatibility behavior
    `cv_analysis.experience_evidence_mode`, type `str`, declared default `full`,
    options `loose`, `full`, `strict`, UI label `Match strictness`, a description
    explaining capability versus professional-experience evidence, the nested
-   config path `cv_analysis.experience_evidence_mode`, and the existing CV
-   Analysis agentic section metadata.
+    config path `cv_analysis.experience_evidence_mode`, and explicit
+    `stage=cv_analysis` plus `control_surface=agentic_runtime` metadata. Do not
+    rely on the generic `cv_` stage fallback.
 3. Add a direct editable row to the CV Analysis `Evidence Scope` projection so
    the backend GET includes the field and the existing PATCH ownership set
    accepts it.
@@ -304,7 +348,11 @@ profile that reliably handles persistence, fingerprints, and replay contracts
    an old run; do not mutate the stored JSON.
 5. Verify worker regeneration reads the run-effective snapshot and cannot pick
    up a newly changed saved setting after the run was created.
-6. Add tests for explicit Full versus omitted Full identity, cross-mode cache
+6. Add legacy-signature compatibility before emitting the new replay signature:
+   validate old checkpoint signatures against the old envelope shape, resolve
+   omitted mode to Full, and use the new signature only for subsequent
+   checkpoints. Add a prior-signature checkpoint regression.
+7. Add tests for explicit Full versus omitted Full identity, cross-mode cache
    misses, same-mode cache hits, seniority/input fingerprint changes, old
    snapshots, strict replay drift, and run-level override persistence.
 
@@ -340,8 +388,10 @@ provenance constraints.
 
 - `src/fitcv/evidence.py`: requirement qualifier parsing,
   `_normalise_experience_entry()`, `_normalise_project_entry()`,
-  `_assess_requirement_support()`, `build_cv_analysis_contract_fingerprint()`,
-  and the requirement-support policy version.
+  `_assess_requirement_support()`, `_assess_responsibility_support()`,
+  `_responsibility_support_map()`, `_annotate_responsibility_support()`,
+  `build_cv_analysis_contract_fingerprint()`, and the requirement-support
+  policy version.
 - `src/fitcv/agentic_cv_analysis.py`: `_build_requirement_coverage()`,
   `build_cv_analysis_record()`, and `analyze_ranked_job()`.
 - `src/fitcv/pipeline.py`: CV-analysis result projection and decision-chain
@@ -379,11 +429,15 @@ provenance constraints.
    ownership, or production-responsibility claims unless the JD explicitly
    accepts academic/project evidence. Preferred requirements remain
    non-blocking under the existing semantics.
-6. Add an additive experience-evidence summary to the analysis record with the
+ 6. Apply the same source-aware policy to the responsibility-support path. Do
+    not allow `_assess_responsibility_support()` to treat `project_entry` as
+    employment-backed evidence for production, ownership, leadership, tenure,
+    or duration claims unless the JD explicitly accepts project evidence.
+ 7. Add an additive experience-evidence summary to the analysis record with the
    mode, capability status, professional status, gap reasons, and source
    evidence IDs. Keep `requirement_coverage` authoritative for verified claims
    and keep `do_not_claim` populated for unsupported professional qualifiers.
-7. Add a named helper
+ 8. Add a named helper
    `should_route_loose_experience_review(job, profile, config)` beside the
    analyzer's ranking-fit helpers. It returns true only when the resolved mode
    is Loose, the ranking result is a valid `skip` (not ranking-unavailable), the
@@ -393,7 +447,13 @@ provenance constraints.
    in the `ranking_fit_label == "skip"` early path. Full and Strict retain the
    current early skip behavior; unavailable ranking data and hard eligibility
    failures remain immediately blocked.
-8. Keep `ranking_fit_label` as the recommendation input and
+ 9. After evidence review, apply a Loose-only downstream transition: when the
+    ranking skip is valid and the remaining gap is experience-only, preserve
+    `ranking_fit_label="skip"` as the recommendation input but emit
+    `fit_classification="stretch"` and the normal completed analysis record.
+    Full and Strict retain the existing skip behavior for unresolved blocking
+    gaps.
+ 10. Keep `ranking_fit_label` as the recommendation input and
    `fit_classification` as the downstream fit result; do not overwrite either
    with the evidence-gap status.
 
@@ -410,6 +470,11 @@ provenance constraints.
   the stated requirement in Strict; and
 - employment-backed evidence — qualifies the professional requirement in all
   modes when the existing qualifier checks support it.
+- a responsibility entity backed only by `project_entry` evidence versus the
+  same responsibility backed by employment evidence — Strict preserves the
+  professional gap for the project and accepts the employment evidence;
+- the Loose downstream transition — a valid experience-only reranker skip ends
+  as a stretch analysis result rather than `SKIPPED_FIT_GATE_STATUS`.
 
 Run:
 
@@ -439,11 +504,13 @@ profile that reliably handles existing API/resource contracts and persistence
 
 - `src/fitcv/agentic_cv_analysis.py`: analysis record serialization.
 - `src/fitcv_cp/worker_job.py`: `update_cv_evaluation()` evidence payload.
+- `src/fitcv_cp/sqlite_store.py`: run-job projection hydration and pipeline
+  snapshot evidence bridge.
 - `src/fitcv_cp/app.py`: run-job resource assembly around the visible-row
   projection and CV-version/evaluation lookup.
 - `src/fitcv/pipeline.py`: decision-chain and run-job output preservation.
-- `tests/test_fitcv_cp/test_worker_job.py`, `tests/test_fitcv_cp/test_app.py`,
-  and `frontend/src/test/runs.test.ts`.
+- `tests/test_fitcv_cp/test_worker_job.py`, `tests/test_fitcv_cp/test_sqlite_store.py`,
+  `tests/test_fitcv_cp/test_app.py`, and `frontend/src/test/runs.test.ts`.
 
 **Dependencies:** Task 3.
 
@@ -460,23 +527,28 @@ profile that reliably handles existing API/resource contracts and persistence
 1. Store the additive experience-evidence summary in the existing CV
    evaluation evidence JSON alongside `requirement_coverage` and
    `evidence_selection_summary`.
-2. Preserve both recommendation fields (`ranking_fit_label`,
+2. Carry the same additive summary into the existing
+   `run_job_stage_results.evidence_json` projection, or make the existing
+   hydrator explicitly join the persisted CV evaluation evidence. Do not add a
+   new table or endpoint.
+3. Preserve both recommendation fields (`ranking_fit_label`,
    `fit_classification`) and the new evidence summary when pipeline records are
    persisted and projected into run-job resources.
-3. Add API assertions that the run-job payload contains the recommendation and
+4. Add API assertions that the run-job payload contains the recommendation and
    mode-aware evidence gap while existing outcome/status fields remain stable.
-4. Preserve absent summaries for historical jobs as `null`/empty compatibility
+5. Preserve absent summaries for historical jobs as `null`/empty compatibility
    values; do not synthesize a false verdict for old records.
 
 **Verification:**
 
 ```powershell
-uv run pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_app.py -q
+uv run pytest tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_app.py -q
 ```
 
 Assert that a Loose borderline job returns a recommendation plus an explicit
-professional-evidence gap, while Full/Strict and historical records retain
-their existing response shape and meaning.
+professional-evidence gap through the actual run-job resource, while
+Full/Strict and historical records retain their existing response shape and
+meaning.
 
 **Exit Criteria:** Backend consumers can render recommendation and evidence
 verdict independently, with no new persistence layer and no overclaiming.
@@ -595,13 +667,12 @@ profile that reliably performs cross-layer verification and reconciliation
 4. Run the repository's broader unit suites for the touched backend and frontend
    surfaces, then inspect the diff for unrelated changes.
 5. Reconcile every acceptance criterion below with fresh command output and
-   leave the plan proposed until an authorized implementation execution and
-   verification cycle completes.
+   record the completed implementation and verification cycle.
 
 **Verification:**
 
 ```powershell
-uv run pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_agentic_cv_analysis.py tests/test_evidence.py -q
+python -m pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_agentic_cv_analysis.py tests/test_evidence.py -q
 Push-Location frontend
 npm test -- --run src/test/pipeline-settings.test.tsx src/test/job-evaluation.test.ts src/test/runs.test.ts
 npm run typecheck
@@ -653,5 +724,14 @@ The final implementation verification must prove all of the following:
 - Documentation matches the implemented contract and examples.
 - A final verification record identifies the exact mode, policy version, cache,
   replay, API, and UI assertions that passed.
-- The plan remains `proposed` until implementation is explicitly authorized;
-  only post-implementation verification may change it to `completed`.
+- The implementation was explicitly authorized and the plan is now `completed`
+  after the post-implementation verification below.
+
+## Final Verification Record
+
+- Backend acceptance: `python -m pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_worker_job.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_agentic_cv_analysis.py tests/test_evidence.py -q` — `1154 passed, 1 skipped`.
+- Frontend tests: `npm test -- --run src/test/pipeline-settings.test.tsx src/test/job-evaluation.test.ts src/test/runs.test.ts` — `3 files passed, 66 tests passed`.
+- Frontend type safety: `npm run typecheck` — passed.
+- Frontend production build: `npm run build` — passed; Vite emitted only the existing chunk-size warning.
+- Repository hygiene: `git diff --check` — passed after restoring the repository's LF line endings; unrelated untracked files were preserved.
+- Contract coverage: `loose`, `full`, and `strict` validation/defaulting, settings API projection/reset/conflict paths, run snapshot persistence, Full parity, Loose stretch semantics, Strict professional-evidence gaps, cache/replay policy identity, evidence persistence, and accessible UI rendering are covered by the updated tests and documentation.

@@ -31,7 +31,11 @@ from fitcv.decision_feedback import build_decision_feedback_source
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
 from fitcv.cv_generator import final_artifact_acceptance_passes
-from fitcv.evidence import build_evidence_projection
+from fitcv.evidence import (
+    EXPERIENCE_EVIDENCE_POLICY_VERSION,
+    build_evidence_projection,
+    resolve_experience_evidence_mode,
+)
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_stage_runtime_concurrency,
@@ -295,6 +299,7 @@ def _persist_resolution_reanalysis(
             "analysis_input_fingerprint": analysis.get("analysis_input_fingerprint"),
             "analysis_input_components": dict(analysis.get("analysis_input_components") or {}),
             "requirement_coverage": list(analysis.get("requirement_coverage") or []),
+            "experience_evidence_summary": dict(analysis.get("experience_evidence_summary") or {}),
             "uncertainties": refreshed_uncertainties,
             "evidence_payload": list(analysis.get("evidence_payload") or []),
             "evidence_used": list(analysis.get("evidence_used") or []),
@@ -438,6 +443,10 @@ def _policy_envelope_signature(config_payload: dict[str, Any] | None) -> str:
         "cv": dict(cfg.get("cv") or {}),
         "pipeline": dict(cfg.get("pipeline") or {}),
         "prompts_runtime": dict(cfg.get("prompts_runtime") or {}),
+        "cv_analysis_policy": {
+            "experience_evidence_policy_version": EXPERIENCE_EVIDENCE_POLICY_VERSION,
+            "experience_evidence_mode": resolve_experience_evidence_mode(cfg),
+        },
     }
     raw = json.dumps(envelope, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -630,6 +639,7 @@ def execute_cv_regenerate_once(
             evidence={
                 "requirement_coverage": analysis.get("requirement_coverage") or [],
                 "evidence_selection_summary": analysis.get("evidence_selection_summary") or {},
+                "experience_evidence_summary": analysis.get("experience_evidence_summary") or {},
             },
         )
         generation_status = {

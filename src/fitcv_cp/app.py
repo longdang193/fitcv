@@ -60,6 +60,7 @@ from fitcv.config import (
     parse_skill_synonym_overlay_yaml,
     resolve_cv_generation_runtime_expectation,
 )
+from fitcv.evidence import EXPERIENCE_EVIDENCE_POLICY_VERSION, resolve_experience_evidence_mode
 from fitcv.cv_generator import final_artifact_acceptance_passes, render_cv_native_acceptance
 from fitcv.contracts import (
     MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION,
@@ -818,6 +819,24 @@ def _policy_registry_version_from_config(config_payload: dict[str, Any] | None) 
     return str(block.get("version") or "policy_registry.v1")
 
 def _policy_envelope_signature(config_payload: dict[str, Any] | None) -> str:
+    cfg = dict(config_payload or {})
+    envelope = {
+        "ranking_contract_fingerprint": str(
+            (cfg.get("ranking_contract") or {}).get("ranking_contract_fingerprint") or ""
+        ),
+        "cv": dict(cfg.get("cv") or {}),
+        "pipeline": dict(cfg.get("pipeline") or {}),
+        "prompts_runtime": dict(cfg.get("prompts_runtime") or {}),
+        "cv_analysis_policy": {
+            "experience_evidence_policy_version": EXPERIENCE_EVIDENCE_POLICY_VERSION,
+            "experience_evidence_mode": resolve_experience_evidence_mode(cfg),
+        },
+    }
+    payload = _json.dumps(envelope, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _legacy_policy_envelope_signature(config_payload: dict[str, Any] | None) -> str:
     cfg = dict(config_payload or {})
     envelope = {
         "ranking_contract_fingerprint": str(
@@ -2916,10 +2935,18 @@ def _load_run_effective_config_snapshot(
     if run.effective_settings_json:
         payload = decode_json_object_or_none(run.effective_settings_json)
         if payload is not None:
-            return apply_synonym_management_defaults(payload)
+            resolved = apply_synonym_management_defaults(payload)
+            cv_analysis = dict(resolved.get("cv_analysis") or {})
+            cv_analysis.setdefault("experience_evidence_mode", "full")
+            resolved["cv_analysis"] = cv_analysis
+            return resolved
     if fallback_to_runtime_config:
         try:
-            return apply_synonym_management_defaults(load_config(run.config_path))
+            resolved = apply_synonym_management_defaults(load_config(run.config_path))
+            cv_analysis = dict(resolved.get("cv_analysis") or {})
+            cv_analysis.setdefault("experience_evidence_mode", "full")
+            resolved["cv_analysis"] = cv_analysis
+            return resolved
         except (FileNotFoundError, ValueError):
             return {}
     return {}
@@ -14653,7 +14680,11 @@ def create_app(
         policy_signature = _policy_envelope_signature(effective_config)
         policy_registry_version = _policy_registry_version_from_config(effective_config)
         replay_source_run_id = str(checkpoint_replay.get("replay_source_run_id") or run.run_id)
-        if replay_mode == "strict" and prior_policy_signature and prior_policy_signature != policy_signature:
+        legacy_policy_signature = _legacy_policy_envelope_signature(effective_config)
+        accepted_prior_signatures = {policy_signature}
+        if resolve_experience_evidence_mode(effective_config) == "full":
+            accepted_prior_signatures.add(legacy_policy_signature)
+        if replay_mode == "strict" and prior_policy_signature and prior_policy_signature not in accepted_prior_signatures:
             raise HTTPException(
                 status_code=409,
                 detail="Strict replay rejected: policy envelope drift detected",
