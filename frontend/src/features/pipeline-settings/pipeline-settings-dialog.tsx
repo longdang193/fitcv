@@ -541,12 +541,17 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
                           const isReadonly = field.type === "readonly";
                           const isBoolean = field.type === "boolean";
                           const isNumber = field.type === "number";
+                          const isSelect = field.type === "select";
 
                           const isChecked = isMembership
                             ? (draftValues[field.key] || []).includes(field.member!)
                             : Boolean(draftValues[field.key]);
 
                           const numVal =
+                            draftValues[field.key] !== undefined
+                              ? draftValues[field.key]
+                              : field.defaultValue ?? "";
+                          const selectVal =
                             draftValues[field.key] !== undefined
                               ? draftValues[field.key]
                               : field.defaultValue ?? "";
@@ -608,6 +613,23 @@ export const PipelineSettingsDialog: React.FC<PipelineSettingsDialogProps> = ({
                                     }}
                                     aria-label={field.label}
                                   />
+                                )}
+
+                                {isSelect && (
+                                  <select
+                                    id={controlId}
+                                    className="field"
+                                    value={selectVal}
+                                    disabled={isFieldDisabled}
+                                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                    aria-label={field.label}
+                                  >
+                                    {(field.options || []).map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
                                 )}
 
                                 {isReadonly && (

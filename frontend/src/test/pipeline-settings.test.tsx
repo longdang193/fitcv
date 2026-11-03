@@ -85,6 +85,9 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       expect(cvGenKeys).toContain("cv_publications_enabled");
       expect(cvGenKeys).toContain("cv_languages_enabled");
 
+      const cvAnalysisSection = PIPELINE_SECTIONS.find((s) => s.id === "cv-analysis")!;
+      expect(cvAnalysisSection.ownedKeys).toContain("cv_analysis.experience_evidence_mode");
+
       const runtimeSection = PIPELINE_SECTIONS.find((s) => s.id === "runtime-limits")!;
       expect(runtimeSection.ownedKeys).toContain("llm_runtime.request_start_interval_secs");
       expect(runtimeSection.ownedKeys).toContain("stage_runtime.enrich.concurrency");
@@ -205,6 +208,23 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
       expect(markup).toContain("Languages");
     });
 
+    it("renders the labelled Match strictness select in CV Analysis", () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(PipelineSettingsDialog, {
+          open: true,
+          onClose: () => {},
+          initialSection: "cv-analysis",
+        })
+      );
+
+      expect(markup).toContain("Match strictness");
+      expect(markup).toContain('id="pipeline-setting-cv_analysis-experience_evidence_mode"');
+      expect(markup).toContain('<option value="loose">Loose</option>');
+      expect(markup).toContain('<option value="full"');
+      expect(markup).toContain('>Full</option>');
+      expect(markup).toContain('<option value="strict">Strict</option>');
+    });
+
     it("returns null when open is false", () => {
       const markup = renderToStaticMarkup(
         React.createElement(PipelineSettingsDialog, {
@@ -267,6 +287,7 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
         "experience_level_excluded",
       ]);
       expect(defaults["cv_analysis.semantic_alignment.enabled"]).toBe(true);
+      expect(defaults["cv_analysis.experience_evidence_mode"]).toBe("full");
       expect(defaults["cv_summary_enabled"]).toBe(true);
       expect(defaults["llm_runtime.request_start_interval_secs"]).toBe(0);
       expect(defaults["stage_runtime.enrich.concurrency"]).toBe(8);

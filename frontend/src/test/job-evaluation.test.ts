@@ -11,12 +11,33 @@ import { apiClient } from "../lib/api-client";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FitEvidenceDrawer } from "../features/job-evaluation/components/FitEvidenceDrawer";
+import { PipelineOutcome } from "../features/job-evaluation/components/PipelineOutcome";
 import { RunJobItem } from "../features/runs/types";
 
 
 describe("job evaluation slice and api", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("renders recommendation separately from professional evidence gaps", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(PipelineOutcome, {
+        item: {
+          result_bucket: "passed",
+          status: "passed",
+          evidence: {
+            recommendation: "stretch",
+            experience_evidence_summary: {
+              gaps: [{ requirement: "commercial Power BI experience" }],
+            },
+          },
+        },
+      })
+    );
+
+    expect(markup).toContain("Recommendation: stretch");
+    expect(markup).toContain("Evidence: 1 experience evidence gap");
   });
 
 

@@ -233,6 +233,29 @@ Canonical owner: `config/policy/cv_analysis.yaml`.
 - disabling semantic alignment forces lexical-only channel scoring without changing shortlist embeddings or persisted shortlist contracts
 - compare retrieval arms offline with `uv run python scripts/benchmark_requirement_support.py`; fixture truth lives in `tests/fixtures/requirement_support_benchmark.json`
 
+### CV-analysis Experience Evidence Mode
+
+Canonical owner: `config/policy/cv_analysis.yaml` key
+`cv_analysis.experience_evidence_mode`.
+
+Allowed values are `loose`, `full`, and `strict`; omission resolves to `full`.
+The value is captured in each run's effective settings snapshot and participates
+in CV-analysis cache identity and strict replay policy identity.
+
+- `loose`: surface project-backed stretch roles when the demonstrated task is
+  relevant but a commercial, production, ownership, or duration qualifier is
+  missing. Show the missing professional evidence beside the recommendation.
+- `full`: baseline behavior. Give direct credit for the capability a project
+  demonstrates, but keep professional qualifiers unverified unless the profile
+  proves them.
+- `strict`: require professional evidence for explicit professional tenure,
+  seniority, ownership, leadership, or production requirements, except when the
+  job description explicitly accepts academic or project evidence.
+
+This setting is not inferred from student or senior status. Users choose it per
+run and may override any suggestion. It does not alter hard eligibility filters,
+ranking ownership, or the verified-claim authority used by CV generation.
+
 Policy meaning:
 
 - `required_match.min_ratio_by_fit.<fit>`: minimum `matched_required / matchable_required_count` ratio to remain eligible for auto-accept.

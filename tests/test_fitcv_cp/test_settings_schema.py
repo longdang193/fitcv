@@ -62,6 +62,7 @@ def test_all_expected_keys_present():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "pipeline.final_top_n" in keys
     assert "cv_analysis.semantic_alignment.enabled" in keys
+    assert "cv_analysis.experience_evidence_mode" in keys
     assert "cv_analysis.semantic_alignment.required_skill_lexical_weight" in keys
     assert "cv_analysis.semantic_alignment.role_semantic_weight" in keys
     assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in keys
@@ -433,6 +434,7 @@ def test_settings_sections_exclude_legacy_retrieval_advanced_slug() -> None:
 
 def test_agentic_settings_section_ownership_is_explicit() -> None:
     assert AGENTIC_SETTINGS_SECTIONS["agentic-enablement"] == [
+        "cv_analysis.experience_evidence_mode",
         "cv_analysis.semantic_alignment.enabled",
         "synonym_management.propose_enabled",
         "synonym_management.apply_approved_enabled",
@@ -473,6 +475,7 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
         "cv_analysis.semantic_alignment.model",
     }
     assert editable_agentic_settings_keys() == {
+        "cv_analysis.experience_evidence_mode",
         "synonym_management.propose_enabled",
         "synonym_management.apply_approved_enabled",
         "reuse.enrich.enabled",
@@ -710,8 +713,43 @@ def test_pipeline_projection_marks_editable_readonly_and_hidden_rows() -> None:
         for row in section["rows"]
     }
     assert rows["cv_analysis.semantic_alignment.enabled"]["kind"] == "direct"
+    assert rows["cv_analysis.experience_evidence_mode"]["kind"] == "direct"
+    assert rows["cv_analysis.experience_evidence_mode"]["default"] == "full"
     assert rows["cv_analysis.semantic_alignment.model"]["kind"] == "readonly"
     assert "cv_generation_model" not in rows
+
+
+def test_experience_evidence_mode_is_an_enum_with_explicit_runtime_metadata() -> None:
+    entry = next(item for item in SETTINGS_SCHEMA if item["key"] == "cv_analysis.experience_evidence_mode")
+    assert entry["type"] == "str"
+    assert entry["default"] == "full"
+    assert entry["options"] == ["loose", "full", "strict"]
+    assert entry["stage"] == "cv_analysis"
+    assert entry["control_surface"] == "agentic_runtime"
+    assert entry["agentic_section"] == "agentic-core"
+
+
+@pytest.mark.parametrize("value", ["loose", "full", "strict"])
+def test_experience_evidence_mode_accepts_supported_values(value: str) -> None:
+    validate_settings({"cv_analysis.experience_evidence_mode": value})
+
+
+@pytest.mark.parametrize("value", ["", "   ", "balanced", None])
+def test_experience_evidence_mode_rejects_blank_or_unknown_values(value: object) -> None:
+    with pytest.raises(ValidationError, match="cv_analysis.experience_evidence_mode"):
+        validate_settings({"cv_analysis.experience_evidence_mode": value})
+
+
+def test_experience_evidence_mode_applies_to_nested_config_and_defaults_to_full() -> None:
+    config: dict[str, object] = {}
+    apply_settings_to_config(config, {"cv_analysis.experience_evidence_mode": "strict"})
+    assert config["cv_analysis"] == {"experience_evidence_mode": "strict"}
+    entry = next(
+        item
+        for item in settings_schema_module.settings_schema_with_runtime_defaults({})
+        if item["key"] == "cv_analysis.experience_evidence_mode"
+    )
+    assert entry["default"] == "full"
 
 
     projection = pipeline_settings_projection({})

@@ -861,6 +861,122 @@ def test_project_fragment_does_not_inherit_unrelated_project_skill() -> None:
     assert assessment["qualified_support"] is False
 
 
+def test_strict_experience_policy_distinguishes_project_and_employment_sources() -> None:
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["Power BI commercial experience"]}
+    )[0]
+    project_item = {
+        "evidence_type": "candidate_evidence",
+        "source_section": "projects",
+        "skills": ["Power BI"],
+        "text": "Built a Power BI dashboard from sales data.",
+    }
+    employment_item = {
+        "evidence_type": "experience_entry",
+        "source_section": "experiences",
+        "skills": ["Power BI"],
+        "text": "Maintained Power BI dashboards in a commercial team.",
+    }
+
+    project_assessment = evidence_module._assess_requirement_support(
+        project_item,
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+    employment_assessment = evidence_module._assess_requirement_support(
+        employment_item,
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert project_assessment["professional_evidence_required"] is True
+    assert project_assessment["qualified_support"] is False
+    assert employment_assessment["professional_evidence_required"] is False
+    assert employment_assessment["qualified_support"] is True
+
+
+def test_strict_experience_policy_allows_explicit_project_acceptance() -> None:
+    descriptor = {
+        "canonical_skill": "power bi",
+        "requirement": "Power BI academic projects accepted",
+        "qualifiers": {},
+    }
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "candidate_evidence",
+            "source_section": "projects",
+            "skills": ["Power BI"],
+            "text": "Built a Power BI dashboard as an academic project.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["professional_evidence_required"] is False
+    assert assessment["qualified_support"] is True
+
+
+def test_strict_experience_policy_rejects_negated_project_acceptance() -> None:
+    descriptor = {
+        "canonical_skill": "python",
+        "requirement": "Production Python experience; academic projects do not count",
+        "qualifiers": {"context": {"all_of": ["production"]}},
+    }
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "project_entry",
+            "source_section": "projects",
+            "skills": ["Python"],
+            "text": "Built a production Python service as a project.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["professional_evidence_required"] is True
+    assert assessment["qualified_support"] is False
+
+
+def test_strict_experience_policy_rejects_education_as_professional_tenure() -> None:
+    descriptor = {
+        "canonical_skill": "python",
+        "requirement": "two years Python experience",
+        "qualifiers": {"duration": {"comparator": "gte", "months": 24}},
+    }
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "candidate_evidence",
+            "source_section": "education",
+            "skills": ["Python"],
+            "text": "Studied Python for two years.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["professional_evidence_required"] is True
+    assert assessment["qualified_support"] is False
+
+
+def test_strict_experience_policy_does_not_treat_skill_level_as_seniority() -> None:
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["advanced SQL"]}
+    )[0]
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "project_entry",
+            "source_section": "projects",
+            "skills": ["SQL"],
+            "text": "Used advanced SQL for analytics.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["experience_gap_reasons"] == []
+    assert assessment["qualified_support"] is True
+
+
 @pytest.mark.parametrize(
     ("requirement", "evidence", "expected"),
     [

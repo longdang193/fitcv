@@ -117,6 +117,19 @@ def _ranking_policy_setting(
 SETTINGS_SCHEMA: list[dict[str, Any]] = [
     # ── Retrieval ─────────────────────────────────────────────────────────────
     {
+        "key": "cv_analysis.experience_evidence_mode",
+        "type": "str",
+        "default": "full",
+        "options": ["loose", "full", "strict"],
+        "label": "Match strictness",
+        "description": "Controls whether project evidence can surface experience-shaped matches while keeping professional qualifiers explicit.",
+        "group": "agentic",
+        "config_path": ["cv_analysis", "experience_evidence_mode"],
+        "agentic_section": _AGENTIC_SECTION_CORE,
+        "stage": "cv_analysis",
+        "control_surface": "agentic_runtime",
+    },
+    {
         "key": "pipeline.vector_search_top_n",
         "type": "int",
         "default": 50,
@@ -737,6 +750,7 @@ def _derive_settings_sections() -> dict[str, list[str]]:
 def _derive_agentic_settings_sections() -> dict[str, list[str]]:
     return {
         "agentic-enablement": _ordered_key_projection([
+            "cv_analysis.experience_evidence_mode",
             "cv_analysis.semantic_alignment.enabled",
             "synonym_management.propose_enabled",
             "synonym_management.apply_approved_enabled",
@@ -1911,6 +1925,7 @@ def pipeline_settings_projection(
             "type": entry["type"],
             "default": _copy_default_value(entry["default"]),
             "input_attrs": settings_native_input_attrs(key),
+            "options": _copy_default_value(entry.get("options")),
             **extra,
         }
 
@@ -2038,6 +2053,7 @@ def pipeline_settings_projection(
             "sections": [
                 {"title": "Evidence Scope", "rows": [
                     row("pipeline.evidence_top_k", kind="mirror", owner_page="overview"),
+                    row("cv_analysis.experience_evidence_mode", label="Match strictness"),
                 ]},
                 {"title": "Semantic Alignment", "rows": [
                     row("cv_analysis.semantic_alignment.enabled", label="Semantic Alignment"),

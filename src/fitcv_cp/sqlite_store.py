@@ -13347,11 +13347,14 @@ def _filtered_run_job_rows(
         if isinstance(run_compatibility, dict)
         else None
     )
-    export_by_url = {
-        str(row.get("job_url") or "").strip(): row
-        for row in (run_payload.get("results", []) if isinstance(run_payload, dict) else [])
-        if isinstance(row, dict) and str(row.get("job_url") or "").strip()
-    }
+    export_by_url: dict[str, dict[str, Any]] = {}
+    for row in (run_payload.get("results", []) if isinstance(run_payload, dict) else []):
+        if not isinstance(row, dict):
+            continue
+        for key in ("job_url", "source_job_url", "source_url"):
+            value = str(row.get(key) or "").strip()
+            if value:
+                export_by_url[value] = row
     decision_feedback_source = (
         run_payload.get("decision_feedback_source")
         if isinstance(run_payload, dict)
@@ -13413,6 +13416,25 @@ def _filtered_run_job_rows(
             canonical,
             export_by_url.get(str(job_row["source_url"] or "").strip()),
         )
+        export_row = export_by_url.get(str(job_row["source_url"] or "").strip())
+        exported_cv_analysis = (
+            export_row.get("cv_analysis")
+            if isinstance(export_row, dict) and isinstance(export_row.get("cv_analysis"), dict)
+            else {}
+        )
+        if exported_cv_analysis:
+            selected_evidence = {
+                **selected_evidence,
+                "recommendation": selected_evidence.get("recommendation")
+                or exported_cv_analysis.get("fit_classification"),
+                "ranking_fit_label": selected_evidence.get("ranking_fit_label")
+                or exported_cv_analysis.get("ranking_fit_label"),
+                "experience_evidence_summary": selected_evidence.get(
+                    "experience_evidence_summary"
+                )
+                or exported_cv_analysis.get("experience_evidence_summary")
+                or {},
+            }
         if not skills:
             skills = _normalise_job_skill_values(canonical.get("required_skills_canonical"))
         if not skills:
@@ -13789,6 +13811,11 @@ def _hydrate_run_job_ids(
             "outcome_code": selected_result["outcome_code"] if selected_result is not None else None,
             "reason_code": selected_result["reason_code"] if selected_result is not None else None,
             "evidence": selected_evidence, "result_bucket": selected_category,
+            "recommendation": selected_evidence.get("recommendation"),
+            "ranking_fit_label": selected_evidence.get("ranking_fit_label"),
+            "experience_evidence_summary": selected_evidence.get(
+                "experience_evidence_summary"
+            ) or {},
             "stage_summaries": [{"stage_id": item.stage_id, "status": job_results[item.stage_id]["status"] if item.stage_id in job_results else "pending"} for item in PROTOTYPE_STAGES],
             "bookmarked": bookmark is not None, "bookmark_id": bookmark["bookmark_id"] if bookmark else None,
             "rating": int(interest["rating"]) if interest else None,
@@ -15004,6 +15031,11 @@ def persist_pipeline_snapshot(
             }
             for result_row in export_results:
                 outcome = dict(result_row.get("job_outcome") or {})
+                cv_analysis = (
+                    result_row.get("cv_analysis")
+                    if isinstance(result_row.get("cv_analysis"), dict)
+                    else {}
+                )
                 job_key = str(outcome.get("job_key") or "")
                 if not job_key.startswith("input:"):
                     continue
@@ -15033,6 +15065,18 @@ def persist_pipeline_snapshot(
                     "evidence_ref": outcome.get("evidence_ref"),
                     "skip_is_terminal_rejection": False,
                     "pipeline_status": result_row.get("pipeline_status"),
+                    "recommendation": (
+                        result_row.get("fit_classification")
+                        or result_row.get("recommendation")
+                        or cv_analysis.get("fit_classification")
+                    ),
+                    "ranking_fit_label": result_row.get("ranking_fit_label")
+                    or cv_analysis.get("ranking_fit_label"),
+                    "experience_evidence_summary": result_row.get(
+                        "experience_evidence_summary"
+                    )
+                    or cv_analysis.get("experience_evidence_summary")
+                    or {},
                 }
                 conn.execute(
                     """INSERT INTO run_job_stage_results (

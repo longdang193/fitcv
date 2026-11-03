@@ -12618,8 +12618,12 @@ def _retrieval_advanced_section_form(
 def _agentic_core_section_form(
     *,
     semantic_alignment_enabled: str = "true",
+    experience_evidence_mode: str = "full",
 ) -> dict[str, str]:
-    return {"cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled}
+    return {
+        "cv_analysis.experience_evidence_mode": experience_evidence_mode,
+        "cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled,
+    }
 
 
 def _agentic_advanced_section_form(

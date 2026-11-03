@@ -13,13 +13,14 @@ export interface PipelineFieldDef {
   key: string;
   label: string;
   description: string;
-  type: "number" | "boolean" | "readonly" | "membership";
+  type: "number" | "boolean" | "readonly" | "membership" | "select";
   min?: number;
   max?: number;
   step?: number;
   defaultValue: any;
   member?: string;
   readonlyValue?: string;
+  options?: Array<{ value: string; label: string }>;
 }
 
 export interface PipelineGroupDef {

@@ -26,6 +26,7 @@ from fitcv.agentic_cv_analysis import (
     build_analysis_input_summary,
     extract_job_url,
     resolve_ranked_job_fit,
+    should_route_loose_experience_review,
 )
 from fitcv.contracts import CV_ANALYSIS_REUSE_SCHEMA_VERSION
 from fitcv.evidence import (
@@ -91,6 +92,70 @@ def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
     assert coverage[0]["selected_support"] == "verified"
     assert coverage[0]["support_method"] == "responsibility_direct_support"
     assert coverage[0]["supporting_evidence_ids"] == ["ev-sql"]
+
+
+def test_loose_routes_project_backed_experience_gap_as_stretch() -> None:
+    profile = {
+        "name": "Candidate",
+        "skills": [{"name": "Power BI"}],
+        "experiences": [],
+        "projects": [
+            {
+                "name": "Sales dashboard",
+                "skills": ["Power BI"],
+                "highlights": ["Built a Power BI dashboard from sales data."],
+            }
+        ],
+    }
+    job = {
+        "job_url": "https://example.com/job/loose",
+        "title": "BI Analyst",
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "required_skills": ["Power BI commercial experience"],
+    }
+    config = {
+        **_config(),
+        "cv_analysis": {"experience_evidence_mode": "loose"},
+    }
+
+    assert should_route_loose_experience_review(job, profile, config) is True
+    result = analyze_ranked_job(job, profile, config)
+
+    assert result["status"] == "ready_for_generation"
+    assert result["ranking_fit_label"] == "skip"
+    assert result["fit_classification"] == "stretch"
+    assert result["experience_evidence_summary"]["mode"] == "loose"
+    assert result["experience_evidence_summary"]["gaps"]
+
+
+def test_full_and_strict_keep_unresolved_project_experience_blocked() -> None:
+    profile = {
+        "skills": [{"name": "Power BI"}],
+        "experiences": [],
+        "projects": [
+            {
+                "name": "Sales dashboard",
+                "skills": ["Power BI"],
+                "highlights": ["Built a Power BI dashboard from sales data."],
+            }
+        ],
+    }
+    job = {
+        "job_url": "https://example.com/job/blocked",
+        "title": "BI Analyst",
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "required_skills": ["Power BI commercial experience"],
+    }
+    for mode in ("full", "strict"):
+        result = analyze_ranked_job(
+            job,
+            profile,
+            {**_config(), "cv_analysis": {"experience_evidence_mode": mode}},
+        )
+        assert result["status"] == "blocked_by_reranker_fit"
+        assert result["fit_classification"] == "skip"
 
 
 def test_extract_job_url_accepts_indeed_url_alias() -> None:
@@ -210,6 +275,66 @@ def test_analyze_ranked_job_applies_profile_scoped_resolution(
     assert python_row["supporting_evidence_ids"] == ["resolution-1"]
     assert any(item["evidence_id"] == "resolution-1" for item in result["evidence_payload"])
     assert all(item["affected_fact"] != "Python" for item in result["uncertainties"])
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_strict_resolution_requires_and_accepts_explicit_professional_context(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::strict-resolution"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::strict-resolution"}
+    mock_bundle.return_value = {"selected_evidence": [], "selected_evidence_ids": []}
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["Python professional experience"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {
+        **_job(),
+        "required_skills": ["Python professional experience"],
+        "required_skill_entities": [
+            {"raw_text": "Python professional experience", "canonical": "python"}
+        ],
+    }
+    requirement_id = build_required_skill_descriptors(job, _config())[0]["requirement_instance_id"]
+
+    def analyze(answer_text: str) -> dict:
+        return analyze_ranked_job(
+            job,
+            profile,
+            {
+                **_config(),
+                "cv_analysis": {"experience_evidence_mode": "strict"},
+                "_requirement_resolutions": [{
+                    "resolution_id": "strict-resolution",
+                    "candidate_profile_id": "candidate-1",
+                    "candidate_profile_revision": "7",
+                    "source_profile_fingerprint": "projection::strict-resolution",
+                    "resolution_key": requirement_id,
+                    "requirement_instance_id": requirement_id,
+                    "resolution_action": "RESOLVE_WITH_ANSWER",
+                    "resolution_payload": {"answer_text": answer_text},
+                }],
+            },
+        )
+
+    assert analyze("Used Python for four years")["requirement_coverage"][0]["selected_support"] in {
+        "relevant_unverified",
+        "unsupported",
+    }
+    assert analyze(
+        "Used Python for four years with classmates in an academic project."
+    )["requirement_coverage"][0]["selected_support"] in {
+        "relevant_unverified",
+        "unsupported",
+    }
+    assert analyze("Used Python in professional employment at Acme for four years.")["requirement_coverage"][0]["selected_support"] == "verified"
 
 
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
@@ -1040,6 +1165,41 @@ def test_analyze_ranked_job_rebuilds_complete_exact_reuse_without_analysis(
     assert result["cv_analysis_trace"]["record_id"] == "fp:raw-job-1"
     mock_bundle.assert_not_called()
     mock_gap.assert_not_called()
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_analyze_ranked_job_preserves_mode_on_exact_reuse(
+    mock_fingerprint,
+    mock_bundle,
+) -> None:
+    mock_fingerprint.return_value = {
+        "fingerprint": "analysis::reuse-loose",
+        "payload": {
+            "profile": {"name": "Candidate"},
+            "job": {"raw_job_fingerprint": "raw-job-1"},
+            "contract_fingerprint": "contract::loose",
+        },
+    }
+    reusable_record = _complete_reusable_record()
+    reusable_record["analysis_input_fingerprint"] = "analysis::reuse-loose"
+    reusable_record["analysis_input_components"]["contract_fingerprint"] = "contract::loose"
+    reusable_record["analysis_input_components"]["experience_evidence_mode"] = "loose"
+    config = {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}}
+    job = _job()
+    job["raw_job_fingerprint"] = "raw-job-1"
+
+    result = analyze_ranked_job(
+        job,
+        _profile(),
+        config,
+        reusable_record=reusable_record,
+    )
+
+    assert result["analysis_reuse_status"] == "reused_exact_match"
+    assert result["analysis_input_components"]["experience_evidence_mode"] == "loose"
+    assert result["experience_evidence_summary"]["mode"] == "loose"
+    mock_bundle.assert_not_called()
 
 
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
