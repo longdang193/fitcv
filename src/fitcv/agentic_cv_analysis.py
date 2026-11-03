@@ -714,8 +714,8 @@ def _resolution_evidence_metadata(
     normalized = str(answer_text or "").casefold()
     explicit_professional_context = re.search(
         r"\b(?:professional|employment|employed|commercial|workplace|production|company|employer|team)\b"
-        r"|\b(?:at|for|with)\s+[a-z][\w&.-]+",
-        normalized,
+        r"|\b(?:worked|working|served|interned)\s+(?:at|for)\s+[A-Z][\w&.-]+",
+        str(answer_text or ""),
     )
     return {
         "evidence_type": evidence_type or "candidate_resolution",

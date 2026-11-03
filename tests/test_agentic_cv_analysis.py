@@ -328,6 +328,12 @@ def test_strict_resolution_requires_and_accepts_explicit_professional_context(
         "relevant_unverified",
         "unsupported",
     }
+    assert analyze(
+        "Used Python for four years with classmates in an academic project."
+    )["requirement_coverage"][0]["selected_support"] in {
+        "relevant_unverified",
+        "unsupported",
+    }
     assert analyze("Used Python in professional employment at Acme for four years.")["requirement_coverage"][0]["selected_support"] == "verified"
 
 
