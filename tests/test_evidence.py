@@ -916,6 +916,27 @@ def test_strict_experience_policy_allows_explicit_project_acceptance() -> None:
     assert assessment["qualified_support"] is True
 
 
+def test_strict_experience_policy_rejects_negated_project_acceptance() -> None:
+    descriptor = {
+        "canonical_skill": "python",
+        "requirement": "Production Python experience; academic projects do not count",
+        "qualifiers": {"context": {"all_of": ["production"]}},
+    }
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "project_entry",
+            "source_section": "projects",
+            "skills": ["Python"],
+            "text": "Built a production Python service as a project.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["professional_evidence_required"] is True
+    assert assessment["qualified_support"] is False
+
+
 def test_strict_experience_policy_rejects_education_as_professional_tenure() -> None:
     descriptor = {
         "canonical_skill": "python",

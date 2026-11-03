@@ -282,6 +282,60 @@ def test_analyze_ranked_job_applies_profile_scoped_resolution(
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
 @patch("fitcv.agentic_cv_analysis.build_evidence_projection")
+def test_strict_resolution_requires_and_accepts_explicit_professional_context(
+    mock_projection,
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_retrieve,
+) -> None:
+    mock_projection.return_value = {"fingerprint": "projection::strict-resolution"}
+    mock_fingerprint.return_value = {"fingerprint": "analysis::strict-resolution"}
+    mock_bundle.return_value = {"selected_evidence": [], "selected_evidence_ids": []}
+    mock_retrieve.return_value = []
+    mock_gap.return_value = {"matched": [], "missing": ["Python professional experience"]}
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": "7"}
+    job = {
+        **_job(),
+        "required_skills": ["Python professional experience"],
+        "required_skill_entities": [
+            {"raw_text": "Python professional experience", "canonical": "python"}
+        ],
+    }
+    requirement_id = build_required_skill_descriptors(job, _config())[0]["requirement_instance_id"]
+
+    def analyze(answer_text: str) -> dict:
+        return analyze_ranked_job(
+            job,
+            profile,
+            {
+                **_config(),
+                "cv_analysis": {"experience_evidence_mode": "strict"},
+                "_requirement_resolutions": [{
+                    "resolution_id": "strict-resolution",
+                    "candidate_profile_id": "candidate-1",
+                    "candidate_profile_revision": "7",
+                    "source_profile_fingerprint": "projection::strict-resolution",
+                    "resolution_key": requirement_id,
+                    "requirement_instance_id": requirement_id,
+                    "resolution_action": "RESOLVE_WITH_ANSWER",
+                    "resolution_payload": {"answer_text": answer_text},
+                }],
+            },
+        )
+
+    assert analyze("Used Python for four years")["requirement_coverage"][0]["selected_support"] in {
+        "relevant_unverified",
+        "unsupported",
+    }
+    assert analyze("Used Python in professional employment at Acme for four years.")["requirement_coverage"][0]["selected_support"] == "verified"
+
+
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+@patch("fitcv.agentic_cv_analysis.build_evidence_projection")
 def test_candidate_resolution_answer_uses_requirement_qualifiers(
     mock_projection,
     mock_fingerprint,

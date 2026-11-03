@@ -445,6 +445,15 @@ _PROJECT_ACCEPTANCE_MARKERS = (
 )
 
 
+def _project_acceptance_is_affirmed(text: str, marker: str) -> bool:
+    normalized = _normalize_optional_text(text).casefold()
+    match = re.search(rf"(?<!\w){re.escape(marker)}(?!\w)", normalized)
+    if not match:
+        return False
+    context = normalized[max(0, match.start() - 48):match.end() + 48]
+    return not bool(re.search(r"\b(?:do\s+not|does\s+not|not|never|without|no)\b", context))
+
+
 def experience_requirement_policy(
     requirement_text: str,
     descriptor: dict[str, Any] | None = None,
@@ -464,7 +473,10 @@ def experience_requirement_policy(
         reasons.append("duration")
     return {
         "experience_shaped": bool(reasons),
-        "explicit_project_acceptance": any(marker in normalized for marker in _PROJECT_ACCEPTANCE_MARKERS),
+        "explicit_project_acceptance": any(
+            _project_acceptance_is_affirmed(normalized, marker)
+            for marker in _PROJECT_ACCEPTANCE_MARKERS
+        ),
         "gap_reasons": list(dict.fromkeys(reasons)),
     }
 

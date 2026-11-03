@@ -701,6 +701,28 @@ def _resolution_map(
     }
 
 
+def _resolution_evidence_metadata(
+    resolution_payload: dict[str, Any],
+    answer_text: str,
+) -> dict[str, str]:
+    source_section = str(resolution_payload.get("source_section") or "").strip().lower()
+    evidence_type = str(resolution_payload.get("evidence_type") or "").strip().lower()
+    if source_section in {"experience", "experiences", "employment", "work_history"}:
+        return {"evidence_type": evidence_type or "candidate_resolution", "source_section": source_section}
+    if evidence_type == "experience_entry":
+        return {"evidence_type": evidence_type, "source_section": source_section or "experiences"}
+    normalized = str(answer_text or "").casefold()
+    explicit_professional_context = re.search(
+        r"\b(?:professional|employment|employed|commercial|workplace|production|company|employer|team)\b"
+        r"|\b(?:at|for|with)\s+[a-z][\w&.-]+",
+        normalized,
+    )
+    return {
+        "evidence_type": evidence_type or "candidate_resolution",
+        "source_section": "experiences" if explicit_professional_context else "candidate_resolution",
+    }
+
+
 def _append_resolution_evidence(
     evidence_payload: list[dict[str, Any]],
     requirement_coverage: list[dict[str, Any]] | None,
@@ -715,11 +737,11 @@ def _append_resolution_evidence(
         claim = str(item.get("resolved_fact") or "").strip()
         if not resolution_id or not claim or resolution_id in existing_ids:
             continue
+        resolution_payload = dict(item.get("resolution_payload") or {})
         resolved.append(
             {
                 "evidence_id": resolution_id,
-                "evidence_type": "candidate_resolution",
-                "source_section": "experiences",
+                **_resolution_evidence_metadata(resolution_payload, claim),
                 "text": claim,
                 "name": claim,
                 "source_refs": [{"type": "candidate_resolution", "resolution_id": resolution_id}],
@@ -937,6 +959,7 @@ def _build_requirement_coverage(
                     {
                         "text": resolved_fact,
                         "skills": answer_skills,
+                        **_resolution_evidence_metadata(resolution_payload, resolved_fact),
                         "support_fragments": _build_support_fragments(
                             resolved_fact,
                             answer_skills,
