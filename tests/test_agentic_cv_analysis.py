@@ -1107,6 +1107,41 @@ def test_analyze_ranked_job_rebuilds_complete_exact_reuse_without_analysis(
     mock_gap.assert_not_called()
 
 
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_analyze_ranked_job_preserves_mode_on_exact_reuse(
+    mock_fingerprint,
+    mock_bundle,
+) -> None:
+    mock_fingerprint.return_value = {
+        "fingerprint": "analysis::reuse-loose",
+        "payload": {
+            "profile": {"name": "Candidate"},
+            "job": {"raw_job_fingerprint": "raw-job-1"},
+            "contract_fingerprint": "contract::loose",
+        },
+    }
+    reusable_record = _complete_reusable_record()
+    reusable_record["analysis_input_fingerprint"] = "analysis::reuse-loose"
+    reusable_record["analysis_input_components"]["contract_fingerprint"] = "contract::loose"
+    reusable_record["analysis_input_components"]["experience_evidence_mode"] = "loose"
+    config = {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}}
+    job = _job()
+    job["raw_job_fingerprint"] = "raw-job-1"
+
+    result = analyze_ranked_job(
+        job,
+        _profile(),
+        config,
+        reusable_record=reusable_record,
+    )
+
+    assert result["analysis_reuse_status"] == "reused_exact_match"
+    assert result["analysis_input_components"]["experience_evidence_mode"] == "loose"
+    assert result["experience_evidence_summary"]["mode"] == "loose"
+    mock_bundle.assert_not_called()
+
+
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")

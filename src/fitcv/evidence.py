@@ -460,8 +460,6 @@ def experience_requirement_policy(
         reasons.append("duration")
     if any(term in set(dict(qualifiers.get("context") or {}).get("all_of") or []) for term in ("production", "enterprise")):
         reasons.append("context")
-    if "level" in qualifiers:
-        reasons.append("seniority")
     if _WRITTEN_DURATION_MARKER.search(normalized):
         reasons.append("duration")
     return {
@@ -490,6 +488,22 @@ def _is_professional_experience_evidence(item: dict[str, Any] | None) -> bool:
         "employment",
         "work_history",
     }
+
+
+def _strict_professional_evidence_required(
+    requirement_text: str,
+    item: dict[str, Any] | None,
+    config: dict[str, Any] | None,
+    descriptor: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], bool]:
+    policy = experience_requirement_policy(requirement_text, descriptor)
+    required = (
+        policy["experience_shaped"]
+        and resolve_experience_evidence_mode(config) == "strict"
+        and not policy["explicit_project_acceptance"]
+        and not _is_professional_experience_evidence(item)
+    )
+    return policy, required
 
 
 def _strip_requirement_qualifiers(text: str) -> str:
@@ -2552,12 +2566,10 @@ def _assess_responsibility_support(
         and qualifier_status == "satisfied"
         and not contradicted
     )
-    policy = experience_requirement_policy(requirement_text)
-    professional_evidence_required = (
-        policy["experience_shaped"]
-        and _is_project_evidence(evidence_metadata)
-        and resolve_experience_evidence_mode(config) == "strict"
-        and not policy["explicit_project_acceptance"]
+    policy, professional_evidence_required = _strict_professional_evidence_required(
+        requirement_text,
+        evidence_metadata,
+        config,
     )
     if professional_evidence_required:
         verified_support = False
@@ -2711,12 +2723,11 @@ def _assess_requirement_support(
         for fragment in fragment_assessments
         for qualifier in fragment["contradicting_qualifiers"]
     ))
-    policy = experience_requirement_policy(str(descriptor.get("requirement") or ""), descriptor)
-    professional_evidence_required = (
-        policy["experience_shaped"]
-        and _is_project_evidence(item)
-        and resolve_experience_evidence_mode(config) == "strict"
-        and not policy["explicit_project_acceptance"]
+    policy, professional_evidence_required = _strict_professional_evidence_required(
+        str(descriptor.get("requirement") or ""),
+        item,
+        config,
+        descriptor,
     )
     if professional_evidence_required:
         assessment["qualified_support"] = False

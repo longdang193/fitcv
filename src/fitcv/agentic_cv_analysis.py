@@ -1109,7 +1109,10 @@ _REUSABLE_RECORD_REQUIRED_FIELDS = frozenset(
 )
 
 
-def _build_analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
+def _build_analysis_input_components(
+    payload: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
     def _hash(value: Any) -> str:
         seed = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         return hashlib.sha256(seed.encode("utf-8")).hexdigest()
@@ -1128,7 +1131,7 @@ def _build_analysis_input_components(payload: dict[str, Any]) -> dict[str, Any]:
         or EXPERIENCE_EVIDENCE_POLICY_VERSION
     )
     components["experience_evidence_mode"] = str(
-        payload.get("experience_evidence_mode") or "full"
+        resolve_experience_evidence_mode(config)
     )
     components["requirement_resolutions_hash"] = _hash(list(payload.get("requirement_resolutions") or []))
     return components
@@ -1323,7 +1326,8 @@ def analyze_ranked_job(
         )
         analysis_input_fingerprint = str(fingerprint_record["fingerprint"])
         analysis_input_components = _build_analysis_input_components(
-            dict(fingerprint_record.get("payload") or {})
+            dict(fingerprint_record.get("payload") or {}),
+            config,
         )
         rejection_reason = _reuse_rejection_reason(
             reusable_record,

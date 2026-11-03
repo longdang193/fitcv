@@ -6701,11 +6701,13 @@ def test_persist_pipeline_snapshot_projects_experience_evidence_summary() -> Non
         "export_results": [
             {
                 "job_url": "https://example.com/experience",
-                "fit_classification": "stretch",
-                "ranking_fit_label": "skip",
-                "experience_evidence_summary": {
-                    "mode": "loose",
-                    "gaps": [{"requirement": "commercial experience"}],
+                "cv_analysis": {
+                    "fit_classification": "stretch",
+                    "ranking_fit_label": "skip",
+                    "experience_evidence_summary": {
+                        "mode": "loose",
+                        "gaps": [{"requirement": "commercial experience"}],
+                    },
                 },
                 "job_outcome": {
                     "job_key": "input:0",

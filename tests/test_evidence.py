@@ -916,6 +916,46 @@ def test_strict_experience_policy_allows_explicit_project_acceptance() -> None:
     assert assessment["qualified_support"] is True
 
 
+def test_strict_experience_policy_rejects_education_as_professional_tenure() -> None:
+    descriptor = {
+        "canonical_skill": "python",
+        "requirement": "two years Python experience",
+        "qualifiers": {"duration": {"comparator": "gte", "months": 24}},
+    }
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "candidate_evidence",
+            "source_section": "education",
+            "skills": ["Python"],
+            "text": "Studied Python for two years.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["professional_evidence_required"] is True
+    assert assessment["qualified_support"] is False
+
+
+def test_strict_experience_policy_does_not_treat_skill_level_as_seniority() -> None:
+    descriptor = build_required_skill_descriptors(
+        {"required_skills": ["advanced SQL"]}
+    )[0]
+    assessment = evidence_module._assess_requirement_support(
+        {
+            "evidence_type": "project_entry",
+            "source_section": "projects",
+            "skills": ["SQL"],
+            "text": "Used advanced SQL for analytics.",
+        },
+        descriptor,
+        {"cv_analysis": {"experience_evidence_mode": "strict"}},
+    )
+
+    assert assessment["experience_gap_reasons"] == []
+    assert assessment["qualified_support"] is True
+
+
 @pytest.mark.parametrize(
     ("requirement", "evidence", "expected"),
     [
