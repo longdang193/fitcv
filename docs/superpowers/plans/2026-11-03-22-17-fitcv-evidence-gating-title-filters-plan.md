@@ -40,6 +40,7 @@ targets:
   - frontend/src/test/pipeline-settings.test.tsx
   - frontend/src/test/scans.test.ts
   - frontend/e2e/integration-flows.spec.ts
+  - scripts/run_fitcv_review_e2e.ps1
   - docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md
   - docs/pipeline.md
   - docs/configuration.md
@@ -455,7 +456,7 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 **Verification:**
 - [x] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
 - [x] `npm --prefix frontend test -- --run src/test/scans.test.ts`
-- [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (full integration spec remains open)
+- [x] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (via `scripts/run_fitcv_review_e2e.ps1 -FullSuite`; 8 tests passed and cleanup exited cleanly)
 - [x] `npm --prefix frontend run test:e2e -- integration-flows.spec.ts -g "review"` (via `scripts/run_fitcv_review_e2e.ps1`; 2 review tests passed)
 - [x] `npm --prefix frontend run typecheck`
 - Expected: the strictness selector is visible and editable; title lists serialize to the backend contract; no duplicate control or raw substring behavior is introduced.
@@ -509,7 +510,7 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - [x] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_ranking_contract.py tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
 - [x] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
 - [x] `npm --prefix frontend test -- --run src/test/scans.test.ts`
-- [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (full integration spec remains open)
+- [x] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts` (via `scripts/run_fitcv_review_e2e.ps1 -FullSuite`; 8 tests passed and cleanup exited cleanly)
 - [x] `npm --prefix frontend run test:e2e -- integration-flows.spec.ts -g "review"` (via `scripts/run_fitcv_review_e2e.ps1`; 2 review tests passed and cleanup exited cleanly)
 - [x] `npm --prefix frontend run typecheck`
 - [x] `npm --prefix frontend run build`
@@ -529,10 +530,11 @@ Executed on `main` after the amended plan publication:
 - Frontend typecheck: passed.
 - Frontend production build: passed; Vite emitted only the existing chunk-size warning.
 - `git diff --check`: passed.
-- Browser E2E: `scripts/run_fitcv_review_e2e.ps1` seeded the disposable fixture,
-  generated `FITCV_E2E_MANIFEST`, started the owned backend at `127.0.0.1:8000`,
-  and passed both review tests. The wrapper cleanup now retries transient SQLite
-  WAL/SHM locks; the rerun completed with exit code `0` and removed the fixture.
+- Browser E2E: `scripts/run_fitcv_review_e2e.ps1 -FullSuite` seeded the disposable
+  fixture, generated `FITCV_E2E_MANIFEST`, started the owned backend at
+  `127.0.0.1:8000`, and passed the full `integration-flows.spec.ts` suite:
+  `8 passed` in `16.7s`. Cleanup retries transient SQLite WAL/SHM locks; the
+  run completed with exit code `0` and removed the fixture.
 
 ## Verification
 

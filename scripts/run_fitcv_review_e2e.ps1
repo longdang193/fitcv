@@ -1,3 +1,7 @@
+param(
+    [switch]$FullSuite
+)
+
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $e2eRoot = Join-Path $env:TEMP ("fitcv-p1ab-e2e-" + [guid]::NewGuid().ToString("N"))
@@ -41,7 +45,11 @@ try {
     }
     if (-not $ready) { throw "owned_server_not_ready" }
     $env:FITCV_E2E_MANIFEST = $manifest
-    npm --prefix (Join-Path $repo "frontend") run test:e2e -- integration-flows.spec.ts -g "review"
+    $playwrightArgs = @("integration-flows.spec.ts")
+    if (-not $FullSuite) {
+        $playwrightArgs += @("-g", "review")
+    }
+    npm --prefix (Join-Path $repo "frontend") run test:e2e -- $playwrightArgs
     if ($LASTEXITCODE -ne 0) { throw "browser_e2e_failed:$LASTEXITCODE" }
     exit 0
 } catch {
