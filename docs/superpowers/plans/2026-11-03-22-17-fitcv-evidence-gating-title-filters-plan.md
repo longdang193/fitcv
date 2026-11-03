@@ -11,6 +11,7 @@ targets:
   - src/fitcv/ranking_contract.py
   - src/fitcv/rule_filter.py
   - src/fitcv/pipeline.py
+  - src/fitcv/pipeline_stage_context.py
   - src/fitcv/job_sources.py
   - src/fitcv_cp/scan_contracts.py
   - src/fitcv_cp/scan_worker.py
@@ -36,6 +37,9 @@ targets:
   - tests/test_fitcv_cp/test_settings_schema.py
   - tests/test_fitcv_cp/test_app.py
   - frontend/src/test/pipeline-settings.test.tsx
+  - frontend/src/test/scans.test.ts
+  - frontend/e2e/integration-flows.spec.ts
+  - docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md
   - docs/pipeline.md
   - docs/configuration.md
 ---
@@ -91,6 +95,35 @@ the schema key, API projection, and UI select for
 `cv_analysis.experience_evidence_mode` with `loose`, `full`, and `strict`
 options. The existing control is retained and explicitly verified below.
 
+## Plan-review follow-ups
+
+The plan review also identified these justified scope corrections, which are
+required before execution:
+
+1. **High — Ranking-label authority is incomplete.** The plan must cover every
+   raw-label consumer, not only `resolve_ranked_job_fit()`. Use one canonical
+   score/label resolver and route analysis records, pipeline exports, decision
+   chains, and checkpoint restoration through it.
+2. **High — The active Managed Scan specification was omitted.** Update
+   `docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md`,
+   whose current `job_titles` contract is case-insensitive Unicode-substring
+   OR matching, so the new include/exclude semantics are authoritative and
+   persisted consistently.
+3. **High — Seniority authority is underspecified.** Define precedence and
+   conflict handling for explicit JD professional wording, normalized target
+   seniority, `candidate.preferences.seniority_target`, and
+   `profile.years_experience`; unknown or conflicting signals must not allow a
+   Loose project-only promotion for senior/professional requirements.
+4. **Medium — Provider prefilters may create false negatives.** Positive
+   provider search terms must be treated as an optimization only: query each
+   inclusion term and union/deduplicate results, or fetch broadly when safe
+   recall cannot be demonstrated. Exclusions remain post-acquisition.
+5. **Medium — Scan frontend/browser coverage was missing.** Include the
+   existing `frontend/src/test/scans.test.ts` and
+   `frontend/e2e/integration-flows.spec.ts` in the implementation and proof.
+6. **Low — Execution dependency typo.** Final verification is Task 6, not
+   Task 5.
+
 ## Implementation Outcomes
 
 ### Evidence-aware recommendation gating
@@ -128,7 +161,7 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Preauthorized local actions: edit only the plan-named files, run focused tests/type checks/builds, inspect source and generated test artifacts, and preserve unrelated untracked files
 - User-approval actions: push, merge, publication, destructive cleanup, deleting unrelated artifacts, or changing the reviewed base commit
 - Parallel ownership: `none`; evidence, ranking, filter, settings, and scan contracts share runtime and artifact boundaries
-- Sequential fallback: complete Tasks 1–2 before ranking hardening, complete Task 3 before scan/UI wiring, then run Task 5 final verification
+- Sequential fallback: complete Tasks 1–2 before ranking hardening, complete Task 3 before scan/UI wiring, then run Task 6 final verification
 
 ## Task Breakdown
 
@@ -153,13 +186,25 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Student/entry-level project evidence may support a requirement when appropriate.
 - Senior and explicitly professional requirements require professional evidence unless the JD explicitly accepts project evidence.
 - Baseline fit and evidence readiness remain separate outputs.
+- Authority precedence is deterministic: explicit JD professional wording is
+  strongest, normalized target seniority is next, candidate seniority
+  preference is contextual, and profile tenure is supporting evidence rather
+  than a selector. Unknown or conflicting signals are conservative for
+  professional gating.
+- Decision matrix: Loose may produce a project-backed stretch only for an
+  entry-level/compatible context without an explicit professional requirement;
+  Full may credit directly demonstrated capability while exposing unresolved
+  professional evidence separately; Strict requires professional evidence for
+  experience-classified requirements unless the JD explicitly accepts projects.
+- The mode is never auto-selected from student/senior status; the existing
+  run-level `cv_analysis.experience_evidence_mode` remains authoritative.
 
 **Required Skills:**
 - `skill-backend-verification`
 - `skill-test-driven-development`
 
 **Files And Symbols:**
-- Inspect: `src/fitcv/evidence.py:experience_requirement_policy`, `src/fitcv/evidence.py:_strict_professional_evidence_required`, `src/fitcv/evidence.py:resolve_experience_evidence_mode`
+- Inspect: `src/fitcv/evidence.py:experience_requirement_policy`, `src/fitcv/evidence.py:_strict_professional_evidence_required`, `src/fitcv/evidence.py:resolve_experience_evidence_mode`, `src/fitcv/rule_filter.py:_normalise_seniority`, `candidate.preferences.seniority_target`, `profile.years_experience`, `config/taxonomy/taxonomy.yaml`
 - Inspect: `src/fitcv/agentic_cv_analysis.py:should_route_loose_experience_review`, `src/fitcv/agentic_cv_analysis.py:analyze_ranked_job`, `src/fitcv/agentic_cv_analysis.py:_experience_evidence_facts`
 - Modify: `src/fitcv/evidence.py`, `src/fitcv/agentic_cv_analysis.py`, `src/fitcv/pipeline.py` only where the final evidence/readiness artifact is assembled
 - Verify: `tests/test_evidence.py`, `tests/test_agentic_cv_analysis.py`, `tests/test_pipeline.py`
@@ -253,14 +298,16 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - `0.3999 → skip`, `0.4000 → stretch`, `0.6999 → stretch`, and `0.7000 → strong` remain threshold-consistent under the configured policy.
 - Missing, non-numeric, non-finite, or out-of-range scores do not fabricate a fit label.
 - A persisted label that disagrees with the numeric score is rejected, recomputed, or marked invalid according to one documented contract; it must not be trusted silently.
+- Analysis records, decision chains, pipeline exports, and checkpoint payloads
+  all use the same resolver; no raw persisted label remains authoritative.
 
 **Required Skills:**
 - `skill-backend-verification`
 - `skill-test-driven-development`
 
 **Files And Symbols:**
-- Inspect: `src/fitcv/ranking_contract.py:build_baseline_result`, `src/fitcv/ranking_contract.py:_fit_label_from_thresholds`, `src/fitcv/ranking_contract.py:adapt_legacy_ranking_row`
-- Modify: `src/fitcv/ranking_contract.py` and `src/fitcv/agentic_cv_analysis.py:resolve_ranked_job_fit`
+- Inspect: `src/fitcv/ranking_contract.py:build_baseline_result`, `src/fitcv/ranking_contract.py:_fit_label_from_thresholds`, `src/fitcv/ranking_contract.py:adapt_legacy_ranking_row`, `src/fitcv/agentic_cv_analysis.py:_authoritative_ranking_fit_label`, `src/fitcv/agentic_cv_analysis.py:build_decision_chain`, `src/fitcv/agentic_cv_analysis.py:build_cv_analysis_record`, `src/fitcv/pipeline.py:_authoritative_ranking_fit_label`, `src/fitcv/pipeline_stage_context.py:PipelineState.from_checkpoint_payload`
+- Modify: `src/fitcv/ranking_contract.py` plus every raw-label consumer (`src/fitcv/agentic_cv_analysis.py`, `src/fitcv/pipeline.py`, and `src/fitcv/pipeline_stage_context.py`) so one canonical score/label resolver governs analysis records, exports, and checkpoint restoration
 - Verify: `tests/test_ranking_contract.py`, `tests/test_agentic_cv_analysis.py`, `config/policy/ranking.yaml`
 
 **Dependencies:**
@@ -318,6 +365,7 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Inspect: `src/fitcv/rule_filter.py:apply_rule_filters`, `src/fitcv/rule_filter.py:store_filter_results`, `src/fitcv/pipeline.py:enrich/rule-filter stage`
 - Inspect: `src/fitcv/job_sources.py:ScannerRequest`, `src/fitcv/job_sources.py:build_scanner_request`, provider `_matches` helpers
 - Inspect: `src/fitcv_cp/scan_contracts.py:ScanCreateRequest`, `src/fitcv_cp/scan_worker.py:execute_scan`, `src/fitcv_cp/sqlite_store.py:create_scan`
+- Inspect and update: `docs/superpowers/specs/2026-08-01-19-49-fitcv-managed-scan-lifecycle-spec.md` so its `job_titles` contract no longer describes substring-OR-only behavior
 - Modify: `src/fitcv/rule_filter.py`, `src/fitcv/pipeline.py`, `src/fitcv/job_sources.py`, `src/fitcv_cp/scan_contracts.py`, `src/fitcv_cp/scan_worker.py`, and only the persistence/projection functions required to retain the input and rejection reason
 - Verify: `tests/test_rule_filter.py`, `tests/test_pipeline.py`, `tests/test_job_sources.py`, `tests/test_fitcv_cp/test_scan_contracts.py`, `tests/test_fitcv_cp/test_scan_worker.py`, `tests/test_fitcv_cp/test_sqlite_store.py`
 
@@ -325,6 +373,10 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Define the canonical normalized list shape and predicate in `rule_filter.py` before wiring request or provider adapters.
 - Keep existing positive `job_titles` compatibility for older scan inputs; map it once to the canonical inclusion field.
 - Post-acquisition filtering is authoritative so uploaded jobs and providers behave identically.
+- Preserve recall: a provider may use inclusion terms as a prefilter only when
+  every canonical inclusion term is queried and results are unioned and
+  deduplicated. Otherwise omit the positive prefilter and fetch broadly.
+  Exclusion terms are never provider-only filters.
 
 **Authority:**
 - Preauthorized local actions: update the named request, filtering, acquisition, and artifact paths plus focused tests; preserve old scan-input compatibility.
@@ -376,7 +428,7 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 - Inspect: `frontend/src/features/pipeline-settings/sections-def.ts:PIPELINE_SECTIONS`, `frontend/src/features/pipeline-settings/types.ts:PipelineFieldDef`, `frontend/src/features/pipeline-settings/pipeline-settings-dialog.tsx` field renderer
 - Modify: `frontend/src/features/pipeline-settings/*` only if verification finds a regression in the already-present selector
 - Modify: `frontend/src/features/scans/types.ts`, `frontend/src/features/scans/new-scan-dialog.tsx`, `frontend/src/features/scans/scan-detail.tsx`
-- Verify: `tests/test_fitcv_cp/test_settings_schema.py`, `tests/test_fitcv_cp/test_app.py`, `frontend/src/test/pipeline-settings.test.tsx`, scan frontend tests if present
+- Verify: `tests/test_fitcv_cp/test_settings_schema.py`, `tests/test_fitcv_cp/test_app.py`, `frontend/src/test/pipeline-settings.test.tsx`, `frontend/src/test/scans.test.ts`, `frontend/e2e/integration-flows.spec.ts`
 
 **Integration Proof:**
 - Canonical contract owner: `src/fitcv_cp/settings_schema.py` for strictness and `src/fitcv_cp/scan_contracts.py` for scan title lists.
@@ -401,6 +453,8 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 
 **Verification:**
 - [ ] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
+- [ ] `npm --prefix frontend test -- --run src/test/scans.test.ts`
+- [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts`
 - [ ] `npm --prefix frontend run typecheck`
 - Expected: the strictness selector is visible and editable; title lists serialize to the backend contract; no duplicate control or raw substring behavior is introduced.
 
@@ -452,6 +506,8 @@ Focused backend, API, frontend, and browser-level checks prove the contract.
 **Verification:**
 - [ ] `python -m pytest tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_ranking_contract.py tests/test_rule_filter.py tests/test_pipeline.py tests/test_job_sources.py tests/test_fitcv_cp/test_scan_contracts.py tests/test_fitcv_cp/test_scan_worker.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
 - [ ] `npm --prefix frontend test -- --run src/test/pipeline-settings.test.tsx`
+- [ ] `npm --prefix frontend test -- --run src/test/scans.test.ts`
+- [ ] `npm --prefix frontend run test:e2e -- e2e/integration-flows.spec.ts`
 - [ ] `npm --prefix frontend run typecheck`
 - [ ] `npm --prefix frontend run build`
 - [ ] `git diff --check`
