@@ -53,6 +53,7 @@ from fitcv.preference_policy import (
 )
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv.ranking_contract import normalize_score_state
+from fitcv.rule_filter import evaluate_title_filter
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.candidate_profile_seeds import build_candidate_profile_seeds
 from fitcv_cp.company_catalog import BUNDLED_CATALOG_REVISION, BUNDLED_COMPANY_CATALOG, validate_catalog
@@ -2669,6 +2670,191 @@ def apply_synonym_suggestion_action(
         "successfully_added_count": added,
         "issue_count": issue_count,
         "skipped_count": len(automation_skipped_ids),
+    }
+
+
+def approve_all_synonym_suggestions(
+    *,
+    synonym_type: str | None = None,
+    search: str = "",
+    expected_revisions: dict[str, dict[str, Any]] | None = None,
+    acted_by: str,
+    database_path: Path | None = None,
+) -> dict[str, Any]:
+    if synonym_type is not None and synonym_type not in {"skills", "domain", "role_family"}:
+        raise ValueError("unsupported synonym type")
+    expected_revisions = expected_revisions or {}
+    clauses = ["review_status = 'pending'"]
+    params: list[Any] = []
+    if synonym_type:
+        clauses.append("synonym_type = ?")
+        params.append(synonym_type)
+    if search.strip():
+        clauses.append("(alias LIKE ? COLLATE NOCASE OR canonical LIKE ? COLLATE NOCASE)")
+        params.extend([f"%{search.strip()}%", f"%{search.strip()}%"])
+    where = " AND ".join(clauses)
+    path = database_path or Path(_local_sqlite_path())
+    with _provider_store_connection(path, write=True) as conn:
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute(
+                f"SELECT * FROM synonym_suggestions WHERE {where} ORDER BY updated_at, suggestion_id",
+                params,
+            ).fetchall()
+            grouped: dict[str, list[sqlite3.Row]] = {}
+            for row in rows:
+                grouped.setdefault(str(row["synonym_type"]), []).append(row)
+
+            for current_type in grouped:
+                expected = expected_revisions.get(current_type)
+                policy = _synonym_policy_resource(conn, current_type)
+                if not isinstance(expected, dict) or (
+                    int(policy["draft_revision"]) != int(expected.get("expected_draft_revision", -1))
+                    or policy["active_bundle_revision_id"] != expected.get("expected_active_bundle_revision_id")
+                ):
+                    raise ValueError("revision_conflict")
+
+            safe_by_type: dict[str, tuple[list[str], int, dict[str, str]]] = {}
+            blocked_by_type: dict[str, tuple[list[str], dict[str, Any], dict[str, str]]] = {}
+            for current_type, type_rows in grouped.items():
+                policy = _synonym_policy_resource(conn, current_type)
+                active_id = policy["active_bundle_revision_id"]
+                active_row = conn.execute(
+                    "SELECT normalized_bundle_json FROM synonym_policy_bundle_revisions WHERE bundle_revision_id = ?",
+                    (active_id,),
+                ).fetchone() if active_id else None
+                active_bundle = json.loads(active_row[0]) if active_row else {
+                    "skills": {}, "domain": {}, "role_family": {}
+                }
+                before = dict(active_bundle.get(current_type) or {})
+                merged = dict(before)
+                requested: dict[str, str] = {}
+                conflicting_aliases: set[str] = set()
+                requested_canonicals: dict[str, set[str]] = {}
+                for row in type_rows:
+                    alias = str(row["normalized_alias"])
+                    canonical = str(row["normalized_canonical"])
+                    requested_canonicals.setdefault(alias, set()).add(canonical)
+                    if alias in requested and requested[alias] != canonical:
+                        conflicting_aliases.add(alias)
+                    if alias in before and before[alias] != canonical:
+                        conflicting_aliases.add(alias)
+                    requested[alias] = canonical
+                    merged[alias] = canonical
+                try:
+                    compiled = compile_global_synonym_map(current_type, merged)
+                except ValueError as exc:
+                    blocked_by_type[current_type] = (
+                        [str(row["suggestion_id"]) for row in type_rows],
+                        {
+                            "code": "synonym_cycle" if "cycle" in str(exc).lower() else "synonym_alias_conflict",
+                            "aliases": sorted(conflicting_aliases or requested),
+                            "canonicals": sorted({
+                                canonical
+                                for alias in (conflicting_aliases or requested)
+                                for canonical in requested_canonicals.get(alias, set())
+                            }),
+                        },
+                        merged,
+                    )
+                    continue
+                if conflicting_aliases:
+                    blocked_by_type[current_type] = (
+                        [str(row["suggestion_id"]) for row in type_rows],
+                        {
+                            "code": "synonym_alias_conflict",
+                            "aliases": sorted(conflicting_aliases),
+                            "canonicals": sorted({
+                                canonical
+                                for alias in conflicting_aliases
+                                for canonical in requested_canonicals.get(alias, set())
+                            }),
+                        },
+                        merged,
+                    )
+                    continue
+                safe_by_type[current_type] = (
+                    [str(row["suggestion_id"]) for row in type_rows],
+                    sum(1 for alias, canonical in requested.items() if before.get(alias) != canonical),
+                    compiled,
+                )
+
+            for current_type, (type_ids, _added, normalized_policy) in safe_by_type.items():
+                policy = _synonym_policy_resource(conn, current_type)
+                _activate_synonym_policy_bundle_in_transaction(
+                    conn,
+                    current_type,
+                    editor_text=_policy_editor_text(normalized_policy),
+                    normalized_policy=normalized_policy,
+                    expected_draft_revision=int(policy["draft_revision"]),
+                    expected_active_bundle_revision_id=policy["active_bundle_revision_id"],
+                )
+                placeholders = ",".join("?" for _ in type_ids)
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                conn.execute(
+                    f"UPDATE synonym_suggestions SET review_status='approved', policy_effect='active', decided_at=?, decided_by=?, updated_at=?, revision=revision + 1 WHERE suggestion_id IN ({placeholders})",
+                    (now, acted_by, now, *type_ids),
+                )
+
+            blocked_ids: list[str] = []
+            for current_type, (type_ids, issue, merged) in blocked_by_type.items():
+                blocked_ids.extend(type_ids)
+                policy = _synonym_policy_resource(conn, current_type)
+                conn.execute(
+                    """INSERT INTO synonym_policy_drafts (
+                           synonym_type, editor_text, normalized_policy_json, issues_json,
+                           validation_status, base_type_revision_id, revision, updated_at
+                       ) VALUES (?, ?, NULL, ?, 'invalid', ?, ?, ?)
+                       ON CONFLICT(synonym_type) DO UPDATE SET
+                         editor_text=excluded.editor_text,
+                         normalized_policy_json=NULL,
+                         issues_json=excluded.issues_json,
+                         validation_status='invalid',
+                         base_type_revision_id=excluded.base_type_revision_id,
+                         revision=excluded.revision,
+                         updated_at=excluded.updated_at""",
+                    (
+                        current_type,
+                        _policy_editor_text(merged),
+                        json.dumps([issue]),
+                        policy["active_type_revision_id"],
+                        int(policy["draft_revision"]) + 1,
+                        datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    ),
+                )
+                placeholders = ",".join("?" for _ in type_ids)
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                conn.execute(
+                    f"UPDATE synonym_suggestions SET review_status='approved', policy_effect='blocked', decided_at=?, decided_by=?, updated_at=?, revision=revision + 1 WHERE suggestion_id IN ({placeholders})",
+                    (now, acted_by, now, *type_ids),
+                )
+
+            processing_run_id = _record_synonym_processing_run(
+                conn,
+                action="approve_all",
+                total=len(rows),
+                approved=len(rows),
+                added=sum(value[1] for value in safe_by_type.values()),
+                issues=len(blocked_by_type),
+                summary_extra={
+                    "selected_count": len(rows),
+                    "blocked_count": len(blocked_ids),
+                    "blocked_by_type": {
+                        current_type: issue for current_type, (_ids, issue, _merged) in blocked_by_type.items()
+                    },
+                },
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return {
+        "processing_run_id": processing_run_id,
+        "selected_count": len(rows),
+        "approved_count": len(rows),
+        "blocked_count": len(blocked_ids),
+        "successfully_added_count": sum(value[1] for value in safe_by_type.values()),
+        "issue_count": len(blocked_by_type),
     }
 
 def query_synonym_processing_runs(
@@ -13301,6 +13487,8 @@ def _filtered_run_job_rows(
     stage: str | None,
     result_bucket: str | None,
     search: str,
+    job_title_include: list[str] | None = None,
+    job_title_exclude: list[str] | None = None,
     database_path: Path | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if stage not in {None, "all", *(item.stage_id for item in PROTOTYPE_STAGES)}:
@@ -13480,6 +13668,12 @@ def _filtered_run_job_rows(
         ).casefold()
         if normalized_search and normalized_search not in searchable:
             continue
+        if not evaluate_title_filter(
+            job_fields.get("title"),
+            include_keywords=job_title_include,
+            exclude_keywords=job_title_exclude,
+        )["passed"]:
+            continue
         bookmark = bookmarks.get(run_job_id)
         interest = interests.get(run_job_id)
         projected.append(
@@ -13539,6 +13733,8 @@ def _select_run_job_ids(
     result_bucket: str | None,
     search: str,
     sort: str,
+    job_title_include: list[str] | None = None,
+    job_title_exclude: list[str] | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     if stage not in {None, "all", *(item.stage_id for item in PROTOTYPE_STAGES)}:
         raise ValueError("stage must be all or a canonical stage id")
@@ -13669,6 +13865,12 @@ def _select_run_job_ids(
             )
         ).casefold()
         if normalized_search and normalized_search not in searchable:
+            continue
+        if not evaluate_title_filter(
+            job_fields.get("title"),
+            include_keywords=job_title_include,
+            exclude_keywords=job_title_exclude,
+        )["passed"]:
             continue
         if selected_category in totals:
             totals[selected_category] += 1
@@ -13848,6 +14050,8 @@ def query_run_jobs(
     stage: str | None = None,
     result_bucket: str | None = None,
     sort: str = "score_desc",
+    job_title_include: list[str] | None = None,
+    job_title_exclude: list[str] | None = None,
 ) -> dict[str, Any]:
     if page_size not in {10, 20, 50}:
         raise ValueError("page_size must be 10, 20, or 50")
@@ -13858,7 +14062,14 @@ def query_run_jobs(
         _require_control_plane_schema(conn)
         conn.execute("BEGIN")
         matching_ids, totals = _select_run_job_ids(
-            conn, run_id, stage=stage, result_bucket=result_bucket, search=search, sort=sort
+            conn,
+            run_id,
+            stage=stage,
+            result_bucket=result_bucket,
+            search=search,
+            sort=sort,
+            job_title_include=job_title_include,
+            job_title_exclude=job_title_exclude,
         )
         offset = (page_number - 1) * page_size
         page_ids = matching_ids[offset:offset + page_size]
@@ -13893,9 +14104,16 @@ def iter_run_jobs_for_export(
     result_bucket: str = "all",
     search: str = "",
     sort: str = "score_desc",
+    job_title_include: list[str] | None = None,
+    job_title_exclude: list[str] | None = None,
 ) -> Iterator[dict[str, Any]]:
     rows, _totals = _filtered_run_job_rows(
-        run_id, stage=stage, result_bucket=result_bucket, search=search
+        run_id,
+        stage=stage,
+        result_bucket=result_bucket,
+        search=search,
+        job_title_include=job_title_include,
+        job_title_exclude=job_title_exclude,
     )
     if sort not in {"score_desc", "title_asc"}:
         raise ValueError("sort must be score_desc or title_asc")

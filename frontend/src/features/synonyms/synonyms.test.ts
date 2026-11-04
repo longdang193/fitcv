@@ -1,10 +1,11 @@
-﻿import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   fetchSynonymPolicy,
   updateSynonymPolicy,
   fetchSynonymSuggestions,
   fetchSynonymSuggestionDetail,
   approveSynonymSuggestions,
+  approveAllSynonymSuggestions,
   declineSynonymSuggestions,
   clearSynonymSuggestions,
   fetchSynonymProcessingRuns,
@@ -232,6 +233,33 @@ describe("Synonyms Feature API", () => {
     [calledPath, calledInit] = (globalThis.fetch as any).mock.calls[2];
     expect(calledPath).toBe("/synonym-suggestions/actions/clear");
     expect(calledInit.method).toBe("POST");
+  });
+
+  it("approveAllSynonymSuggestions sends filters and revision expectations", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ data: { selected_count: 2, approved_count: 2 } }),
+    });
+
+    const result = await approveAllSynonymSuggestions("all", "AI", {
+      skills: { expected_draft_revision: 3, expected_active_bundle_revision_id: "bundle-skills" },
+      domain: { expected_draft_revision: 4, expected_active_bundle_revision_id: null },
+    });
+
+    expect(result.approved_count).toBe(2);
+    const [calledPath, calledInit] = (globalThis.fetch as any).mock.calls[0];
+    expect(calledPath).toBe("/synonym-suggestions/actions/approve-all");
+    expect(calledInit.method).toBe("POST");
+    expect(JSON.parse(calledInit.body)).toEqual({
+      synonym_type: null,
+      search: "AI",
+      expected_revisions: {
+        skills: { expected_draft_revision: 3, expected_active_bundle_revision_id: "bundle-skills" },
+        domain: { expected_draft_revision: 4, expected_active_bundle_revision_id: null },
+      },
+    });
   });
 
   it("fetchSynonymProcessingRuns fetches audit log with pagination", async () => {

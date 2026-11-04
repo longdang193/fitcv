@@ -4940,6 +4940,97 @@ def test_query_run_jobs_sorts_by_valid_score_before_pagination() -> None:
     ]
 
 
+def test_query_run_jobs_applies_title_include_and_exclude_filters_before_counts() -> None:
+    run = _make_run("run-title-filters")
+    jobs = [
+        {"title": "Working Student – AI Analytics", "job_url": "https://example.com/ai"},
+        {"title": "Duales Studium – AI Engineering", "job_url": "https://example.com/duales"},
+        {"title": "Retail Analytics Intern", "job_url": "https://example.com/retail"},
+        {"title": "AI/ML Engineer", "job_url": "https://example.com/ml"},
+    ]
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "jobs.json",
+            "media_type": "application/json",
+            "jobs_snapshot_json": json.dumps(jobs),
+            "jobs_manifest_json": "{}",
+            "candidate_profile_name": "Profile",
+            "candidate_profile_json": "{}",
+            "settings_revision": "settings-1",
+            "settings_snapshot_json": "{}",
+        },
+        jobs=jobs,
+    )
+
+    result = sqlite_store.query_run_jobs(
+        run.run_id,
+        page_size=20,
+        stage="all",
+        job_title_include=["AI"],
+        job_title_exclude=["duales"],
+    )
+    assert [row["title"] for row in result["items"]] == [
+        "AI/ML Engineer", "Working Student – AI Analytics"
+    ]
+    assert result["total"] == 2
+
+    exported = list(sqlite_store.iter_run_jobs_for_export(
+        run.run_id,
+        stage="all",
+        job_title_include=["AI"],
+        job_title_exclude=["duales"],
+    ))
+    assert {row["title"] for row in exported} == {
+        "AI/ML Engineer", "Working Student – AI Analytics"
+    }
+
+
+def test_approve_all_synonym_suggestions_uses_cross_type_revision_snapshot() -> None:
+    for run_id in ("run-approve-all-skills", "run-approve-all-domain"):
+        sqlite_store.insert_run(_make_run(run_id))
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "JS", "canonical": "JavaScript", "run_id": "run-approve-all-skills", "evidence": {}},
+        {"synonym_type": "domain", "alias": "BI", "canonical": "Business Intelligence", "run_id": "run-approve-all-domain", "evidence": {}},
+    ])
+    expected = {}
+    for synonym_type in ("skills", "domain"):
+        policy = sqlite_store.get_synonym_policy(synonym_type)
+        expected[synonym_type] = {
+            "expected_draft_revision": policy["draft_revision"],
+            "expected_active_bundle_revision_id": policy["active_bundle_revision_id"],
+        }
+
+    summary = sqlite_store.approve_all_synonym_suggestions(
+        synonym_type=None,
+        search="",
+        expected_revisions=expected,
+        acted_by="admin",
+    )
+
+    assert summary["selected_count"] == 2
+    assert summary["approved_count"] == 2
+    assert summary["blocked_count"] == 0
+    assert sqlite_store.query_synonym_suggestions(review_status="pending")["total"] == 0
+    assert {item["policy_effect"] for item in sqlite_store.query_synonym_suggestions(review_status="approved")["items"]} == {"active"}
+
+
+def test_approve_all_synonym_suggestions_rejects_stale_cross_type_revision() -> None:
+    sqlite_store.insert_run(_make_run("run-approve-all-stale"))
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "JS", "canonical": "JavaScript", "run_id": "run-approve-all-stale", "evidence": {}},
+    ])
+    with pytest.raises(ValueError, match="revision_conflict"):
+        sqlite_store.approve_all_synonym_suggestions(
+            expected_revisions={"skills": {
+                "expected_draft_revision": 999,
+                "expected_active_bundle_revision_id": None,
+            }},
+            acted_by="admin",
+        )
+    assert sqlite_store.query_synonym_suggestions(review_status="pending")["total"] == 1
+
+
 def test_query_runs_searches_normalized_public_fields() -> None:
     run = _make_run("run-search-id")
     run.run_name = "Straße Run"

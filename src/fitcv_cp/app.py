@@ -121,6 +121,7 @@ from fitcv.pipeline_contracts import (
     timeline_stage_label,
 )
 from fitcv.ranking_contract import normalize_score_state
+from fitcv.rule_filter import evaluate_title_filter, normalize_title_keywords
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
 from fitcv.prompts import get_prompt_definition, render_prompt, required_template_variables
 from fitcv.prompts.loader import load_prompt_template
@@ -6340,6 +6341,15 @@ class SynonymSuggestionApproveRequest(SynonymSuggestionActionRequest):
     expected_draft_revision: int
     expected_active_bundle_revision_id: str | None
 
+class SynonymPolicyRevisionExpectation(BaseModel):
+    expected_draft_revision: int
+    expected_active_bundle_revision_id: str | None
+
+class SynonymSuggestionApproveAllRequest(BaseModel):
+    synonym_type: Literal["skills", "domain", "role_family"] | None = None
+    search: str = ""
+    expected_revisions: dict[str, SynonymPolicyRevisionExpectation]
+
 class SynonymProcessingResource(BaseModel):
     model_config = {"extra": "allow"}
 
@@ -11161,6 +11171,13 @@ def create_app(
         )
         if reservation.get("replayed") and reservation.get("response") is not None:
             return _data_response(reservation["response"])
+        if reservation.get("replayed"):
+            raise ApiError(
+                409,
+                "idempotency_in_progress",
+                "An earlier Candidate Profile action is still in progress.",
+                action="Retry after the earlier request completes.",
+            )
         try:
             resource = store.transition_candidate_profile_lifecycle(
                 profile_id, lifecycle=lifecycle, expected_revision=body.expected_revision
@@ -11350,6 +11367,50 @@ def create_app(
     @app.post("/synonym-suggestions/actions/approve", response_model=FlexibleEnvelope)
     def approve_synonym_suggestions(request: Request, body: SynonymSuggestionApproveRequest) -> dict[str, Any]:
         return _apply_synonym_action(request, body, "approve")
+
+    @app.post("/synonym-suggestions/actions/approve-all", response_model=FlexibleEnvelope)
+    def approve_all_synonym_suggestions(
+        request: Request, body: SynonymSuggestionApproveAllRequest
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        synonym_type = body.synonym_type
+        search = body.search.strip()
+        expected_revisions = {
+            synonym_type: revision.model_dump()
+            for synonym_type, revision in body.expected_revisions.items()
+        }
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            "synonym-suggestions:approve-all",
+            key,
+            _request_fingerprint({
+                "synonym_type": synonym_type,
+                "search": search,
+                "expected_revisions": expected_revisions,
+            }),
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        if reservation.get("replayed"):
+            raise ApiError(
+                409,
+                "idempotency_in_progress",
+                "An earlier Approve All action is still in progress.",
+                action="Retry after the earlier request completes.",
+            )
+        try:
+            summary = store.approve_all_synonym_suggestions(
+                synonym_type=synonym_type,
+                search=search,
+                expected_revisions=expected_revisions,
+                acted_by="admin",
+            )
+        except (ValueError, sqlite_store_module.SynonymPolicyRevisionConflict) as exc:
+            code = str(exc)
+            status_code = 409 if code == "revision_conflict" else 422
+            raise ApiError(status_code, code, "Approve All was rejected.") from exc
+        store.complete_idempotent_action(str(reservation["action_id"]), summary)
+        return _data_response(summary)
 
     @app.post("/synonym-suggestions/actions/decline", response_model=FlexibleEnvelope)
     def decline_synonym_suggestions(request: Request, body: SynonymSuggestionActionRequest) -> dict[str, Any]:
@@ -11778,6 +11839,7 @@ def create_app(
 
     @app.get("/runs/{run_id}/jobs")
     def get_run_jobs(
+        request: Request,
         run_id: str,
         page: int = 1,
         page_size: int = 10,
@@ -11786,6 +11848,8 @@ def create_app(
         result_bucket: str = "all",
         sort: str = "score_desc",
     ) -> dict[str, Any]:
+        job_title_include = normalize_title_keywords(request.query_params.getlist("job_title_include"))
+        job_title_exclude = normalize_title_keywords(request.query_params.getlist("job_title_exclude"))
         page, page_size = _validated_page(page, page_size)
         if sort not in {"score_desc", "title_asc"}:
             raise ApiError(
@@ -11812,6 +11876,8 @@ def create_app(
                 stage=stage,
                 result_bucket=result_bucket,
                 sort=sort,
+                job_title_include=job_title_include,
+                job_title_exclude=job_title_exclude,
             )
         except ValueError as exc:
             raise ApiError(
@@ -11838,6 +11904,8 @@ def create_app(
                 "passed": int(result.get("passed") or 0),
                 "rejected": int(result.get("rejected") or 0),
                 "skipped": int(result.get("skipped") or 0),
+                "job_title_include": job_title_include,
+                "job_title_exclude": job_title_exclude,
             },
         )
 
@@ -12116,12 +12184,15 @@ def create_app(
 
     @app.get("/runs/{run_id}/jobs/export.csv")
     def export_canonical_run_jobs(
+        request: Request,
         run_id: str,
         search: str = "",
         stage: str = "all",
         result_bucket: str = "all",
         sort: str = "score_desc",
     ) -> Response:
+        job_title_include = normalize_title_keywords(request.query_params.getlist("job_title_include"))
+        job_title_exclude = normalize_title_keywords(request.query_params.getlist("job_title_exclude"))
         store = _resolve_run_store()
         if store.get_run_detail(run_id) is None:
             raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
@@ -12132,6 +12203,8 @@ def create_app(
                 stage=stage,
                 result_bucket=result_bucket,
                 sort=sort,
+                job_title_include=job_title_include,
+                job_title_exclude=job_title_exclude,
             )
             output = io.StringIO(newline="")
             writer = csv.writer(output, lineterminator="\n")
@@ -12180,6 +12253,8 @@ def create_app(
             filter_name=result_bucket,
             q=search,
             sort=sort,
+            job_title_include=normalize_title_keywords(request.query_params.getlist("job_title_include")),
+            job_title_exclude=normalize_title_keywords(request.query_params.getlist("job_title_exclude")),
             include_enriched=True,
             filename=f"fitcv-run-{run_id}-full-export.zip",
         )
@@ -16187,6 +16262,8 @@ def create_app(
         filter_name: str = "all",
         q: str = "",
         sort: str = "score_desc",
+        job_title_include: list[str] | None = None,
+        job_title_exclude: list[str] | None = None,
         include_enriched: bool = False,
         filename: str | None = None,
     ) -> Response:
@@ -16207,7 +16284,17 @@ def create_app(
             page_size=1_000_000,
         )
 
-        filtered_jobs = list(context.get("enriched_jobs") or [])
+        normalized_title_include = normalize_title_keywords(job_title_include)
+        normalized_title_exclude = normalize_title_keywords(job_title_exclude)
+        filtered_jobs = [
+            job
+            for job in list(context.get("enriched_jobs") or [])
+            if evaluate_title_filter(
+                job.get("title"),
+                include_keywords=normalized_title_include,
+                exclude_keywords=normalized_title_exclude,
+            )["passed"]
+        ]
         outcomes_by_url = dict(context.get("pipeline_outcomes_by_job_url") or {})
         filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
         selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
@@ -16275,6 +16362,8 @@ def create_app(
                 "filter_name": str(filter_name or "all"),
                 "q": str(q or ""),
                 "pipeline_outcome": selected_outcomes,
+                "job_title_include": normalized_title_include,
+                "job_title_exclude": normalized_title_exclude,
             },
             "row_count": len(export_rows),
             "ordering": sort if include_enriched else "job_url_asc",
