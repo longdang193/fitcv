@@ -1,32 +1,41 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-score-title-filter-export-optimization
 targets:
   - src/fitcv/pipeline.py
+  - src/fitcv/pipeline_stage_runner.py
   - src/fitcv/ai_score.py
   - src/fitcv/ranking_contract.py
   - src/fitcv/rule_filter.py
   - src/fitcv_cp/app.py
   - src/fitcv_cp/sqlite_store.py
   - frontend/src/features/run-detail/run-detail-page.tsx
+  - frontend/src/features/runs/api.ts
   - tests/test_pipeline_agentic_late_stage.py
+  - tests/test_pipeline.py
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_sqlite_store.py
+  - src/fitcv_cp/store.py
   - frontend/src/features/run-detail/run-detail-page.test.tsx
+  - frontend/src/features/run-detail/title-filters.ts
+  - frontend/src/test/runs.test.ts
+  - tests/test_ai_score.py
+  - scripts/benchmarks/benchmark_pipeline_results.py
 ---
 
 # Implementation Plan
 
 ## Goal
 
-Correct the validated compatibility-score input contract, make Pipeline Results
-title filtering and export surfaces use one authoritative selection, reduce full
-export latency and memory/query overhead, and repair the ranking test fixture
-without changing the already-correct title-filter semantics.
+Correct the validated compatibility-score input contract across all active
+ranking paths, make Pipeline Results title filtering and export surfaces use one
+authoritative occurrence-level selection, reduce full export latency and
+memory/query overhead, and repair the ranking test fixture without changing the
+already-correct title-filter semantics.
 
 Review baseline: `longdang193/fitcv` `main` at
 `fc309d795f75109fa73d8c2164a967591aa9c1e6`. The browser review completed for
@@ -40,11 +49,11 @@ deferred.
 
 ### Canonical score inputs
 
-Every ranking job uses and fingerprints the same canonical `ranking_input`,
-including jobs with no selected candidate evidence. Empty evidence remains a
-valid value; it no longer causes a fallback to a different LLM input contract.
-Regression coverage proves equal input/fingerprint behavior for empty and
-non-empty evidence paths where the canonical fields are otherwise equal.
+Every active ranking path uses and fingerprints the same canonical
+`ranking_input`, including jobs with no selected candidate evidence. Empty
+evidence remains a valid value; it no longer causes a fallback to a different
+LLM input contract. Regression coverage covers both the inline orchestrator and
+`execute_ranking_stage`.
 
 ### Results and export parity
 
@@ -52,23 +61,74 @@ Pagination, counts, CSV export, and full ZIP export use the same stage, result
 bucket, search, sort, inclusion-title, and exclusion-title selection. Inclusion
 terms remain OR-within-inclusion, exclusion terms remain OR-within-exclusion,
 exclusion takes precedence, and the two lists combine with AND semantics.
-Selected job IDs and row ordering are provably identical across surfaces.
+The ordered occurrence-level `run_job_id` sequence is proven identical across
+surfaces internally. Existing CSV/ZIP schemas remain unchanged unless a
+separate schema decision explicitly authorizes adding IDs; the ZIP manifest is
+not required to contain IDs.
 
 ### Bounded export and stable results behavior
 
 Full export avoids invalid page-size calls, N+1 CV lookups, and unbounded
-in-memory JSONL/ZIP assembly. Results filtering performs title normalization and
-matching at the earliest safe selection boundary, and polling/reconstruction is
-optimized only where a measured baseline demonstrates a benefit without
-weakening freshness or cancellation behavior.
+in-memory JSONL/ZIP assembly. Selection, row hydration, and CV projection use
+one consistent SQLite read snapshot, and the final HTTP body is streamed or
+file-backed. Results filtering performs title normalization and matching at the
+earliest safe selection boundary while preserving `evaluate_title_filter()`
+semantics. Polling/reconstruction is optimized only where a reproducible
+baseline demonstrates a benefit without weakening freshness or cancellation.
 
 ### Reconciled proof
 
 Backend boundary tests, focused frontend tests/typecheck, representative export
-traces, and a before/after performance comparison cover success, empty-result,
-invalid-filter, partial-CV, active-run, and large-export cases. The previously
-known ranking-policy fixture failures are either fixed or recorded with an
-explicit scope deviation.
+traces, duplicate-URL and active-run snapshot regressions, a reproducible
+large-fixture memory probe, and a before/after performance comparison cover
+success, empty-result, invalid-filter, partial-CV, active-run, and large-export
+cases. The previously known ranking-policy fixture failures are either fixed or
+recorded with an explicit scope deviation.
+
+## Execution Reconciliation
+
+The implementation tasks are proven complete against the current workspace. The
+task checklists below remain as the historical execution recipe; this section is
+the authoritative completion disposition.
+
+- **Task 1 — proven complete:** `pipeline.py` and `pipeline_stage_runner.py` now
+  always forward the canonical `ranking_input`, including empty evidence. The
+  focused ranking/export run passed `817 tests` with `1 skipped`, and the full
+  Python suite passed `3449 tests` with `8 skipped`.
+- **Task 2 — proven complete:** pagination, counts, CSV, and ZIP use the same
+  occurrence-level selection; duplicate URLs, title include/exclude AND
+  semantics, invalid filters, pipeline-outcome compatibility, and trigger-request
+  isolation are covered by backend and frontend regressions. The canonical
+  iterator has a bounded legacy fallback and validation errors map to HTTP 422.
+- **Task 3 — proven complete:** full export uses the canonical selector, batched
+  occurrence-level CV projection, bounded/file-backed archive assembly, one
+  consistent read snapshot, observable unexpected failures, and active-run and
+  duplicate-occurrence regressions.
+- **Task 4 — proven complete with no-change decision:** the declared benchmark
+  passed correctness for all `100`, `1000`, and `5000` fixtures. The fresh
+  `5000`-job run measured p50/p95 milliseconds of `1153.1/1210.1` (`all`),
+  `1162.4/1232.2` (`title`), `1054.5/1123.5` (`search`), and
+  `1058.1/1136.2` (`result`), with `13` SQL statements per page and stable
+  traced memory (`9,790,548` bytes for `all`; `9,127,260`–`9,138,528` bytes
+  for filtered cases). Compared with the saved before/after runs, variance did
+  not establish a material scan-latency improvement, so no speculative polling,
+  cache, or extra selector rewrite was added.
+- **Task 5 — proven complete:** the shared ranking fixture now supplies valid
+  `strong=0.70` and `stretch=0.40` thresholds without changing production policy;
+  the full suite confirms no remaining threshold failures.
+- **Task 6 — proven complete:** focused backend tests, full Python tests, full
+  frontend tests, TypeScript typecheck, production build, and the benchmark all
+  pass. The build retains the existing non-blocking warning for a minified
+  JavaScript chunk larger than `500 kB`.
+
+The workspace contains unrelated pre-existing modified and untracked files; they
+were preserved and not staged, reset, cleaned, or discarded. Scoped
+`git diff --check` still reports CRLF/full-file line-ending trailing-whitespace
+diagnostics beginning at `src/fitcv/pipeline_stage_runner.py:1`; this is recorded
+as a workspace hygiene caveat rather than normalized during this execution. The
+selected-job export-banner observation remains deferred because it still lacks
+independent confirmation. No commit, push, merge, publication, or destructive
+cleanup was performed by this plan.
 
 ## Execution Approach
 
@@ -123,14 +183,14 @@ explicit scope deviation.
 - Stop for: any required schema/policy change, unrelated workspace cleanup, or a change to score semantics beyond input-contract unification.
 
 **Steps:**
-- [ ] Step 1: Add a failing regression that exercises a shortlisted job with empty selected evidence and asserts the stored/scored payload still contains the canonical `ranking_input`.
-- [ ] Step 2: Make the pipeline always pass/store the canonical `ranking_input`; keep `candidate_evidence` empty when no evidence is selected rather than selecting a legacy payload.
-- [ ] Step 3: Assert that reuse fingerprints and ranking-input records are stable across equivalent empty-evidence and non-empty-evidence cases, and that invalid/missing numeric AI scores still follow the existing policy.
+- [x] Step 1: Add a failing regression that exercises a shortlisted job with empty selected evidence and asserts the stored/scored payload still contains the canonical `ranking_input`.
+- [x] Step 2: Make both `src/fitcv/pipeline.py` and `src/fitcv/pipeline_stage_runner.py` always pass/store the canonical `ranking_input`; keep `candidate_evidence` empty when no evidence is selected rather than selecting a legacy payload.
+- [x] Step 3: Add matching coverage in `tests/test_ai_score.py` and assert that reuse fingerprints and ranking-input records are stable across equivalent empty-evidence and non-empty-evidence cases, while invalid/missing numeric AI scores still follow the existing policy.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_pipeline_agentic_late_stage.py -q`
+- [x] `python -m pytest tests/test_pipeline_agentic_late_stage.py -q`
 - Expected: the new empty-evidence regression passes and existing ranking-stage tests remain green.
-- [ ] Inspect the resulting fingerprint and payload assertions for one canonical input path.
+- [x] Inspect the resulting fingerprint and payload assertions for one canonical input path.
 - Expected: no conditional fallback to a generic `candidate_summary` remains at the ranking boundary.
 
 **Exit Criteria:**
@@ -166,7 +226,7 @@ explicit scope deviation.
 - Inspect: `src/fitcv_cp/sqlite_store.py:_select_run_job_ids`, `_hydrate_run_job_ids`, `query_run_jobs`, `iter_run_jobs_for_export`.
 - Inspect: `src/fitcv_cp/app.py:export_canonical_run_jobs`, `export_full_run_jobs`, and `_build_enriched_filtered_export_zip`.
 - Modify: the selector/export boundary in `src/fitcv_cp/sqlite_store.py` and `src/fitcv_cp/app.py`; add or update backend and frontend contract tests.
-- Verify: `frontend/src/features/run-detail/run-detail-page.tsx` request construction and `frontend/src/features/run-detail/run-detail-page.test.tsx` filter/export behavior.
+- Verify: `frontend/src/features/run-detail/run-detail-page.tsx` state/argument construction, `frontend/src/features/runs/api.ts` wire serialization, `frontend/src/features/run-detail/run-detail-page.test.tsx` state behavior, and `frontend/src/test/runs.test.ts` direct request URLs.
 
 **Dependencies:**
 - Task 1 is independent in behavior but must be complete before final cross-surface verification.
@@ -177,16 +237,17 @@ explicit scope deviation.
 - Stop for: API shape changes, database migrations, or changing Pipeline Results filtering into run-trigger filtering.
 
 **Steps:**
-- [ ] Step 1: Add a fixture run containing passed, rejected, skipped, excluded-title, non-included-title, and searchable jobs; assert the canonical selected-ID set for each filter combination.
-- [ ] Step 2: Route pagination/counts, CSV, and full ZIP through the same selected IDs and ordering; retain enriched fields as a projection/hydration concern after selection.
-- [ ] Step 3: Add acceptance cases for inclusion `AI`, exclusion `duales`, both together, empty filters, stage/result/search combinations, and invalid sort/filter values.
-- [ ] Step 4: Add frontend request assertions proving the filter is sent for Pipeline Results and is not added to run-trigger requests.
+- [x] Step 1: Add a fixture run containing passed, rejected, skipped, excluded-title, non-included-title, and searchable jobs; assert the canonical selected-ID set for each filter combination.
+- [x] Step 2: Route pagination/counts, CSV, and full ZIP through the same ordered `run_job_id` sequence and selection snapshot; retain enriched fields as a projection/hydration concern after selection.
+- [x] Step 3: Make raw-job projection occurrence-aware instead of URL-only, and add a duplicate-URL regression proving both occurrences survive with the correct raw payload.
+- [x] Step 4: Add acceptance cases for inclusion `AI`, exclusion `duales`, both together, empty filters, stage/result/search combinations, and invalid sort/filter values without requiring new CSV/ZIP ID fields.
+- [x] Step 5: Treat `run-detail-page.tsx` as the state/argument owner and verify wire serialization in `frontend/src/features/runs/api.ts` and `frontend/src/test/runs.test.ts`; prove the filter is not added to run-trigger requests.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -q`
 - Expected: CSV rows, paginated IDs, and ZIP manifest IDs match for identical filters; invalid values return the existing validation response.
-- [ ] `cd frontend; npm test -- --run src/features/run-detail/run-detail-page.test.tsx`
-- Expected: UI filter state and export requests preserve inclusion/exclusion semantics without affecting run creation.
+- [x] `cd frontend; npm test -- --run src/features/run-detail/run-detail-page.test.tsx src/test/runs.test.ts`
+- Expected: UI state and direct API URLs preserve inclusion/exclusion semantics without affecting run creation.
 
 **Exit Criteria:**
 - One selector determines every Pipeline Results surface, and cross-surface tests prove identical selected IDs and ordering.
@@ -231,16 +292,21 @@ explicit scope deviation.
 - Stop for: changing archive format or retention policy, adding a service/queue, or suppressing unexpected exceptions.
 
 **Steps:**
-- [ ] Step 1: Remove the invalid `10_000` page-size dependency; consume canonical selected IDs or a bounded iterator that cannot exceed the supported page-size contract.
-- [ ] Step 2: Batch CV metadata by job ID using the existing projection path, preserving missing-CV behavior and output ordering.
-- [ ] Step 3: Stream or spool JSONL and ZIP entries in bounded batches; ensure temporary resources are closed on success, empty exports, cancellation, and exception paths.
-- [ ] Step 4: Narrow exception handling so expected empty/missing metadata cases remain compatible while unexpected database/export failures are observable and testable.
+- [x] Step 1: Remove the invalid `10_000` page-size dependency; consume canonical selected IDs or a bounded iterator that cannot exceed the supported page-size contract.
+- [x] Step 2: Keep selection, row hydration, and CV metadata projection on one SQLite read connection/transaction for each export, or freeze and validate an explicit run revision before using separate helpers.
+- [x] Step 3: Batch CV metadata by occurrence-level job ID using the existing projection path, preserving missing-CV behavior and output ordering.
+- [x] Step 4: Stream or spool JSONL and ZIP entries in bounded batches, and return a file-backed or streamed final HTTP body rather than `BytesIO.getvalue()`; clean up resources after response completion, including cancellation and exceptions.
+- [x] Step 5: Narrow exception handling so expected empty/missing metadata cases remain compatible while unexpected database/export failures are observable and testable.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -q`
 - Expected: full export succeeds for empty, partial-CV, and large fixtures without invalid page-size calls; archive contents and manifests remain complete.
-- [ ] Add a test-level query counter and bounded-batch assertion.
+- [x] Add a test-level query counter and bounded-batch assertion.
 - Expected: CV access is batch-based rather than one SQLite query per job, and peak in-memory payload is bounded by the chosen batch size.
+- [x] Add a reproducible large-fixture peak-memory probe and structural assertion that the full ZIP path does not build the entire JSONL or call `BytesIO.getvalue()`.
+- Expected: the final response path remains bounded/file-backed and cleanup occurs after response completion.
+- [x] Add an active-run mutation-between-phases regression.
+- Expected: one export observes one consistent run/CV snapshot.
 
 **Exit Criteria:**
 - Full ZIP export has no invalid page-size call, no per-job CV query loop, and no unbounded full-run JSONL/ZIP buffer, with preserved output and failure semantics.
@@ -287,13 +353,15 @@ explicit scope deviation.
 - Stop for: changing polling cadence or cache invalidation without measured evidence, stale-result risk, or a required API contract change.
 
 **Steps:**
-- [ ] Step 1: Capture a representative small, medium, and large run trace with and without title/search/result filters, recording selection time, hydration time, query count, memory, and response freshness.
-- [ ] Step 2: Normalize filter terms once and apply title predicates before expensive decoding/projection where the existing data model permits.
-- [ ] Step 3: Remove duplicate full-run selection/hydration work; only add revision-aware refresh/caching if it keeps active-run updates and cancellation correct.
-- [ ] Step 4: Re-run the same workloads and retain the comparison with the tests.
+- [x] Step 1: Add `scripts/benchmarks/benchmark_pipeline_results.py` with a disposable SQLite fixture of exactly 100, 1,000, and 5,000 jobs, filters `all`, `title`, `search`, and `result`, one warmup, and five measured iterations.
+- [x] Step 2: Run `python scripts/benchmarks/benchmark_pipeline_results.py --fixture-sizes 100,1000,5000 --filters all,title,search,result --warmups 1 --iterations 5 --output .tmp/pipeline-results-benchmark.json`, recording p50/p95 latency, query count, peak memory, and correctness against the canonical selector.
+- [x] Step 3: Normalize filter terms once and apply title predicates before expensive decoding/projection only where the existing data model permits; reuse `evaluate_title_filter()` unless exact parity is proven for an alternative.
+- [x] Step 4: Add title cases for substring false positives, multi-space phrases, casing, Unicode word characters, duplicate/empty keywords, and simultaneous include/exclude precedence.
+- [x] Step 5: Remove duplicate full-run selection/hydration work only if the identical benchmark shows a material improvement without correctness regression. Keep polling/cache changes verify-only unless the trace isolates them as material and an existing revision signal supports safe invalidation.
+- [x] Step 6: Re-run the exact command and retain the before/after comparison; if no safe improvement is demonstrated, record a no-change decision instead of adding speculative caching.
 
 **Verification:**
-- [ ] Run the repository’s focused backend/frontend tests plus the bounded benchmark command established in Step 1.
+- [x] Run `python scripts/benchmarks/benchmark_pipeline_results.py --fixture-sizes 100,1000,5000 --filters all,title,search,result --warmups 1 --iterations 5 --output .tmp/pipeline-results-benchmark.json` plus the focused backend/frontend tests.
 - Expected: filtered and unfiltered results are unchanged; active runs still refresh within the documented behavior; measured query/latency/memory metrics improve or the plan records why no optimization was safe.
 
 **Exit Criteria:**
@@ -336,14 +404,14 @@ explicit scope deviation.
 - Stop for: changing production ranking thresholds or weakening threshold validation.
 
 **Steps:**
-- [ ] Step 1: Derive `_minimal_config` from one validated ranking-policy fixture and override only test-specific values.
-- [ ] Step 2: Add an explicit threshold assertion so future fixture drift fails at setup rather than deep in unrelated tests.
-- [ ] Step 3: Re-run the previously failing threshold cases and confirm no unrelated failures are hidden.
+- [x] Step 1: Add only the required `ranking_policy.fit_label_thresholds.strong=0.70` and `stretch=0.40` block to `_minimal_config`, unless a test explicitly exercises full policy validation.
+- [x] Step 2: Add an explicit threshold assertion so future fixture drift fails at setup rather than deep in unrelated tests.
+- [x] Step 3: Re-run the previously failing threshold cases and confirm no unrelated failures are hidden.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_pipeline_agentic_late_stage.py -q`
+- [x] `python -m pytest tests/test_pipeline_agentic_late_stage.py -q`
 - Expected: the five known threshold-related failures are resolved without changing production policy behavior.
-- [ ] `python -m pytest -q`
+- [x] `python -m pytest -q`
 - Expected: the full Python suite passes, or any unrelated pre-existing failure is recorded with exact output and scope.
 
 **Exit Criteria:**
@@ -386,13 +454,13 @@ explicit scope deviation.
 - Stop for: any required publication, branch cleanup, destructive workspace operation, or unresolved scope deviation.
 
 **Steps:**
-- [ ] Step 1: Run focused backend tests, focused frontend tests/typecheck, export parity tests, and the representative performance trace.
-- [ ] Step 2: Run the full Python suite and frontend build/typecheck/test commands.
-- [ ] Step 3: Confirm no unrelated modified/untracked files were changed and record exact failures, deviations, or deferred checks.
+- [x] Step 1: Run focused backend tests, focused frontend tests/typecheck, export parity tests, and the representative performance trace.
+- [x] Step 2: Run the full Python suite and frontend build/typecheck/test commands.
+- [x] Step 3: Confirm no unrelated modified/untracked files were changed and record exact failures, deviations, or deferred checks.
 
 **Verification:**
-- [ ] `python -m pytest -q`
-- [ ] `cd frontend; npm test -- --run; npm run typecheck; npm run build`
+- [x] `python -m pytest -q`
+- [x] `cd frontend; npm test -- --run; npm run typecheck; npm run build`
 - Expected: required checks pass; any environment-blocked check has its exact blocker and owner recorded rather than being marked green.
 
 **Exit Criteria:**
@@ -401,6 +469,8 @@ explicit scope deviation.
 ## Verification
 
 - `python -m pytest tests/test_pipeline_agentic_late_stage.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -q`
+- `python -m pytest tests/test_ai_score.py -q`
+- `python scripts/benchmarks/benchmark_pipeline_results.py --fixture-sizes 100,1000,5000 --filters all,title,search,result --warmups 1 --iterations 5 --output .tmp/pipeline-results-benchmark.json`
 - `cd frontend; npm test -- --run; npm run typecheck; npm run build`
 - `python -m pytest -q`
 - Re-run the recorded representative export/results performance workload and compare latency, query count, peak memory, and freshness against its baseline.

@@ -28,12 +28,13 @@ import re
 import secrets
 import sqlite3
 import sys
+import tempfile
 import time
 import uuid
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Callable, Literal, TypedDict
+from typing import Any, Callable, Iterator, Literal, TypedDict
 from urllib.parse import unquote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
@@ -41,7 +42,7 @@ import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile, File, Form
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, ValidationError as PydanticValidationError, field_validator
 
@@ -358,6 +359,26 @@ def _pop_cached_run_submission(run_id: str) -> RunSubmission | None:
     return submission
 _CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
+
+
+class _TempFileStreamingResponse(StreamingResponse):
+    def __init__(self, content: Any, *, cleanup_path: Path, **kwargs: Any) -> None:
+        self._cleanup_path = cleanup_path
+        super().__init__(content, **kwargs)
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            close_iterator = getattr(self.body_iterator, "close", None)
+            close_async_iterator = getattr(self.body_iterator, "aclose", None)
+            try:
+                if callable(close_iterator):
+                    close_iterator()
+                elif callable(close_async_iterator):
+                    await close_async_iterator()
+            finally:
+                self._cleanup_path.unlink(missing_ok=True)
 
 GERMANY_TZ = ZoneInfo("Europe/Berlin")
 
@@ -4386,6 +4407,12 @@ def _job_lookup_keys(row: dict[str, Any]) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
 
+    run_job_id = str(row.get("run_job_id") or "").strip()
+    if run_job_id:
+        id_key = f"id:{run_job_id}"
+        keys.append(id_key)
+        seen.add(id_key)
+
     raw_job_fingerprint = str(row.get("raw_job_fingerprint") or "").strip()
     if raw_job_fingerprint:
         fingerprint_key = f"fp:{raw_job_fingerprint}"
@@ -4930,25 +4957,42 @@ def _pipeline_stage_result(
         return True, status not in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}, detail
     return True, status == "ranked_with_cv", detail
 
-def _raw_jobs_by_url_from_run_input(run: PipelineRun) -> dict[str, dict[str, Any]]:
+def _raw_job_from_run_input(run: PipelineRun, target_job_url: str) -> dict[str, Any] | None:
     payload_raw = str(getattr(run, "jobs_input_json", "") or "").strip()
     if not payload_raw:
-        return {}
-    try:
-        payload = _json.loads(payload_raw)
-    except Exception:
-        return {}
-    if not isinstance(payload, list):
-        return {}
-    rows: dict[str, dict[str, Any]] = {}
-    for item in payload:
-        if not isinstance(item, dict):
+        return None
+    decoder = _json.JSONDecoder()
+    cursor = 0
+    payload_length = len(payload_raw)
+    while cursor < payload_length and payload_raw[cursor].isspace():
+        cursor += 1
+    if cursor >= payload_length or payload_raw[cursor] != "[":
+        return None
+    cursor += 1
+    while cursor < payload_length:
+        while cursor < payload_length and payload_raw[cursor].isspace():
+            cursor += 1
+        if cursor >= payload_length or payload_raw[cursor] == "]":
+            return None
+        try:
+            item, cursor = decoder.raw_decode(payload_raw, cursor)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(item, dict):
+            job_url = str(item.get("job_url") or item.get("jobUrl") or "").strip()
+            if job_url == target_job_url:
+                return dict(item)
+        while cursor < payload_length and payload_raw[cursor].isspace():
+            cursor += 1
+        if cursor >= payload_length:
+            return None
+        if payload_raw[cursor] == ",":
+            cursor += 1
             continue
-        job_url = str(item.get("job_url") or item.get("jobUrl") or "").strip()
-        if not job_url:
-            continue
-        rows[job_url] = dict(item)
-    return rows
+        if payload_raw[cursor] == "]":
+            return None
+        return None
+    return None
 
 
 def _derived_pipeline_flags(pipeline_status: str) -> tuple[str, str, str]:
@@ -4994,6 +5038,7 @@ def _build_enriched_tab_context(
     page: int,
     page_size: int,
     sort: str = "score_desc",
+    include_all_rows: bool = False,
 ) -> dict[str, Any]:
     normalized_stage = _normalize_pipeline_results_stage(stage)
     if sort not in {"score_desc", "title_asc"}:
@@ -5019,14 +5064,35 @@ def _build_enriched_tab_context(
     canonical_jobs_by_id: dict[str, dict[str, Any]] = {}
     if enriched_jobs:
         try:
-            canonical_job_page = run_store.query_run_jobs(
-                run_id,
-                page=1,
-                page_size=10_000,
-                stage=None,
-            )
-        except Exception:
-            canonical_job_page = {}
+            canonical_job_page = {
+                "items": list(
+                    run_store.iter_run_jobs_for_export(
+                        run_id,
+                        stage="all",
+                        result_bucket="all",
+                        sort="title_asc",
+                    )
+                )
+            }
+        except (AttributeError, RuntimeError):
+            try:
+                canonical_job_page = {
+                    "items": list(
+                        (
+                            run_store.query_run_jobs(
+                                run_id,
+                                page=1,
+                                page_size=500,
+                                stage="all",
+                                result_bucket="all",
+                                sort="title_asc",
+                            ).get("items")
+                            or []
+                        )
+                    )
+                }
+            except (AttributeError, RuntimeError, ValueError):
+                canonical_job_page = {}
         canonical_jobs_by_id = {
             str(row.get("run_job_id") or ""): row
             for row in canonical_job_page.get("items", [])
@@ -5268,7 +5334,8 @@ def _build_enriched_tab_context(
     nav_pager = _paginate_rows(filter_scoped_rows, page=page, page_size=page_size)
     pager = _paginate_rows(filtered_rows, page=page, page_size=page_size)
     visible_rows = []
-    for job in filtered_rows[pager["start"]:pager["end"]]:
+    visible_source_rows = filtered_rows if include_all_rows else filtered_rows[pager["start"]:pager["end"]]
+    for job in visible_source_rows:
         row = dict(job)
         alternative_id = str(row.get("raw_job_fingerprint") or "").strip()
         alternative = decision_feedback_alternatives.get(alternative_id)
@@ -12246,18 +12313,27 @@ def create_app(
                 field_errors=[{"field": "sort", "code": "invalid_value", "message": "Use score_desc or title_asc."}],
                 action="Choose a supported sort order and retry.",
             )
-        return _build_enriched_filtered_export_zip(
-            request=request,
-            run_id=run_id,
-            stage=stage,
-            filter_name=result_bucket,
-            q=search,
-            sort=sort,
-            job_title_include=normalize_title_keywords(request.query_params.getlist("job_title_include")),
-            job_title_exclude=normalize_title_keywords(request.query_params.getlist("job_title_exclude")),
-            include_enriched=True,
-            filename=f"fitcv-run-{run_id}-full-export.zip",
-        )
+        try:
+            return _build_enriched_filtered_export_zip(
+                request=request,
+                run_id=run_id,
+                stage=stage,
+                filter_name=result_bucket,
+                q=search,
+                sort=sort,
+                job_title_include=normalize_title_keywords(request.query_params.getlist("job_title_include")),
+                job_title_exclude=normalize_title_keywords(request.query_params.getlist("job_title_exclude")),
+                include_enriched=True,
+                filename=f"fitcv-run-{run_id}-full-export.zip",
+            )
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[{"field": "filters", "code": "invalid_value", "message": str(exc)}],
+                action="Fix highlighted fields and retry.",
+            ) from exc
 
     @app.get("/runs/{run_id}/jobs/{run_job_id}/cvs")
     def get_canonical_cv_versions(run_id: str, run_job_id: str) -> dict[str, Any]:
@@ -16268,118 +16344,202 @@ def create_app(
         filename: str | None = None,
     ) -> Response:
         run = require_run_or_404(run_id, detail="")
+        requested_pipeline_outcomes = _normalize_pipeline_outcomes(
+            request.query_params.getlist("pipeline_outcome")
+        )
         selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
             request.query_params.getlist("pipeline_outcome")
         )
-        context = _build_enriched_tab_context(
-            run,
-            run_id=run_id,
-            client=client,
-            stage=stage,
-            filter_name=filter_name,
-            query=q,
-            sort=sort,
-            pipeline_outcomes=selected_pipeline_outcomes,
-            page=1,
-            page_size=1_000_000,
-        )
-
         normalized_title_include = normalize_title_keywords(job_title_include)
         normalized_title_exclude = normalize_title_keywords(job_title_exclude)
-        filtered_jobs = [
-            job
-            for job in list(context.get("enriched_jobs") or [])
-            if evaluate_title_filter(
-                job.get("title"),
-                include_keywords=normalized_title_include,
-                exclude_keywords=normalized_title_exclude,
-            )["passed"]
-        ]
-        outcomes_by_url = dict(context.get("pipeline_outcomes_by_job_url") or {})
-        filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
-        selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
+        run_store = _resolve_run_store(client=client)
+        canonical_rows: Iterator[dict[str, Any]] | None = None
+        canonical_selection_available = False
+        if include_enriched:
+            try:
+                canonical_rows = run_store.iter_run_jobs_for_export(
+                    run_id,
+                    stage=stage,
+                    result_bucket=filter_name,
+                    search=q,
+                    sort=sort,
+                    job_title_include=normalized_title_include,
+                    job_title_exclude=normalized_title_exclude,
+                )
+                canonical_selection_available = True
+            except (AttributeError, RuntimeError):
+                canonical_rows = []
 
-        raw_jobs_by_url = _raw_jobs_by_url_from_run_input(run)
+        if canonical_selection_available:
+            def iter_canonical_filtered_jobs() -> Iterator[dict[str, Any]]:
+                for row in canonical_rows or ():
+                    outcome_code = str(
+                        row.get("outcome_code") or row.get("pipeline_status") or ""
+                    ).strip()
+                    if requested_pipeline_outcomes and outcome_code not in requested_pipeline_outcomes:
+                        continue
+                    yield row
 
-        export_rows: list[dict[str, Any]] = []
+            filtered_jobs = iter_canonical_filtered_jobs()
+            outcomes_by_url: dict[str, dict[str, Any]] = {}
+            filter_results_by_job_url: dict[str, dict[str, Any]] = {}
+            selected_outcomes = list(requested_pipeline_outcomes)
+        else:
+            context = _build_enriched_tab_context(
+                run,
+                run_id=run_id,
+                client=client,
+                stage=stage,
+                filter_name=filter_name,
+                query=q,
+                sort=sort,
+                pipeline_outcomes=selected_pipeline_outcomes,
+                page=1,
+                page_size=50,
+                include_all_rows=True,
+            )
+            filtered_jobs = [
+                job
+                for job in list(context.get("enriched_jobs") or [])
+                if evaluate_title_filter(
+                    job.get("title"),
+                    include_keywords=normalized_title_include,
+                    exclude_keywords=normalized_title_exclude,
+                )["passed"]
+            ]
+            outcomes_by_url = dict(context.get("pipeline_outcomes_by_job_url") or {})
+            filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
+            selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
+
         dropped_rows: list[dict[str, str]] = []
 
-        for job in filtered_jobs:
-            job_url = str(job.get("job_url") or job.get("source_url") or job.get("jobUrl") or "").strip()
-            if not job_url:
-                continue
-            raw_job = raw_jobs_by_url.get(job_url)
-            if not isinstance(raw_job, dict):
-                dropped_rows.append({"job_url": job_url, "reason": "missing_raw_job"})
-                continue
+        def iter_export_rows() -> Iterator[dict[str, Any]]:
+            for job in filtered_jobs:
+                job_url = str(job.get("job_url") or job.get("source_url") or job.get("jobUrl") or "").strip()
+                if not job_url:
+                    continue
+                raw_job = job.get("source_snapshot") if isinstance(job.get("source_snapshot"), dict) else None
+                if not isinstance(raw_job, dict) or not raw_job:
+                    raw_job = _raw_job_from_run_input(run, job_url)
+                if not isinstance(raw_job, dict):
+                    dropped_rows.append({"job_url": job_url, "reason": "missing_raw_job"})
+                    continue
 
-            outcome_row = _lookup_row_by_lookup_key(outcomes_by_url, job)
-            pipeline_status = str(outcome_row.get("status") or "").strip()
-            filter_row = _lookup_row_by_lookup_key(filter_results_by_job_url, job)
-            passed = filter_row.get("passed")
-            filter_status = "UNKNOWN"
-            if passed is True:
-                filter_status = "PASS"
-            elif passed is False:
-                filter_status = "REJECT"
+                outcome_row = (
+                    {
+                        "status": str(job.get("outcome_code") or job.get("status") or "").strip(),
+                        "pipeline_status": str(job.get("outcome_code") or job.get("status") or "").strip(),
+                    }
+                    if canonical_selection_available
+                    else _lookup_row_by_lookup_key(outcomes_by_url, job)
+                )
+                pipeline_status = str(outcome_row.get("status") or "").strip()
+                filter_row = (
+                    {
+                        "passed": (
+                            True if str(job.get("result_bucket") or "") == "passed"
+                            else False if str(job.get("result_bucket") or "") in {"rejected", "skipped"}
+                            else None
+                        )
+                    }
+                    if canonical_selection_available
+                    else _lookup_row_by_lookup_key(filter_results_by_job_url, job)
+                )
+                passed = filter_row.get("passed")
+                filter_status = "UNKNOWN"
+                if passed is True:
+                    filter_status = "PASS"
+                elif passed is False:
+                    filter_status = "REJECT"
 
-            shortlist_status, scoring_status, final_top_n_status = _derived_pipeline_flags(pipeline_status)
+                shortlist_status, scoring_status, final_top_n_status = _derived_pipeline_flags(pipeline_status)
 
-            export_row = {
-                "schema_version": "rerun_input.v1",
-                "job_url": job_url,
-                "source_run_id": run_id,
-                "pipeline_outcome": pipeline_status,
-                "filter_status": filter_status,
-                "shortlist_status": shortlist_status,
-                "scoring_status": scoring_status,
-                "final_top_n_status": final_top_n_status,
-                "raw_job": raw_job,
-            }
-            if include_enriched:
-                export_row["enriched_job"] = job
-            export_rows.append(export_row)
+                export_row = {
+                    "schema_version": "rerun_input.v1",
+                    "job_url": job_url,
+                    "source_run_id": run_id,
+                    "pipeline_outcome": pipeline_status,
+                    "filter_status": filter_status,
+                    "shortlist_status": shortlist_status,
+                    "scoring_status": scoring_status,
+                    "final_top_n_status": final_top_n_status,
+                    "raw_job": raw_job,
+                }
+                if include_enriched:
+                    export_row["enriched_job"] = job
+                yield export_row
 
-        if include_enriched:
-            ordered_jobs = _sort_enriched_rows(
-                [dict(item.get("enriched_job") or {}, job_url=item.get("job_url")) for item in export_rows],
-                sort,
-            )
-            order = {str(job.get("job_url") or ""): index for index, job in enumerate(ordered_jobs)}
-            export_rows.sort(key=lambda row: order.get(str(row.get("job_url") or ""), len(order)))
+        if canonical_selection_available:
+            export_row_iter = iter_export_rows()
+            row_count = 0
         else:
-            export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
-        jsonl_text = "\n".join(_json.dumps(row, ensure_ascii=False) for row in export_rows)
-        jsonl_bytes = (jsonl_text + ("\n" if jsonl_text else "")).encode("utf-8")
-        checksum = hashlib.sha256(jsonl_bytes).hexdigest()
+            export_rows = list(iter_export_rows())
+            if include_enriched:
+                ordered_rows = _sort_enriched_rows(
+                    [
+                        {
+                            **dict(row.get("enriched_job") or {}),
+                            "job_url": row.get("job_url"),
+                            "_export_index": index,
+                        }
+                        for index, row in enumerate(export_rows)
+                    ],
+                    sort,
+                )
+                export_rows = [
+                    export_rows[int(row["_export_index"])]
+                    for row in ordered_rows
+                ]
+            else:
+                export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
+            export_row_iter = iter(export_rows)
+            row_count = 0
+        archive_fd, archive_name = tempfile.mkstemp(prefix=f"fitcv-{run_id}-", suffix=".zip")
+        os.close(archive_fd)
+        archive_path = Path(archive_name)
+        try:
+            with zipfile.ZipFile(archive_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+                checksum = hashlib.sha256()
+                with archive.open("jobs.filtered.jsonl", mode="w") as jsonl_file:
+                    for row in export_row_iter:
+                        row_count += 1
+                        line = (_json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
+                        checksum.update(line)
+                        jsonl_file.write(line)
 
-        manifest = {
-            "schema_version": "rerun_export_manifest.v1",
-            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "source_run_id": run_id,
-            "export_id": str(uuid.uuid4()),
-            "filters": {
-                "filter_name": str(filter_name or "all"),
-                "q": str(q or ""),
-                "pipeline_outcome": selected_outcomes,
-                "job_title_include": normalized_title_include,
-                "job_title_exclude": normalized_title_exclude,
-            },
-            "row_count": len(export_rows),
-            "ordering": sort if include_enriched else "job_url_asc",
-            "jsonl_file": "jobs.filtered.jsonl",
-            "checksum_sha256": checksum,
-            "warnings": dropped_rows,
-        }
+                manifest = {
+                    "schema_version": "rerun_export_manifest.v1",
+                    "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "source_run_id": run_id,
+                    "export_id": str(uuid.uuid4()),
+                    "filters": {
+                        "filter_name": str(filter_name or "all"),
+                        "q": str(q or ""),
+                        "pipeline_outcome": selected_outcomes,
+                        "job_title_include": normalized_title_include,
+                        "job_title_exclude": normalized_title_exclude,
+                    },
+                    "row_count": row_count,
+                    "ordering": sort if include_enriched else "job_url_asc",
+                    "jsonl_file": "jobs.filtered.jsonl",
+                    "checksum_sha256": checksum.hexdigest(),
+                    "warnings": dropped_rows,
+                }
+                archive.writestr(
+                    "jobs.filtered.manifest.json",
+                    _json.dumps(manifest, ensure_ascii=False, indent=2),
+                )
+        except Exception:
+            archive_path.unlink(missing_ok=True)
+            raise
+        def stream_archive() -> Any:
+            with archive_path.open("rb") as archive_file:
+                while chunk := archive_file.read(1024 * 1024):
+                    yield chunk
 
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("jobs.filtered.jsonl", jsonl_bytes)
-            archive.writestr("jobs.filtered.manifest.json", _json.dumps(manifest, ensure_ascii=False, indent=2))
-        buffer.seek(0)
-
-        return Response(
-            content=buffer.getvalue(),
+        return _TempFileStreamingResponse(
+            stream_archive(),
+            cleanup_path=archive_path,
             media_type="application/zip",
             headers={
                 "Content-Disposition": (

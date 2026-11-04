@@ -105,6 +105,27 @@ def _app():
     return create_app(redis_url="redis://localhost:6379/0")
 
 
+def test_candidate_profile_lifecycle_reports_idempotency_in_progress() -> None:
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "candidate-profile-pending",
+        "replayed": True,
+        "response": None,
+    }
+
+    response = TestClient(app).post(
+        "/candidate-profiles/profile-1/actions/archive",
+        headers={"Idempotency-Key": "candidate-profile-pending-key"},
+        json={"expected_revision": 1},
+    )
+
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["code"] == "idempotency_in_progress"
+    assert error["message"] == "An earlier Candidate Profile action is still in progress."
+    assert error["action"] == "Retry after the earlier request completes."
+
+
 def _review_revision(client: TestClient, run_id: str, run_job_id: str = "job-1") -> str:
     return client.get(
         f"/runs/{run_id}/jobs/{run_job_id}/cv-review"
@@ -4094,27 +4115,6 @@ def test_candidate_profile_lifecycle_rejects_noop_and_stale_revision() -> None:
         state.transition_profile(profile_id, lifecycle="active", expected_revision=active["revision"])
     with pytest.raises(ValueError, match="candidate_profile_revision_conflict"):
         state.transition_profile(profile_id, lifecycle="archived", expected_revision=999)
-
-
-def test_candidate_profile_lifecycle_reports_idempotency_in_progress() -> None:
-    app = _app()
-    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
-        "action_id": "candidate-profile-pending",
-        "replayed": True,
-        "response": None,
-    }
-
-    response = TestClient(app).post(
-        "/candidate-profiles/profile-1/actions/archive",
-        headers={"Idempotency-Key": "candidate-profile-pending-key"},
-        json={"expected_revision": 1},
-    )
-
-    assert response.status_code == 409
-    error = response.json()["error"]
-    assert error["code"] == "idempotency_in_progress"
-    assert error["message"] == "An earlier Candidate Profile action is still in progress."
-    assert error["action"] == "Retry after the earlier request completes."
 
 
 def test_candidate_profile_source_block_route_has_no_alias() -> None:
@@ -15706,11 +15706,342 @@ def test_export_full_run_jobs_includes_enriched_job_payload():
     assert manifest["row_count"] == 1
 
 
+def test_export_full_run_jobs_does_not_decode_raw_input_when_snapshots_are_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-snapshot-only-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "source_url": "https://jobs.example.test/snapshot",
+                "title": "Snapshot Role",
+                "source_snapshot": {
+                    "jobUrl": "https://jobs.example.test/snapshot",
+                    "description": "already hydrated",
+                },
+                "outcome_code": "accepted",
+                "result_bucket": "passed",
+            }
+        ]
+    )
+
+    monkeypatch.setattr(
+        "fitcv_cp.app._raw_job_from_run_input",
+        lambda _run, _job_url: (_ for _ in ()).throw(AssertionError("raw input should stay lazy")),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-snapshot-only-export/jobs/export.full.zip"
+        )
+
+    assert response.status_code == 200
+
+
+def test_export_full_run_jobs_cleans_archive_on_early_disconnect(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+    from starlette.requests import Request
+
+    app = _app()
+    run = PipelineRun(
+        run_id="run-disconnect-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "source_url": "https://jobs.example.test/disconnect",
+                "title": "Disconnect Role",
+                "source_snapshot": {
+                    "jobUrl": "https://jobs.example.test/disconnect",
+                },
+                "outcome_code": "accepted",
+                "result_bucket": "passed",
+            }
+        ]
+    )
+    created_paths: list[Path] = []
+    original_mkstemp = tempfile.mkstemp
+
+    def capture_mkstemp(*args: object, **kwargs: object) -> tuple[int, str]:
+        file_descriptor, file_path = original_mkstemp(*args, **kwargs)
+        created_paths.append(Path(file_path))
+        return file_descriptor, file_path
+
+    monkeypatch.setattr("fitcv_cp.app.tempfile.mkstemp", capture_mkstemp)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/runs/run-disconnect-export/jobs/export.full.zip",
+            "raw_path": b"/runs/run-disconnect-export/jobs/export.full.zip",
+            "query_string": b"",
+            "headers": [],
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "client": ("testclient", 50000),
+            "http_version": "1.1",
+        }
+    )
+    endpoint = next(
+        route.endpoint
+        for route in app.routes
+        if getattr(route, "path", "") == "/runs/{run_id}/jobs/export.full.zip"
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = endpoint(
+            request=request,
+            run_id=run.run_id,
+            search="",
+            stage="all",
+            result_bucket="all",
+            sort="score_desc",
+        )
+
+    assert created_paths and created_paths[0].exists()
+
+    async def deliver_response() -> None:
+        async def receive() -> dict[str, object]:
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message: dict[str, object]) -> None:
+            if message.get("type") == "http.response.start":
+                return
+            raise OSError("client disconnected")
+
+        with pytest.raises(Exception):
+            await response(
+                {
+                    "type": "http",
+                    "asgi": {"spec_version": "2.4"},
+                    "method": "GET",
+                    "path": "/runs/run-disconnect-export/jobs/export.full.zip",
+                    "raw_path": b"/runs/run-disconnect-export/jobs/export.full.zip",
+                    "query_string": b"",
+                    "headers": [],
+                    "scheme": "http",
+                    "server": ("testserver", 80),
+                    "client": ("testclient", 50000),
+                    "http_version": "1.1",
+                },
+                receive,
+                send,
+            )
+
+    asyncio.run(deliver_response())
+    assert not created_paths[0].exists()
+
+
+def test_export_full_run_jobs_preserves_duplicate_url_occurrences() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-duplicate-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.get_run_fn = lambda _run_id: run
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {"run_id": run.run_id}
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "source_url": "https://jobs.example.test/same",
+                "title": "AI Analyst",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/same", "marker": "first"},
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "skills": [],
+            },
+            {
+                "run_job_id": "job-2",
+                "source_url": "https://jobs.example.test/middle",
+                "title": "AI Engineer",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/middle", "marker": "middle"},
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "skills": [],
+            },
+            {
+                "run_job_id": "job-3",
+                "source_url": "https://jobs.example.test/same",
+                "title": "AI Manager",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/same", "marker": "last"},
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "skills": [],
+            },
+        ]
+    )
+
+    response = TestClient(app).get(
+        "/runs/run-duplicate-export/jobs/export.full.zip?job_title_include=AI&sort=title_asc"
+    )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        rows = [
+            json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode("utf-8").splitlines()
+            if line
+        ]
+    assert [row["raw_job"]["marker"] for row in rows] == ["first", "middle", "last"]
+
+
+def test_export_full_run_jobs_keeps_canonical_rows_without_default_outcome_filter() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-screening-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-passed",
+                "source_url": "https://jobs.example.test/passed",
+                "title": "Passed",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/passed"},
+                "outcome_code": "passed",
+                "result_bucket": "passed",
+            },
+            {
+                "run_job_id": "job-rejected",
+                "source_url": "https://jobs.example.test/rejected",
+                "title": "Rejected",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/rejected"},
+                "outcome_code": "rejected",
+                "result_bucket": "rejected",
+            },
+        ]
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-screening-export/jobs/export.full.zip?stage=screening&result_bucket=all"
+        )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        rows = [
+            json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+        manifest = json.loads(archive.read("jobs.filtered.manifest.json"))
+    assert [row["job_url"] for row in rows] == [
+        "https://jobs.example.test/passed",
+        "https://jobs.example.test/rejected",
+    ]
+    assert manifest["filters"]["pipeline_outcome"] == []
+
+
 def test_export_full_run_jobs_rejects_unknown_sort_value() -> None:
     response = TestClient(_app()).get("/runs/run-1/jobs/export.full.zip?sort=unknown")
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_failed"
+
+
+def test_export_full_run_jobs_rejects_unknown_stage_from_canonical_selector() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-invalid-stage-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = MagicMock(
+        side_effect=ValueError("stage must be all or a canonical stage id")
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-invalid-stage-export/jobs/export.full.zip?stage=invalid"
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_failed"
+
+
+def test_export_full_run_jobs_preserves_pipeline_outcome_filter_and_avoids_detail_read() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-outcome-filter-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.get_run_detail_fn = MagicMock(
+        side_effect=AssertionError("canonical export must use one selection snapshot")
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-accepted",
+                "source_url": "https://jobs.example.test/accepted",
+                "title": "Accepted AI Role",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/accepted"},
+                "outcome_code": "accepted",
+                "result_bucket": "passed",
+                "skills": [],
+            },
+            {
+                "run_job_id": "job-held",
+                "source_url": "https://jobs.example.test/held",
+                "title": "Held AI Role",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/held"},
+                "outcome_code": "held",
+                "result_bucket": "passed",
+                "skills": [],
+            },
+        ]
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-outcome-filter-export/jobs/export.full.zip?pipeline_outcome=accepted"
+        )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        rows = [
+            json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+        manifest = json.loads(archive.read("jobs.filtered.manifest.json"))
+    assert [row["job_url"] for row in rows] == ["https://jobs.example.test/accepted"]
+    assert manifest["filters"]["pipeline_outcome"] == ["accepted"]
 
 
 def test_export_full_run_jobs_preserves_nested_score_sort() -> None:
@@ -15740,6 +16071,49 @@ def test_export_full_run_jobs_preserves_nested_score_sort() -> None:
 
     assert [row["job_url"] for row in rows] == ["https://j.test/zulu", "https://j.test/alpha"]
     assert manifest["ordering"] == "score_desc"
+
+
+def test_export_compatibility_path_considers_rows_beyond_first_page() -> None:
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [
+        {
+            "job_url": f"https://j.test/retail-{index}",
+            "title": f"AA Retail Analyst {index}",
+            "required_skills": [],
+        }
+        for index in range(50)
+    ] + [
+        {
+            "job_url": f"https://j.test/ai-{index}",
+            "title": f"ZZ AI Engineer {index}",
+            "required_skills": [],
+        }
+        for index in range(10)
+    ]
+    jobs_input = _json.dumps(
+        [
+            {"jobUrl": job["job_url"], "title": job["title"]}
+            for job in enriched
+        ]
+    )
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[], jobs_input_json=jobs_input)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get(
+            "/runs/run-detail-test/jobs/export.full.zip?sort=title_asc&job_title_include=AI"
+        )
+
+    assert response.status_code == 200
+    with _zipfile.ZipFile(_io.BytesIO(response.content)) as archive:
+        rows = [
+            _json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+    assert len(rows) == 10
+    assert all("AI" in row["enriched_job"]["title"] for row in rows)
 
 
 def test_export_full_run_jobs_accepts_source_snapshot_job_url():

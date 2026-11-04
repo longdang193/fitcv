@@ -3717,7 +3717,7 @@ def run_pipeline(
                     ranking_profile = {**(profile or {}), "_projected_evidence_pool": selected_evidence}
                     ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
                     top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
-                    if ranking_input["candidate_evidence"] and extract_job_url(shortlisted_job):
+                    if extract_job_url(shortlisted_job):
                         ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
                     try:
                         fingerprint_record = build_ai_score_input_fingerprint(
@@ -3726,7 +3726,7 @@ def run_pipeline(
                             top_evidence,
                             config,
                             resolved_route=resolved_route,
-                            **({"ranking_input": ranking_input} if ranking_input["candidate_evidence"] else {}),
+                            ranking_input=ranking_input,
                         )
                     except Exception:
                         fingerprint_record = {"fingerprint": ""}

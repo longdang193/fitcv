@@ -4986,6 +4986,94 @@ def test_query_run_jobs_applies_title_include_and_exclude_filters_before_counts(
     }
 
 
+def test_query_and_export_preserve_duplicate_url_occurrences() -> None:
+    run_id = "run-duplicate-url-occurrences"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "AI Analyst", "job_url": "https://example.com/same", "marker": "first"},
+            {"title": "AI Engineer", "job_url": "https://example.com/same", "marker": "second"},
+        ],
+    )
+
+    page = sqlite_store.query_run_jobs(
+        run_id,
+        page_size=20,
+        stage="all",
+        job_title_include=["AI"],
+    )
+    exported = list(
+        sqlite_store.iter_run_jobs_for_export(
+            run_id,
+            stage="all",
+            job_title_include=["AI"],
+        )
+    )
+
+    assert len(run_job_ids) == 2
+    assert [row["run_job_id"] for row in page["items"]] == [row["run_job_id"] for row in exported]
+    assert [row["source_snapshot"]["marker"] for row in exported] == ["first", "second"]
+
+
+def test_export_hydrates_selected_jobs_in_bounded_batches(monkeypatch: pytest.MonkeyPatch) -> None:
+    run_id = "run-export-hydration-batches"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": f"Job {index:03d}", "job_url": f"https://example.com/{index}"} for index in range(450)],
+    )
+    original_hydrate = sqlite_store._hydrate_run_job_ids
+    batch_sizes: list[int] = []
+
+    def capture_batch_size(*args: object, **kwargs: object) -> list[dict[str, object]]:
+        run_job_ids = args[2]
+        batch_sizes.append(len(run_job_ids))
+        return original_hydrate(*args, **kwargs)
+
+    monkeypatch.setattr(sqlite_store, "_hydrate_run_job_ids", capture_batch_size)
+
+    exported = list(sqlite_store.iter_run_jobs_for_export(run_id, stage="all"))
+
+    assert len(exported) == 450
+    assert len(batch_sizes) > 1
+    assert max(batch_sizes) <= 200
+
+
+def test_export_selection_and_hydration_share_one_read_snapshot() -> None:
+    run_id = "run-export-selection-snapshot"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Passed Job", "job_url": "https://example.com/passed"},
+            {"title": "Rejected Job", "job_url": "https://example.com/rejected"},
+        ],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id in run_job_ids:
+            conn.execute(
+                """INSERT INTO run_job_stage_results
+                   (run_job_id, stage_id, status, outcome_code, reason_code, evidence_json)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (run_job_id, "screening", "passed", "passed", "eligible", "{}"),
+            )
+        conn.commit()
+
+    exported_iterator = sqlite_store.iter_run_jobs_for_export(
+        run_id,
+        stage="screening",
+        result_bucket="passed",
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            "UPDATE run_job_stage_results SET status=? WHERE stage_id=?",
+            ("rejected", "screening"),
+        )
+        conn.commit()
+
+    exported = list(exported_iterator)
+
+    assert [row["result_bucket"] for row in exported] == ["passed", "passed"]
+
+
 def test_approve_all_synonym_suggestions_uses_cross_type_revision_snapshot() -> None:
     for run_id in ("run-approve-all-skills", "run-approve-all-domain"):
         sqlite_store.insert_run(_make_run(run_id))

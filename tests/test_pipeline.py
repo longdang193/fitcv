@@ -2830,7 +2830,7 @@ def test_build_cv_analysis_input_fingerprint_ignores_runtime_entry_count_only() 
 
 def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     """@proves cv_system.exact-match-late-stage-reuse"""
-    from fitcv.ai_score import build_ai_score_input_fingerprint
+    from fitcv.ai_score import build_ai_score_input_fingerprint, build_ranking_job_input
     from fitcv.pipeline import run_pipeline
     from fitcv.vector_search import build_candidate_query_text
 
@@ -2838,11 +2838,16 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     profile = _minimal_profile()
     config = _minimal_config()
     candidate_summary = build_candidate_query_text(profile, config)
+    ranking_input = build_ranking_job_input(
+        job,
+        {**profile, "_projected_evidence_pool": []},
+    )
     ai_score_fingerprint = build_ai_score_input_fingerprint(
         job,
         candidate_summary,
         [],
         config,
+        ranking_input=ranking_input,
     )["fingerprint"]
     reused_ai_row = {
         "job_url": job["job_url"],
