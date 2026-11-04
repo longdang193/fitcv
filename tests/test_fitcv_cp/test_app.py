@@ -15685,6 +15685,143 @@ def test_export_full_run_jobs_includes_enriched_job_payload():
     assert manifest["row_count"] == 1
 
 
+def test_export_full_run_jobs_does_not_decode_raw_input_when_snapshots_are_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-snapshot-only-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "source_url": "https://jobs.example.test/snapshot",
+                "title": "Snapshot Role",
+                "source_snapshot": {
+                    "jobUrl": "https://jobs.example.test/snapshot",
+                    "description": "already hydrated",
+                },
+                "outcome_code": "accepted",
+                "result_bucket": "passed",
+            }
+        ]
+    )
+
+    monkeypatch.setattr(
+        "fitcv_cp.app._raw_job_from_run_input",
+        lambda _run, _job_url: (_ for _ in ()).throw(AssertionError("raw input should stay lazy")),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-snapshot-only-export/jobs/export.full.zip"
+        )
+
+    assert response.status_code == 200
+
+
+def test_export_full_run_jobs_cleans_archive_on_early_disconnect(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+    from starlette.requests import Request
+
+    app = _app()
+    run = PipelineRun(
+        run_id="run-disconnect-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "source_url": "https://jobs.example.test/disconnect",
+                "title": "Disconnect Role",
+                "source_snapshot": {
+                    "jobUrl": "https://jobs.example.test/disconnect",
+                },
+                "outcome_code": "accepted",
+                "result_bucket": "passed",
+            }
+        ]
+    )
+    created_paths: list[Path] = []
+    original_mkstemp = tempfile.mkstemp
+
+    def capture_mkstemp(*args: object, **kwargs: object) -> tuple[int, str]:
+        file_descriptor, file_path = original_mkstemp(*args, **kwargs)
+        created_paths.append(Path(file_path))
+        return file_descriptor, file_path
+
+    monkeypatch.setattr("fitcv_cp.app.tempfile.mkstemp", capture_mkstemp)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/runs/run-disconnect-export/jobs/export.full.zip",
+            "raw_path": b"/runs/run-disconnect-export/jobs/export.full.zip",
+            "query_string": b"",
+            "headers": [],
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "client": ("testclient", 50000),
+            "http_version": "1.1",
+        }
+    )
+    endpoint = next(
+        route.endpoint
+        for route in app.routes
+        if getattr(route, "path", "") == "/runs/{run_id}/jobs/export.full.zip"
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = endpoint(
+            request=request,
+            run_id=run.run_id,
+            search="",
+            stage="all",
+            result_bucket="all",
+            sort="score_desc",
+        )
+
+    assert created_paths and created_paths[0].exists()
+
+    async def deliver_response() -> None:
+        async def receive() -> dict[str, object]:
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(_message: dict[str, object]) -> None:
+            raise OSError("client disconnected")
+
+        with pytest.raises(Exception):
+            await response(
+                {
+                    "type": "http",
+                    "asgi": {"spec_version": "2.4"},
+                    "method": "GET",
+                    "path": "/runs/run-disconnect-export/jobs/export.full.zip",
+                    "raw_path": b"/runs/run-disconnect-export/jobs/export.full.zip",
+                    "query_string": b"",
+                    "headers": [],
+                    "scheme": "http",
+                    "server": ("testserver", 80),
+                    "client": ("testclient", 50000),
+                    "http_version": "1.1",
+                },
+                receive,
+                send,
+            )
+
+    asyncio.run(deliver_response())
+    assert not created_paths[0].exists()
+
+
 def test_export_full_run_jobs_preserves_duplicate_url_occurrences() -> None:
     app = _app()
     run = PipelineRun(

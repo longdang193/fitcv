@@ -14100,6 +14100,101 @@ def get_run_job(run_id: str, run_job_id: str) -> dict[str, Any] | None:
 _RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE = 200
 
 
+class _RunJobExportIterator(Iterator[dict[str, Any]]):
+    def __init__(
+        self,
+        database_path: Path,
+        run_id: str,
+        *,
+        stage: str,
+        result_bucket: str,
+        search: str,
+        sort: str,
+        job_title_include: list[str] | None,
+        job_title_exclude: list[str] | None,
+    ) -> None:
+        self._connection_context = _sqlite_connection(database_path, read_only=True)
+        self._connection = self._connection_context.__enter__()
+        self._closed = False
+        self._run_id = run_id
+        self._stage = stage
+        self._selected_ids: list[str] = []
+        self._offset = 0
+        self._batch_rows: list[dict[str, Any]] = []
+        self._batch_index = 0
+        try:
+            self._connection.row_factory = sqlite3.Row
+            _require_control_plane_schema(self._connection)
+            self._connection.execute("BEGIN")
+            self._selected_ids, _totals = _select_run_job_ids(
+                self._connection,
+                run_id,
+                stage=stage,
+                result_bucket=result_bucket,
+                search=search,
+                sort=sort,
+                job_title_include=job_title_include,
+                job_title_exclude=job_title_exclude,
+            )
+            if not self._selected_ids and self._connection.execute(
+                "SELECT 1 FROM pipeline_runs WHERE run_id=?",
+                (run_id,),
+            ).fetchone() is None:
+                raise RuntimeError(f"run not found: {run_id}")
+        except BaseException:
+            self.close()
+            raise
+
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        return self
+
+    def __next__(self) -> dict[str, Any]:
+        if self._closed:
+            raise StopIteration
+        try:
+            while self._batch_index >= len(self._batch_rows):
+                if self._offset >= len(self._selected_ids):
+                    self.close()
+                    raise StopIteration
+                batch_ids = self._selected_ids[
+                    self._offset:self._offset + _RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE
+                ]
+                self._offset += len(batch_ids)
+                rows_by_id = {
+                    str(row.get("run_job_id") or ""): row
+                    for row in _hydrate_run_job_ids(
+                        self._connection,
+                        self._run_id,
+                        batch_ids,
+                        stage=self._stage,
+                    )
+                }
+                self._batch_rows = [
+                    rows_by_id[run_job_id]
+                    for run_job_id in batch_ids
+                    if run_job_id in rows_by_id
+                ]
+                self._batch_index = 0
+            row = self._batch_rows[self._batch_index]
+            self._batch_index += 1
+            return row
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self._connection_context.__exit__(None, None, None)
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
 def iter_run_jobs_for_export(
     run_id: str,
     *,
@@ -14111,43 +14206,16 @@ def iter_run_jobs_for_export(
     job_title_exclude: list[str] | None = None,
 ) -> Iterator[dict[str, Any]]:
     database_path = Path(_local_sqlite_path())
-    with _sqlite_connection(database_path, read_only=True) as conn:
-        conn.row_factory = sqlite3.Row
-        _require_control_plane_schema(conn)
-        conn.execute("BEGIN")
-        selected_ids, _totals = _select_run_job_ids(
-            conn,
-            run_id,
-            stage=stage,
-            result_bucket=result_bucket,
-            search=search,
-            sort=sort,
-            job_title_include=job_title_include,
-            job_title_exclude=job_title_exclude,
-        )
-        if not selected_ids and conn.execute(
-            "SELECT 1 FROM pipeline_runs WHERE run_id=?",
-            (run_id,),
-        ).fetchone() is None:
-            raise RuntimeError(f"run not found: {run_id}")
-
-    def iter_selected_rows() -> Iterator[dict[str, Any]]:
-        with _sqlite_connection(database_path, read_only=True) as conn:
-            conn.row_factory = sqlite3.Row
-            _require_control_plane_schema(conn)
-            conn.execute("BEGIN")
-            for offset in range(0, len(selected_ids), _RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE):
-                batch_ids = selected_ids[offset:offset + _RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE]
-                rows_by_id = {
-                    str(row.get("run_job_id") or ""): row
-                    for row in _hydrate_run_job_ids(conn, run_id, batch_ids, stage=stage)
-                }
-                for run_job_id in batch_ids:
-                    row = rows_by_id.get(run_job_id)
-                    if row is not None:
-                        yield row
-
-    return iter_selected_rows()
+    return _RunJobExportIterator(
+        database_path,
+        run_id,
+        stage=stage,
+        result_bucket=result_bucket,
+        search=search,
+        sort=sort,
+        job_title_include=job_title_include,
+        job_title_exclude=job_title_exclude,
+    )
 
 
 def list_run_structured_jobs(

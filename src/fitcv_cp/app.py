@@ -360,6 +360,18 @@ def _pop_cached_run_submission(run_id: str) -> RunSubmission | None:
 _CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
 
+
+class _TempFileStreamingResponse(StreamingResponse):
+    def __init__(self, content: Any, *, cleanup_path: Path, **kwargs: Any) -> None:
+        self._cleanup_path = cleanup_path
+        super().__init__(content, **kwargs)
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            self._cleanup_path.unlink(missing_ok=True)
+
 GERMANY_TZ = ZoneInfo("Europe/Berlin")
 
 
@@ -4937,25 +4949,42 @@ def _pipeline_stage_result(
         return True, status not in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}, detail
     return True, status == "ranked_with_cv", detail
 
-def _raw_jobs_by_url_from_run_input(run: PipelineRun) -> dict[str, dict[str, Any]]:
+def _raw_job_from_run_input(run: PipelineRun, target_job_url: str) -> dict[str, Any] | None:
     payload_raw = str(getattr(run, "jobs_input_json", "") or "").strip()
     if not payload_raw:
-        return {}
-    try:
-        payload = _json.loads(payload_raw)
-    except Exception:
-        return {}
-    if not isinstance(payload, list):
-        return {}
-    rows: dict[str, dict[str, Any]] = {}
-    for item in payload:
-        if not isinstance(item, dict):
+        return None
+    decoder = _json.JSONDecoder()
+    cursor = 0
+    payload_length = len(payload_raw)
+    while cursor < payload_length and payload_raw[cursor].isspace():
+        cursor += 1
+    if cursor >= payload_length or payload_raw[cursor] != "[":
+        return None
+    cursor += 1
+    while cursor < payload_length:
+        while cursor < payload_length and payload_raw[cursor].isspace():
+            cursor += 1
+        if cursor >= payload_length or payload_raw[cursor] == "]":
+            return None
+        try:
+            item, cursor = decoder.raw_decode(payload_raw, cursor)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(item, dict):
+            job_url = str(item.get("job_url") or item.get("jobUrl") or "").strip()
+            if job_url == target_job_url:
+                return dict(item)
+        while cursor < payload_length and payload_raw[cursor].isspace():
+            cursor += 1
+        if cursor >= payload_length:
+            return None
+        if payload_raw[cursor] == ",":
+            cursor += 1
             continue
-        job_url = str(item.get("job_url") or item.get("jobUrl") or "").strip()
-        if not job_url:
-            continue
-        rows[job_url] = dict(item)
-    return rows
+        if payload_raw[cursor] == "]":
+            return None
+        return None
+    return None
 
 
 def _derived_pipeline_flags(pipeline_status: str) -> tuple[str, str, str]:
@@ -16371,8 +16400,6 @@ def create_app(
             filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
             selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
 
-        raw_jobs_by_url = _raw_jobs_by_url_from_run_input(run)
-
         dropped_rows: list[dict[str, str]] = []
 
         def iter_export_rows() -> Iterator[dict[str, Any]]:
@@ -16381,7 +16408,8 @@ def create_app(
                 if not job_url:
                     continue
                 raw_job = job.get("source_snapshot") if isinstance(job.get("source_snapshot"), dict) else None
-                raw_job = raw_job or raw_jobs_by_url.get(job_url)
+                if not isinstance(raw_job, dict) or not raw_job:
+                    raw_job = _raw_job_from_run_input(run, job_url)
                 if not isinstance(raw_job, dict):
                     dropped_rows.append({"job_url": job_url, "reason": "missing_raw_job"})
                     continue
@@ -16495,15 +16523,13 @@ def create_app(
             raise
 
         def stream_archive() -> Any:
-            try:
-                with archive_path.open("rb") as archive_file:
-                    while chunk := archive_file.read(1024 * 1024):
-                        yield chunk
-            finally:
-                archive_path.unlink(missing_ok=True)
+            with archive_path.open("rb") as archive_file:
+                while chunk := archive_file.read(1024 * 1024):
+                    yield chunk
 
-        return StreamingResponse(
+        return _TempFileStreamingResponse(
             stream_archive(),
+            cleanup_path=archive_path,
             media_type="application/zip",
             headers={
                 "Content-Disposition": (

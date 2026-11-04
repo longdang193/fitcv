@@ -5038,6 +5038,42 @@ def test_export_hydrates_selected_jobs_in_bounded_batches(monkeypatch: pytest.Mo
     assert max(batch_sizes) <= 200
 
 
+def test_export_selection_and_hydration_share_one_read_snapshot() -> None:
+    run_id = "run-export-selection-snapshot"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Passed Job", "job_url": "https://example.com/passed"},
+            {"title": "Rejected Job", "job_url": "https://example.com/rejected"},
+        ],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id in run_job_ids:
+            conn.execute(
+                """INSERT INTO run_job_stage_results
+                   (run_job_id, stage_id, status, outcome_code, reason_code, evidence_json)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (run_job_id, "screening", "passed", "passed", "eligible", "{}"),
+            )
+        conn.commit()
+
+    exported_iterator = sqlite_store.iter_run_jobs_for_export(
+        run_id,
+        stage="screening",
+        result_bucket="passed",
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            "UPDATE run_job_stage_results SET status=? WHERE stage_id=?",
+            ("rejected", "screening"),
+        )
+        conn.commit()
+
+    exported = list(exported_iterator)
+
+    assert [row["result_bucket"] for row in exported] == ["passed", "passed"]
+
+
 def test_approve_all_synonym_suggestions_uses_cross_type_revision_snapshot() -> None:
     for run_id in ("run-approve-all-skills", "run-approve-all-domain"):
         sqlite_store.insert_run(_make_run(run_id))
