@@ -1,0 +1,16 @@
+{
+  "source": "indeed",
+  "kind": "apify_actor",
+  "actor": "valig/indeed-jobs-scraper",
+  "input": {
+    "country": "de",
+    "datePosted": "3",
+    "limit": 200,
+    "location": "Germany",
+    "title": "intern"
+  },
+  "run": {
+    "timeoutSecs": 120,
+    "pollIntervalSecs": 2
+  }
+}

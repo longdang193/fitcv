@@ -48,6 +48,7 @@ data/fitcv_cp_settings.sqlite3*
 data/fitcv_cp.sqlite3*
 runtime/
 .tmp-tests/
+.tmp/fetch-jobs-smoke/
 
 # Live run evidence bundles (local only)
 artifacts/live_run_*/

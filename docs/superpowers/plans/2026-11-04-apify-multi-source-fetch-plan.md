@@ -2,7 +2,7 @@
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: proposed
+status: completed
 layer: change
 ---
 
@@ -24,14 +24,16 @@ existing FitCV adapters as read-only implementation dependencies.
 
 ### Standalone source orchestrator
 
-`C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\fetch_jobs.py`
+`scripts/fetch_jobs.py`
 fetches all enabled sources, handles Apify run polling and dataset retrieval,
-preserves raw provenance, and atomically writes one canonical JSON array.
+preserves raw provenance, and atomically writes one canonical JSON array. The
+separate dedupe report carries the same run identifier and canonical-output
+digest so a partial publication is detectable.
 
 ### Symmetric source configuration
 
 JSON input files under
-`C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\config\job_sources\`
+`config/job_sources/`
 describe WorkingStudentJobs, LinkedIn, and Indeed with one common envelope.
 StepStone has no enabled configuration file in this change.
 
@@ -45,7 +47,8 @@ excluded-record provenance to a separate deduplication report.
 
 Focused tests cover configuration, Apify lifecycle failures, all supported
 source shapes, normalization, deduplication, and output compatibility. A
-bounded live smoke run uses at most five records per source.
+A bounded live smoke run starts no more than one constrained search per Apify
+source and publishes at most five records per source.
 
 ## Execution Approach
 
@@ -63,19 +66,19 @@ bounded live smoke run uses at most five records per source.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `codex/apify-multi-source-fetch`
-- Base commit: `f3eb4142e377048bfdade44bdbc21ffd2e19f5b5`
+- Branch: `main`
+- Base commit: `459503c70676c21062e499b6d4b4b27f775a7fa1`
 - Expected workspace: `main` with unrelated untracked artifacts preserved and not staged
-- Next action: approve and activate Task 1
+- Next action: branch finishing after verified publication
 - Blockers: `none`; the existing `.env` contains `APIFY_API_TOKEN`, but its value must never enter tracked files or logs
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | current | `unresolved` | none | JSON configuration parse and secret-exclusion check | pending |
-| Task 2 | `pending` | current | `unresolved` | Task 1 | source fetcher unit tests and `py_compile` | pending |
-| Task 3 | `pending` | current | `unresolved` | Task 2 | normalization and dedupe regression tests | pending |
-| Task 4 | `pending` | current | `unresolved` | Task 3 | full focused suite and output-contract validation | pending |
-| Task 5 | `pending` | current | `unresolved` | Task 4 | bounded live smoke run for three enabled sources | pending |
+| Task 1 | `completed` | current | `lead` | none | JSON configuration parse and secret-exclusion check | `14 focused tests; configs parse; no token in tracked diff` |
+| Task 2 | `completed` | current | `lead` | Task 1 | source fetcher unit tests and `py_compile` | `15 focused tests; py_compile passed; live actors bounded` |
+| Task 3 | `completed` | current | `lead` | Task 2 | normalization and dedupe regression tests | `strict >0.90 tests; FitCV canonicalization passed` |
+| Task 4 | `completed` | current | `lead` | Task 3 | full focused suite and output-contract validation | `89 passed, 1 skipped; README and .env.example aligned` |
+| Task 5 | `completed` | current | `lead` | Task 4 | bounded live smoke run for three enabled sources | `5 jobs each from WorkingStudentJobs, LinkedIn, Indeed; no StepStone; digest/schema checks passed` |
 
 ## Task Breakdown
 
@@ -109,10 +112,12 @@ bounded live smoke run uses at most five records per source.
 **Steps:**
 
 1. Add the common config envelope with `source`, `kind`, `input`, and optional `run`, `details`, or `request` settings.
-2. Copy the approved LinkedIn and Indeed payloads under `input` without changing their production limits.
-3. Add the symmetric WorkingStudentJobs config with `ref`, `pageSize`, `maxJobs`, filters, and detail-fetch policy.
-4. Add `APIFY_API_TOKEN=your_apify_api_token_here` to `.env.example`.
-5. Define the loader rule that an exported environment variable wins over `.env`.
+2. Record the validated actor input contracts: LinkedIn `rows` is per search, Indeed `limit` is the actor result cap, and smoke mode must reduce LinkedIn to one title/location pair. Do not add an Apify `maxItems` billing cap unless the selected actor explicitly accepts it; the live LinkedIn actor rejected that parameter with `max-total-charge-usd-below-minimum`.
+3. Copy the approved LinkedIn and Indeed payloads under `input` without changing their production limits.
+4. Add the symmetric WorkingStudentJobs config with `ref`, `pageSize`, `maxJobs`, filters, and `details.require=true`.
+5. Add sanitized source-shape fixtures and exact mapping assertions before source implementation.
+6. Add `APIFY_API_TOKEN=your_apify_api_token_here` to `.env.example` and explicitly ignore smoke output paths or place them under an ignored temporary directory.
+7. Define the loader rule that an exported environment variable wins over `.env`.
 
 **Verification:**
 
@@ -122,7 +127,7 @@ git diff --check
 git diff -- .env .env.example
 ```
 
-**Exit Criteria:** all three configs parse, StepStone is absent, `.env` is not modified by the task, and no credential value appears in the diff.
+**Exit Criteria:** all three configs parse, StepStone is absent from the enabled allowlist, actor input contracts are fixture-tested, smoke outputs are ignored, `.env` is not modified by the task, and no credential value appears in the diff.
 
 ### Task 2: Implement source fetching and orchestration
 
@@ -141,8 +146,8 @@ git diff -- .env .env.example
 - `scripts/fetch_jobs.py` — new `main`, `load_env_file`, `load_source_config`, `run_apify_actor`, `fetch_apify_dataset`, `fetch_workingstudentjobs_source`, `fetch_sources`, and `write_json_array` symbols.
 - `scripts/fetch_workingstudentjobs.py:build_api_url` — reuse for API URL construction.
 - `scripts/fetch_workingstudentjobs.py:fetch_all_jobs` — reuse pagination and exact-source deduplication.
-- `scripts/fetch_workingstudentjobs.py:job_to_fitcv_record` — reuse WorkingStudentJobs mapping and full-detail fallback.
-- `scripts/fetch_workingstudentjobs.py:extract_job_posting_json_ld` — reuse detail-page extraction.
+- `scripts/fetch_workingstudentjobs.py:job_to_fitcv_record` — reuse only after a required full detail record is present.
+- `scripts/fetch_workingstudentjobs.py:_request_bytes` and `extract_job_posting_json_ld` — own the short strict detail loop in the orchestrator without changing FitCV runtime code.
 
 **Dependencies:** Task 1.
 
@@ -154,12 +159,13 @@ git diff -- .env .env.example
 **Steps:**
 
 1. Load `.env` without overriding existing process environment variables.
-2. Implement CLI selection for `all`, `workingstudentjobs`, `linkedin`, and `indeed`, plus `--config-dir`, `--output`, `--dedupe-report`, and an optional smoke-test result limit.
-3. Start Apify actors using the configured JSON input, poll terminal run states, and retrieve dataset items with bounded request timeouts.
-4. Convert actor IDs to the Apify URL form safely and never include the token in exception messages.
-5. Reuse the existing WorkingStudentJobs functions rather than duplicating its pagination, detail-page, JSON-LD, and atomic-write logic.
-6. Preserve `source`, `sourceJobId`, `sourceRecord`, `sourceRunId`, and `sourceDatasetId` on normalized records.
-7. Fail clearly for failed runs, malformed dataset responses, and missing required descriptions; treat empty successful datasets as valid empty results.
+2. Implement CLI selection for `all`, `workingstudentjobs`, `linkedin`, and `indeed`, plus `--config-dir`, `--output`, `--dedupe-report`, `--max-records-per-source`, and bounded `--run-timeout`/`--poll-timeout` settings.
+3. Start Apify actors with an Authorization header, a server-side `timeoutSecs`, a recorded run ID, bounded backoff polling, and an overall client deadline. Only `SUCCEEDED` may read the returned `defaultDatasetId`; `FAILED`, `TIMED-OUT`, and `ABORTED` fail. Abort a still-running run when the client deadline expires.
+4. Convert actor IDs to the Apify URL form safely, never include the token in URLs or exception messages, and redact authorization-bearing diagnostics.
+5. Reuse the existing WorkingStudentJobs pagination and JSON-LD helpers, but require a successful detail-page `JobPosting` description and exclude API structured-summary fallbacks from canonical output.
+6. Use a hard `SUPPORTED_SOURCES = ("workingstudentjobs", "linkedin", "indeed")` allowlist; `all` iterates that tuple, never every JSON file in the directory.
+7. Preserve `source`, `sourceJobId`, `sourceRecord`, `sourceRunId`, and `sourceDatasetId` on normalized records.
+8. Fail clearly for failed runs, malformed dataset responses, missing required descriptions, and unknown source configs; treat empty successful datasets as valid empty results.
 
 **Verification:**
 
@@ -168,7 +174,7 @@ python -m py_compile scripts/fetch_jobs.py
 python -m pytest tests/test_fetch_jobs.py -q
 ```
 
-**Exit Criteria:** each enabled source can be selected independently, `--source all` combines only the three enabled sources, failures are actionable, and output writes atomically as a JSON array.
+**Exit Criteria:** each enabled source can be selected independently, `--source all` combines only the hard-allowlisted sources, Apify execution has bounded server/client lifetimes, WorkingStudentJobs fallback summaries are excluded, failures are actionable, and output writes atomically as a JSON array.
 
 ### Task 3: Add source normalization and guarded deduplication
 
@@ -198,13 +204,14 @@ python -m pytest tests/test_fetch_jobs.py -q
 
 **Steps:**
 
-1. Map LinkedIn fields including plain `description`, `descriptionHtml` fallback, company, location, dates, application URL, and source ID.
-2. Map Indeed fields including `description.text` or string description, employer, location, dates, listing URL, application URL, and `key`/`refNum`.
-3. Normalize whitespace, HTML, case, and punctuation before description tokenization.
-4. Apply exact URL and `(source, sourceJobId)` deduplication first.
-5. Apply description comparison only within normalized company/title/location buckets, requiring more than `0.90` token intersection and at least 40 meaningful tokens.
-6. Prefer complete descriptions, then newest postings, then deterministic source order.
-7. Write excluded records to the dedupe report with `duplicateOf`, similarity, source identity, and reason.
+1. Map every source into one LinkedIn-shaped FitCV input contract: `jobUrl` is the listing URL, `applyUrl` is the application URL, `sourceJobId` is the stable upstream identity, and `sourceRecord` preserves the untouched payload. Fill optional fields with empty strings, never invented values.
+2. Map LinkedIn `description` first and `descriptionHtml` only when plain text is absent; map Indeed `description.text` or string description, `url` as listing URL, `jobUrl` as application URL, employer/location/date fields, and `key`/`refNum` as identity.
+3. Normalize whitespace and HTML for comparison only. Classify descriptions as `full`, `fallback_summary`, `partial`, or `missing`; only `full` records are eligible for canonical output.
+4. Apply exact canonical URL and `(source, sourceJobId)` deduplication first.
+5. Apply fuzzy comparison only within normalized company/title/location buckets, using set intersection divided by the smaller meaningful-token set, requiring both descriptions to have at least 40 meaningful tokens and a strict similarity `> 0.90`; exactly `0.90` survives.
+6. Use fixed source priority `workingstudentjobs`, `linkedin`, `indeed`; select survivors by `(description_status == full, published_at descending with null last, source priority, sourceJobId ascending)` and make ordering independent of input order.
+7. Preserve authoritative source IDs and distinct application identities; only remove fuzzy matches after the bucket and strict threshold pass.
+8. Write a report object with `runId`, `outputSha256`, retained IDs, and excluded records containing `duplicateOf`, similarity, source identity, and reason. Every reference must resolve to a retained record.
 
 **Verification:**
 
@@ -213,7 +220,7 @@ python -m pytest tests/test_fetch_jobs.py -q
 python -m pytest tests/test_ingest.py tests/test_normalize.py -q
 ```
 
-**Exit Criteria:** LinkedIn, Indeed, and WorkingStudentJobs records pass `validate_job_schema`; descriptions remain complete; below-threshold records remain; above-threshold duplicates are removed with report evidence.
+**Exit Criteria:** canonical records pass `validate_job_schema`, listing/application URLs and stable IDs are preserved, incomplete descriptions are excluded, below-threshold and cross-location records remain, above-threshold duplicates are removed deterministically, and every exclusion has resolvable report evidence.
 
 ### Task 4: Complete focused regression proof and documentation
 
@@ -243,11 +250,12 @@ python -m pytest tests/test_ingest.py tests/test_normalize.py -q
 
 **Steps:**
 
-1. Add mocked HTTP tests for Apify start, polling, dataset retrieval, failure, timeout, and empty-success cases.
-2. Add fixtures covering the live LinkedIn and Indeed field shapes without committing private job data.
-3. Add `.env` precedence and secret-redaction tests.
-4. Document the `--source all` command, per-source selection, output/report paths, and StepStone exclusion.
-5. Run focused and existing regression suites.
+1. Add mocked HTTP tests for Apify start, polling, dataset retrieval, every terminal state, client deadline while still running, abort, malformed response, and empty-success cases.
+2. Add fixtures covering the live LinkedIn and Indeed field shapes without committing private job data, plus exact canonical serialization and application/listing URL assertions.
+3. Add tests for WorkingStudentJobs detail failure, summary fallback exclusion, source identity, mixed-source arrays, deterministic source ordering, same-title separate requisitions, shared boilerplate, different locations, and description-length asymmetry.
+4. Add `.env` precedence and secret-redaction tests, a stray StepStone configuration test proving zero StepStone actor calls, and publication tests for output/report digest consistency and write failure handling.
+5. Document the `--source all` command, per-source selection, output/report paths, strict description policy, smoke limits, and StepStone exclusion.
+6. Run focused and existing regression suites, including relevant upload-path tests where practical.
 
 **Verification:**
 
@@ -275,7 +283,7 @@ git diff --check
 
 - `scripts/fetch_jobs.py:main` — bounded live invocation.
 - `config/job_sources/*.json` — temporary smoke-test limit overrides only; production config values remain unchanged.
-- `data/jobs.json` and `data/jobs.dedupe.json` — local verification outputs, never credentials.
+- ignored temporary smoke output paths such as `.tmp/fetch-jobs-smoke/jobs.json` and `.tmp/fetch-jobs-smoke/jobs.dedupe.json` — local verification outputs, never credentials.
 
 **Dependencies:** Task 4.
 
@@ -286,21 +294,21 @@ git diff --check
 
 **Steps:**
 
-1. Run LinkedIn with `rows: 5`.
-2. Run Indeed with `limit: 5`.
-3. Run WorkingStudentJobs with `maxJobs: 5` and detail fetching enabled.
-4. Run `scripts/fetch_jobs.py --source all` against those bounded inputs.
-5. Validate that the final output is a JSON array and every retained record passes `validate_job_schema`.
-6. Verify that the dedupe report accounts for excluded duplicates and that no StepStone actor was called.
+1. Create an in-memory/copy smoke configuration: LinkedIn has exactly one title and one location with `rows: 5`; Indeed has `limit: 5`; WorkingStudentJobs has `maxJobs: 5` and `details.require=true`. Do not pass `maxItems` for the validated LinkedIn actor.
+2. Run `scripts/fetch_jobs.py --source all --max-records-per-source 5 --run-timeout 120 --poll-timeout 150` against that temporary config.
+3. Count actual Apify actor starts and assert no more than one LinkedIn and one Indeed run, no StepStone run, and no more than five retained records per source.
+4. Validate every retained record through `validate_job_schema`, canonicalize/normalize it through the existing FitCV boundary, verify complete descriptions, stable IDs, listing/application URLs, and allowed source names.
+5. Verify the dedupe report `runId`, `outputSha256`, retained IDs, and duplicate references against the same output.
+6. Verify `git status --short` and staged-file checks show no live output, token, or generated secret.
 
 **Verification:**
 
 ```powershell
-python scripts/fetch_jobs.py --source all --config-dir config/job_sources --output data/jobs.json --dedupe-report data/jobs.dedupe.json
-python -c "import json; jobs=json.load(open('data/jobs.json', encoding='utf-8')); report=json.load(open('data/jobs.dedupe.json', encoding='utf-8')); assert isinstance(jobs, list); assert isinstance(report, list); print(len(jobs), 'jobs;', len(report), 'dedupe entries')"
+python scripts/fetch_jobs.py --source all --config-dir .tmp/fetch-jobs-smoke/config --output .tmp/fetch-jobs-smoke/jobs.json --dedupe-report .tmp/fetch-jobs-smoke/jobs.dedupe.json --max-records-per-source 5 --run-timeout 120 --poll-timeout 150
+python -c "import json, hashlib; jobs=json.load(open('.tmp/fetch-jobs-smoke/jobs.json', encoding='utf-8')); report=json.load(open('.tmp/fetch-jobs-smoke/jobs.dedupe.json', encoding='utf-8')); assert isinstance(jobs, list); assert report['outputSha256'] == hashlib.sha256(open('.tmp/fetch-jobs-smoke/jobs.json', 'rb').read()).hexdigest(); assert all(job['source'] in {'workingstudentjobs','linkedin','indeed'} for job in jobs); assert all(len([j for j in jobs if j['source'] == source]) <= 5 for source in {'workingstudentjobs','linkedin','indeed'}); print(len(jobs), 'jobs;', len(report['excluded']), 'dedupe entries')"
 ```
 
-**Exit Criteria:** all three enabled sources complete successfully within the five-record bound, output validates, descriptions are complete for LinkedIn/Indeed/WorkingStudentJobs detail records, and StepStone is not invoked.
+**Exit Criteria:** the smoke config starts at most one constrained run per Apify source, all three enabled sources complete within the five-record retained-record bound, output and report share one digest, descriptions are complete, and StepStone is not invoked.
 
 ## Verification
 
@@ -315,7 +323,7 @@ python -c "import json; jobs=json.load(open('data/jobs.json', encoding='utf-8'))
 
 - Mock Apify start, poll, dataset, failed run, timeout, malformed response, and empty-success responses.
 - Validate real LinkedIn and Indeed records through the existing schema adapters.
-- Validate WorkingStudentJobs detail fallback and structured-summary fallback.
+- Validate WorkingStudentJobs detail success and prove structured-summary fallback is excluded from canonical output.
 - Confirm environment precedence and token redaction.
 
 ### Live proof
@@ -324,7 +332,15 @@ python -c "import json; jobs=json.load(open('data/jobs.json', encoding='utf-8'))
 - Run LinkedIn and Indeed with a maximum of five records each.
 - Run WorkingStudentJobs with a maximum of five records.
 - Do not run StepStone.
-- Do not commit live output or secrets.
+- Do not commit live output or secrets; smoke artifacts stay under an ignored path.
+
+### Verified Deferral
+
+- The selected LinkedIn actor rejects the Apify `maxItems` run parameter with
+  `max-total-charge-usd-below-minimum`; smoke mode therefore constrains one
+  title/location search with `rows: 5` and enforces the five-record publication
+  cap locally. The generic runner still supports `maxItems` when an actor
+  configuration explicitly opts into it.
 
 ## Completion Criteria
 

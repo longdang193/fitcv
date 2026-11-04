@@ -1,0 +1,20 @@
+{
+  "source": "linkedin",
+  "kind": "apify_actor",
+  "actor": "bebity/linkedin-jobs-scraper",
+  "input": {
+    "companyProfile": true,
+    "easyApply": false,
+    "enrichCompany": false,
+    "experienceLevels": ["1", "2", "3"],
+    "locations": ["Germany"],
+    "publishedAt": "r86400",
+    "rows": 100,
+    "titles": ["student", "Praktikum", "intern"],
+    "under10Applicants": false
+  },
+  "run": {
+    "timeoutSecs": 120,
+    "pollIntervalSecs": 2
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "source": "workingstudentjobs",
+  "kind": "workingstudentjobs_api",
+  "request": {
+    "ref": "fitcv",
+    "pageSize": 100,
+    "maxJobs": 100
+  },
+  "details": {
+    "require": true,
+    "timeout": 30,
+    "delay": 1.0
+  }
+}

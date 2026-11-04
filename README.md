@@ -49,6 +49,21 @@ Notes:
 - Stepstone relative URLs are normalized to `https://www.stepstone.de`; tracking parameter `rltr` is removed.
 - Stepstone `textSnippet` data remains visible for review but is not eligible for CV generation.
 
+### Standalone Multi-Source Fetch
+
+Use `scripts/fetch_jobs.py` when you want one local JSON export from the
+WorkingStudentJobs API, LinkedIn Apify actor, and Indeed Apify actor:
+
+```powershell
+python scripts/fetch_jobs.py --source all --output data/jobs.json --dedupe-report data/jobs.dedupe.json
+```
+
+The script reads source inputs from `config/job_sources/`, reads
+`APIFY_API_TOKEN` from the process environment or local `.env`, keeps only
+records with complete descriptions, preserves raw provenance, and writes a
+separate deterministic dedupe report. StepStone remains supported for existing
+review-only ingestion, but is intentionally excluded from this orchestrator.
+
 ### Managed Scan
 
 FitCV can fetch jobs from verified careers portals through Managed Scan. Track
