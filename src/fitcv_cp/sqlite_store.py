@@ -13175,11 +13175,14 @@ def replace_filter_results(run_id: str, rows: list[dict[str, Any]]) -> None:
                 None,
             )
             if run_job_id is None and not str(row.get("run_job_id") or "").strip():
-                legacy_url_key = next(
-                    (key for key in job_identity_keys(row) if key.startswith("url:")),
-                    None,
+                matching_job_ids = sorted(
+                    {
+                        job_id
+                        for key in job_identity_keys(row)
+                        if key.startswith("url:")
+                        for job_id in legacy_job_ids_by_url.get(key, [])
+                    }
                 )
-                matching_job_ids = legacy_job_ids_by_url.get(legacy_url_key or "", [])
                 if len(matching_job_ids) == 1:
                     run_job_id = matching_job_ids[0]
             if run_job_id is None:
@@ -13628,7 +13631,21 @@ def _identity_payload_for_job(
 ) -> dict[str, Any]:
     run_job_id = str(job_identity.get("run_job_id") or "").strip()
     if run_job_id:
-        return payloads.get(f"run:{run_job_id}", {})
+        run_payload = payloads.get(f"run:{run_job_id}")
+        if run_payload:
+            return run_payload
+        if not allow_legacy_url_fallback:
+            return {}
+        for key in job_identity_keys(job_identity):
+            if not key.startswith("url:") or key not in payloads:
+                continue
+            payload = payloads[key]
+            if not any(
+                identity_key.startswith(("run:", "fp:"))
+                for identity_key in job_identity_keys(payload)
+            ):
+                return payload
+        return {}
     for key in job_identity_index_keys(job_identity):
         if key in payloads:
             return payloads[key]

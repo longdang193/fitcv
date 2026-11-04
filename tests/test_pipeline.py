@@ -592,6 +592,44 @@ def test_build_export_results_reconciles_raw_url_only_rows_to_stable_downstream_
     assert rows[0]["scores"]["baseline_fit"] == pytest.approx(0.82)
 
 
+def test_build_export_results_does_not_cross_hydrate_duplicate_stable_url_occurrences() -> None:
+    shared_url = "https://jobs.example.com/shared"
+    first_job = {"run_job_id": "run-job-1", "job_url": shared_url, "title": "First role"}
+    second_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    first_cv = {
+        **first_job,
+        "cv_version_id": "cv-1",
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
+        "vector_similarity": 0.65,
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[first_job, second_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[first_cv],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[first_cv],
+        cv_analysis_results=[],
+        cv_results=[first_cv],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    rows_by_run_job_id = {row["run_job_id"]: row for row in rows}
+    assert rows_by_run_job_id["run-job-1"]["pipeline_status"] == "ranked_with_cv"
+    assert rows_by_run_job_id["run-job-1"]["cv"]["version_id"] == "cv-1"
+    assert rows_by_run_job_id["run-job-2"]["pipeline_status"] == "unknown_pipeline_state"
+    assert rows_by_run_job_id["run-job-2"].get("cv_version_id") is None
+
+
 def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     job = {
         "job_url": "https://example.com/ready",

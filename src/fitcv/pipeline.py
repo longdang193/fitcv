@@ -717,6 +717,30 @@ def _build_export_results(
     def _identity_keys_for(row: dict[str, Any]) -> list[str]:
         return job_identity_keys(_identity_seed(row))
 
+    raw_url_occurrence_counts: dict[str, int] = {}
+    for raw_job in raw_jobs:
+        for identity_key in _identity_keys_for(raw_job):
+            if identity_key.startswith("url:"):
+                raw_url_occurrence_counts[identity_key] = raw_url_occurrence_counts.get(identity_key, 0) + 1
+
+    def _legacy_url_fallback(
+        row: dict[str, Any],
+        url_fallback: dict[str, dict[str, Any]] | None,
+    ) -> dict[str, Any] | None:
+        if url_fallback is None:
+            return None
+        seeded = _identity_seed(row)
+        for identity_key in job_identity_keys(seeded):
+            if (
+                identity_key.startswith("url:")
+                and raw_url_occurrence_counts.get(identity_key) == 1
+            ):
+                candidate = url_fallback.get(identity_key)
+                if candidate is None:
+                    continue
+                return candidate
+        return None
+
     def _lookup(
         indexed: dict[str, dict[str, Any]],
         row: dict[str, Any],
@@ -727,13 +751,7 @@ def _build_export_results(
             match = indexed.get(identity_key)
             if match is not None:
                 return match
-        if url_fallback is not None and not any(
-            key.startswith(("run:", "fp:")) for key in job_identity_keys(seeded)
-        ):
-            for identity_key in job_identity_keys(seeded):
-                if identity_key.startswith("url:"):
-                    return url_fallback.get(identity_key)
-        return None
+        return _legacy_url_fallback(seeded, url_fallback)
 
     def _matches(
         identity_index: set[str],
@@ -744,18 +762,7 @@ def _build_export_results(
         return any(
             identity_key in identity_index
             for identity_key in job_identity_index_keys(seeded)
-        ) or (
-            url_fallback is not None
-            and not any(
-                key.startswith(("run:", "fp:"))
-                for key in job_identity_keys(seeded)
-            )
-            and any(
-                identity_key in url_fallback
-                for identity_key in job_identity_keys(seeded)
-                if identity_key.startswith("url:")
-            )
-        )
+        ) or _legacy_url_fallback(seeded, url_fallback) is not None
 
     enriched_by_identity = _index_rows_by_identity(enriched)
     enriched_by_url = _unique_rows_by_url(enriched)
@@ -802,6 +809,8 @@ def _build_export_results(
             rule_filter_marks_by_identity[identity_key] = marks
     rejected_before_enrichment_identity_keys: set[str] = set()
     rejected_after_enrichment_identity_keys: set[str] = set()
+    rejected_before_enrichment_by_url = _unique_rows_by_url(pre_filter_rejected)
+    rejected_after_enrichment_by_url = _unique_rows_by_url(candidate_filter_rejected)
     for rejected in pre_filter_rejected:
         reject_reasons = list(rejected.get("reasons") or [])
         for identity_key in _identity_keys_for(rejected):
@@ -827,9 +836,17 @@ def _build_export_results(
             return "ranked_skipped_fit_gate"
         if _lookup(ranked_by_identity, raw_job, ranked_by_url) is not None:
             return "ranked_no_cv"
-        if _matches(rejected_before_enrichment_identity_keys, raw_job):
+        if _matches(
+            rejected_before_enrichment_identity_keys,
+            raw_job,
+            rejected_before_enrichment_by_url,
+        ):
             return "rejected_before_enrichment"
-        if _matches(rejected_after_enrichment_identity_keys, raw_job):
+        if _matches(
+            rejected_after_enrichment_identity_keys,
+            raw_job,
+            rejected_after_enrichment_by_url,
+        ):
             return "rejected_after_enrichment"
         if scoring_row is not None:
             return "scored_not_ranked"
@@ -4514,6 +4531,8 @@ def run_pipeline(
             )
             accepted_debug_record["cv_version_id"] = artifact_version_id
             accepted_debug_record["accepted_at"] = str(state.get("generation_finished_at_iso") or "") or None
+            accepted_debug_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
+            accepted_debug_record["raw_job_fingerprint"] = str(job.get("raw_job_fingerprint") or "").strip() or None
             cv_generation_debug_records.append(accepted_debug_record)
             _emit_cv_generation_item_observation(
                 run_id=run_id,
@@ -4579,6 +4598,8 @@ def run_pipeline(
                 cv_prompt_template_path=cv_prompt_template_path_value,
             )
             failure_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
+            failure_debug_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
+            failure_debug_record["raw_job_fingerprint"] = str(job.get("raw_job_fingerprint") or "").strip() or None
             _emit_cv_generation_result_event(
                 state=state,
                 status=failure_status,
@@ -4784,6 +4805,8 @@ def run_pipeline(
             pipeline_store.store_cv_version(version, config)
             results.append({
                 "job_url": str(job.get("job_url") or ""),
+                "run_id": run_id,
+                "run_job_id": str(job.get("run_job_id") or "").strip() or None,
                 "fit": fit,
                 "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
                 "cv_version_id": version["version_id"],

@@ -418,6 +418,36 @@ def test_build_ranking_request_serializes_bounded_evidence_context_into_prompt()
     assert "OpenAI" in request["request"].prompt
 
 
+def test_explicit_empty_candidate_evidence_does_not_fall_back_to_legacy_evidence() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="test-model",
+        timeout_seconds=12.0,
+        request_start_interval_secs=0.0,
+        auth_mode="env",
+        temperature=0.0,
+        model_record_id="model-record",
+        configuration_revision="config-revision",
+    )
+
+    request = build_ranking_request(
+        {},
+        "candidate",
+        ["legacy evidence must not be used"],
+        {},
+        ranking_input={
+            "job_requirements": "OpenAI agent builder",
+            "candidate_summary": "candidate",
+            "candidate_evidence": [],
+        },
+        resolved_route=route,
+    )
+
+    assert "legacy evidence must not be used" not in request["request"].prompt
+
+
 def test_score_job_uses_shared_runtime_contract() -> None:
     from unittest.mock import patch
 
