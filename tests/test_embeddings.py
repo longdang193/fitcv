@@ -81,13 +81,31 @@ class TestBuildJobSummaryText:
         text = build_job_summary_text(jd)
         assert "Location type: remote" in text
 
-    def test_omits_responsibilities_from_stable_shortlist_summary_contract(self) -> None:
-        jd = {"title": "DE", "responsibilities": ["Build pipelines", "Write tests"]}
+    def test_includes_bounded_responsibilities_and_technology(self) -> None:
+        jd = {
+            "title": "DE",
+            "responsibilities": ["Build pipelines", "Write tests"],
+            "tech_stack": ["OpenAI", "Python"],
+        }
         text = build_job_summary_text(jd)
-        assert "Responsibilities:" not in text
+        assert "Responsibilities: Build pipelines, Write tests" in text
+        assert "Technology: OpenAI, Python" in text
 
 
 class TestBuildJobSummarySignaturePayload:
+    def test_prefers_bounded_canonical_responsibilities_and_technology(self) -> None:
+        jd = {
+            "responsibilities": ["raw responsibility"],
+            "responsibilities_canonical": ["Canonical responsibility"],
+            "tech_stack": ["Raw tool"],
+            "tech_stack_canonical": ["Canonical tool"],
+        }
+
+        payload = build_job_summary_signature_payload(jd)
+
+        assert payload["responsibilities"] == ["Canonical responsibility"]
+        assert payload["tech_stack"] == ["Canonical tool"]
+
     def test_prefers_canonical_skill_lists_and_sorts_them(self) -> None:
         """@proves pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors"""
         jd = {

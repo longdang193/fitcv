@@ -2541,6 +2541,30 @@ def test_ranking_selector_is_stable_and_empty_safe() -> None:
     assert select_ranking_evidence([], {"required_skills": ["SQL"]}) == []
 
 
+def test_ranking_selector_prioritizes_project_technology_evidence() -> None:
+    pool = [
+        {
+            "evidence_id": "analytics",
+            "text": "Built a Power BI sales dashboard",
+            "skills": ["Power BI"],
+            "scoring_context": "Power BI sales dashboard",
+        },
+        {
+            "evidence_id": "agent",
+            "text": "Built a Claude Code host integration",
+            "skills": [],
+            "scoring_context": "Claude Code host integration and OpenAI-compatible APIs",
+        },
+    ]
+
+    selected = select_ranking_evidence(
+        pool,
+        {"tech_stack_canonical": ["Claude Code", "OpenAI-compatible APIs"]},
+    )
+
+    assert selected[0]["evidence_id"] == "agent"
+
+
 def test_ranking_selector_uses_job_context_when_skills_are_missing() -> None:
     pool = [
         {

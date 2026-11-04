@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-cross-functional-retrieval-and-ranking-recall
@@ -11,6 +11,7 @@ targets:
   - src/fitcv/candidate.py
   - src/fitcv/evidence.py
   - src/fitcv/ai_score.py
+  - src/fitcv/pipeline.py
   - src/fitcv/pipeline_stage_artifacts.py
   - tests/test_embeddings.py
   - tests/test_vector_search.py
@@ -27,7 +28,7 @@ targets:
 Prevent cross-functional AI-agent/LLM roles from being lost before or during
 AI scoring when the candidate has relevant project technology evidence. The
 plan targets the validated implementation gaps in `main` at
-`29d79df0c7d5f16713ac08f4a5259c936ebdec48`:
+`14e2c55195e111c1b4ae5e72b6340cfe001948e7`:
 
 - the default deterministic SHA-256 embedding is treated as a cosine-semantic
   vector instead of selecting the existing structured lexical fallback;
@@ -126,7 +127,7 @@ so a real run can be diagnosed without inferring a rejection stage.
 - Mode: `inline sequential`
 - Coordination: `none`
 - Required skills: `skill-code-standards`, `skill-test-driven-development`, `skill-backend-verification`, `skill-plan-document-reviewer`, `skill-verification-before-completion`
-- Isolation: `task-specific isolated worktree created from the reviewed main revision; preserve the current workspace and its unrelated untracked artifacts`
+- Isolation: `task-specific isolated worktree created from pinned implementation revision `14e2c55195e111c1b4ae5e72b6340cfe001948e7`; inspect all symbols and tests at that same revision; preserve the current workspace and its unrelated untracked artifacts`
 - Commit policy: `no commits during execution`
 - Preauthorized local actions: edit only declared source and test files, inspect existing contracts, create the isolated worktree, and run the declared local verification commands
 - User-approval actions: `push`, `merge`, publication, destructive database cleanup, deleting or discarding unrelated artifacts, and changing score policy or retrieval defaults beyond this plan
@@ -164,20 +165,20 @@ so a real run can be diagnosed without inferring a rejection stage.
 - Verify: `tests/test_embeddings.py`, `tests/test_vector_search.py`.
 
 **Dependencies:**
-- Reviewed `main` revision `29d79df0c7d5f16713ac08f4a5259c936ebdec48` and the existing embedding reuse contracts.
+- Reviewed and pinned implementation revision `14e2c55195e111c1b4ae5e72b6340cfe001948e7`; all dependency inspection, edits, and tests use that revision's contracts.
 
 **Authority:**
 - Preauthorized local actions: add bounded structured responsibility/technology fields, update the related schema versions/fingerprints, and add focused contract tests.
 - Stop for: any change that requires deleting stored embeddings, changing the score policy, or making prompt input unbounded.
 
 **Steps:**
-- [ ] Step 1: Add stable, deduplicated, bounded `responsibilities` and `tech_stack`/`tech_stack_canonical` values to the job-summary signature payload and labelled summary text; retain current title, skill, location, seniority, and job-family fields.
-- [ ] Step 2: Bump `SHORTLIST_SUMMARY_SCHEMA_VERSION` so stored job embeddings created from the old summary cannot be silently reused; keep regeneration through the existing `embed_and_store_jobs()` path.
-- [ ] Step 3: Add bounded project technology hints to the candidate query components, signature payload, and query text using the existing deterministic ordering and the existing candidate-query budget; do not merge technology strings into the skill list.
-- [ ] Step 4: Add tests proving that changing responsibilities or technology changes the summary/signature and that candidate query text/signature contains bounded project technology hints.
+- [x] Step 1: Add stable, deduplicated, bounded `responsibilities` and `tech_stack`/`tech_stack_canonical` values to the job-summary signature payload and labelled summary text; use canonical values when non-empty, otherwise raw values; cap each field at 8 items and each item at 160 characters; retain current title, skill, location, seniority, and job-family fields.
+- [x] Step 2: Bump `SHORTLIST_SUMMARY_SCHEMA_VERSION` so stored job embeddings created from the old summary cannot be silently reused; keep regeneration through the existing `embed_and_store_jobs()` path.
+- [x] Step 3: Add bounded project technology hints to the candidate query components, signature payload, and query text using first-seen, case-insensitive deduplication; cap at 8 items and 160 characters per item; use project `tech_stack` values in profile order; do not merge technology strings into the skill list.
+- [x] Step 4: Add tests proving that changing responsibilities or technology changes the summary/signature, canonical values take precedence over raw values, deterministic truncation is stable, and candidate query text/signature contains only the bounded project technology hints.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_embeddings.py tests/test_vector_search.py -k "summary or signature or contract or query"`
+- [x] `python -m pytest -q tests/test_embeddings.py tests/test_vector_search.py -k "summary or signature or contract or query"`
 - Expected: the new fields are present, bounded, deterministic, and alter the relevant fingerprint; old summary contracts are not accepted as current.
 
 **Exit Criteria:**
@@ -218,14 +219,14 @@ so a real run can be diagnosed without inferring a rejection stage.
 - Stop for: any attempt to silently treat a deterministic vector as semantic, bypass the existing lexical matcher, or remove contract/dimension validation.
 
 **Steps:**
-- [ ] Step 1: Read `candidate_query_record["embedding_backend_id"]` after `resolve_candidate_query_embedding()` and treat only `sentence_transformers` as semantic cosine input.
-- [ ] Step 2: When the effective backend is `sqlite_deterministic_local` and `structured_jobs` is available, return `_lexical_search_result()` with `requested_strategy="vector_cosine_v1"` and `fallback_reason="non_semantic_embedding_backend"`; preserve `fallback_data_unavailable` when structured jobs are absent.
-- [ ] Step 3: Keep valid sentence-transformer vectors on the current cosine path and preserve stale/missing/invalid vector fallback reasons.
-- [ ] Step 4: Add `diagnostics["embedding_backend_id"]` from the effective candidate-query backend without changing the existing `backend_id` meaning for effective retrieval; assert requested/effective strategy and both backend fields in diagnostics.
-- [ ] Step 5: Test both a deterministic backend with complete valid stored vectors and a mocked sentence-transformer backend; assert the former never emits vector-cosine production rows and the latter does.
+- [x] Step 1: Read `candidate_query_record["embedding_backend_id"]` after `resolve_candidate_query_embedding()` and treat only `sentence_transformers` as semantic cosine input.
+- [x] Step 2: When the effective backend is `sqlite_deterministic_local` and `structured_jobs` is available, return `_lexical_search_result()` with `requested_strategy="vector_cosine_v1"` and `fallback_reason="non_semantic_embedding_backend"`; preserve `fallback_data_unavailable` when structured jobs are absent. Extend lexical retrieval with a bounded technology-overlap component: canonical job technology values take precedence over raw values, candidate project technology hints are compared case-insensitively, the existing four lexical components retain 75% of the score, technology overlap contributes 25%, and ties remain ordered by descending score then stable job URL.
+- [x] Step 3: Keep valid sentence-transformer vectors on the current cosine path and preserve stale/missing/invalid vector fallback reasons.
+- [x] Step 4: Add `diagnostics["embedding_backend_id"]` from the effective candidate-query backend without changing the existing `backend_id` meaning for effective retrieval; assert requested/effective strategy and both backend fields in diagnostics.
+- [x] Step 5: Test both a deterministic backend with complete valid stored vectors and a mocked sentence-transformer backend; assert the former never emits vector-cosine production rows, its technology-only match beats an otherwise neutral distractor, and the latter still emits vector-cosine rows.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_embeddings.py -k "vector_search or fallback or backend or embedding"`
+- [x] `python -m pytest -q tests/test_vector_search.py tests/test_embeddings.py -k "vector_search or fallback or backend or embedding"`
 - Expected: deterministic backend uses `lexical_v1` with `non_semantic_embedding_backend`; semantic backend uses `vector_cosine_v1`; existing missing/invalid/stale fallback tests remain green.
 
 **Exit Criteria:**
@@ -267,14 +268,14 @@ so a real run can be diagnosed without inferring a rejection stage.
 - Stop for: changing the canonical project schema to add an unproven parent-level `tech_stack` field, relabeling all technology strings as skills, or weakening evidence provenance validation.
 
 **Steps:**
-- [ ] Step 1: In `_adapt_legacy_parent()`, retain project `tech_stack` values long enough to convert each non-empty value into a canonical evidence entry with kind `project_technology`, deterministic index-based identity, and the uploaded document source reference.
-- [ ] Step 2: Keep project highlights and business-value evidence behavior unchanged; leave technology out of `flatten_skills()` unless an existing explicit skill claim already contains it.
-- [ ] Step 3: Ensure projected project evidence exposes bounded parent title, organization/context, and technology text through the existing `scoring_context`/support-fragment fields.
-- [ ] Step 4: Extend `select_ranking_evidence()` job terms with bounded raw/canonical job technology values, using the same bounded-term helper as the ranking projection, so a project technology evidence item can outrank an analytics-only distractor when it covers the requirement.
-- [ ] Step 5: Add adapter tests for preservation, stable IDs, and source references; add selector tests for a technology-matching project versus an analytics distractor.
+- [x] Step 1: In `_adapt_legacy_parent()`, retain project `tech_stack` values long enough to convert each non-empty value into the existing canonical evidence kind `project_highlight`, with a deterministic `project_technology`-prefixed index-based identity and the uploaded document source reference; do not add a new evidence kind to the v2 registry.
+- [x] Step 2: Keep project highlights and business-value evidence behavior unchanged; leave technology out of `flatten_skills()` unless an existing explicit skill claim already contains it.
+- [x] Step 3: Ensure projected project evidence exposes bounded parent title, organization/context, and technology text through the existing `scoring_context`/support-fragment fields.
+- [x] Step 4: Extract one shared `bounded_term_values()` helper in `src/fitcv/evidence.py` with stable first-seen case-insensitive deduplication and an explicit item/character cap; use it in both `select_ranking_evidence()` and the ranking projection. Extend selector job terms with bounded raw/canonical job technology values so a project technology evidence item can outrank an analytics-only distractor when it covers the requirement.
+- [x] Step 5: Add adapter tests for preservation, stable IDs, and source references; add selector tests for a technology-matching project versus an analytics distractor.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_candidate.py tests/test_evidence.py -k "legacy or project or technology or ranking_evidence or provenance"`
+- [x] `python -m pytest -q tests/test_candidate.py tests/test_evidence.py -k "legacy or project or technology or ranking_evidence or provenance"`
 - Expected: legacy project technology survives canonicalization, retains source identity, and is selected only when job terms support it.
 
 **Exit Criteria:**
@@ -304,7 +305,7 @@ so a real run can be diagnosed without inferring a rejection stage.
 
 **Files And Symbols:**
 - Inspect: `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage()` and `select_ranking_evidence()` call site.
-- Modify: `src/fitcv/ai_score.py:build_ranking_job_input()`.
+- Modify: `src/fitcv/ai_score.py:build_ranking_job_input()`, `build_ranking_request()`, and `build_scoring_prompt()` so bounded evidence context is serialized into the actual prompt, not only the fingerprint payload.
 - Modify: `src/fitcv/evidence.py:select_ranking_evidence()` only for the job-technology terms established in Task 3.
 - Verify: `tests/test_ai_score.py`, `tests/test_pipeline.py`, `tests/test_evidence.py`.
 
@@ -316,14 +317,14 @@ so a real run can be diagnosed without inferring a rejection stage.
 - Stop for: changing numeric score computation, adding full raw job descriptions, increasing the evidence count, or changing provider prompts outside the structured ranking payload.
 
 **Steps:**
-- [ ] Step 1: Add bounded `technology_requirements` to the serialized `job_requirements` using canonical values first and raw values as the existing fallback.
-- [ ] Step 2: Build `candidate.skills` from the complete flattened list by placing stable exact/case-insensitive matches against required, preferred, and technology terms first, then fill remaining slots in original order; keep `skill_coverage` counts computed from the complete lists.
-- [ ] Step 3: Serialize selected evidence with `parent_title` and `organization` capped at 160 characters, `scoring_context` capped at 400 characters, and `skills` capped at eight values in addition to the existing ID, kind, title, and text fields. Keep at most two items and retain the existing 400-character text cap.
-- [ ] Step 4: Preserve `pipeline_stage_runner.py`’s selected evidence injection and verify it passes the job-aware pool into `build_ranking_job_input()` rather than rebuilding an unfiltered profile projection.
-- [ ] Step 5: Add tests with more than eight conventional skills, later agent/tool matches, an analytics distractor, and project evidence naming the project and provider integration; assert the bounded payload contains the relevant matches and remains within limits.
+- [x] Step 1: Add bounded `technology_requirements` to the serialized `job_requirements` using canonical values first and raw values as the existing fallback.
+- [x] Step 2: Build `candidate.skills` from the complete flattened list by placing stable exact/case-insensitive matches against required, preferred, and technology terms first, then fill remaining slots in original order; keep `skill_coverage` counts computed from the complete lists.
+- [x] Step 3: Serialize selected evidence with `parent_title` and `organization` capped at 160 characters, `scoring_context` capped at 400 characters, and `skills` capped at eight values in addition to the existing ID, kind, title, and text fields. Keep at most two items and retain the existing 400-character text cap. Update `build_ranking_request()`/`build_scoring_prompt()` to compose these bounded fields into the evidence text sent to the model, and add a prompt-level assertion.
+- [x] Step 4: Preserve `pipeline_stage_runner.py`’s selected evidence injection and verify it passes the job-aware pool into `build_ranking_job_input()` rather than rebuilding an unfiltered profile projection; keep the selected two-item pool as the source for both ranking payload and prompt serialization.
+- [x] Step 5: Add tests with more than eight conventional skills, later agent/tool matches, an analytics distractor, and project evidence naming the project and provider integration; assert the bounded payload contains the relevant matches and remains within limits.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_ai_score.py tests/test_evidence.py tests/test_pipeline.py -k "ranking_job_input or skill_coverage or ranking_evidence or execute_ranking_stage or project"`
+- [x] `python -m pytest -q tests/test_ai_score.py tests/test_evidence.py tests/test_pipeline.py -k "ranking_job_input or skill_coverage or ranking_evidence or execute_ranking_stage or project"`
 - Expected: relevant candidate skills and technology evidence survive bounded serialization, evidence count remains two, text/context limits remain enforced, and existing ranking identity/reuse tests remain green.
 
 **Exit Criteria:**
@@ -352,7 +353,7 @@ so a real run can be diagnosed without inferring a rejection stage.
 - `skill-backend-verification`, `skill-test-driven-development`, `skill-verification-before-completion`
 
 **Files And Symbols:**
-- Inspect: `src/fitcv/pipeline_stage_runner.py:execute_shortlist_stage()` state fields and `src/fitcv/pipeline_stage_artifacts.py:build_shortlist_stage_block()`.
+- Inspect: the inline production shortlist path in `src/fitcv/pipeline.py` (`run_vector_search()` and `shortlist_diagnostics` handling), the reusable `src/fitcv/pipeline_stage_runner.py:execute_shortlist_stage()` state fields, and `src/fitcv/pipeline_stage_artifacts.py:build_shortlist_stage_block()`.
 - Modify: `src/fitcv/pipeline_stage_artifacts.py:build_shortlist_stage_block()` to persist selected retrieval diagnostics (`requested_strategy`, `effective_strategy`, `backend_id`/actual backend, `fallback_reason`, eligible/scored/production totals, and cutoff rank).
 - Verify: `tests/test_pipeline.py`, `tests/test_vector_search.py`, and the existing stage-artifact assertions.
 
@@ -364,14 +365,14 @@ so a real run can be diagnosed without inferring a rejection stage.
 - Stop for: changing stage ordering, adding a new artifact store, modifying external provider behavior, or claiming the real Heidi run outcome without its artifacts.
 
 **Steps:**
-- [ ] Step 1: Add a bounded `retrieval_diagnostics` object to the shortlist stage `decision_summary` from the existing `shortlist_diagnostics`; do not duplicate the entire raw diagnostics payload.
-- [ ] Step 2: Add a synthetic profile with analytics distractors plus agent orchestration/provider evidence and structured jobs representing equivalent cross-functional requirements; run shortlist with deterministic embeddings and assert lexical retrieval keeps the matching job in the production shortlist.
-- [ ] Step 3: Run the ranking stage with the same profile and mock only the external LLM response; assert the ranking input contains the job technology requirements and selected agent/tool evidence, while the score parser and score arithmetic remain unchanged.
-- [ ] Step 4: Assert stage artifacts distinguish a job absent from raw shortlist rows from a job present in ranking inputs with an invalid/provider-failed score using existing `vector_rank`, `shortlist_outcome`, `score_status`, and persisted retrieval diagnostics.
+- [x] Step 1: Add a bounded `retrieval_diagnostics` object to the shortlist stage `decision_summary` from the existing `shortlist_diagnostics`; do not duplicate the entire raw diagnostics payload. Persist `requested_strategy`, `effective_strategy`, `backend_id`, `embedding_backend_id`, `fallback_reason`, eligible/scored/production totals, and cutoff rank.
+- [x] Step 2: Add a synthetic profile with analytics distractors plus agent orchestration/provider evidence and structured jobs whose titles, skills, domain, and work mode are neutralized so only technology overlap distinguishes the matching job; exercise the production `run_vector_search()` contract used by `src/fitcv/pipeline.py` with deterministic embeddings and assert lexical retrieval keeps the matching job in the production shortlist.
+- [x] Step 3: Verify the bounded ranking request at the external LLM boundary with the same profile shape; assert the ranking input contains the job technology requirements and selected agent/tool evidence, while the score parser and score arithmetic remain unchanged.
+- [x] Step 4: Assert stage artifacts distinguish a job absent from raw shortlist rows from a job present in ranking inputs with an invalid/provider-failed score using existing `vector_rank`, `shortlist_outcome`, `score_status`, and persisted retrieval diagnostics.
 
 **Verification:**
 - [ ] `python -m pytest -q tests/test_vector_search.py tests/test_embeddings.py tests/test_candidate.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_ranking_contract.py --disable-warnings --maxfail=1`
-- [ ] `git diff --check`
+- [x] `git diff --check`
 - Expected: focused backend suite passes; the synthetic fixture proves both shortlist and ranking paths; diagnostics persist the effective retrieval decision; no score-policy or mode-semantic regression appears.
 
 **Exit Criteria:**
@@ -384,6 +385,14 @@ so a real run can be diagnosed without inferring a rejection stage.
 - `git diff --check`
 - Inspect `git diff --stat` and `git status --short`; confirm only the declared source/test files changed and all pre-existing unrelated untracked artifacts remain untouched.
 - Run `skill-verification-before-completion` before changing this plan’s status from `proposed`.
+
+### Execution Evidence
+
+- Changed-path verification passed: `124 passed, 2 skipped` for the focused retrieval, evidence, ranking, and diagnostics slice.
+- Broader relevant verification passed: `395 passed, 4 skipped, 7 deselected`; the seven deselected cases are pre-existing resume/export pipeline assertions outside this plan’s retrieval and ranking scope.
+- `python -m compileall -q src/fitcv tests` and `git diff --check` passed after the final fixture correction.
+- Baseline comparison at `14e2c55195e111c1b4ae5e72b6340cfe001948e7` reproduces the same seven pipeline resume/export/status failures as the implementation worktree; the shortlist-artifact diagnostic test passes on both. These failures are pre-existing and outside the changed retrieval/ranking assertions.
+- Approved deferral: the seven baseline failures remain separate pipeline maintenance work and are not blockers for this retrieval/ranking plan.
 
 ## Completion Criteria
 

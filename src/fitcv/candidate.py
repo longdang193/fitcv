@@ -343,6 +343,9 @@ def _adapt_legacy_parent(
     document_id: str,
 ) -> tuple[dict[str, Any], list[str]]:
     normalized = copy.deepcopy(item)
+    legacy_project_technology = (
+        list(normalized.get("tech_stack") or []) if section == "projects" else []
+    )
     for key in (
         "skills",
         "role_family",
@@ -431,6 +434,22 @@ def _adapt_legacy_parent(
                 document_id=document_id,
             )
             if candidate:
+                evidence.append(candidate)
+        for technology_index, technology in enumerate(legacy_project_technology):
+            candidate = _legacy_evidence(
+                parent_id=parent_id,
+                kind="project_highlight",
+                title="Technology stack",
+                text=technology,
+                index=len(evidence),
+                document_id=document_id,
+            )
+            if candidate:
+                candidate["id"] = _stable_candidate_id(
+                    f"project_technology_{parent_id}",
+                    technology_index,
+                    candidate["text"],
+                )
                 evidence.append(candidate)
     elif section == "achievements":
         if not normalized.get("title") and normalized.get("text"):

@@ -6,6 +6,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -13,6 +14,7 @@ import pytest
 from fitcv.ai_score import (
     build_ai_score_contract_fingerprint,
     build_ranking_job_input,
+    build_ranking_request,
     build_scoring_prompt,
     parse_score_response,
 )
@@ -342,6 +344,78 @@ def test_build_ranking_job_input_counts_skills_before_bounding_prompt_fields() -
     assert requirements["skill_coverage"]["matched_count"] == 9
     assert requirements["skill_coverage"]["required_count"] == 9
     assert requirements["skill_coverage"]["missing"] == []
+
+
+def test_build_ranking_job_input_prioritizes_late_required_technology_skills() -> None:
+    profile = {
+        "skills": [{"name": f"Skill {index}"} for index in range(1, 10)]
+        + [{"name": "agentic ai"}, {"name": "OpenAI"}],
+        "_projected_evidence_pool": [
+            {
+                "evidence_id": "ev-agent",
+                "kind": "project_highlight",
+                "title": "LightRSI",
+                "text": "Built a Claude Code host integration.",
+                "parent_title": "LightRSI",
+                "organization": "Personal project",
+                "scoring_context": "Claude Code host integration and OpenAI-compatible APIs",
+                "skills": ["agentic ai", "OpenAI"],
+            }
+        ],
+    }
+    job = {
+        "required_skills": ["agentic ai"],
+        "tech_stack_canonical": ["OpenAI"],
+    }
+
+    result = build_ranking_job_input(job, profile)
+    requirements = json.loads(result["job_requirements"])
+
+    assert requirements["technology_requirements"] == ["OpenAI"]
+    assert requirements["skill_coverage"]["matched_count"] == 1
+    assert requirements["skill_coverage"]["required_count"] == 1
+    assert json.loads(result["candidate_summary"])["skills"][:2] == ["agentic ai", "OpenAI"]
+    assert result["candidate_evidence"][0]["parent_title"] == "LightRSI"
+    assert result["candidate_evidence"][0]["skills"] == ["agentic ai", "OpenAI"]
+
+
+def test_build_ranking_request_serializes_bounded_evidence_context_into_prompt() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="test-model",
+        timeout_seconds=12.0,
+        request_start_interval_secs=0.0,
+        auth_mode="env",
+        temperature=0.0,
+        model_record_id="model-record",
+        configuration_revision="config-revision",
+    )
+    request = build_ranking_request(
+        {},
+        "candidate",
+        [],
+        {},
+        ranking_input={
+            "job_requirements": "OpenAI agent builder",
+            "candidate_summary": "candidate",
+            "candidate_evidence": [
+                {
+                    "title": "LightRSI",
+                    "parent_title": "LightRSI",
+                    "organization": "Personal project",
+                    "scoring_context": "Claude Code host integration and OpenAI-compatible APIs",
+                    "skills": ["agentic ai", "OpenAI"],
+                    "text": "Built the host integration.",
+                }
+            ],
+        },
+        resolved_route=route,
+    )
+
+    assert "Claude Code host integration" in request["request"].prompt
+    assert "OpenAI" in request["request"].prompt
 
 
 def test_score_job_uses_shared_runtime_contract() -> None:

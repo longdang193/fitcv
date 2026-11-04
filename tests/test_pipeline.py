@@ -5642,7 +5642,19 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
                 "audit_selection_hash": "audit-hash",
             }
         ],
-        shortlist_diagnostics={"raw_hit_anomaly_total": 0, "raw_hit_anomaly_sample": []},
+        shortlist_diagnostics={
+            "raw_hit_anomaly_total": 0,
+            "raw_hit_anomaly_sample": [],
+            "requested_strategy": "vector_cosine_v1",
+            "effective_strategy": "lexical_v1",
+            "backend_id": "structured_jobs_lexical",
+            "embedding_backend_id": "sqlite_deterministic_local",
+            "fallback_reason": "non_semantic_embedding_backend",
+            "eligible_jobs_total": 2,
+            "scored_jobs_total": 2,
+            "production_shortlist_total": 2,
+            "production_cutoff_rank": 2,
+        },
         vector_top_n=50,
         candidate_summary="Candidate: Analyst",
         candidate_query_components={},
@@ -5704,7 +5716,17 @@ def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_field
         raw_shortlist=[],
         shortlist=[],
         shortlist_audit_rows=[],
-        shortlist_diagnostics={},
+        shortlist_diagnostics={
+            "requested_strategy": "vector_cosine_v1",
+            "effective_strategy": "lexical_v1",
+            "backend_id": "structured_jobs_lexical",
+            "embedding_backend_id": "sqlite_deterministic_local",
+            "fallback_reason": "non_semantic_embedding_backend",
+            "eligible_jobs_total": 2,
+            "scored_jobs_total": 2,
+            "production_shortlist_total": 2,
+            "production_cutoff_rank": 2,
+        },
         vector_top_n=10,
         candidate_summary="Candidate: Data Scientist",
         candidate_query_components={},
@@ -6306,7 +6328,17 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
         raw_shortlist=raw_shortlist,
         shortlist=shortlist,
         shortlist_audit_rows=[],
-        shortlist_diagnostics={},
+        shortlist_diagnostics={
+            "requested_strategy": "vector_cosine_v1",
+            "effective_strategy": "lexical_v1",
+            "backend_id": "structured_jobs_lexical",
+            "embedding_backend_id": "sqlite_deterministic_local",
+            "fallback_reason": "non_semantic_embedding_backend",
+            "eligible_jobs_total": 2,
+            "scored_jobs_total": 2,
+            "production_shortlist_total": 2,
+            "production_cutoff_rank": 2,
+        },
         vector_top_n=50,
         candidate_summary="Candidate: Analyst",
         candidate_query_components={
@@ -6346,6 +6378,17 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
     assert shortlist_block["decision_summary"]["candidate_query_contract_fingerprint"] == "candidate-query-contract-1"
     assert shortlist_block["decision_summary"]["components_hash"] == "components-hash-1"
     assert shortlist_block["decision_summary"]["canonical_text_hash"] == "canonical-text-hash-1"
+    assert shortlist_block["decision_summary"]["retrieval_diagnostics"] == {
+        "requested_strategy": "vector_cosine_v1",
+        "effective_strategy": "lexical_v1",
+        "backend_id": "structured_jobs_lexical",
+        "embedding_backend_id": "sqlite_deterministic_local",
+        "fallback_reason": "non_semantic_embedding_backend",
+        "eligible_jobs_total": 2,
+        "scored_jobs_total": 2,
+        "production_shortlist_total": 2,
+        "production_cutoff_rank": 2,
+    }
     assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
     assert shortlist_block["outputs_sample"][1]["shortlist_outcome"] == "returned_by_vector_search"
     assert shortlist_block["outputs_sample"][1]["raw_hit_present"] is True

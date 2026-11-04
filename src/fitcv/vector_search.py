@@ -45,7 +45,9 @@ DEFAULT_RECENT_ROLE_COUNT = 3
 DEFAULT_ROLE_FAMILY_HINT_COUNT = 3
 DEFAULT_DOMAIN_HINT_COUNT = 5
 DEFAULT_LOCATION_TYPE_HINT_COUNT = 3
-CANDIDATE_QUERY_SCHEMA_VERSION = "shortlist_candidate_query_v1"
+CANDIDATE_QUERY_SCHEMA_VERSION = "shortlist_candidate_query_v2"
+CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT = 8
+CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS = 160
 REUSED_CACHED_QUERY_EMBEDDING_STATUS = "reused_cached_query_embedding"
 FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
 VECTOR_RETRIEVAL_STRATEGY = "vector_cosine_v1"
@@ -211,6 +213,29 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
     values.append(text)
 
 
+def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for project in profile.get("projects", []) or []:
+        if not isinstance(project, dict):
+            continue
+        technology_values = list(project.get("tech_stack", []) or [])
+        for evidence in project.get("evidence", []) or []:
+            if not isinstance(evidence, dict):
+                continue
+            if str(evidence.get("title") or "").strip().casefold() != "technology stack":
+                continue
+            text = str(evidence.get("text") or "").strip()
+            if text:
+                technology_values.append(text)
+        for technology in technology_values:
+            text = str(technology or "").strip()[:CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS]
+            _append_unique_text(values, text, seen)
+            if len(values) >= CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT:
+                return values
+    return values
+
+
 def _normalize_query_scalar(value: Any) -> str:
     return normalize_text_scalar(value)
 
@@ -296,6 +321,8 @@ def build_candidate_query_components(
         if len(location_types) >= DEFAULT_LOCATION_TYPE_HINT_COUNT:
             break
 
+    technology_hints = _bounded_profile_technology_hints(profile)
+
     return {
         "headline": headline,
         "target_role": target_role,
@@ -308,6 +335,8 @@ def build_candidate_query_components(
         "flattened_skills": skills,
         "domain_hints": domains,
         "location_type_hints": location_types,
+        "technology_hints": technology_hints,
+        "project_technology_hints": technology_hints,
     }
 
 
@@ -340,6 +369,11 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
         "location_types": [
             _normalize_query_scalar(value)
             for value in list(components.get("location_types") or components.get("location_type_hints") or [])
+            if _normalize_query_scalar(value)
+        ],
+        "technology_hints": [
+            _normalize_query_scalar(value)
+            for value in list(components.get("technology_hints") or components.get("project_technology_hints") or [])
             if _normalize_query_scalar(value)
         ],
     }
@@ -395,6 +429,7 @@ def build_candidate_query_text(
         f"Role Families: {_join(list(components.get('role_families') or []))}",
         f"Domains: {_join(list(components.get('domains') or []))}",
         f"Location Types: {_join(list(components.get('location_types') or []))}",
+        f"Project Technology: {_join(list(components.get('technology_hints') or []))}",
     ]
     return "\n".join(lines)
 
@@ -494,6 +529,7 @@ def _lexical_search_result(
     *,
     requested_strategy: str,
     fallback_reason: str | None = None,
+    embedding_backend_id: str | None = None,
 ) -> dict[str, Any]:
     components = build_candidate_query_components(profile, config)
     prefs = dict(profile.get("preferences") or {})
@@ -514,7 +550,19 @@ def _lexical_search_result(
         )
         preference = compute_declared_preference_fit_details(job, prefs, config)
         parts = preference["components"]
-        retrieval_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
+        job_technology = list(job.get("tech_stack_canonical") or job.get("tech_stack") or [])
+        candidate_technology = list(components.get("technology_hints") or [])
+        job_technology_keys = {str(value).strip().casefold() for value in job_technology if str(value).strip()}
+        candidate_technology_keys = {
+            str(value).strip().casefold() for value in candidate_technology if str(value).strip()
+        }
+        technology_overlap = (
+            len(job_technology_keys & candidate_technology_keys) / len(job_technology_keys)
+            if job_technology_keys
+            else 0.0
+        )
+        base_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
+        retrieval_score = (base_score * 0.75) + (technology_overlap * 0.25)
         scored.append({
             **job,
             "job_url": job_url,
@@ -524,9 +572,16 @@ def _lexical_search_result(
                 "title_relevance": title_score,
                 "domain": parts["domain"],
                 "location": parts["work_mode"],
+                "technology_overlap": technology_overlap,
             },
         })
-    scored.sort(key=lambda item: (-float(item["retrieval_score"]), str(item["job_url"])))
+    scored.sort(
+        key=lambda item: (
+            -float(item["retrieval_score"]),
+            -float(item.get("retrieval_components", {}).get("technology_overlap") or 0.0),
+            str(item["job_url"]),
+        )
+    )
     ranked_rows = [
         {
             **row,
@@ -551,6 +606,7 @@ def _lexical_search_result(
             "fallback_used": fallback_reason is not None,
             "fallback_reason": fallback_reason,
             "backend_id": "structured_jobs_lexical",
+            "embedding_backend_id": embedding_backend_id or embedding_metadata["backend_id"],
             "configured_model": embedding_metadata["configured_model"],
             "dimension": embedding_metadata["dimension"],
             "contract_fingerprint": embedding_metadata["contract_fingerprint"],
@@ -590,6 +646,7 @@ def _unavailable_search_result(
             "fallback_used": False,
             "fallback_reason": reason,
             "backend_id": "unavailable",
+            "embedding_backend_id": embedding_metadata["backend_id"],
             "configured_model": embedding_metadata["configured_model"],
             "dimension": embedding_metadata["dimension"],
             "contract_fingerprint": embedding_metadata["contract_fingerprint"],
@@ -639,6 +696,25 @@ def run_vector_search(
     )
     audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
     candidate_query_record = resolve_candidate_query_embedding(profile, config)
+    embedding_backend_id = str(candidate_query_record.get("embedding_backend_id") or "").strip()
+    if embedding_backend_id and embedding_backend_id != "sentence_transformers":
+        if structured_jobs is None:
+            return _unavailable_search_result(
+                eligible_job_urls,
+                requested_strategy=requested_strategy,
+                reason="fallback_data_unavailable",
+                config=config,
+            )
+        return _lexical_search_result(
+            profile,
+            eligible_job_urls,
+            config,
+            effective_top_n,
+            structured_jobs,
+            requested_strategy=requested_strategy,
+            fallback_reason="non_semantic_embedding_backend",
+            embedding_backend_id=embedding_backend_id or "sqlite_deterministic_local",
+        )
     candidate_embedding = _validated_vector(candidate_query_record.get("embedding"))
     candidate_query = {
         key: value
@@ -746,6 +822,7 @@ def run_vector_search(
             structured_jobs,
             requested_strategy=requested_strategy,
             fallback_reason=fallback_reason,
+            embedding_backend_id=embedding_backend_id,
         )
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
     ranked_rows = [
@@ -800,6 +877,7 @@ def run_vector_search(
             "fallback_used": False,
             "fallback_reason": None,
             "backend_id": embedding_metadata["backend_id"],
+            "embedding_backend_id": embedding_backend_id,
             "configured_model": embedding_metadata["configured_model"],
             "dimension": len(candidate_embedding) if candidate_embedding is not None else embedding_metadata["dimension"],
             "model_revision": embedding_metadata["model_revision"],

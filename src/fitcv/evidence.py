@@ -61,6 +61,27 @@ from fitcv.embeddings import build_embedding_backend_metadata, build_embedding_c
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
+
+def bounded_term_values(
+    values: Any,
+    *,
+    limit: int = 8,
+    max_chars: int = 160,
+) -> list[str]:
+    """Return stable, first-seen, case-insensitively deduplicated terms."""
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in list(values or []):
+        text = " ".join(str(value or "").split())[:max_chars].strip()
+        key = text.casefold()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        result.append(text)
+        if len(result) >= limit:
+            break
+    return result
+
 REQUIREMENT_SUPPORT_POLICY_VERSION = "requirement-support-v6"
 EXPERIENCE_EVIDENCE_POLICY_VERSION = "experience-evidence-v1"
 EXPERIENCE_EVIDENCE_MODES = frozenset({"loose", "full", "strict"})
@@ -1432,9 +1453,10 @@ def select_ranking_evidence(
     if limit <= 0 or not evidence_pool:
         return []
     terms = [
-        *list(job.get("required_skills_canonical") or job.get("required_skills") or []),
-        *list(job.get("preferred_skills_canonical") or job.get("preferred_skills") or []),
-        *list(job.get("responsibilities") or []),
+        *bounded_term_values(job.get("required_skills_canonical") or job.get("required_skills")),
+        *bounded_term_values(job.get("preferred_skills_canonical") or job.get("preferred_skills")),
+        *bounded_term_values(job.get("responsibilities")),
+        *bounded_term_values(job.get("tech_stack_canonical") or job.get("tech_stack")),
         str(job.get("title") or ""),
         str(job.get("job_family") or ""),
         str(job.get("domain") or ""),
