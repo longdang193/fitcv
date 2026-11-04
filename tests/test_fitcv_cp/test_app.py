@@ -15796,7 +15796,9 @@ def test_export_full_run_jobs_cleans_archive_on_early_disconnect(monkeypatch: py
         async def receive() -> dict[str, object]:
             return {"type": "http.request", "body": b"", "more_body": False}
 
-        async def send(_message: dict[str, object]) -> None:
+        async def send(message: dict[str, object]) -> None:
+            if message.get("type") == "http.response.start":
+                return
             raise OSError("client disconnected")
 
         with pytest.raises(Exception):
@@ -16048,6 +16050,49 @@ def test_export_full_run_jobs_preserves_nested_score_sort() -> None:
 
     assert [row["job_url"] for row in rows] == ["https://j.test/zulu", "https://j.test/alpha"]
     assert manifest["ordering"] == "score_desc"
+
+
+def test_export_compatibility_path_considers_rows_beyond_first_page() -> None:
+    import io as _io
+    import json as _json
+    import zipfile as _zipfile
+
+    enriched = [
+        {
+            "job_url": f"https://j.test/retail-{index}",
+            "title": f"AA Retail Analyst {index}",
+            "required_skills": [],
+        }
+        for index in range(50)
+    ] + [
+        {
+            "job_url": f"https://j.test/ai-{index}",
+            "title": f"ZZ AI Engineer {index}",
+            "required_skills": [],
+        }
+        for index in range(10)
+    ]
+    jobs_input = _json.dumps(
+        [
+            {"jobUrl": job["job_url"], "title": job["title"]}
+            for job in enriched
+        ]
+    )
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[], jobs_input_json=jobs_input)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        response = TestClient(_app()).get(
+            "/runs/run-detail-test/jobs/export.full.zip?sort=title_asc&job_title_include=AI"
+        )
+
+    assert response.status_code == 200
+    with _zipfile.ZipFile(_io.BytesIO(response.content)) as archive:
+        rows = [
+            _json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+    assert len(rows) == 10
+    assert all("AI" in row["enriched_job"]["title"] for row in rows)
 
 
 def test_export_full_run_jobs_accepts_source_snapshot_job_url():

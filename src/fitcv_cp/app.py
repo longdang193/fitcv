@@ -370,7 +370,15 @@ class _TempFileStreamingResponse(StreamingResponse):
         try:
             await super().__call__(scope, receive, send)
         finally:
-            self._cleanup_path.unlink(missing_ok=True)
+            close_iterator = getattr(self.body_iterator, "close", None)
+            close_async_iterator = getattr(self.body_iterator, "aclose", None)
+            try:
+                if callable(close_iterator):
+                    close_iterator()
+                elif callable(close_async_iterator):
+                    await close_async_iterator()
+            finally:
+                self._cleanup_path.unlink(missing_ok=True)
 
 GERMANY_TZ = ZoneInfo("Europe/Berlin")
 
@@ -5030,6 +5038,7 @@ def _build_enriched_tab_context(
     page: int,
     page_size: int,
     sort: str = "score_desc",
+    include_all_rows: bool = False,
 ) -> dict[str, Any]:
     normalized_stage = _normalize_pipeline_results_stage(stage)
     if sort not in {"score_desc", "title_asc"}:
@@ -5325,7 +5334,8 @@ def _build_enriched_tab_context(
     nav_pager = _paginate_rows(filter_scoped_rows, page=page, page_size=page_size)
     pager = _paginate_rows(filtered_rows, page=page, page_size=page_size)
     visible_rows = []
-    for job in filtered_rows[pager["start"]:pager["end"]]:
+    visible_source_rows = filtered_rows if include_all_rows else filtered_rows[pager["start"]:pager["end"]]
+    for job in visible_source_rows:
         row = dict(job)
         alternative_id = str(row.get("raw_job_fingerprint") or "").strip()
         alternative = decision_feedback_alternatives.get(alternative_id)
@@ -16386,6 +16396,7 @@ def create_app(
                 pipeline_outcomes=selected_pipeline_outcomes,
                 page=1,
                 page_size=50,
+                include_all_rows=True,
             )
             filtered_jobs = [
                 job
