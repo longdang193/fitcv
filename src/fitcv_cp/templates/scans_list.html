@@ -77,6 +77,7 @@
       </div>
     </div>
     <div class="run-field"><label for="scan-job-titles">Job Titles <span class="supporting-text">Optional</span></label><input class="field" id="scan-job-titles" name="job_titles" type="text" placeholder="Data Engineer, Analytics Engineer"></div>
+    <div class="run-field"><label for="scan-excluded-job-titles">Exclude Job Titles <span class="supporting-text">Optional</span></label><input class="field" id="scan-excluded-job-titles" name="excluded_job_titles" type="text" placeholder="duales, contractor"></div>
     <div class="run-field"><label for="scan-locations">Job Locations <span class="supporting-text">Optional</span></label><input class="field" id="scan-locations" name="locations" type="text" placeholder="Berlin, Germany"></div>
     <div class="run-field"><label for="scan-published-window">Published At</label><select class="field" id="scan-published-window" name="published_window"><option value="any">Any time</option><option value="past_12_hours">Past 12 hours</option><option value="past_24_hours">Past 24 hours</option><option value="past_7_days">Past week</option><option value="past_30_days">Past month</option><option value="past_180_days">Past 6 months</option></select><small>Rolling window resolved when the Scan starts.</small></div>
     <div class="run-field"><label for="scan-total-rows">Total Rows</label><input class="field" id="scan-total-rows" name="total_rows" type="number" min="1" max="200" value="50" required></div>
@@ -370,7 +371,7 @@
     const status = document.getElementById('new-scan-status');
     if (!selectedCompanyIds.length) { status.textContent = 'Select at least one tracked company.'; document.getElementById('manage-scan-companies').focus(); return; }
     const data = new FormData(newForm);
-    const body = {scan_name:data.get('scan_name'), company_ids:selectedCompanyIds, job_titles:splitLines(String(data.get('job_titles') || '')), locations:splitLines(String(data.get('locations') || '')), published_window:data.get('published_window'), total_rows:Number(data.get('total_rows'))};
+    const body = {scan_name:data.get('scan_name'), company_ids:selectedCompanyIds, job_titles:splitLines(String(data.get('job_titles') || '')), excluded_job_titles:splitLines(String(data.get('excluded_job_titles') || '')), locations:splitLines(String(data.get('locations') || '')), published_window:data.get('published_window'), total_rows:Number(data.get('total_rows'))};
     const startButton = document.getElementById('start-scan');
     await fitcvRunLocked(startButton, async () => {
       status.textContent = 'Starting Scan…';

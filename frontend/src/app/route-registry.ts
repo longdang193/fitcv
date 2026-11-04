@@ -8,6 +8,7 @@ export interface FeatureRoute {
   path: string; // e.g. "#/overview", "#/candidate-profile"
   title: string;
   group: RouteGroup;
+  hidden?: boolean;
   icon?: React.ReactNode;
   order?: number;
   component: React.ComponentType;
