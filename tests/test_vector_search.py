@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 import pytest
 from unittest.mock import patch
+from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
 from fitcv.vector_search import (
     _dedupe_shortlist_rows,
     build_candidate_query_components,
@@ -128,6 +129,23 @@ def test_build_candidate_query_components_bound_skill_count() -> None:
     components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 3})
 
     assert components["flattened_skills"] == ["SQL", "Python", "BigQuery"]
+
+
+def test_build_candidate_query_components_bound_project_technology_hints() -> None:
+    profile = {
+        "projects": [
+            {"tech_stack": ["OpenAI", "Claude Code", "OpenAI", "x" * 200]},
+        ],
+    }
+
+    components = build_candidate_query_components(profile)
+    signature = build_candidate_query_signature_record(components)
+    text = build_candidate_query_text(profile)
+
+    assert components["technology_hints"] == ["OpenAI", "Claude Code", "x" * 160]
+    assert signature["payload"]["technology_hints"] == components["technology_hints"]
+    assert "Project Technology: OpenAI | Claude Code" in text
+    assert "x" * 161 not in text
 
 def test_build_candidate_query_components_uses_config_for_inferred_role_family() -> None:
     profile = {
@@ -461,7 +479,7 @@ def _create_job_embedding_table(path: Path) -> None:
         )
 
 
-def _candidate_query_record(embedding: list[float]) -> dict:
+def _candidate_query_record(embedding: list[float], backend_id: str = "sentence_transformers") -> dict:
     return {
         "text": "candidate",
         "components": {},
@@ -469,6 +487,7 @@ def _candidate_query_record(embedding: list[float]) -> dict:
         "candidate_query_signature": "query-signature",
         "candidate_query_contract_fingerprint": "embedding-contract",
         "candidate_query_reuse_status": "fresh_compute",
+        "embedding_backend_id": backend_id,
     }
 
 
@@ -662,8 +681,114 @@ def test_run_vector_search_reports_vector_request_and_lexical_fallback_reason(
     assert result["diagnostics"]["requested_strategy"] == "vector_cosine_v1"
     assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
     assert result["diagnostics"]["fallback_used"] is True
-    assert result["diagnostics"]["fallback_reason"] == "missing_job_embeddings"
+    assert result["diagnostics"]["fallback_reason"] == "non_semantic_embedding_backend"
     assert result["diagnostics"]["backend_id"] == "structured_jobs_lexical"
+    assert result["diagnostics"]["embedding_backend_id"] == "sqlite_deterministic_local"
+
+
+def test_run_vector_search_deterministic_backend_uses_technology_overlap() -> None:
+    profile = {"projects": [{"tech_stack": ["OpenAI"]}], "preferences": {}}
+    jobs = [
+        {
+            "job_url": "https://example.com/match",
+            "title": "Role A",
+            "required_skills": [],
+            "preferred_skills": [],
+            "job_family": "",
+            "domain": "",
+            "location_type": "",
+            "tech_stack_canonical": ["OpenAI"],
+        },
+        {
+            "job_url": "https://example.com/distractor",
+            "title": "Role B",
+            "required_skills": [],
+            "preferred_skills": [],
+            "job_family": "",
+            "domain": "",
+            "location_type": "",
+            "tech_stack_canonical": ["Power BI"],
+        },
+    ]
+
+    result = run_vector_search(
+        profile,
+        [job["job_url"] for job in jobs],
+        {
+            "pipeline": {"vector_search_top_n": 1},
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 1.0,
+                    "role_family": 1.0,
+                    "work_mode": 1.0,
+                }
+            },
+        },
+        structured_jobs=jobs,
+    )
+
+    assert result["production_rows"][0]["job_url"] == "https://example.com/match"
+    assert result["production_rows"][0]["retrieval_components"]["technology_overlap"] == 1.0
+    assert result["diagnostics"]["fallback_reason"] == "non_semantic_embedding_backend"
+
+
+def test_run_vector_search_reads_technology_from_loaded_canonical_project_evidence() -> None:
+    canonical = converge_candidate_profile_for_runtime(
+        {
+            "name": "Agent Builder",
+            "projects": [
+                {
+                    "name": "Agent Platform",
+                    "tech_stack": ["OpenAI"],
+                    "highlights": ["Built an evaluation workflow"],
+                }
+            ],
+            "experiences": [],
+            "skills": [],
+        }
+    )
+    profile = load_profile_json_text(json.dumps(canonical))
+    jobs = [
+        {
+            "job_url": "https://example.com/match",
+            "title": "Role A",
+            "required_skills": [],
+            "preferred_skills": [],
+            "job_family": "",
+            "domain": "",
+            "location_type": "",
+            "tech_stack_canonical": ["OpenAI"],
+        },
+        {
+            "job_url": "https://example.com/distractor",
+            "title": "Role B",
+            "required_skills": [],
+            "preferred_skills": [],
+            "job_family": "",
+            "domain": "",
+            "location_type": "",
+            "tech_stack_canonical": ["Power BI"],
+        },
+    ]
+
+    result = run_vector_search(
+        profile,
+        [job["job_url"] for job in jobs],
+        {
+            "pipeline": {"vector_search_top_n": 1},
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 1.0,
+                    "role_family": 1.0,
+                    "work_mode": 1.0,
+                }
+            },
+        },
+        structured_jobs=jobs,
+    )
+
+    assert result["candidate_query"]["components"]["technology_hints"] == ["OpenAI"]
+    assert result["production_rows"][0]["job_url"] == "https://example.com/match"
 
 
 def test_run_vector_search_falls_back_when_candidate_embedding_unavailable(

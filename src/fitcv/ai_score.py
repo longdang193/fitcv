@@ -51,7 +51,7 @@ from fitcv.llm_runtime import (
 from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
-from fitcv.evidence import project_candidate_evidence
+from fitcv.evidence import bounded_term_values, project_candidate_evidence
 from fitcv.candidate import flatten_skills
 from fitcv.prompts import render_prompt
 from fitcv.ranking_contract import (
@@ -139,8 +139,22 @@ def build_ranking_request(
     jd_summary = source.get("job_requirements") or build_job_summary_text(job)
     candidate_text = source.get("candidate_summary") or candidate_summary
     evidence = source.get("candidate_evidence") or top_evidence[:2]
-    evidence_text = [item.get("text", "") if isinstance(item, dict) else str(item) for item in evidence]
-    prompt = build_scoring_prompt(jd_summary, candidate_text, evidence_text, config=config)
+
+    def evidence_text(item: Any) -> str:
+        if not isinstance(item, dict):
+            return str(item)
+        fields = [
+            str(item.get("title") or "").strip(),
+            str(item.get("parent_title") or "").strip(),
+            str(item.get("organization") or "").strip(),
+            str(item.get("scoring_context") or "").strip(),
+            ", ".join(bounded_term_values(item.get("skills"))),
+            str(item.get("text") or "").strip(),
+        ]
+        return " | ".join(value for value in fields if value)
+
+    evidence_texts = [evidence_text(item) for item in evidence]
+    prompt = build_scoring_prompt(jd_summary, candidate_text, evidence_texts, config=config)
     route = resolved_route or resolve_llm_routing("ranking_ai_score", runtime_config=config)
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {"routing_part": request.routing_part, "prompt": request.prompt, "response_mode": request.response_mode}
@@ -203,6 +217,10 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
         "text": str(item.get("text") or "")[:400],
         "source_section": str(item.get("source_section") or ""),
         "parent_id": str(item.get("parent_id") or ""),
+        "parent_title": str(item.get("parent_title") or "")[:160],
+        "organization": str(item.get("organization") or "")[:160],
+        "scoring_context": str(item.get("scoring_context") or "")[:400],
+        "skills": bounded_term_values(item.get("skills")),
     } for item in projected_evidence[:2] if isinstance(item, dict)]
     all_required_skills = [
         str(value).strip()
@@ -214,19 +232,34 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
         for value in flatten_skills(profile)
         if str(value).strip()
     ]
+    technology_requirements = bounded_term_values(
+        job.get("tech_stack_canonical") or job.get("tech_stack")
+    )
+    preferred_skills = bounded_term_values(job.get("preferred_skills_canonical") or job.get("preferred_skills"))
+    priority_keys = {
+        value.casefold()
+        for value in [*all_required_skills, *preferred_skills, *technology_requirements]
+    }
+    prioritized_candidate_skills = [
+        skill for skill in all_candidate_skills if skill.casefold() in priority_keys
+    ]
+    remaining_candidate_skills = [
+        skill for skill in all_candidate_skills if skill.casefold() not in priority_keys
+    ]
     required_skills = all_required_skills[:8]
-    candidate_skills = all_candidate_skills[:8]
+    candidate_skills = [*prioritized_candidate_skills, *remaining_candidate_skills][:8]
     candidate_skill_keys = {skill.casefold() for skill in all_candidate_skills}
     matched_skills = [skill for skill in all_required_skills if skill.casefold() in candidate_skill_keys]
     missing_skills = [skill for skill in all_required_skills if skill.casefold() not in candidate_skill_keys]
     requirements = {
         "title": str(job.get("title") or "")[:160],
         "required_skills": required_skills,
-        "preferred_skills": bounded(job.get("preferred_skills_canonical") or job.get("preferred_skills")),
+        "preferred_skills": preferred_skills,
         "seniority": str(job.get("seniority") or ""),
         "job_family": str(job.get("job_family") or ""),
         "domain": str(job.get("domain") or ""),
         "responsibilities": bounded(job.get("responsibilities")),
+        "technology_requirements": technology_requirements,
         "language_requirements": bounded(job.get("language_requirements") or job.get("languages")),
         "location": {"location_type": str(job.get("location_type") or ""), "actual_location": job.get("actual_location") or job.get("location") or None},
         "years_experience_min": job.get("years_experience_min"),

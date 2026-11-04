@@ -35,7 +35,9 @@ from fitcv.shortlist_runtime import (
 from fitcv.persistence import sqlite_connection
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
-SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
+SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v3"
+SHORTLIST_SUMMARY_MAX_ITEMS = 8
+SHORTLIST_SUMMARY_MAX_ITEM_CHARS = 160
 EMBEDDING_CONTRACT_VERSION = "embedding_v2"
 SHORTLIST_DEFAULT_EMBEDDING_MODEL = "text-embedding-005"
 REUSED_CACHED_EMBEDDING_STATUS = "reused_cached_embedding"
@@ -85,6 +87,19 @@ def _preferred_skill_values(
     return _stable_sorted_unique_strings(list(structured_jd.get(raw_field) or []))
 
 
+def _bounded_summary_values(
+    structured_jd: dict[str, Any],
+    *,
+    canonical_field: str,
+    raw_field: str,
+) -> list[str]:
+    values = structured_jd.get(canonical_field) or structured_jd.get(raw_field) or []
+    return [
+        value[:SHORTLIST_SUMMARY_MAX_ITEM_CHARS]
+        for value in _stable_sorted_unique_strings(list(values))[:SHORTLIST_SUMMARY_MAX_ITEMS]
+    ]
+
+
 def build_job_summary_signature_payload(structured_jd: dict[str, Any]) -> dict[str, Any]:
     """Build the stable shortlist summary payload used for embedding reuse."""
     payload = {
@@ -101,6 +116,16 @@ def build_job_summary_signature_payload(structured_jd: dict[str, Any]) -> dict[s
             structured_jd,
             canonical_field="preferred_skills_canonical",
             raw_field="preferred_skills",
+        ),
+        "responsibilities": _bounded_summary_values(
+            structured_jd,
+            canonical_field="responsibilities_canonical",
+            raw_field="responsibilities",
+        ),
+        "tech_stack": _bounded_summary_values(
+            structured_jd,
+            canonical_field="tech_stack_canonical",
+            raw_field="tech_stack",
         ),
     }
     return {
@@ -252,6 +277,8 @@ def build_job_summary_text(structured_jd: dict[str, Any]) -> str:
     _append("Location type", str(payload.get("location_type") or ""))
     _append("Seniority", str(payload.get("seniority") or ""))
     _append("Job family", str(payload.get("job_family") or ""))
+    _append("Responsibilities", ", ".join(payload.get("responsibilities", []) or []))
+    _append("Technology", ", ".join(payload.get("tech_stack", []) or []))
 
     return "\n".join(parts)
 

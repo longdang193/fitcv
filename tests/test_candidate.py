@@ -106,6 +106,31 @@ def test_runtime_convergence_normalizes_legacy_year_only_ranges() -> None:
     assert converged["experiences"][0]["start"] == "2020-01"
     assert converged["experiences"][0]["end"] == "2022-12"
 
+
+def test_runtime_convergence_preserves_legacy_project_technology_as_evidence() -> None:
+    converged = converge_candidate_profile_for_runtime(
+        {
+            "name": "Legacy Candidate",
+            "projects": [
+                {
+                    "name": "Agent Builder",
+                    "tech_stack": ["OpenAI", "Claude Code"],
+                    "highlights": ["Built an evaluation workflow"],
+                }
+            ],
+            "experiences": [],
+            "skills": [],
+        }
+    )
+
+    evidence = converged["projects"][0]["evidence"]
+    technology = [item for item in evidence if item.get("title") == "Technology stack"]
+
+    assert [item["kind"] for item in technology] == ["project_highlight", "project_highlight"]
+    assert all(item["id"].startswith("project_technology_") for item in technology)
+    assert [item["text"] for item in technology] == ["OpenAI", "Claude Code"]
+    assert all(item["source_refs"] for item in technology)
+
 def test_runtime_convergence_rejects_invalid_v2_references() -> None:
     profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
     profile["skills"][0]["evidence_refs"] = ["missing_evidence"]

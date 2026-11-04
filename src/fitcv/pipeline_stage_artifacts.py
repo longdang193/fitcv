@@ -431,6 +431,21 @@ def build_shortlist_stage_block(
             if extract_job_url(job) not in raw_shortlist_urls
         ],
     ]
+    retrieval_diagnostics = {
+        key: shortlist_diagnostics.get(key)
+        for key in (
+            "requested_strategy",
+            "effective_strategy",
+            "backend_id",
+            "embedding_backend_id",
+            "fallback_reason",
+            "eligible_jobs_total",
+            "scored_jobs_total",
+            "production_shortlist_total",
+            "production_cutoff_rank",
+        )
+        if key in shortlist_diagnostics
+    }
     block = stage_block_builder(
         stage_id="shortlist",
         status="completed",
@@ -449,6 +464,7 @@ def build_shortlist_stage_block(
             "candidate_query_components": shortlist_candidate_query_components,
             **shortlist_candidate_query_debug,
             "quality_metrics": shortlist_quality_metrics,
+            "retrieval_diagnostics": retrieval_diagnostics,
             "vector_search_top_n": vector_top_n,
             "jobs_not_returned_in_raw_hits": len([job for job in passed_jobs if extract_job_url(job) not in raw_shortlist_urls]),
             **shortlist_embedding_reuse_counts,

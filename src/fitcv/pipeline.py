@@ -2887,6 +2887,7 @@ def _build_stage_transition_artifacts(
         "role_family_hints": list(candidate_query_components.get("role_family_hints") or []),
         "flattened_skill_sample": list(candidate_query_components.get("flattened_skills") or []),
         "domain_hints": list(candidate_query_components.get("domain_hints") or []),
+        "technology_hints": list(candidate_query_components.get("technology_hints") or []),
     }
     shortlist_candidate_query_components = {
         key: value
