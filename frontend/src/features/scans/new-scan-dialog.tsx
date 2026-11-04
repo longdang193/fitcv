@@ -37,6 +37,10 @@ const PUBLISHED_WINDOW_OPTIONS: Array<{ value: PublishedWindow; label: string }>
   { value: "past_180_days", label: "Past 6 months" },
 ];
 
+export function splitScanFilterValues(value: string): string[] {
+  return [...new Set(value.split(/[,\r\n]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
 // ponytail: inline text distinction for company profiles vs ATS/source platforms; upgrade to structured metadata badges if catalog expands.
 export const NewScanDialog: React.FC<NewScanDialogProps> = ({
   open,
@@ -229,19 +233,13 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
     setSubmitting(true);
     setSubmitError(null);
 
-    const splitLines = (str: string) =>
-      str
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
     try {
       const scan = await createScan({
         scan_name: scanName.trim() || undefined,
         company_ids: selectedCompanyIds,
-        job_titles: splitLines(jobTitles),
-        excluded_job_titles: splitLines(excludedJobTitles),
-        locations: splitLines(locations),
+        job_titles: splitScanFilterValues(jobTitles),
+        excluded_job_titles: splitScanFilterValues(excludedJobTitles),
+        locations: splitScanFilterValues(locations),
         published_window: publishedWindow,
         total_rows: Number(totalRows),
       });
@@ -340,7 +338,7 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
             label="Job Titles"
             type="textarea"
             rows={2}
-            hint="One filter per line. Matches any if empty."
+            hint="One filter per line or comma-separated. Matches any if empty."
             placeholder="Software Engineer&#10;Data Scientist"
             value={jobTitles}
             onChange={(e) => setJobTitles(e.target.value)}
@@ -350,8 +348,8 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
             label="Exclude Job Titles"
             type="textarea"
             rows={2}
-            hint="One keyword or phrase per line. Matching titles are excluded."
-            placeholder="duales\ncontractor"
+            hint="One keyword or phrase per line or comma-separated. Matching titles are excluded."
+            placeholder="duales&#10;contractor"
             value={excludedJobTitles}
             onChange={(e) => setExcludedJobTitles(e.target.value)}
           />

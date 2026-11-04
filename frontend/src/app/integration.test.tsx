@@ -92,6 +92,8 @@ describe("Frontend App Shell & Whole-Slice Integration", () => {
     expect(markup).toContain('aria-label="Toggle navigation menu"');
     expect(markup).toContain('aria-controls="app-sidebar"');
 
+    expect(markup).not.toContain('href="#/analytics"');
+
     // Notification bell default accessible name
     expect(markup).toContain('aria-label="Notifications, no unread notifications"');
   });

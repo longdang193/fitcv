@@ -26,6 +26,7 @@ import { apiClient } from "../lib/api-client";
 import { buildScanJobColumns, getScanEventMessage } from "../features/scans/scan-detail";
 import { ScansListPage } from "../features/scans/scans-list";
 import { ScanJobItem } from "../features/scans/types";
+import { splitScanFilterValues } from "../features/scans/new-scan-dialog";
 import { discoverFeatureRoutes, matchRoute } from "../app/route-registry";
 import { shouldLoadScanOutput } from "../features/scans/scan-detail";
 import { parseHash } from "../features/scans/route";
@@ -121,6 +122,15 @@ describe("scans feature route and api slice", () => {
     expect(newScanDialogSource).toContain('label="Job Titles"');
     expect(newScanDialogSource).toContain('label="Exclude Job Titles"');
     expect(newScanDialogSource).toContain("excluded_job_titles");
+    expect(newScanDialogSource).toContain('placeholder="duales&#10;contractor"');
+  });
+
+  it("normalizes Scan filter lists consistently across commas and line breaks", () => {
+    expect(splitScanFilterValues("Software Engineer\nData Scientist, AI Engineer\nSoftware Engineer")).toEqual([
+      "Software Engineer",
+      "Data Scientist",
+      "AI Engineer",
+    ]);
   });
 
   it("fetches scans collection with query parameters", async () => {

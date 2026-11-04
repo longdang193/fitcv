@@ -186,7 +186,7 @@ export const AppShell: React.FC = () => {
   // Build navigation groups dynamically from discovered routes SSOT
   const navGroups: NavGroup[] = useMemo(() => {
     const workspaceItems = routes
-      .filter((r) => r.group === "workspace")
+      .filter((r) => r.group === "workspace" && !r.hidden)
       .map((r) => ({
         id: r.id,
         label: r.title,
@@ -195,7 +195,7 @@ export const AppShell: React.FC = () => {
       }));
 
     const settingsItems = routes
-      .filter((r) => r.group === "settings" || r.group === "system")
+      .filter((r) => (r.group === "settings" || r.group === "system") && !r.hidden)
       .map((r) => ({
         id: r.id,
         label: r.title,

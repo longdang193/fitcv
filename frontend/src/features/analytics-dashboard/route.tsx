@@ -114,6 +114,7 @@ export const route = {
   path: "#/analytics",
   title: "Analytics",
   group: "workspace" as const,
+  hidden: true,
   order: 40,
   component: AnalyticsDashboardPage,
 };
