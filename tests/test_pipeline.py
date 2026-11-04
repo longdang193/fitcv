@@ -298,6 +298,42 @@ def test_build_ranking_features_merges_by_job_url() -> None:
     assert urls == {"https://example.com/1", "https://example.com/2"}
 
 
+def test_build_ranking_features_merges_duplicate_urls_by_stable_identity() -> None:
+    shortlist = [
+        {
+            "run_job_id": "run-1",
+            "job_url": "https://example.com/same",
+            "title": "First role",
+            "similarity_score": 0.9,
+            "rank": 1,
+        },
+        {
+            "run_job_id": "run-2",
+            "job_url": "https://example.com/same",
+            "title": "Second role",
+            "similarity_score": 0.4,
+            "rank": 2,
+        },
+    ]
+    ai_scores = [
+        {"run_job_id": "run-1", "job_url": "https://example.com/same", "ai_score": 0.8},
+        {"run_job_id": "run-2", "job_url": "https://example.com/same", "ai_score": 0.2},
+    ]
+
+    features = build_ranking_features(
+        shortlist,
+        ai_scores,
+        {"preferences": {}},
+        _ranking_v2_config(),
+    )
+
+    by_run_job_id = {row["run_job_id"]: row for row in features}
+    assert by_run_job_id["run-1"]["title"] == "First role"
+    assert by_run_job_id["run-1"]["vector_similarity"] == pytest.approx(0.9)
+    assert by_run_job_id["run-2"]["title"] == "Second role"
+    assert by_run_job_id["run-2"]["vector_similarity"] == pytest.approx(0.4)
+
+
 def test_build_ranking_features_includes_vector_similarity() -> None:
     profile: dict = {"preferences": {}}
     features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, _ranking_v2_config())

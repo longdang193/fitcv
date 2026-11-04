@@ -13142,6 +13142,7 @@ def replace_filter_results(run_id: str, rows: list[dict[str, Any]]) -> None:
             (run_id,),
         ).fetchall()
         job_by_identity: dict[str, str] = {}
+        legacy_job_ids_by_url: dict[str, list[str]] = {}
         for job in jobs:
             try:
                 source_snapshot = json.loads(str(job["source_snapshot_json"] or "{}"))
@@ -13156,19 +13157,33 @@ def replace_filter_results(run_id: str, rows: list[dict[str, Any]]) -> None:
             }
             for key in job_identity_index_keys(identity):
                 job_by_identity.setdefault(key, str(job["run_job_id"]))
+            for key in job_identity_keys(identity):
+                if key.startswith("url:"):
+                    legacy_job_ids_by_url.setdefault(key, []).append(str(job["run_job_id"]))
         conn.execute(
             "DELETE FROM run_job_stage_results WHERE stage_id='screening' AND run_job_id IN (SELECT run_job_id FROM run_jobs WHERE run_id=?)",
             (run_id,),
         )
         for row in rows:
+            row_identity_keys = job_identity_index_keys(row)
             run_job_id = next(
                 (
                     job_by_identity[key]
-                    for key in job_identity_index_keys(row)
+                    for key in row_identity_keys
                     if key in job_by_identity
                 ),
                 None,
             )
+            if run_job_id is None and not any(
+                key.startswith(("run:", "fp:")) for key in row_identity_keys
+            ):
+                legacy_url_key = next(
+                    (key for key in job_identity_keys(row) if key.startswith("url:")),
+                    None,
+                )
+                matching_job_ids = legacy_job_ids_by_url.get(legacy_url_key or "", [])
+                if len(matching_job_ids) == 1:
+                    run_job_id = matching_job_ids[0]
             if run_job_id is None:
                 raise ValueError("job_not_found")
             evidence = {
@@ -13524,7 +13539,20 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
         ).fetchall()
     except sqlite3.OperationalError:
         return {}
+    run_url_counts: dict[str, int] = {}
+    try:
+        run_job_rows = conn.execute(
+            "SELECT source_url FROM run_jobs WHERE run_id=?",
+            (run_id,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        run_job_rows = []
+    for run_job_row in run_job_rows:
+        for key in job_identity_keys({"job_url": run_job_row[0]}):
+            if key.startswith("url:"):
+                run_url_counts[key] = run_url_counts.get(key, 0) + 1
     payloads: dict[str, dict[str, Any]] = {}
+    legacy_url_payloads: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         try:
             payload = json.loads(str(row[1] or "{}"))
@@ -13535,8 +13563,17 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
                 **payload,
                 "job_url": payload.get("job_url") or row[0],
             }
-            for key in job_identity_index_keys(identity):
-                payloads.setdefault(key, payload)
+            identity_keys = job_identity_keys(identity)
+            if any(key.startswith(("run:", "fp:")) for key in identity_keys):
+                for key in job_identity_index_keys(identity):
+                    payloads.setdefault(key, payload)
+            else:
+                for key in identity_keys:
+                    if key.startswith("url:"):
+                        legacy_url_payloads.setdefault(key, []).append(payload)
+    for key, candidates in legacy_url_payloads.items():
+        if len(candidates) == 1 and run_url_counts.get(key) == 1:
+            payloads[key] = candidates[0]
     return payloads
 
 
@@ -13570,10 +13607,17 @@ def _run_job_identity(job_row: sqlite3.Row, source_snapshot: Any) -> dict[str, A
 def _identity_payload_for_job(
     payloads: dict[str, dict[str, Any]],
     job_identity: dict[str, Any],
+    *,
+    allow_legacy_url_fallback: bool = False,
 ) -> dict[str, Any]:
     for key in job_identity_index_keys(job_identity):
         if key in payloads:
             return payloads[key]
+    if not allow_legacy_url_fallback and any(
+        key.startswith(("run:", "fp:"))
+        for key in job_identity_keys(job_identity)
+    ):
+        return {}
     for key in job_identity_keys(job_identity):
         if not key.startswith("url:") or key not in payloads:
             continue
@@ -13722,7 +13766,11 @@ def _filtered_run_job_rows(
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
         job_identity = _run_job_identity(job_row, source_snapshot)
-        canonical = _identity_payload_for_job(structured_by_identity, job_identity)
+        canonical = _identity_payload_for_job(
+            structured_by_identity,
+            job_identity,
+            allow_legacy_url_fallback=True,
+        )
         export_row = _identity_payload_for_job(export_by_identity, job_identity)
         score_state = _score_state_for_job(
             source_snapshot,
@@ -13939,7 +13987,11 @@ def _select_run_job_ids(
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
         job_identity = _run_job_identity(job_row, source_snapshot)
-        canonical = _identity_payload_for_job(structured_by_identity, job_identity)
+        canonical = _identity_payload_for_job(
+            structured_by_identity,
+            job_identity,
+            allow_legacy_url_fallback=True,
+        )
         export_row = _identity_payload_for_job(export_by_identity, job_identity)
         score_state = _score_state_for_job(
             source_snapshot,
@@ -14104,7 +14156,11 @@ def _hydrate_run_job_ids(
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
         job_identity = _run_job_identity(job_row, source_snapshot)
-        canonical = _identity_payload_for_job(structured_by_identity, job_identity)
+        canonical = _identity_payload_for_job(
+            structured_by_identity,
+            job_identity,
+            allow_legacy_url_fallback=True,
+        )
         export_row = _identity_payload_for_job(export_by_identity, job_identity)
         score_state = _score_state_for_job(
             source_snapshot,

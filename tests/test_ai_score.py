@@ -323,6 +323,27 @@ def test_build_ranking_job_input_is_bounded_and_uses_supplied_projection() -> No
     assert result["candidate_evidence"][0]["evidence_id"] == "ev-1"
 
 
+def test_build_ranking_job_input_counts_skills_before_bounding_prompt_fields() -> None:
+    from fitcv.ai_score import build_ranking_job_input
+
+    profile = {
+        "skills": [{"name": f"Skill {index}"} for index in range(1, 10)],
+        "_projected_evidence_pool": [],
+    }
+    job = {
+        "required_skills": [f"Skill {index}" for index in range(1, 10)],
+    }
+
+    result = build_ranking_job_input(job, profile)
+    requirements = json.loads(result["job_requirements"])
+
+    assert len(requirements["required_skills"]) == 8
+    assert len(requirements["skill_coverage"]["matched"]) == 8
+    assert requirements["skill_coverage"]["matched_count"] == 9
+    assert requirements["skill_coverage"]["required_count"] == 9
+    assert requirements["skill_coverage"]["missing"] == []
+
+
 def test_score_job_uses_shared_runtime_contract() -> None:
     from unittest.mock import patch
 

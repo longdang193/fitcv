@@ -204,11 +204,21 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
         "source_section": str(item.get("source_section") or ""),
         "parent_id": str(item.get("parent_id") or ""),
     } for item in projected_evidence[:2] if isinstance(item, dict)]
-    required_skills = bounded(job.get("required_skills_canonical") or job.get("required_skills"))
-    candidate_skills = bounded(flatten_skills(profile))
-    candidate_skill_keys = {skill.casefold() for skill in candidate_skills}
-    matched_skills = [skill for skill in required_skills if skill.casefold() in candidate_skill_keys]
-    missing_skills = [skill for skill in required_skills if skill.casefold() not in candidate_skill_keys]
+    all_required_skills = [
+        str(value).strip()
+        for value in list(job.get("required_skills_canonical") or job.get("required_skills") or [])
+        if str(value).strip()
+    ]
+    all_candidate_skills = [
+        str(value).strip()
+        for value in flatten_skills(profile)
+        if str(value).strip()
+    ]
+    required_skills = all_required_skills[:8]
+    candidate_skills = all_candidate_skills[:8]
+    candidate_skill_keys = {skill.casefold() for skill in all_candidate_skills}
+    matched_skills = [skill for skill in all_required_skills if skill.casefold() in candidate_skill_keys]
+    missing_skills = [skill for skill in all_required_skills if skill.casefold() not in candidate_skill_keys]
     requirements = {
         "title": str(job.get("title") or "")[:160],
         "required_skills": required_skills,
@@ -225,7 +235,7 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
             "matched": matched_skills[:8],
             "missing": missing_skills[:8],
             "matched_count": len(matched_skills),
-            "required_count": len(required_skills),
+            "required_count": len(all_required_skills),
         },
     }
     candidate = {

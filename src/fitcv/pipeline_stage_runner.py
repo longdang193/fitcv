@@ -359,6 +359,7 @@ def execute_ranking_stage(
     ]
     | None = None,
     profile_for_projection: dict[str, Any] | None = None,
+    evidence_projection: dict[str, Any] | None = None,
     runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
     build_reuse_decision_callback: Callable[..., dict[str, Any]] | None = None,
     resolve_llm_routing_callback: Callable[..., Any] | None = None,
@@ -375,7 +376,7 @@ def execute_ranking_stage(
         if cancellation_check and cancellation_check():
             raise cancellation_error_cls("Cancelled before AI scoring")
         ai_score_candidates = shortlist[:ai_top_n]
-        evidence_projection = build_evidence_projection(
+        evidence_projection = evidence_projection or build_evidence_projection(
             profile if profile_for_projection is None else profile_for_projection
         )
         profile_evidence_pool = list(evidence_projection.get("items") or [])

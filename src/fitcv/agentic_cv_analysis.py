@@ -396,6 +396,9 @@ def build_experience_evidence_summary(
             continue
         resolution_action = str(row.get("resolution_action") or "").strip()
         if (
+            row.get("requirement_type") == "professional_experience"
+            and str(row.get("selected_support") or "") == "verified"
+        ) or (
             professional_ids and str(row.get("selected_support") or "") == "verified"
         ) or (project_ids and policy["explicit_project_acceptance"]):
             professional_verified.append(requirement_id)
@@ -913,6 +916,37 @@ def _answer_mentions_requirement(
     )
 
 
+def _numeric_experience_value(text: Any) -> float | None:
+    match = re.search(
+        r"(?<!\w)(\d+(?:[.,]\d+)?)\s*(?:\+\s*)?(years?|yrs?|months?)\b",
+        str(text or ""),
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    value = float(match.group(1).replace(",", "."))
+    return value / 12.0 if match.group(2).lower().startswith(("month",)) else value
+
+
+def _numeric_experience_support(
+    descriptor: dict[str, Any],
+    value: Any,
+) -> bool | None:
+    try:
+        normalized_value = float(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        normalized_value = None
+    if normalized_value is None:
+        return None
+    minimum = descriptor.get("years_experience_min")
+    maximum = descriptor.get("years_experience_max")
+    if minimum not in (None, "") and normalized_value < float(minimum):
+        return False
+    if maximum not in (None, "") and normalized_value > float(maximum):
+        return False
+    return True
+
+
 def _build_requirement_coverage(
     job: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -921,6 +955,7 @@ def _build_requirement_coverage(
     evidence_selection_summary: dict[str, Any] | None,
     config: dict[str, Any],
     requirement_resolutions: list[dict[str, Any]] | None = None,
+    years_candidate: Any | None = None,
 ) -> list[dict[str, Any]]:
     descriptors = build_required_skill_descriptors(job, config)
     requirement_support = dict((evidence_selection_summary or {}).get("requirement_support") or {})
@@ -995,6 +1030,8 @@ def _build_requirement_coverage(
                         "requirement_type": "professional_experience",
                         "requirement_priority": "must_have",
                         "experience_shaped": True,
+                        "years_experience_min": normalized_min,
+                        "years_experience_max": normalized_max,
                     }
                 )
     responsibility_support = dict(requirement_support.get("responsibility") or {})
@@ -1023,6 +1060,34 @@ def _build_requirement_coverage(
             selected_status = "relevant_unverified"
         else:
             selected_status = "unsupported"
+        if descriptor.get("requirement_type") == "professional_experience":
+            numeric_support_ids = [
+                str(item.get("evidence_id") or "")
+                for item in evidence
+                if _is_professional_experience_evidence(item)
+                and _numeric_experience_support(
+                    descriptor,
+                    _numeric_experience_value(
+                        " ".join(
+                            str(item.get(field) or "")
+                            for field in ("text", "name", "role", "business_value", "scoring_context")
+                        )
+                    ),
+                ) is True
+            ]
+            numeric_support_ids = [item_id for item_id in numeric_support_ids if item_id]
+            if numeric_support_ids:
+                selected_ids = list(dict.fromkeys([*selected_ids, *numeric_support_ids]))
+                selected_status = "verified"
+            else:
+                profile_support = _numeric_experience_support(
+                    descriptor,
+                    years_candidate,
+                )
+                if profile_support is True:
+                    selected_status = "verified"
+                elif profile_support is False:
+                    selected_status = "contradicted"
         resolution = resolutions.get((requirement_ref, requirement_ref))
         if resolution is None:
             resolution = next(
@@ -1039,24 +1104,40 @@ def _build_requirement_coverage(
         resolved_fact = str(resolution_payload.get("answer_text") or "").strip()
         if resolution_action == "RESOLVE_WITH_ANSWER" and resolution_id:
             if resolved_fact:
-                answer_skills = (
-                    [str(descriptor.get("canonical_skill") or "")]
-                    if _answer_mentions_requirement(resolved_fact, descriptor, config)
-                    else []
-                )
-                assessment = _assess_requirement_support(
-                    {
-                        "text": resolved_fact,
-                        "skills": answer_skills,
-                        **_resolution_evidence_metadata(resolution_payload, resolved_fact),
-                        "support_fragments": _build_support_fragments(
-                            resolved_fact,
-                            answer_skills,
+                if descriptor.get("requirement_type") == "professional_experience":
+                    numeric_answer_support = _numeric_experience_support(
+                        descriptor,
+                        _numeric_experience_value(resolved_fact),
+                    )
+                    assessment = {
+                        "qualified_support": numeric_answer_support is True,
+                        "qualifier_status": (
+                            "supported"
+                            if numeric_answer_support is True
+                            else "contradicted"
+                            if numeric_answer_support is False
+                            else "unverified"
                         ),
-                    },
-                    descriptor,
-                    config,
-                )
+                    }
+                else:
+                    answer_skills = (
+                        [str(descriptor.get("canonical_skill") or "")]
+                        if _answer_mentions_requirement(resolved_fact, descriptor, config)
+                        else []
+                    )
+                    assessment = _assess_requirement_support(
+                        {
+                            "text": resolved_fact,
+                            "skills": answer_skills,
+                            **_resolution_evidence_metadata(resolution_payload, resolved_fact),
+                            "support_fragments": _build_support_fragments(
+                                resolved_fact,
+                                answer_skills,
+                            ),
+                        },
+                        descriptor,
+                        config,
+                    )
                 if assessment["qualified_support"]:
                     selected_status = "verified"
                     selected_ids = list(dict.fromkeys([*selected_ids, resolution_id]))
@@ -1097,6 +1178,8 @@ def _build_requirement_coverage(
                     if resolution_action in {"RESOLVE_WITH_ANSWER", "CONFIRM_OMIT", "OVERRIDE_BLOCK"}
                     else "responsibility_direct_support"
                     if descriptor.get("requirement_type") == "responsibility" and (selected_ids or pool_ids)
+                    else "numeric_experience_bound"
+                    if descriptor.get("requirement_type") == "professional_experience" and selected_status == "verified"
                     else "canonical_skill_link"
                     if selected_ids or pool_ids
                     else "none"
@@ -1371,7 +1454,9 @@ def analyze_ranked_job(
     gap_summary: dict[str, Any] | None = None
     loose_experience_review = False
     try:
+        profile_years_experience = profile.get("years_experience")
         profile = converge_candidate_profile_for_runtime(profile)
+        profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(
             job,
             config,
@@ -1542,7 +1627,7 @@ def analyze_ranked_job(
             candidate_skills=_candidate_skill_names(profile),
             years_experience_min=job.get("years_experience_min"),
             years_experience_max=job.get("years_experience_max"),
-            years_candidate=profile.get("years_experience"),
+            years_candidate=profile_years_experience,
             config=config,
         )
 
@@ -1564,6 +1649,7 @@ def analyze_ranked_job(
             evidence_selection_summary=evidence_selection_summary,
             config=config,
             requirement_resolutions=requirement_resolutions,
+            years_candidate=profile_years_experience,
         )
         experience_evidence_summary = build_experience_evidence_summary(
             requirement_coverage=requirement_coverage,

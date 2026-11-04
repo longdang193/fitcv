@@ -17,6 +17,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 import yaml
+import pytest
 
 from fitcv.agentic_cv_analysis import (
     _answer_mentions_requirement,
@@ -176,6 +177,59 @@ def test_full_and_strict_keep_unresolved_project_experience_blocked() -> None:
         )
         assert result["status"] == "blocked_by_reranker_fit"
         assert result["fit_classification"] == "skip"
+
+
+@pytest.mark.parametrize("mode", ["full", "strict"])
+def test_numeric_experience_bounds_use_candidate_years_for_gate(mode: str) -> None:
+    job = {
+        "job_url": "https://example.com/job/years",
+        "title": "Data Analyst",
+        "baseline_fit": 0.8,
+        "baseline_fit_label": "strong",
+        "required_skills": [],
+        "years_experience_min": 4,
+        "years_experience_max": 6,
+    }
+    profile = {**_profile(), "years_experience": 5}
+
+    result = analyze_ranked_job(
+        job,
+        profile,
+        {**_config(), "cv_analysis": {"experience_evidence_mode": mode}},
+    )
+
+    years_row = next(
+        row for row in result["requirement_coverage"]
+        if row["requirement_id"] == "professional_experience:years"
+    )
+    assert years_row["selected_support"] == "verified"
+    assert "professional_experience:years" in result["experience_evidence_summary"]["professional_experience"]["verified_requirement_ids"]
+    assert result["status"] == "ready_for_generation"
+
+
+def test_numeric_experience_resolution_verifies_without_canonical_skill() -> None:
+    job = {
+        "required_skills": [],
+        "years_experience_min": 4,
+        "years_experience_max": 6,
+    }
+    coverage = _build_requirement_coverage(
+        job,
+        [],
+        gap_summary={},
+        evidence_selection_summary={},
+        config={"cv_analysis": {"experience_evidence_mode": "strict"}},
+        requirement_resolutions=[{
+            "resolution_id": "years-resolution",
+            "requirement_instance_id": "professional_experience:years",
+            "resolution_key": "professional_experience:years",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "I have 5 years of professional experience."},
+        }],
+    )
+
+    assert coverage[0]["selected_support"] == "verified"
+    assert coverage[0]["supporting_evidence_ids"] == ["years-resolution"]
 
 
 def test_extract_job_url_accepts_indeed_url_alias() -> None:

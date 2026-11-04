@@ -3152,9 +3152,13 @@ def build_ranking_features(
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Build canonical ranking-v2 rows from shortlist and AI-score inputs."""
-    shortlist_index: dict[str, dict[str, Any]] = {
-        row["job_url"]: row for row in shortlist
-    }
+    shortlist_index: dict[str, dict[str, Any]] = {}
+    shortlist_by_url: dict[str, list[dict[str, Any]]] = {}
+    for row in shortlist:
+        for identity_key in job_identity_keys(row):
+            shortlist_index.setdefault(identity_key, row)
+            if identity_key.startswith("url:"):
+                shortlist_by_url.setdefault(identity_key, []).append(row)
     ranking_context = dict(config.get("ranking_contract") or {})
     ranking_policy = dict(ranking_context.get("ranking_policy") or {})
     if not ranking_policy:
@@ -3167,8 +3171,24 @@ def build_ranking_features(
 
     features: list[dict[str, Any]] = []
     for ai_row in ai_scores:
-        job_url = str(ai_row.get("job_url") or "")
-        sl_row = shortlist_index.get(job_url)
+        sl_row = next(
+            (
+                shortlist_index[identity_key]
+                for identity_key in job_identity_index_keys(ai_row)
+                if identity_key in shortlist_index
+            ),
+            None,
+        )
+        if sl_row is None and not any(
+            key.startswith(("run:", "fp:")) for key in job_identity_keys(ai_row)
+        ):
+            url_key = next(
+                (key for key in job_identity_keys(ai_row) if key.startswith("url:")),
+                None,
+            )
+            matching_rows = shortlist_by_url.get(url_key or "", [])
+            if len(matching_rows) == 1:
+                sl_row = matching_rows[0]
         if sl_row is None:
             continue  # not in shortlist — skip
 
@@ -3597,6 +3617,9 @@ def run_pipeline(
                 profile = load_profile_yaml(profile_path)
             candidate_skill_names = flatten_skills(profile)
 
+        evidence_projection = build_evidence_projection(
+            converge_candidate_profile_for_runtime(profile or {})
+        )
         passed_jobs = list(state["passed_jobs"])
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         passed_job_urls = [extract_job_url(job) for job in passed_jobs if extract_job_url(job)]
@@ -3695,8 +3718,6 @@ def run_pipeline(
         shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
         shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
         candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
-        evidence_projection: dict[str, Any] | None = None
-
         if not candidate_query_components or not candidate_summary:
             from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
 
@@ -3727,6 +3748,7 @@ def run_pipeline(
                 rank_jobs=rank_jobs,
                 preference_policy_resolver=preference_policy_resolver,
                 profile_for_projection=converge_candidate_profile_for_runtime(profile or {}),
+                evidence_projection=evidence_projection,
                 runtime_observation_callback=ranking_llm_runtime_observations.append,
                 build_reuse_decision_callback=build_reuse_decision,
                 resolve_llm_routing_callback=resolve_llm_routing,
@@ -3896,9 +3918,7 @@ def run_pipeline(
                             profile,
                             config,
                             reusable_record=reusable_record,
-                            evidence_projection=evidence_projection or build_evidence_projection(
-                                converge_candidate_profile_for_runtime(profile or {})
-                            ),
+                            evidence_projection=evidence_projection,
                         )
                     )
 

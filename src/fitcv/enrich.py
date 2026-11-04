@@ -57,7 +57,7 @@ from fitcv.llm_runtime import (
     project_llm_runtime_evidence,
 )
 from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
-from fitcv.pipeline_stages.common import extract_job_url
+from fitcv.pipeline_stages.common import extract_job_url, job_identity_index_keys
 from fitcv.prompts import get_prompt_definition, render_prompt
 from fitcv.prompts.loader import load_prompt_template
 from fitcv.semantic_snapshot import (
@@ -2374,6 +2374,13 @@ def _map_to_run_structured_jobs_row(
     return mapped
 
 
+def _run_structured_storage_key(row: dict[str, Any]) -> str:
+    for key in job_identity_index_keys(row):
+        if key.startswith(("run:", "fp:")):
+            return key
+    return str(row.get("job_url") or "")
+
+
 def _ensure_sqlite_run_structured_jobs_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -2415,7 +2422,7 @@ def load_run_structured_jobs(
             [
                 (
                     str(row["run_id"]),
-                    str(row["job_url"]),
+                    _run_structured_storage_key(row),
                     json.dumps(row, ensure_ascii=False),
                     str(row.get("enriched_at") or ""),
                 )

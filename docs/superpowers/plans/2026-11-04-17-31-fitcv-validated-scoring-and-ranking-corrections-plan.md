@@ -553,6 +553,38 @@ both entry paths.
 
 ## Verification
 
+## Post-Review Corrections
+
+The final review validated the following additional corrections, now included
+in the implementation and regression coverage:
+
+- `replace_filter_results()` accepts an unambiguous legacy URL-only row, while
+  ambiguous URL-only rows still fail safely.
+- Numeric professional-experience descriptors use candidate years, qualifying
+  professional evidence, and human-resolution answers; numeric bounds do not
+  require a canonical skill.
+- Ranking reconciliation joins shortlist, AI, and result rows by stable
+  occurrence identity first, with a guarded unique-URL fallback only for
+  legacy rows.
+- Run-scoped structured persistence stores stable rows under `run:<run_job_id>`
+  or `fp:<raw_job_fingerprint>` while retaining the real `job_url` in payloads;
+  legacy rows retain URL keys. This preserves duplicate URL occurrences without
+  a broad database schema migration.
+- Stable-identity misses do not inherit unrelated stable or ambiguous legacy
+  URL payloads.
+- Ranking skill coverage is computed from complete requirement and candidate
+  skill lists before prompt fields are bounded to eight entries.
+- One candidate evidence projection is built after profile loading and reused
+  by ranking and all CV-analysis calls in the same run.
+
+- [x] Focused post-review regressions pass for ranking identity, score input
+  coverage, numeric experience gates/resolutions, filter persistence, and
+  duplicate structured occurrences.
+- [x] Final filtered backend verification passes: `213 passed, 1 skipped,
+  335 deselected`.
+- [x] Frontend settings verification passes: `28 passed`.
+- [x] `git diff --check` passes.
+
 Run fresh final verification from the preserved current workspace:
 
 - `python -m pytest -q tests/test_ai_score.py tests/test_ranking_contract.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline.py tests/test_fitcv_cp/test_sqlite_store.py -k "score or ranking or experience or project or unsupported or reuse or fingerprint or duplicate_url or occurrence or query_and_export or stage" --disable-warnings --maxfail=1`
@@ -565,7 +597,7 @@ Run fresh final verification from the preserved current workspace:
 
 **Fresh Evidence:**
 
-- Backend focused verification: `207 passed, 1 skipped, 333 deselected`.
+- Backend focused verification: `213 passed, 1 skipped, 335 deselected`.
 - Frontend settings verification: `28 passed`.
 - Architecture metadata: synchronized, then `Architecture docs are up to date.`
 - `git diff --check`: passed with the repository’s configured `cr-at-eol`

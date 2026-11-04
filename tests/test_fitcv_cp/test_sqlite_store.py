@@ -3910,6 +3910,24 @@ def test_list_filter_results_for_run_decodes_marks_and_reasons() -> None:
     assert rows[0]["marks"] == [{"code": "required_skill"}]
 
 
+def test_replace_filter_results_accepts_unambiguous_legacy_url_rows() -> None:
+    run_id = "run-filter-legacy-url"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Job", "job_url": "https://example.com/job-1"}],
+    )
+
+    sqlite_store.replace_filter_results(run_id, [{
+        "job_url": "https://example.com/job-1",
+        "passed": True,
+        "reasons": ["matched_required_skills"],
+    }])
+
+    rows = sqlite_store.query_run_jobs(run_id, page_size=20, stage="screening")["items"]
+    assert rows[0]["run_job_id"]
+    assert rows[0]["status"] == "passed"
+
+
 def test_local_sqlite_path_uses_control_plane_config_when_env_missing(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
@@ -5109,6 +5127,65 @@ def test_query_uses_stable_identity_before_url_for_structured_and_export_payload
     assert rows_by_id[run_job_ids[1]]["location"] != "Only the analyst row"
     assert rows_by_id[run_job_ids[0]]["ai_score"] == 0.1
     assert rows_by_id[run_job_ids[1]]["ai_score"] == 0.9
+
+
+def test_structured_hydration_preserves_duplicate_url_occurrences() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
+    run_id = "run-duplicate-structured-occurrences"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "First", "job_url": "https://example.com/same"},
+            {"title": "Second", "job_url": "https://example.com/same"},
+        ],
+    )
+    load_run_structured_jobs(
+        [
+            {"run_job_id": run_job_ids[0], "job_url": "https://example.com/same", "location": "First location"},
+            {"run_job_id": run_job_ids[1], "job_url": "https://example.com/same", "location": "Second location"},
+        ],
+        run_id,
+        {},
+    )
+
+    rows = sqlite_store.query_run_jobs(run_id, page_size=20, stage="all")["items"]
+    rows_by_id = {row["run_job_id"]: row for row in rows}
+    assert rows_by_id[run_job_ids[0]]["location"] == "First location"
+    assert rows_by_id[run_job_ids[1]]["location"] == "Second location"
+
+
+def test_stable_identity_does_not_fall_back_to_legacy_url_payload() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
+    run_id = "run-no-legacy-url-fallback"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "First", "job_url": "https://example.com/same"},
+            {"title": "Second", "job_url": "https://example.com/same"},
+        ],
+    )
+    load_run_structured_jobs([], run_id, {})
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            """
+            INSERT INTO run_structured_jobs(run_id, job_url, payload_json, enriched_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                "https://example.com/same",
+                json.dumps({"job_url": "https://example.com/same", "location": "legacy"}),
+                "",
+            ),
+        )
+        conn.commit()
+
+    rows = sqlite_store.query_run_jobs(run_id, page_size=20, stage="all")["items"]
+    rows_by_id = {row["run_job_id"]: row for row in rows}
+    assert rows_by_id[run_job_ids[0]]["location"] != "legacy"
+    assert rows_by_id[run_job_ids[1]]["location"] != "legacy"
 
 
 def test_export_hydrates_selected_jobs_in_bounded_batches(monkeypatch: pytest.MonkeyPatch) -> None:
