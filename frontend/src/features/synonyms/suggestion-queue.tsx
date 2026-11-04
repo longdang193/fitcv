@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 export const SYNONYM_SEARCH_DEBOUNCE_MS = 250;
 
@@ -16,6 +16,7 @@ import { getApiErrorMessage } from '../../lib/api-client';
 import {
   fetchSynonymSuggestions,
   approveSynonymSuggestions,
+  approveAllSynonymSuggestions,
   declineSynonymSuggestions,
   clearSynonymSuggestions,
   fetchSynonymPolicy,
@@ -197,6 +198,40 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
     }
   };
 
+  const handleApproveAll = async () => {
+    if (selectedStatus !== 'pending' || total <= 0) return;
+    if (!window.confirm(`Approve all ${total} pending suggestion(s) matching the current Type and Search filters?`)) {
+      return;
+    }
+    setActing(true);
+    setError(null);
+    setFeedback(null);
+    try {
+      const types: SynonymType[] = selectedType === 'all'
+        ? ['skills', 'domain', 'role_family']
+        : [selectedType];
+      const policies = await Promise.all(types.map((type) => fetchSynonymPolicy(type)));
+      const expectedRevisions = Object.fromEntries(
+        policies.map((policy) => [policy.synonym_type, {
+          expected_draft_revision: policy.draft_revision,
+          expected_active_bundle_revision_id: policy.active_bundle_revision_id,
+        }])
+      );
+      const result = await approveAllSynonymSuggestions(selectedType, activeSearch, expectedRevisions);
+      const blocked = Number(result.blocked_count || 0);
+      setFeedback(
+        `Approved ${Number(result.approved_count || 0)} suggestion(s)`
+        + (blocked ? `; ${blocked} blocked by policy validation.` : '.')
+      );
+      if (onQueueChanged) onQueueChanged();
+      await loadSuggestions();
+    } catch (err: any) {
+      setError(getApiErrorMessage(err, 'Failed to approve all matching suggestions.'));
+    } finally {
+      setActing(false);
+    }
+  };
+
   const handleBatchDecline = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -292,6 +327,7 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
 
   const totalPending =
     (counts.skills?.pending || 0) + (counts.domain?.pending || 0) + (counts.role_family?.pending || 0);
+  const matchingPendingCount = selectedStatus === 'pending' ? total : 0;
 
   return (
     <div className='synonym-suggestion-queue' style={{ display: 'grid', gap: 16 }}>
@@ -301,6 +337,17 @@ export const SuggestionQueue: React.FC<SuggestionQueueProps> = ({ onQueueChanged
       {/* Error message */}
       {error && <Notice variant='error'>{error}</Notice>}
       {loadError && items.length > 0 && <Notice variant='error'>{loadError}</Notice>}
+
+      {matchingPendingCount > 0 && (
+        <div className='table-card' style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {matchingPendingCount} pending suggestion(s) match the current filters across all pages.
+          </span>
+          <Button variant='primary' size='compact' onClick={handleApproveAll} loading={acting} disabled={acting}>
+            Approve All ({matchingPendingCount})
+          </Button>
+        </div>
+      )}
 
       {/* Filters Bar */}
       <div

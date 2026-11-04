@@ -11242,7 +11242,7 @@ def create_app(
             raise ApiError(
                 409,
                 "idempotency_in_progress",
-                "An earlier synonym action is still in progress.",
+                "An earlier Candidate Profile action is still in progress.",
                 action="Retry after the earlier request completes.",
             )
         try:
@@ -16532,7 +16532,6 @@ def create_app(
         except Exception:
             archive_path.unlink(missing_ok=True)
             raise
-
         def stream_archive() -> Any:
             with archive_path.open("rb") as archive_file:
                 while chunk := archive_file.read(1024 * 1024):

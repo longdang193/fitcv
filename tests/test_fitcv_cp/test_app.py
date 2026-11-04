@@ -105,6 +105,27 @@ def _app():
     return create_app(redis_url="redis://localhost:6379/0")
 
 
+def test_candidate_profile_lifecycle_reports_idempotency_in_progress() -> None:
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "candidate-profile-pending",
+        "replayed": True,
+        "response": None,
+    }
+
+    response = TestClient(app).post(
+        "/candidate-profiles/profile-1/actions/archive",
+        headers={"Idempotency-Key": "candidate-profile-pending-key"},
+        json={"expected_revision": 1},
+    )
+
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["code"] == "idempotency_in_progress"
+    assert error["message"] == "An earlier Candidate Profile action is still in progress."
+    assert error["action"] == "Retry after the earlier request completes."
+
+
 def _review_revision(client: TestClient, run_id: str, run_job_id: str = "job-1") -> str:
     return client.get(
         f"/runs/{run_id}/jobs/{run_job_id}/cv-review"

@@ -1,4 +1,4 @@
-﻿export type SynonymType = "skills" | "domain" | "role_family";
+export type SynonymType = "skills" | "domain" | "role_family";
 export type ReviewStatus = "pending" | "approved" | "declined";
 
 export interface SynonymPolicyIssue {
@@ -127,4 +127,9 @@ export interface SynonymActionResult {
   cleared_count?: number;
   action?: string;
   [key: string]: any;
+}
+
+export interface SynonymPolicyRevisionExpectation {
+  expected_draft_revision: number;
+  expected_active_bundle_revision_id: string | null;
 }
