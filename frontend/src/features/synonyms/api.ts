@@ -1,4 +1,4 @@
-﻿import { apiClient } from '../../lib/api-client';
+import { apiClient } from '../../lib/api-client';
 import type {
   SynonymType,
   SynonymPolicyResource,
@@ -11,6 +11,7 @@ import type {
   SynonymProcessingCollectionEnvelope,
   SynonymSuggestionQuery,
   SynonymActionResult,
+  SynonymPolicyRevisionExpectation,
 } from './types';
 
 function createIdempotencyKey(prefix: string): string {
@@ -97,6 +98,25 @@ export async function approveSynonymSuggestions(
     },
     {
       idempotencyKey: createIdempotencyKey('synonym-approve'),
+    }
+  );
+  return res.data?.data || (res.data as unknown as SynonymActionResult) || {};
+}
+
+export async function approveAllSynonymSuggestions(
+  synonymType: SynonymType | 'all',
+  search: string,
+  expectedRevisions: Record<string, SynonymPolicyRevisionExpectation>
+): Promise<SynonymActionResult> {
+  const res = await apiClient.post<{ data: SynonymActionResult }>(
+    '/synonym-suggestions/actions/approve-all',
+    {
+      synonym_type: synonymType === 'all' ? null : synonymType,
+      search,
+      expected_revisions: expectedRevisions,
+    },
+    {
+      idempotencyKey: createIdempotencyKey('synonym-approve-all'),
     }
   );
   return res.data?.data || (res.data as unknown as SynonymActionResult) || {};

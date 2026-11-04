@@ -83,6 +83,7 @@ class RunStore(Protocol):
     def query_synonym_suggestions(self, **kwargs: Any) -> dict[str, Any]: ...
     def get_synonym_suggestion(self, suggestion_id: str) -> dict[str, Any] | None: ...
     def apply_synonym_suggestion_action(self, suggestion_ids: list[str], **kwargs: Any) -> dict[str, Any]: ...
+    def approve_all_synonym_suggestions(self, **kwargs: Any) -> dict[str, Any]: ...
     def query_synonym_processing_runs(self, **kwargs: Any) -> dict[str, Any]: ...
     def query_tracked_companies(self, **kwargs: Any) -> dict[str, Any]: ...
     def query_company_catalog(self, **kwargs: Any) -> dict[str, Any]: ...
@@ -270,6 +271,7 @@ class ControlPlaneStore:
     query_synonym_suggestions_fn: Any | None = None
     get_synonym_suggestion_fn: Any | None = None
     apply_synonym_suggestion_action_fn: Any | None = None
+    approve_all_synonym_suggestions_fn: Any | None = None
     query_synonym_processing_runs_fn: Any | None = None
     query_tracked_companies_fn: Any | None = None
     query_company_catalog_fn: Any | None = None
@@ -874,6 +876,13 @@ class ControlPlaneStore:
             self.apply_synonym_suggestion_action_fn,
             sqlite_store.apply_synonym_suggestion_action,
             suggestion_ids,
+            **kwargs,
+        )
+
+    def approve_all_synonym_suggestions(self, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.approve_all_synonym_suggestions_fn,
+            sqlite_store.approve_all_synonym_suggestions,
             **kwargs,
         )
 

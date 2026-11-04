@@ -178,6 +178,8 @@ export async function fetchRunJobs(
     stage?: string;
     result_bucket?: string;
     sort?: "score_desc" | "title_asc";
+    job_title_include?: string[];
+    job_title_exclude?: string[];
     signal?: AbortSignal;
   }
 ): Promise<PaginationEnvelope<RunJobItem, RunJobsPaginationMeta>> {
@@ -192,6 +194,8 @@ export async function fetchRunJobs(
   if (params?.stage && params.stage !== "all") query.set("stage", params.stage);
   if (params?.result_bucket && params.result_bucket !== "all") query.set("result_bucket", params.result_bucket);
   if (params?.sort) query.set("sort", params.sort);
+  for (const value of params?.job_title_include || []) query.append("job_title_include", value);
+  for (const value of params?.job_title_exclude || []) query.append("job_title_exclude", value);
 
   const qs = query.toString();
   const path = `/runs/${encodeURIComponent(runId)}/jobs${qs ? `?${qs}` : ""}`;
@@ -328,6 +332,8 @@ type RunJobsExportParams = {
   stage?: string;
   result_bucket?: string;
   sort?: "score_desc" | "title_asc";
+  job_title_include?: string[];
+  job_title_exclude?: string[];
 };
 
 function buildRunJobsExportQuery(params?: RunJobsExportParams): string {
@@ -336,6 +342,8 @@ function buildRunJobsExportQuery(params?: RunJobsExportParams): string {
   if (params?.stage && params.stage !== "all") query.set("stage", params.stage);
   if (params?.result_bucket && params.result_bucket !== "all") query.set("result_bucket", params.result_bucket);
   if (params?.sort) query.set("sort", params.sort);
+  for (const value of params?.job_title_include || []) query.append("job_title_include", value);
+  for (const value of params?.job_title_exclude || []) query.append("job_title_exclude", value);
   return query.toString();
 }
 

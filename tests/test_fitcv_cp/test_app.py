@@ -4641,6 +4641,81 @@ def test_synonym_approve_forwards_policy_revisions() -> None:
     }
 
 
+def test_synonym_approve_all_forwards_filters_and_cross_type_revisions() -> None:
+    app = _app()
+    captured: dict[str, object] = {}
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "approve-all-1", "replayed": False, "response": None,
+    }
+    app.state.run_store.complete_idempotent_action_fn = lambda *_args: None
+
+    def approve_all(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"selected_count": 2, "approved_count": 2, "blocked_count": 0}
+
+    app.state.run_store.approve_all_synonym_suggestions_fn = approve_all
+    response = TestClient(app).post(
+        "/synonym-suggestions/actions/approve-all",
+        headers={"Idempotency-Key": "approve-all-key"},
+        json={
+            "synonym_type": None,
+            "search": " AI ",
+            "expected_revisions": {
+                "skills": {"expected_draft_revision": 3, "expected_active_bundle_revision_id": "bundle-2"},
+                "domain": {"expected_draft_revision": 4, "expected_active_bundle_revision_id": None},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "synonym_type": None,
+        "search": "AI",
+        "expected_revisions": {
+            "skills": {"expected_draft_revision": 3, "expected_active_bundle_revision_id": "bundle-2"},
+            "domain": {"expected_draft_revision": 4, "expected_active_bundle_revision_id": None},
+        },
+        "acted_by": "admin",
+    }
+
+
+def test_synonym_approve_all_returns_in_progress_for_reserved_duplicate() -> None:
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "approve-all-pending", "replayed": True, "response": None,
+    }
+
+    response = TestClient(app).post(
+        "/synonym-suggestions/actions/approve-all",
+        headers={"Idempotency-Key": "approve-all-pending-key"},
+        json={"expected_revisions": {}},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "idempotency_in_progress"
+
+
+def test_run_jobs_forwards_repeated_title_filters(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _app()
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("fitcv_cp.app.sqlite_store_module.run_exists", lambda run_id: run_id == "run-1")
+    app.state.run_store.query_run_jobs_fn = lambda run_id, **kwargs: (
+        captured.update(run_id=run_id, **kwargs)
+        or {
+            "items": [], "total": 0, "total_evaluated": 0,
+            "passed": 0, "rejected": 0, "skipped": 0,
+        }
+    )
+
+    response = TestClient(app).get(
+        "/runs/run-1/jobs?job_title_include=AI&job_title_include=Data%20Scientist&job_title_exclude=duales"
+    )
+
+    assert response.status_code == 200
+    assert captured["job_title_include"] == ["ai", "data scientist"]
+    assert captured["job_title_exclude"] == ["duales"]
+
+
 def test_runs_rejects_invalid_page_size_with_machine_error() -> None:
     resp = TestClient(_app()).get("/runs?page_size=25")
 
@@ -4705,6 +4780,8 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
         "passed": 1,
         "rejected": 0,
         "skipped": 0,
+        "job_title_include": [],
+        "job_title_exclude": [],
     }
     assert detail_calls == ["run-1", "run-1"]
 
