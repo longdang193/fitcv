@@ -94,6 +94,11 @@ def job_identity_keys(job: Mapping[str, Any]) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
 
+    run_job_id = str(job.get("run_job_id") or "").strip()
+    if run_job_id:
+        keys.append(f"run:{run_job_id}")
+        seen.add(keys[-1])
+
     raw_job_fingerprint = str(job.get("raw_job_fingerprint") or "").strip()
     if raw_job_fingerprint:
         fingerprint_key = f"fp:{raw_job_fingerprint}"
@@ -115,6 +120,19 @@ def job_identity_keys(job: Mapping[str, Any]) -> list[str]:
         seen.add(url_key)
 
     return keys
+
+
+def job_identity_index_keys(job: Mapping[str, Any]) -> list[str]:
+    """Return stable identity keys, or URL aliases only for legacy rows."""
+    keys = job_identity_keys(job)
+    stable_keys = [key for key in keys if key.startswith(("run:", "fp:"))]
+    if stable_keys:
+        return stable_keys
+    return [key for key in keys if key.startswith("url:")]
+
+
+def primary_job_identity_key(job: Mapping[str, Any]) -> str:
+    return job_identity_index_keys(job)[0] if job_identity_index_keys(job) else ""
 
 
 def extract_job_title(job: Mapping[str, Any]) -> str:

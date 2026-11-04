@@ -588,5 +588,14 @@ describe("Pipeline Settings Dialog & Feature Suite", () => {
     });
   });
 
+  it("keeps structured factor weights read-only under the holistic AI baseline", async () => {
+    const rankingSection = PIPELINE_SECTIONS.find((section) => section.id === "ranking");
+    const factorGroup = rankingSection?.groups.find((group) => group.title === "Factor Weights");
+
+    expect(factorGroup?.fields).toHaveLength(6);
+    expect(factorGroup?.fields.every((field) => field.type === "readonly")).toBe(true);
+    expect(rankingSection?.ownedKeys.some((key) => key.includes("structured_factor_weights"))).toBe(false);
+  });
+
   });
 });

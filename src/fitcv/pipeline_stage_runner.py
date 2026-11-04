@@ -24,7 +24,8 @@ from typing import Any, Callable
 
 from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ai_score import build_ranking_job_input
-from fitcv.evidence import build_profile_evidence_pool, select_ranking_evidence
+from fitcv.evidence import build_evidence_projection, select_ranking_evidence
+from fitcv.pipeline_stages.common import primary_job_identity_key
 from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
@@ -357,10 +358,16 @@ def execute_ranking_stage(
         [PreferenceRuntimeContract], ResolvedPreferencePolicy
     ]
     | None = None,
+    profile_for_projection: dict[str, Any] | None = None,
+    runtime_observation_callback: Callable[[dict[str, Any]], None] | None = None,
+    build_reuse_decision_callback: Callable[..., dict[str, Any]] | None = None,
+    resolve_llm_routing_callback: Callable[..., Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
         try:
-            resolved_route = resolve_llm_routing("ranking_ai_score", runtime_config=config)
+            resolved_route = (
+                resolve_llm_routing_callback or resolve_llm_routing
+            )("ranking_ai_score", runtime_config=config)
         except Exception:
             resolved_route = None
         ai_top_n = int(config["pipeline"]["ai_score_top_n"])
@@ -368,17 +375,21 @@ def execute_ranking_stage(
         if cancellation_check and cancellation_check():
             raise cancellation_error_cls("Cancelled before AI scoring")
         ai_score_candidates = shortlist[:ai_top_n]
-        profile_evidence_pool = build_profile_evidence_pool(profile)
+        evidence_projection = build_evidence_projection(
+            profile if profile_for_projection is None else profile_for_projection
+        )
+        profile_evidence_pool = list(evidence_projection.get("items") or [])
         fresh_scoring_jobs: list[dict[str, Any]] = []
         fresh_ai_score_fingerprints: dict[str, str] = {}
-        reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
-        ranking_inputs_by_url: dict[str, dict[str, Any]] = {}
+        reused_ai_scores_by_identity: dict[str, dict[str, Any]] = {}
+        ranking_inputs_by_identity: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
             selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
             ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
-            if extract_job_url(shortlisted_job):
-                ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
+            identity_key = primary_job_identity_key(shortlisted_job)
+            if identity_key:
+                ranking_inputs_by_identity[identity_key] = ranking_input
             top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
             try:
                 fingerprint_record = build_ai_score_input_fingerprint(
@@ -399,39 +410,95 @@ def execute_ranking_stage(
             )
             if reused_ai_row is not None and normalize_score_state(reused_ai_row)["score_status"] != SCORE_STATUS_VALID:
                 reused_ai_row = None
-            if reused_ai_row is not None and job_url:
-                reused_ai_scores_by_url[job_url] = {
+            if reused_ai_row is not None and identity_key:
+                reused_ai_scores_by_identity[identity_key] = {
                     **deepcopy(reused_ai_row),
                     "job_url": job_url,
+                    **{
+                        field_name: shortlisted_job[field_name]
+                        for field_name in ("run_job_id", "raw_job_fingerprint", "source_job_url")
+                        if shortlisted_job.get(field_name) not in (None, "")
+                    },
                     "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
                     "ai_score_reuse_status": "reused_exact_match",
                 }
+                if build_reuse_decision_callback is not None:
+                    reused_ai_scores_by_identity[identity_key]["reuse_decision"] = (
+                        build_reuse_decision_callback(
+                            decision="reused_exact_match",
+                            reason_code="exact_fingerprint_match",
+                            fingerprint=fingerprint_record["fingerprint"],
+                            source_artifact_type="ranking_ai_score",
+                        )
+                    )
                 continue
             fresh_scoring_jobs.append(shortlisted_job)
-            if job_url:
-                fresh_ai_score_fingerprints[job_url] = fingerprint_record["fingerprint"]
+            if identity_key:
+                fresh_ai_score_fingerprints[identity_key] = fingerprint_record["fingerprint"]
 
-        fresh_ai_scores = run_ai_scoring(
-            fresh_scoring_jobs,
-            candidate_summary,
-            config,
-            top_n=len(fresh_scoring_jobs),
-            resolved_route=resolved_route,
-            **({"ranking_inputs": ranking_inputs_by_url} if ranking_inputs_by_url else {}),
-        ) if fresh_scoring_jobs else []
-        fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
-        for ai_row in fresh_ai_scores:
-            job_url = str(ai_row.get("job_url") or "")
-            fresh_ai_scores_by_url[job_url] = {
+        fresh_ai_scores = (
+            run_ai_scoring(
+                fresh_scoring_jobs,
+                candidate_summary,
+                config,
+                top_n=len(fresh_scoring_jobs),
+                **(
+                    {"runtime_observation_callback": runtime_observation_callback}
+                    if runtime_observation_callback is not None
+                    else {}
+                ),
+                resolved_route=resolved_route,
+                **(
+                    {"ranking_inputs": ranking_inputs_by_identity}
+                    if ranking_inputs_by_identity
+                    else {}
+                ),
+            )
+            if fresh_scoring_jobs
+            else []
+        )
+        fresh_ai_scores_by_identity: dict[str, dict[str, Any]] = {}
+        for source_job, ai_row in zip(fresh_scoring_jobs, fresh_ai_scores):
+            if not any(
+                ai_row.get(field_name) not in (None, "")
+                for field_name in ("run_job_id", "raw_job_fingerprint")
+            ):
+                ai_row = {
+                    **ai_row,
+                    **{
+                        field_name: source_job[field_name]
+                        for field_name in ("run_job_id", "raw_job_fingerprint", "source_job_url")
+                        if source_job.get(field_name) not in (None, "")
+                    },
+                }
+            identity_key = primary_job_identity_key(ai_row)
+            fresh_ai_scores_by_identity[identity_key] = {
                 **ai_row,
-                "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
+                "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(identity_key),
                 "ai_score_reuse_status": "fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
             }
+            if build_reuse_decision_callback is not None:
+                fresh_ai_scores_by_identity[identity_key]["reuse_decision"] = (
+                    build_reuse_decision_callback(
+                        decision=(
+                            "fresh_compute"
+                            if ranking_reuse_enabled
+                            else "reuse_disabled"
+                        ),
+                        reason_code=(
+                            "no_reusable_snapshot_match"
+                            if ranking_reuse_enabled
+                            else "stage_reuse_disabled"
+                        ),
+                        fingerprint=fresh_ai_score_fingerprints.get(identity_key),
+                        source_artifact_type="ranking_ai_score",
+                    )
+                )
 
         ai_scores = []
         for shortlisted_job in ai_score_candidates:
-            job_url = extract_job_url(shortlisted_job)
-            score_row: dict[str, Any] | None = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
+            identity_key = primary_job_identity_key(shortlisted_job)
+            score_row: dict[str, Any] | None = reused_ai_scores_by_identity.get(identity_key) or fresh_ai_scores_by_identity.get(identity_key)
             if score_row is not None:
                 ai_scores.append(score_row)
         reused_ai_count = sum(

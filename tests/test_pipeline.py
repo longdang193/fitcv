@@ -2500,7 +2500,9 @@ def _canonical_reusable_cv_analysis_record(
     config: dict[str, Any],
 ) -> dict[str, Any]:
     from fitcv.agentic_cv_analysis import analyze_ranked_job
+    from fitcv.candidate import converge_candidate_profile_for_runtime
     from fitcv.enrich import build_raw_job_fingerprint
+    from fitcv.evidence import build_evidence_projection
 
     job["raw_job_fingerprint"] = build_raw_job_fingerprint(job)["fingerprint"]
     evidence = {
@@ -2523,7 +2525,16 @@ def _canonical_reusable_cv_analysis_record(
             return_value={"matched": ["SQL"], "partial": [], "missing": []},
         ),
     ):
-        return dict(analyze_ranked_job(job, profile, config))
+        return dict(
+            analyze_ranked_job(
+                job,
+                profile,
+                config,
+                evidence_projection=build_evidence_projection(
+                    converge_candidate_profile_for_runtime(profile)
+                ),
+            )
+        )
 
 
 def _agentic_analysis_ready(
@@ -2982,6 +2993,10 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
         "job_family": "analytics",
         "fit_label": "strong",
         "fit_label_source": "reranker",
+        "ai_score": 0.92,
+        "baseline_fit": 0.92,
+        "baseline_fit_label": "strong",
+        "score_status": "valid",
     }
     profile = _minimal_profile()
     config = _minimal_config()
@@ -3063,6 +3078,10 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
         "job_family": "analytics",
         "fit_label": "strong",
         "fit_label_source": "reranker",
+        "ai_score": 0.92,
+        "baseline_fit": 0.92,
+        "baseline_fit_label": "strong",
+        "score_status": "valid",
     }
     profile = _minimal_profile()
     config = _minimal_config()

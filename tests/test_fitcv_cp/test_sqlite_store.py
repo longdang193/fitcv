@@ -5071,6 +5071,46 @@ def test_query_and_export_preserve_duplicate_url_occurrences() -> None:
     assert [row["source_snapshot"]["marker"] for row in exported] == ["first", "second"]
 
 
+def test_query_uses_stable_identity_before_url_for_structured_and_export_payloads() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
+    run_id = "run-stable-identity-hydration"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "AI Analyst", "job_url": "https://example.com/same"},
+            {"title": "AI Engineer", "job_url": "https://example.com/same"},
+        ],
+    )
+    load_run_structured_jobs(
+        [{
+            "run_job_id": run_job_ids[0],
+            "job_url": "https://example.com/same",
+            "location": "Only the analyst row",
+            "ai_score": 0.1,
+        }],
+        run_id,
+        {},
+    )
+    sqlite_store.update_run_results_export(
+        run_id,
+        json.dumps({
+            "results": [
+                {"run_job_id": run_job_ids[0], "job_url": "https://example.com/same", "ai_score": 0.1},
+                {"run_job_id": run_job_ids[1], "job_url": "https://example.com/same", "ai_score": 0.9},
+            ]
+        }),
+    )
+
+    rows = sqlite_store.query_run_jobs(run_id, page_size=20, stage="all")["items"]
+
+    rows_by_id = {row["run_job_id"]: row for row in rows}
+    assert rows_by_id[run_job_ids[0]]["location"] == "Only the analyst row"
+    assert rows_by_id[run_job_ids[1]]["location"] != "Only the analyst row"
+    assert rows_by_id[run_job_ids[0]]["ai_score"] == 0.1
+    assert rows_by_id[run_job_ids[1]]["ai_score"] == 0.9
+
+
 def test_export_hydrates_selected_jobs_in_bounded_batches(monkeypatch: pytest.MonkeyPatch) -> None:
     run_id = "run-export-hydration-batches"
     _create_normalized_run_with_jobs(

@@ -249,6 +249,29 @@ def test_analyze_ranked_job_accepts_prior_review_fit_without_ranking_score(
     assert result["status"] != "blocked_by_reranker_fit"
 
 
+def test_analyze_ranked_job_reuses_supplied_projection_without_rebuilding() -> None:
+    projection = {
+        "items": [],
+        "fingerprint": "projection::shared",
+    }
+    config = _config()
+    config["cv_analysis"] = {"experience_evidence_mode": "full"}
+
+    with (
+        patch("fitcv.agentic_cv_analysis.build_evidence_projection", side_effect=AssertionError("projection rebuilt")),
+        patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle", return_value={"selected_evidence": []}),
+        patch("fitcv.agentic_cv_analysis.compute_gap", return_value={"matched": [], "missing": []}),
+    ):
+        result = analyze_ranked_job(
+            {**_job(), "baseline_fit_label": "strong"},
+            _profile(),
+            config,
+            evidence_projection=projection,
+        )
+
+    assert result["status"] in {"ready_for_generation", "skipped_fit_gate"}
+
+
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")

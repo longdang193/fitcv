@@ -70,6 +70,7 @@ from fitcv.agentic_cv_generation import (
 )
 from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv.candidate import (
+    converge_candidate_profile_for_runtime,
     flatten_skills,
     infer_effective_preferences,
     load_candidate_profile,
@@ -105,7 +106,9 @@ from fitcv.pipeline_stages.common import (
     pipeline_int,
     extract_job_title,
     extract_job_url,
+    job_identity_index_keys,
     job_identity_keys,
+    primary_job_identity_key,
     normalize_shortlist_row,
     json_safe_value,
     shortlist_outcome_for_row,
@@ -132,10 +135,10 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
-from fitcv.evidence import build_profile_evidence_pool, select_ranking_evidence
+from fitcv.evidence import build_evidence_projection, select_ranking_evidence
 from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
-from fitcv.pipeline_stage_runner import merge_passed_filter_records
+from fitcv.pipeline_stage_runner import execute_ranking_stage, merge_passed_filter_records
 from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
@@ -689,7 +692,7 @@ def _build_export_results(
         for item in items:
             seeded = _identity_seed(item)
             payload = transform(seeded) if transform is not None else seeded
-            for identity_key in job_identity_keys(seeded):
+            for identity_key in job_identity_index_keys(seeded):
                 indexed[identity_key] = payload
         return indexed
 
@@ -697,14 +700,17 @@ def _build_export_results(
         return job_identity_keys(_identity_seed(row))
 
     def _lookup(indexed: dict[str, dict[str, Any]], row: dict[str, Any]) -> dict[str, Any] | None:
-        for identity_key in _identity_keys_for(row):
+        for identity_key in job_identity_index_keys(_identity_seed(row)):
             match = indexed.get(identity_key)
             if match is not None:
                 return match
         return None
 
     def _matches(identity_index: set[str], row: dict[str, Any]) -> bool:
-        return any(identity_key in identity_index for identity_key in _identity_keys_for(row))
+        return any(
+            identity_key in identity_index
+            for identity_key in job_identity_index_keys(_identity_seed(row))
+        )
 
     enriched_by_identity = _index_rows_by_identity(enriched)
     passed_by_identity = _index_rows_by_identity(passed_jobs)
@@ -3689,6 +3695,7 @@ def run_pipeline(
         shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
         shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
         candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
+        evidence_projection: dict[str, Any] | None = None
 
         if not candidate_query_components or not candidate_summary:
             from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
@@ -3697,186 +3704,92 @@ def run_pipeline(
             candidate_summary = build_candidate_query_text(profile, config)
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("ranking"):
-            with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
-                try:
-                    resolved_route = resolve_llm_routing("ranking_ai_score", runtime_config=config)
-                except Exception:
-                    resolved_route = None
-                ai_top_n = pipeline_int(config, "ai_score_top_n", default=0)
-                if cancellation_check and cancellation_check():
-                    raise PipelineCancelled("Cancelled before AI scoring")
-                ai_score_candidates = shortlist[:ai_top_n]
-                ranking_reuse_enabled = _reuse_stage_enabled(config, "ranking")
-                fresh_scoring_jobs: list[dict[str, Any]] = []
-                ranking_inputs_by_url: dict[str, dict[str, Any]] = {}
-                fresh_ai_score_fingerprints: dict[str, str] = {}
-                reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
-                profile_evidence_pool = build_profile_evidence_pool(profile or {})
-                for shortlisted_job in ai_score_candidates:
-                    selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
-                    ranking_profile = {**(profile or {}), "_projected_evidence_pool": selected_evidence}
-                    ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
-                    top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
-                    if extract_job_url(shortlisted_job):
-                        ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
-                    try:
-                        fingerprint_record = build_ai_score_input_fingerprint(
-                            shortlisted_job,
-                            candidate_summary,
-                            top_evidence,
-                            config,
-                            resolved_route=resolved_route,
-                            ranking_input=ranking_input,
-                        )
-                    except Exception:
-                        fingerprint_record = {"fingerprint": ""}
-                    job_url = extract_job_url(shortlisted_job)
-                    reused_ai_row = (
-                        ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
-                        if ranking_reuse_enabled
-                        else None
-                    )
-                    if reused_ai_row is not None and normalize_score_state(reused_ai_row)["score_status"] != SCORE_STATUS_VALID:
-                        reused_ai_row = None
-                    if reused_ai_row is not None and job_url:
-                        reused_ai_scores_by_url[job_url] = {
-                            **deepcopy(reused_ai_row),
-                            "job_url": job_url,
-                            "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
-                            "ai_score_reuse_status": "reused_exact_match",
-                            "reuse_decision": build_reuse_decision(
-                                decision="reused_exact_match",
-                                reason_code="exact_fingerprint_match",
-                                fingerprint=fingerprint_record["fingerprint"],
-                                source_artifact_type="ranking_ai_score",
-                            ),
-                        }
-                        continue
-                    fresh_scoring_jobs.append(shortlisted_job)
-                    if job_url:
-                        fresh_ai_score_fingerprints[job_url] = fingerprint_record["fingerprint"]
-
-                ranking_concurrency = _ranking_stage_concurrency(config)
-                ranking_effective_concurrency = _effective_stage_concurrency(
-                    ranking_concurrency,
-                    len(fresh_scoring_jobs),
+            ranking_concurrency = _ranking_stage_concurrency(config)
+            ai_scores, ranking_inputs = execute_ranking_stage(
+                run_id=run_id,
+                state=state,
+                shortlist=shortlist,
+                candidate_summary=candidate_summary,
+                profile=profile or {},
+                config=config,
+                final_top_n=final_top_n,
+                reporter=None,
+                pipeline_store=pipeline_store,
+                observe_span=observe_span,
+                set_span_attributes=set_span_attributes,
+                cancellation_check=cancellation_check,
+                cancellation_error_cls=PipelineCancelled,
+                ranking_ai_score_reuse_index=ranking_ai_score_reuse_index,
+                build_ai_score_input_fingerprint=build_ai_score_input_fingerprint,
+                extract_job_url=extract_job_url,
+                run_ai_scoring=run_ai_scoring,
+                build_ranking_features=build_ranking_features,
+                rank_jobs=rank_jobs,
+                preference_policy_resolver=preference_policy_resolver,
+                profile_for_projection=converge_candidate_profile_for_runtime(profile or {}),
+                runtime_observation_callback=ranking_llm_runtime_observations.append,
+                build_reuse_decision_callback=build_reuse_decision,
+                resolve_llm_routing_callback=resolve_llm_routing,
+            )
+            reused_ai_count = sum(
+                1
+                for row in ai_scores
+                if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
+            )
+            fresh_ai_count = sum(
+                1
+                for row in ai_scores
+                if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
+            )
+            fresh_scoring_count = sum(
+                1
+                for row in ai_scores
+                if str(row.get("ai_score_reuse_status") or "")
+                in {"fresh_compute", "reuse_disabled"}
+            )
+            ranking_effective_concurrency = _effective_stage_concurrency(
+                ranking_concurrency,
+                fresh_scoring_count,
+            )
+            ranked = list(state["ranked"])
+            if reporter is not None:
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer3_ai_score",
+                    "info",
+                    f"AI scored: {len(ai_scores)} jobs",
+                    _bounded_event_payload(
+                        event_name="ranking_ai_scored",
+                        event_family="summary",
+                        source_stage="ranking",
+                        event_status="completed",
+                        output_snapshot={
+                            "ai_scored_jobs": len(ai_scores),
+                            "configured_concurrency": ranking_concurrency,
+                            "ranking_concurrency_effective": ranking_effective_concurrency,
+                        },
+                        artifact_refs={"stage_id": "ranking"},
+                    ),
                 )
-                fresh_ai_scores = (
-                    run_ai_scoring(
-                        fresh_scoring_jobs,
-                        candidate_summary,
-                        config,
-                        top_n=len(fresh_scoring_jobs),
-                        runtime_observation_callback=ranking_llm_runtime_observations.append,
-                        resolved_route=resolved_route,
-                        **({"ranking_inputs": ranking_inputs_by_url} if ranking_inputs_by_url else {}),
-                    )
-                    if fresh_scoring_jobs
-                    else []
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer3_ranking",
+                    "info",
+                    f"Final ranking: top {len(ranked)} jobs",
+                    _bounded_event_payload(
+                        event_name="ranking_completed",
+                        event_family="summary",
+                        source_stage="ranking",
+                        event_status="completed",
+                        output_snapshot={
+                            "ranked_jobs": len(ranked),
+                            "configured_concurrency": ranking_concurrency,
+                            "ranking_concurrency_effective": ranking_effective_concurrency,
+                            "reused_ai_scores": reused_ai_count,
+                            "fresh_ai_scores": fresh_ai_count,
+                        },
+                        artifact_refs={"stage_id": "ranking"},
+                    ),
                 )
-                fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
-                for ai_row in fresh_ai_scores:
-                    job_url = str(ai_row.get("job_url") or "")
-                    fresh_ai_scores_by_url[job_url] = {
-                        **ai_row,
-                        "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
-                        "ai_score_reuse_status": "fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
-                        "reuse_decision": build_reuse_decision(
-                            decision="fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
-                            reason_code="no_reusable_snapshot_match" if ranking_reuse_enabled else "stage_reuse_disabled",
-                            fingerprint=fresh_ai_score_fingerprints.get(job_url),
-                            source_artifact_type="ranking_ai_score",
-                        ),
-                    }
-
-                ai_scores = []
-                for shortlisted_job in ai_score_candidates:
-                    job_url = extract_job_url(shortlisted_job)
-                    score_row: dict[str, Any] | None = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
-                    if score_row is not None:
-                        ai_scores.append(score_row)
-                reused_ai_count = sum(
-                    1 for row in ai_scores
-                    if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
-                )
-                fresh_ai_count = sum(
-                    1 for row in ai_scores
-                    if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
-                )
-                if reporter is not None:
-                    reporter.emit(  # type: ignore[union-attr]
-                        "layer3_ai_score",
-                        "info",
-                        f"AI scored: {len(ai_scores)} jobs",
-                        _bounded_event_payload(
-                            event_name="ranking_ai_scored",
-                            event_family="summary",
-                            source_stage="ranking",
-                            event_status="completed",
-                            output_snapshot={
-                                "ai_scored_jobs": len(ai_scores),
-                                "configured_concurrency": ranking_concurrency,
-                                "ranking_concurrency_effective": ranking_effective_concurrency,
-                            },
-                            artifact_refs={"stage_id": "ranking"},
-                        ),
-                    )
-                set_span_attributes(
-                    {
-                        "ai_score_candidates": len(ai_score_candidates),
-                        "ai_scores": len(ai_scores),
-                        "fresh_ai_scores": fresh_ai_count,
-                        "reused_ai_scores": reused_ai_count,
-                    }
-                )
-
-            with observe_span("pipeline.ranking", attributes={"run_id": run_id, "final_top_n": final_top_n}):
-                ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
-                resolved_preference_policy = resolve_run_preference_policy(
-                    ranking_rows=ranking_inputs,
-                    config=config,
-                    existing_payload=dict(state.get("resolved_preference_policy") or {}),
-                    resolver=preference_policy_resolver,
-                )
-                state["resolved_preference_policy"] = resolved_preference_policy_to_dict(
-                    resolved_preference_policy
-                )
-                ranked = rank_jobs(
-                    ranking_inputs,
-                    top_n=final_top_n,
-                    resolved_preference_policy=resolved_preference_policy,
-                )
-                pipeline_store.store_final_ranking(ranked, config)
-                if reporter is not None:
-                    reporter.emit(  # type: ignore[union-attr]
-                        "layer3_ranking",
-                        "info",
-                        f"Final ranking: top {len(ranked)} jobs",
-                        _bounded_event_payload(
-                            event_name="ranking_completed",
-                            event_family="summary",
-                            source_stage="ranking",
-                            event_status="completed",
-                            output_snapshot={
-                                "ranked_jobs": len(ranked),
-                                "configured_concurrency": ranking_concurrency,
-                                "ranking_concurrency_effective": ranking_effective_concurrency,
-                                "reused_ai_scores": reused_ai_count,
-                                "fresh_ai_scores": fresh_ai_count,
-                            },
-                            artifact_refs={"stage_id": "ranking"},
-                        ),
-                    )
-                state["ai_scores"] = ai_scores
-                state["ranking_llm_runtime_observations"] = ranking_llm_runtime_observations
-                state["ranking_inputs"] = ranking_inputs
-                state["ranked"] = ranked
-                set_span_attributes(
-                    {
-                        "ranking_inputs": len(ranking_inputs),
-                        "ranked_jobs": len(ranked),
-                    }
-                )
+            state["ranking_llm_runtime_observations"] = ranking_llm_runtime_observations
             stage_boundary_result = _handle_stage_boundary(
                 run_id=run_id,
                 last_completed_stage="ranking",
@@ -3983,6 +3896,9 @@ def run_pipeline(
                             profile,
                             config,
                             reusable_record=reusable_record,
+                            evidence_projection=evidence_projection or build_evidence_projection(
+                                converge_candidate_profile_for_runtime(profile or {})
+                            ),
                         )
                     )
 
@@ -5359,7 +5275,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
 
 
 

@@ -201,8 +201,10 @@ def _experience_evidence_facts(
     job: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    *,
+    evidence_projection: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    items = list(build_evidence_projection(profile).get("items") or [])
+    items = list((evidence_projection or build_evidence_projection(profile)).get("items") or [])
     full_config = _experience_mode_config(config, "full")
     facts: list[dict[str, Any]] = []
     for descriptor in _experience_requirement_descriptors(job, full_config):
@@ -268,13 +270,20 @@ def should_route_loose_experience_review(
     job: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    *,
+    evidence_projection: dict[str, Any] | None = None,
 ) -> bool:
     """Return whether Loose should review a project-backed experience gap."""
     if resolve_experience_evidence_mode(config) != "loose":
         return False
     if not _loose_project_review_allowed(job, profile, config):
         return False
-    facts = _experience_evidence_facts(job, profile, config)
+    facts = _experience_evidence_facts(
+        job,
+        profile,
+        config,
+        evidence_projection=evidence_projection,
+    )
     if not facts or not any(item["experience_shaped"] for item in facts):
         return False
     project_backed_gap = False
@@ -358,6 +367,8 @@ def build_experience_evidence_summary(
             continue
         requirement = str(row.get("requirement") or "")
         policy = experience_requirement_policy(requirement, row)
+        if row.get("experience_shaped"):
+            policy["experience_shaped"] = True
         selected_ids = [
             str(value)
             for value in list(row.get("supporting_evidence_ids") or [])
@@ -383,18 +394,25 @@ def build_experience_evidence_summary(
             capability_supported.append(requirement_id)
         if not policy["experience_shaped"]:
             continue
-        if professional_ids and str(row.get("selected_support") or "") == "verified":
+        resolution_action = str(row.get("resolution_action") or "").strip()
+        if (
+            professional_ids and str(row.get("selected_support") or "") == "verified"
+        ) or (project_ids and policy["explicit_project_acceptance"]):
             professional_verified.append(requirement_id)
+        elif resolution_action == "CONFIRM_OMIT":
+            continue
         elif project_ids or str(row.get("selected_support") or "") in {
             "relevant_unverified",
             "not_selected",
-        }:
+            "unsupported",
+            "contradicted",
+        } or resolution_action == "OVERRIDE_BLOCK":
             professional_unverified.append(requirement_id)
             gaps.append(
                 {
                     "requirement_id": requirement_id,
                     "requirement": requirement,
-                    "reasons": list(policy["gap_reasons"]),
+                    "reasons": list(policy["gap_reasons"] or ["unsupported_professional_requirement"]),
                     "evidence_ids": list(dict.fromkeys(project_ids or related_ids)),
                 }
             )
@@ -868,6 +886,14 @@ def _answer_mentions_requirement(
     descriptor: dict[str, Any],
     config: dict[str, Any],
 ) -> bool:
+    if str(descriptor.get("requirement_type") or "") == "professional_experience":
+        return bool(
+            re.search(
+                r"\b\d+(?:[.,]\d+)?\s*(?:\+\s*)?(?:years?|yrs?|months?)\b",
+                str(answer_text or ""),
+                re.IGNORECASE,
+            )
+        )
     canonical_skill = str(descriptor.get("canonical_skill") or "").strip().casefold()
     if not canonical_skill:
         return False
@@ -939,6 +965,38 @@ def _build_requirement_coverage(
                 "requirement_priority": "must_have",
             }
         )
+    years_min = job.get("years_experience_min")
+    years_max = job.get("years_experience_max")
+    if years_min not in (None, "") or years_max not in (None, ""):
+        try:
+            normalized_min = float(years_min) if years_min not in (None, "") else None
+            normalized_max = float(years_max) if years_max not in (None, "") else None
+        except (TypeError, ValueError):
+            normalized_min = normalized_max = None
+        if normalized_min is not None or normalized_max is not None:
+            if normalized_min is not None and normalized_max is not None:
+                requirement_text = f"At least {years_min} years and no more than {years_max} years of professional experience"
+            elif normalized_min is not None:
+                requirement_text = f"At least {years_min} years of professional experience"
+            else:
+                requirement_text = f"No more than {years_max} years of professional experience"
+            if not any(
+                str(item.get("requirement_id") or "") == "professional_experience:years"
+                for item in descriptors
+            ):
+                descriptors.append(
+                    {
+                        "requirement_id": "professional_experience:years",
+                        "requirement_instance_id": "professional_experience:years",
+                        "source_requirement_id": "professional_experience:years",
+                        "requirement": requirement_text,
+                        "original_requirements": [requirement_text],
+                        "canonical_skill": "",
+                        "requirement_type": "professional_experience",
+                        "requirement_priority": "must_have",
+                        "experience_shaped": True,
+                    }
+                )
     responsibility_support = dict(requirement_support.get("responsibility") or {})
     pool_support.update(
         _support_ids_by_requirement([], responsibility_support, "pool")
@@ -1240,9 +1298,10 @@ def _rebuild_reused_record(
     reusable_record: dict[str, Any],
     analysis_input_fingerprint: str,
     analysis_input_components: dict[str, Any],
+    ranking_fit_label: FitClassification | None,
 ) -> CvAnalysisRecord:
     status = cast(AnalysisStatus, str(reusable_record["status"]))
-    fit_value = str(reusable_record.get("fit_classification") or "")
+    fit_value = str(ranking_fit_label or reusable_record.get("fit_classification") or "")
     fit_classification = cast(FitClassification, fit_value) if fit_value in _FIT_LABEL_ORDER else None
     prior_error = (
         reusable_record.get("outcome_reason")
@@ -1268,11 +1327,7 @@ def _rebuild_reused_record(
         section_confidence_hints=dict(reusable_record.get("section_confidence_hints") or {}),
         do_not_claim=list(reusable_record.get("do_not_claim") or []),
         fit_classification=fit_classification,
-        ranking_fit_label=(
-            cast(FitClassification, str(reusable_record.get("ranking_fit_label") or ""))
-            if str(reusable_record.get("ranking_fit_label") or "") in _FIT_LABEL_ORDER
-            else None
-        ),
+        ranking_fit_label=ranking_fit_label,
         error=cast(ErrorPayload | None, prior_error),
     )
 
@@ -1285,6 +1340,7 @@ def analyze_ranked_job(
     top_k: int | None = None,
     reusable_record: dict[str, Any] | None = None,
     fit_classification_override: FitClassification | None = None,
+    evidence_projection: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
     raw_requirement_resolutions = [
@@ -1347,10 +1403,12 @@ def analyze_ranked_job(
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
                 },
             )
+        resolved_evidence_projection = evidence_projection or build_evidence_projection(profile)
         loose_experience_review = should_route_loose_experience_review(
             job,
             profile,
             config,
+            evidence_projection=resolved_evidence_projection,
         )
         if ranking_fit_label == "skip" and not loose_experience_review:
             return build_cv_analysis_record(
@@ -1379,12 +1437,11 @@ def analyze_ranked_job(
                 },
             )
 
-        evidence_projection = build_evidence_projection(profile)
         fingerprint_record = build_cv_analysis_input_fingerprint(
             profile,
             job,
             config,
-            evidence_projection=evidence_projection,
+            evidence_projection=resolved_evidence_projection,
         )
         analysis_input_fingerprint = str(fingerprint_record["fingerprint"])
         analysis_input_components = _build_analysis_input_components(
@@ -1402,6 +1459,7 @@ def analyze_ranked_job(
                 reusable_record=cast(dict[str, Any], reusable_record),
                 analysis_input_fingerprint=analysis_input_fingerprint,
                 analysis_input_components=analysis_input_components,
+                ranking_fit_label=ranking_fit_label,
             )
         reuse_reason = rejection_reason
         reuse_decision = build_reuse_decision(
@@ -1417,7 +1475,7 @@ def analyze_ranked_job(
             job,
             top_k=evidence_top_k,
             config=config,
-            evidence_projection=evidence_projection,
+            evidence_projection=resolved_evidence_projection,
         )
         evidence = list(evidence_bundle.get("selected_evidence") or [])
         evidence_selection_summary = _build_evidence_selection_summary(
@@ -1431,7 +1489,7 @@ def analyze_ranked_job(
                 profile,
                 job,
                 top_k=evidence_top_k,
-                evidence_projection=evidence_projection,
+                evidence_projection=resolved_evidence_projection,
             )
             if evidence:
                 evidence_selection_summary = _compact_mapping(

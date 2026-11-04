@@ -2363,12 +2363,15 @@ def _map_to_run_structured_jobs_row(
     run_id: str,
 ) -> dict[str, Any]:
     """Project an enriched row into the run_structured_jobs schema, injecting run_id."""
-    return _project_enriched_row(
+    mapped = _project_enriched_row(
         row,
         schema_keys=_RUN_SCHEMA_KEYS - {"run_id"},
         json_list_fields=_STRUCTURED_JSON_LIST_FIELDS,
         extra_fields={"run_id": run_id},
     )
+    if row.get("run_job_id") not in (None, ""):
+        mapped["run_job_id"] = row["run_job_id"]
+    return mapped
 
 
 def _ensure_sqlite_run_structured_jobs_table(conn: sqlite3.Connection) -> None:
