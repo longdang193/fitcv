@@ -202,6 +202,32 @@ def test_fuzzy_dedupe_requires_strictly_more_than_ninety_percent_and_same_bucket
     assert excluded[0]["duplicateOf"] == fetcher.record_identity(same_at_threshold)
 
 
+def test_fuzzy_dedupe_retains_linkedin_over_workingstudentjobs() -> None:
+    linkedin = fetcher.linkedin_to_fitcv_record(
+        {
+            "id": "linkedin-job",
+            "jobUrl": "https://linkedin.example/job/linkedin-job",
+            "title": "Intern",
+            "companyName": "ACME",
+            "location": "Berlin",
+            "description": _long_description("same"),
+        },
+        None,
+    )
+    workingstudentjobs = {
+        **linkedin,
+        "source": "workingstudentjobs",
+        "sourceJobId": "workingstudentjobs-job",
+        "jobUrl": "https://workingstudentjobs.example/job/workingstudentjobs-job",
+    }
+
+    kept, excluded = fetcher.deduplicate_records([workingstudentjobs, linkedin])
+
+    assert [record["source"] for record in kept] == ["linkedin"]
+    assert len(excluded) == 1
+    assert excluded[0]["duplicateOf"] == fetcher.record_identity(linkedin)
+
+
 def test_description_intersection_exactly_ninety_percent_survives() -> None:
     left = " ".join(f"token{index}" for index in range(40))
     right = " ".join(f"token{index}" for index in range(36)) + " " + " ".join(f"other{index}" for index in range(4))

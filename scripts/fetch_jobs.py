@@ -31,7 +31,7 @@ except ModuleNotFoundError:
 
 APIFY_API_BASE = "https://api.apify.com/v2"
 SUPPORTED_SOURCES = ("workingstudentjobs", "linkedin", "indeed")
-SOURCE_PRIORITY = {source: index for index, source in enumerate(SUPPORTED_SOURCES)}
+SOURCE_PRIORITY = {source: index for index, source in enumerate(("linkedin", "workingstudentjobs", "indeed"))}
 TERMINAL_STATUSES = {"SUCCEEDED", "FAILED", "TIMED-OUT", "ABORTED"}
 STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in",
