@@ -4986,6 +4986,62 @@ def test_query_run_jobs_applies_title_include_and_exclude_filters_before_counts(
     }
 
 
+def test_query_and_export_support_boolean_title_expressions() -> None:
+    run = _make_run("run-boolean-title-filters")
+    jobs = [
+        {"title": "AI Analytics Engineer", "job_url": "https://example.com/ai-analytics"},
+        {"title": "AI Engineer", "job_url": "https://example.com/ai"},
+        {"title": "Business Analytics Manager", "job_url": "https://example.com/business-analytics"},
+        {"title": "Business Operations Manager", "job_url": "https://example.com/business-ops"},
+    ]
+    sqlite_store.create_run_bundle(
+        run,
+        input_resource={
+            "original_filename": "jobs.json",
+            "media_type": "application/json",
+            "jobs_snapshot_json": json.dumps(jobs),
+            "jobs_manifest_json": "{}",
+            "candidate_profile_name": "Profile",
+            "candidate_profile_json": "{}",
+            "settings_revision": "settings-1",
+            "settings_snapshot_json": "{}",
+        },
+        jobs=jobs,
+    )
+
+    page_and = sqlite_store.query_run_jobs(
+        run.run_id,
+        page_size=20,
+        stage="all",
+        sort="title_asc",
+        job_title_include=['"AI" AND "Analytics"'],
+    )
+    page_or = sqlite_store.query_run_jobs(
+        run.run_id,
+        stage="all",
+        sort="title_asc",
+        page_size=20,
+        job_title_include=['"AI" OR "Business Analytics"'],
+        job_title_exclude=['"Business Operations"'],
+    )
+    exported_or = list(sqlite_store.iter_run_jobs_for_export(
+        run.run_id,
+        stage="all",
+        sort="title_asc",
+        job_title_include=['"AI" OR "Business Analytics"'],
+        job_title_exclude=['"Business Operations"'],
+    ))
+
+    assert [row["title"] for row in page_and["items"]] == ["AI Analytics Engineer"]
+    expected_or_titles = [
+        "AI Analytics Engineer",
+        "AI Engineer",
+        "Business Analytics Manager",
+    ]
+    assert [row["title"] for row in page_or["items"]] == expected_or_titles
+    assert [row["title"] for row in exported_or] == expected_or_titles
+
+
 def test_query_and_export_preserve_duplicate_url_occurrences() -> None:
     run_id = "run-duplicate-url-occurrences"
     run_job_ids = _create_normalized_run_with_jobs(

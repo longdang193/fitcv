@@ -4716,6 +4716,78 @@ def test_synonym_approve_all_returns_in_progress_for_reserved_duplicate() -> Non
     assert response.json()["error"]["code"] == "idempotency_in_progress"
 
 
+def test_synonym_approve_all_conflict_keeps_policy_read_contract_valid() -> None:
+    app = _app()
+    client = TestClient(app, raise_server_exceptions=False)
+    sqlite_store.ingest_synonym_suggestions([
+        {"synonym_type": "skills", "alias": "AI", "canonical": "Artificial Intelligence", "evidence": {}},
+        {"synonym_type": "skills", "alias": "AI", "canonical": "Artificial Intelligence Tools", "evidence": {}},
+    ])
+    policy = client.get("/synonym-policies/skills").json()["data"]
+
+    response = client.post(
+        "/synonym-suggestions/actions/approve-all",
+        headers={"Idempotency-Key": "approve-all-conflict-key"},
+        json={
+            "synonym_type": "skills",
+            "search": "",
+            "expected_revisions": {
+                "skills": {
+                    "expected_draft_revision": policy["draft_revision"],
+                    "expected_active_bundle_revision_id": policy["active_bundle_revision_id"],
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["blocked_count"] == 2
+
+    loaded = client.get("/synonym-policies/skills")
+    assert loaded.status_code == 200
+    assert loaded.json()["data"]["issues"][0]["code"] == "synonym_alias_conflict"
+
+
+@pytest.mark.parametrize("synonym_type", ["skills", "domain"])
+def test_synonym_policy_read_normalizes_legacy_blocked_issue(synonym_type: str) -> None:
+    app = _app()
+    client = TestClient(app, raise_server_exceptions=False)
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    with sqlite_store._sqlite_connection(database_path) as conn:
+        conn.execute(
+            """
+            UPDATE synonym_policy_drafts
+            SET editor_text = ?, normalized_policy_json = NULL, issues_json = ?,
+                validation_status = 'invalid', revision = revision + 1
+            WHERE synonym_type = ?
+            """,
+            (
+                "ai: artificial intelligence tools\n",
+                json.dumps([{
+                    "code": "synonym_alias_conflict",
+                    "aliases": ["ai"],
+                    "canonicals": ["artificial intelligence", "artificial intelligence tools"],
+                }]),
+                synonym_type,
+            ),
+        )
+        conn.commit()
+
+    response = client.get(f"/synonym-policies/{synonym_type}")
+
+    assert response.status_code == 200
+    issue = response.json()["data"]["issues"][0]
+    assert issue["code"] == "synonym_alias_conflict"
+    assert issue["message"] == "Approved mapping is blocked by synonym policy validation."
+    assert issue["severity"] == "error"
+    assert issue["lines"] == [1]
+    assert issue["aliases"] == ["ai"]
+    assert issue["canonicals"] == [
+        "artificial intelligence",
+        "artificial intelligence tools",
+    ]
+
+
 def test_run_jobs_forwards_repeated_title_filters(monkeypatch: pytest.MonkeyPatch) -> None:
     app = _app()
     captured: dict[str, object] = {}
