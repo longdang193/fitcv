@@ -4096,6 +4096,27 @@ def test_candidate_profile_lifecycle_rejects_noop_and_stale_revision() -> None:
         state.transition_profile(profile_id, lifecycle="archived", expected_revision=999)
 
 
+def test_candidate_profile_lifecycle_reports_idempotency_in_progress() -> None:
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "candidate-profile-pending",
+        "replayed": True,
+        "response": None,
+    }
+
+    response = TestClient(app).post(
+        "/candidate-profiles/profile-1/actions/archive",
+        headers={"Idempotency-Key": "candidate-profile-pending-key"},
+        json={"expected_revision": 1},
+    )
+
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["code"] == "idempotency_in_progress"
+    assert error["message"] == "An earlier Candidate Profile action is still in progress."
+    assert error["action"] == "Retry after the earlier request completes."
+
+
 def test_candidate_profile_source_block_route_has_no_alias() -> None:
     paths = {route.path for route in _app().routes}
     assert "/candidate-profile-creation-attempts/{attempt_id}/source-blocks/{source_block_id}" in paths

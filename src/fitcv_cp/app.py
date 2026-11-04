@@ -11175,7 +11175,7 @@ def create_app(
             raise ApiError(
                 409,
                 "idempotency_in_progress",
-                "An earlier synonym action is still in progress.",
+                "An earlier Candidate Profile action is still in progress.",
                 action="Retry after the earlier request completes.",
             )
         try:
