@@ -696,32 +696,86 @@ def _build_export_results(
                 indexed[identity_key] = payload
         return indexed
 
+    def _unique_rows_by_url(
+        items: list[dict[str, Any]],
+        *,
+        transform: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        candidates: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            seeded = _identity_seed(item)
+            payload = transform(seeded) if transform is not None else seeded
+            for identity_key in job_identity_keys(seeded):
+                if identity_key.startswith("url:"):
+                    candidates.setdefault(identity_key, []).append(payload)
+        return {
+            identity_key: rows[0]
+            for identity_key, rows in candidates.items()
+            if len(rows) == 1
+        }
+
     def _identity_keys_for(row: dict[str, Any]) -> list[str]:
         return job_identity_keys(_identity_seed(row))
 
-    def _lookup(indexed: dict[str, dict[str, Any]], row: dict[str, Any]) -> dict[str, Any] | None:
-        for identity_key in job_identity_index_keys(_identity_seed(row)):
+    def _lookup(
+        indexed: dict[str, dict[str, Any]],
+        row: dict[str, Any],
+        url_fallback: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any] | None:
+        seeded = _identity_seed(row)
+        for identity_key in job_identity_index_keys(seeded):
             match = indexed.get(identity_key)
             if match is not None:
                 return match
+        if url_fallback is not None and not any(
+            key.startswith(("run:", "fp:")) for key in job_identity_keys(seeded)
+        ):
+            for identity_key in job_identity_keys(seeded):
+                if identity_key.startswith("url:"):
+                    return url_fallback.get(identity_key)
         return None
 
-    def _matches(identity_index: set[str], row: dict[str, Any]) -> bool:
+    def _matches(
+        identity_index: set[str],
+        row: dict[str, Any],
+        url_fallback: dict[str, dict[str, Any]] | None = None,
+    ) -> bool:
+        seeded = _identity_seed(row)
         return any(
             identity_key in identity_index
-            for identity_key in job_identity_index_keys(_identity_seed(row))
+            for identity_key in job_identity_index_keys(seeded)
+        ) or (
+            url_fallback is not None
+            and not any(
+                key.startswith(("run:", "fp:"))
+                for key in job_identity_keys(seeded)
+            )
+            and any(
+                identity_key in url_fallback
+                for identity_key in job_identity_keys(seeded)
+                if identity_key.startswith("url:")
+            )
         )
 
     enriched_by_identity = _index_rows_by_identity(enriched)
+    enriched_by_url = _unique_rows_by_url(enriched)
     passed_by_identity = _index_rows_by_identity(passed_jobs)
+    passed_by_url = _unique_rows_by_url(passed_jobs)
     raw_shortlist_by_identity = _index_rows_by_identity(raw_shortlist, transform=normalize_shortlist_row)
+    raw_shortlist_by_url = _unique_rows_by_url(raw_shortlist, transform=normalize_shortlist_row)
     scoring_shortlist_by_identity = _index_rows_by_identity(shortlist_for_scoring, transform=normalize_shortlist_row)
+    scoring_shortlist_by_url = _unique_rows_by_url(shortlist_for_scoring, transform=normalize_shortlist_row)
     scoring_by_identity = _index_rows_by_identity(ranking_inputs)
+    scoring_by_url = _unique_rows_by_url(ranking_inputs)
     ranked_by_identity = _index_rows_by_identity(ranked)
+    ranked_by_url = _unique_rows_by_url(ranked)
     analysis_by_identity = _index_rows_by_identity(cv_analysis_results)
+    analysis_by_url = _unique_rows_by_url(cv_analysis_results)
     cv_by_identity = _index_rows_by_identity(cv_results)
+    cv_by_url = _unique_rows_by_url(cv_results)
     passed_job_urls = {extract_job_url(job) for job in passed_jobs if extract_job_url(job)}
     debug_by_identity = _index_rows_by_identity(cv_generation_debug_records)
+    debug_by_url = _unique_rows_by_url(cv_generation_debug_records)
     skipped_fit_gate_identity_keys = {
         identity_key
         for record in cv_generation_debug_records
@@ -762,16 +816,16 @@ def _build_export_results(
             rejected_after_enrichment_identity_keys.add(identity_key)
 
     def _status_for(raw_job: dict[str, Any]) -> str:
-        if _lookup(cv_by_identity, raw_job) is not None:
+        if _lookup(cv_by_identity, raw_job, cv_by_url) is not None:
             return "ranked_with_cv"
-        scoring_row = _lookup(scoring_by_identity, raw_job)
+        scoring_row = _lookup(scoring_by_identity, raw_job, scoring_by_url)
         if scoring_row is not None and normalize_score_state(scoring_row)["score_status"] != SCORE_STATUS_VALID:
             return "ranking_unavailable"
-        if _matches(blocked_by_reranker_identity_keys, raw_job):
+        if _matches(blocked_by_reranker_identity_keys, raw_job, debug_by_url):
             return PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER
-        if _matches(skipped_fit_gate_identity_keys, raw_job):
+        if _matches(skipped_fit_gate_identity_keys, raw_job, debug_by_url):
             return "ranked_skipped_fit_gate"
-        if _lookup(ranked_by_identity, raw_job) is not None:
+        if _lookup(ranked_by_identity, raw_job, ranked_by_url) is not None:
             return "ranked_no_cv"
         if _matches(rejected_before_enrichment_identity_keys, raw_job):
             return "rejected_before_enrichment"
@@ -779,9 +833,9 @@ def _build_export_results(
             return "rejected_after_enrichment"
         if scoring_row is not None:
             return "scored_not_ranked"
-        if _lookup(scoring_shortlist_by_identity, raw_job) is not None:
+        if _lookup(scoring_shortlist_by_identity, raw_job, scoring_shortlist_by_url) is not None:
             return "shortlisted_not_scored"
-        if _lookup(passed_by_identity, raw_job) is not None:
+        if _lookup(passed_by_identity, raw_job, passed_by_url) is not None:
             return "not_shortlisted"
         return "unknown_pipeline_state"
 
@@ -813,15 +867,15 @@ def _build_export_results(
     for input_index, raw_job in enumerate(raw_jobs):
         job_url = extract_job_url(raw_job)
         seeded_raw_job = _identity_seed(raw_job)
-        enriched_job = _lookup(enriched_by_identity, seeded_raw_job)
+        enriched_job = _lookup(enriched_by_identity, seeded_raw_job, enriched_by_url)
         deduplicated_job = deduplicated_by_input_index.get(input_index)
         score_source = {
-            **(_lookup(scoring_shortlist_by_identity, seeded_raw_job) or {}),
-            **(_lookup(scoring_by_identity, seeded_raw_job) or {}),
-            **(_lookup(ranked_by_identity, seeded_raw_job) or {}),
+            **(_lookup(scoring_shortlist_by_identity, seeded_raw_job, scoring_shortlist_by_url) or {}),
+            **(_lookup(scoring_by_identity, seeded_raw_job, scoring_by_url) or {}),
+            **(_lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) or {}),
         }
-        cv_row = _lookup(cv_by_identity, seeded_raw_job)
-        analysis_row = _lookup(analysis_by_identity, seeded_raw_job)
+        cv_row = _lookup(cv_by_identity, seeded_raw_job, cv_by_url)
+        analysis_row = _lookup(analysis_by_identity, seeded_raw_job, analysis_by_url)
         cv_payload = None
         if cv_row is not None:
             runtime_observations = list(cv_row.get("llm_runtime_observations") or [])
@@ -870,9 +924,13 @@ def _build_export_results(
             ]
             score_source = {}
 
-        raw_shortlist_row = _lookup(raw_shortlist_by_identity, seeded_raw_job)
-        scoring_shortlist_row = _lookup(scoring_shortlist_by_identity, seeded_raw_job)
-        matched_passed_job = _lookup(passed_by_identity, seeded_raw_job)
+        raw_shortlist_row = _lookup(raw_shortlist_by_identity, seeded_raw_job, raw_shortlist_by_url)
+        scoring_shortlist_row = _lookup(
+            scoring_shortlist_by_identity,
+            seeded_raw_job,
+            scoring_shortlist_by_url,
+        )
+        matched_passed_job = _lookup(passed_by_identity, seeded_raw_job, passed_by_url)
         matched_passed_job_url = extract_job_url(matched_passed_job or {})
         if matched_passed_job is not None and matched_passed_job_url:
             shortlist_status = _shortlist_status_for_export_row(
@@ -892,10 +950,10 @@ def _build_export_results(
             if score_source.get("baseline_fit") is not None
             else None
         )
-        debug_row = _lookup(debug_by_identity, seeded_raw_job)
+        debug_row = _lookup(debug_by_identity, seeded_raw_job, debug_by_url)
         if debug_row is not None:
             cv_status = str(debug_row.get("status") or "not_attempted")
-        elif _lookup(ranked_by_identity, seeded_raw_job) is not None:
+        elif _lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) is not None:
             cv_status = "not_attempted"
         else:
             cv_status = "not_applicable"
@@ -904,7 +962,14 @@ def _build_export_results(
         else:
             decision_chain = _build_decision_chain(
                 shortlist_status=shortlist_status,
-                advanced_to_scoring=_lookup(scoring_shortlist_by_identity, seeded_raw_job) is not None,
+                advanced_to_scoring=(
+                    _lookup(
+                        scoring_shortlist_by_identity,
+                        seeded_raw_job,
+                        scoring_shortlist_by_url,
+                    )
+                    is not None
+                ),
                 ranking_fit_label=ranking_fit_label,
                 ranking_fit_source=ranking_fit_source,
                 cv_status=cv_status,
@@ -1044,6 +1109,17 @@ def _build_export_results(
         rows.append(
             {
                 "job_url": job_url,
+                "run_job_id": (
+                    str(
+                        raw_job.get("run_job_id")
+                        or (enriched_job or {}).get("run_job_id")
+                        or score_source.get("run_job_id")
+                        or (analysis_row or {}).get("run_job_id")
+                        or (cv_row or {}).get("run_job_id")
+                        or ""
+                    ).strip()
+                    or None
+                ),
                 "source_job_url": str(raw_job.get("source_job_url") or job_url),
                 "raw_job_fingerprint": (
                     str(
@@ -3155,8 +3231,9 @@ def build_ranking_features(
     shortlist_index: dict[str, dict[str, Any]] = {}
     shortlist_by_url: dict[str, list[dict[str, Any]]] = {}
     for row in shortlist:
-        for identity_key in job_identity_keys(row):
+        for identity_key in job_identity_index_keys(row):
             shortlist_index.setdefault(identity_key, row)
+        for identity_key in job_identity_keys(row):
             if identity_key.startswith("url:"):
                 shortlist_by_url.setdefault(identity_key, []).append(row)
     ranking_context = dict(config.get("ranking_contract") or {})

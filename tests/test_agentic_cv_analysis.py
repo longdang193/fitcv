@@ -310,6 +310,7 @@ def test_analyze_ranked_job_reuses_supplied_projection_without_rebuilding() -> N
     }
     config = _config()
     config["cv_analysis"] = {"experience_evidence_mode": "full"}
+    config["_requirement_resolutions"] = [{"candidate_profile_id": "other-candidate"}]
 
     with (
         patch("fitcv.agentic_cv_analysis.build_evidence_projection", side_effect=AssertionError("projection rebuilt")),
@@ -634,12 +635,17 @@ def test_resolution_actions_remain_fail_closed(
     job = {**_job(), "required_skills": ["SQL"]}
     requirement_id = build_required_skill_descriptors(job, _config())[0]["requirement_id"]
 
-    def analyze(action: str, answer_text: str = "") -> dict:
+    def analyze(
+        action: str,
+        answer_text: str = "",
+        experience_mode: str = "full",
+    ) -> dict:
         return analyze_ranked_job(
             job,
             profile,
             {
                 **_config(),
+                "cv_analysis": {"experience_evidence_mode": experience_mode},
                 "_requirement_resolutions": [
                     {
                         "resolution_id": f"resolution-{action.lower()}",
@@ -660,9 +666,13 @@ def test_resolution_actions_remain_fail_closed(
     assert confirmed_omit["support_strength"] == "omitted"
     assert confirmed_omit["supporting_evidence_ids"] == []
 
-    override_block = analyze("OVERRIDE_BLOCK")["requirement_coverage"][0]
-    assert override_block["selected_support"] == "unsupported"
-    assert override_block["supporting_evidence_ids"] == []
+    for experience_mode in ("full", "strict"):
+        override_result = analyze("OVERRIDE_BLOCK", experience_mode=experience_mode)
+        override_block = override_result["requirement_coverage"][0]
+        assert override_block["selected_support"] == "unsupported"
+        assert override_block["supporting_evidence_ids"] == []
+        assert override_result["status"] == "ready_for_generation"
+        assert override_result["experience_evidence_summary"]["professional_experience"]["unverified_requirement_ids"] == []
 
     contradicted = analyze("RESOLVE_WITH_ANSWER", "I do not have SQL experience.")["requirement_coverage"][0]
     assert contradicted["selected_support"] == "contradicted"

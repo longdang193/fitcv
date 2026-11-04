@@ -13174,9 +13174,7 @@ def replace_filter_results(run_id: str, rows: list[dict[str, Any]]) -> None:
                 ),
                 None,
             )
-            if run_job_id is None and not any(
-                key.startswith(("run:", "fp:")) for key in row_identity_keys
-            ):
+            if run_job_id is None and not str(row.get("run_job_id") or "").strip():
                 legacy_url_key = next(
                     (key for key in job_identity_keys(row) if key.startswith("url:")),
                     None,
@@ -13552,6 +13550,7 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
             if key.startswith("url:"):
                 run_url_counts[key] = run_url_counts.get(key, 0) + 1
     payloads: dict[str, dict[str, Any]] = {}
+    stable_payloads: dict[str, list[dict[str, Any]]] = {}
     legacy_url_payloads: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         try:
@@ -13566,11 +13565,14 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
             identity_keys = job_identity_keys(identity)
             if any(key.startswith(("run:", "fp:")) for key in identity_keys):
                 for key in job_identity_index_keys(identity):
-                    payloads.setdefault(key, payload)
+                    stable_payloads.setdefault(key, []).append(payload)
             else:
                 for key in identity_keys:
                     if key.startswith("url:"):
                         legacy_url_payloads.setdefault(key, []).append(payload)
+    for key, candidates in stable_payloads.items():
+        if len(candidates) == 1:
+            payloads[key] = candidates[0]
     for key, candidates in legacy_url_payloads.items():
         if len(candidates) == 1 and run_url_counts.get(key) == 1:
             payloads[key] = candidates[0]
@@ -13579,6 +13581,8 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
 
 def _identity_payload_index(payloads: Any) -> dict[str, dict[str, Any]]:
     indexed: dict[str, dict[str, Any]] = {}
+    stable_payloads: dict[str, list[dict[str, Any]]] = {}
+    legacy_url_payloads: dict[str, list[dict[str, Any]]] = {}
     values = payloads if isinstance(payloads, list) else []
     for payload in values:
         if not isinstance(payload, dict):
@@ -13589,8 +13593,20 @@ def _identity_payload_index(payloads: Any) -> dict[str, dict[str, Any]]:
             or payload.get("source_job_url")
             or payload.get("source_url"),
         }
-        for key in job_identity_index_keys(identity):
-            indexed.setdefault(key, payload)
+        identity_keys = job_identity_keys(identity)
+        if any(key.startswith(("run:", "fp:")) for key in identity_keys):
+            for key in job_identity_index_keys(identity):
+                stable_payloads.setdefault(key, []).append(payload)
+        else:
+            for key in identity_keys:
+                if key.startswith("url:"):
+                    legacy_url_payloads.setdefault(key, []).append(payload)
+    for key, candidates in stable_payloads.items():
+        if len(candidates) == 1:
+            indexed[key] = candidates[0]
+    for key, candidates in legacy_url_payloads.items():
+        if len(candidates) == 1:
+            indexed[key] = candidates[0]
     return indexed
 
 
@@ -13610,6 +13626,9 @@ def _identity_payload_for_job(
     *,
     allow_legacy_url_fallback: bool = False,
 ) -> dict[str, Any]:
+    run_job_id = str(job_identity.get("run_job_id") or "").strip()
+    if run_job_id:
+        return payloads.get(f"run:{run_job_id}", {})
     for key in job_identity_index_keys(job_identity):
         if key in payloads:
             return payloads[key]

@@ -572,6 +572,19 @@ in the implementation and regression coverage:
   a broad database schema migration.
 - Stable-identity misses do not inherit unrelated stable or ambiguous legacy
   URL payloads.
+- Screening persistence accepts an incoming fingerprint when the persisted job
+  snapshot is still URL-only, but only through a unique URL and never for an
+  explicitly conflicting run-job ID.
+- Structured and export payload indexes keep run-job identity exact and omit
+  ambiguous fingerprint aliases, preventing duplicate occurrences from
+  cross-hydrating.
+- Final export reconciliation uses unique URL fallback only for URL-only raw
+  rows and carries the resolved `run_job_id` into each export row.
+- Ranking keeps stable shortlist aliases primary and refuses ambiguous URL-only
+  AI rows instead of assigning them to the first duplicate.
+- Supplied evidence projections are reused for human-resolution matching, and
+  `OVERRIDE_BLOCK` remains unsupported evidence without blocking Full/Strict
+  generation.
 - Ranking skill coverage is computed from complete requirement and candidate
   skill lists before prompt fields are bounded to eight entries.
 - One candidate evidence projection is built after profile loading and reused

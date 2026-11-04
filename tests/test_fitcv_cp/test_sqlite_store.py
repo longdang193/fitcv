@@ -3928,6 +3928,24 @@ def test_replace_filter_results_accepts_unambiguous_legacy_url_rows() -> None:
     assert rows[0]["status"] == "passed"
 
 
+def test_replace_filter_results_accepts_incoming_fingerprint_without_persisted_snapshot() -> None:
+    run_id = "run-filter-incoming-fingerprint"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Job", "job_url": "https://example.com/job-1"}],
+    )
+
+    sqlite_store.replace_filter_results(run_id, [{
+        "job_url": "https://example.com/job-1",
+        "raw_job_fingerprint": "incoming-fingerprint",
+        "passed": True,
+        "reasons": ["matched_required_skills"],
+    }])
+
+    rows = sqlite_store.query_run_jobs(run_id, page_size=20, stage="screening")["items"]
+    assert rows[0]["status"] == "passed"
+
+
 def test_local_sqlite_path_uses_control_plane_config_when_env_missing(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("FITCV_CP_SQLITE_PATH", raising=False)
@@ -5186,6 +5204,49 @@ def test_stable_identity_does_not_fall_back_to_legacy_url_payload() -> None:
     rows_by_id = {row["run_job_id"]: row for row in rows}
     assert rows_by_id[run_job_ids[0]]["location"] != "legacy"
     assert rows_by_id[run_job_ids[1]]["location"] != "legacy"
+
+
+def test_structured_fingerprint_does_not_cross_hydrate_duplicate_occurrences() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
+    run_id = "run-duplicate-fingerprint-structured"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "First", "job_url": "https://example.com/same"},
+            {"title": "Second", "job_url": "https://example.com/same"},
+        ],
+    )
+    shared_fingerprint = "shared-fingerprint"
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id in run_job_ids:
+            snapshot = json.loads(
+                conn.execute(
+                    "SELECT source_snapshot_json FROM run_jobs WHERE run_job_id=?",
+                    (run_job_id,),
+                ).fetchone()[0]
+            )
+            snapshot["raw_job_fingerprint"] = shared_fingerprint
+            conn.execute(
+                "UPDATE run_jobs SET source_snapshot_json=? WHERE run_job_id=?",
+                (json.dumps(snapshot), run_job_id),
+            )
+        conn.commit()
+    load_run_structured_jobs(
+        [{
+            "run_job_id": run_job_ids[0],
+            "job_url": "https://example.com/same",
+            "raw_job_fingerprint": shared_fingerprint,
+            "location": "First only",
+        }],
+        run_id,
+        {},
+    )
+
+    rows = sqlite_store.query_run_jobs(run_id, page_size=20, stage="all")["items"]
+    rows_by_id = {row["run_job_id"]: row for row in rows}
+    assert rows_by_id[run_job_ids[0]]["location"] == "First only"
+    assert rows_by_id[run_job_ids[1]]["location"] != "First only"
 
 
 def test_export_hydrates_selected_jobs_in_bounded_batches(monkeypatch: pytest.MonkeyPatch) -> None:

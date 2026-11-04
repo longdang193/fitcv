@@ -404,12 +404,21 @@ def build_experience_evidence_summary(
             professional_verified.append(requirement_id)
         elif resolution_action == "CONFIRM_OMIT":
             continue
+        elif resolution_action == "OVERRIDE_BLOCK":
+            gaps.append(
+                {
+                    "requirement_id": requirement_id,
+                    "requirement": requirement,
+                    "reasons": list(policy["gap_reasons"] or ["unsupported_professional_requirement"]),
+                    "evidence_ids": list(dict.fromkeys(project_ids or related_ids)),
+                }
+            )
         elif project_ids or str(row.get("selected_support") or "") in {
             "relevant_unverified",
             "not_selected",
             "unsupported",
             "contradicted",
-        } or resolution_action == "OVERRIDE_BLOCK":
+        }:
             professional_unverified.append(requirement_id)
             gaps.append(
                 {
@@ -1434,7 +1443,9 @@ def analyze_ranked_job(
     if raw_requirement_resolutions:
         profile_id = str(profile.get("candidate_profile_id") or "").strip()
         profile_revision = str(profile.get("revision") or "").strip()
-        source_profile_fingerprint = str(build_evidence_projection(profile).get("fingerprint") or "").strip()
+        source_profile_fingerprint = str(
+            (evidence_projection or build_evidence_projection(profile)).get("fingerprint") or ""
+        ).strip()
         requirement_resolutions = [
             item
             for item in raw_requirement_resolutions
