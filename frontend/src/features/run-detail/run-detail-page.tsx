@@ -9,6 +9,7 @@ import {
   Field,
 } from "../../components";
 import { formatDisplayValue, formatIdentifier, formatTimestamp } from "../../lib/format";
+import { parsePipelineResultTitleFilters } from "./title-filters";
 import {
   fetchRun,
   fetchRunJobs,
@@ -113,9 +114,11 @@ export function buildRunJobsQueryKey(
   search: string,
   sort: string,
   page: number,
-  pageSize: number
+  pageSize: number,
+  jobTitleInclude: string[] = [],
+  jobTitleExclude: string[] = []
 ): string {
-  return `${runId}::${stage}::${resultBucket}::${search.trim()}::${sort}::${page}::${pageSize}`;
+  return `${runId}::${stage}::${resultBucket}::${search.trim()}::${jobTitleInclude.join(",")}::${jobTitleExclude.join(",")}::${sort}::${page}::${pageSize}`;
 }
 
 export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, initialRun, initialJobs }) => {
@@ -255,6 +258,10 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
   const [resultBucketFilter, setResultBucketFilter] = useState<string>("all");
   const [jobSearch, setJobSearch] = useState("");
   const [activeJobSearch, setActiveJobSearch] = useState("");
+  const [jobTitleInclude, setJobTitleInclude] = useState("");
+  const [jobTitleExclude, setJobTitleExclude] = useState("");
+  const [activeJobTitleInclude, setActiveJobTitleInclude] = useState<string[]>([]);
+  const [activeJobTitleExclude, setActiveJobTitleExclude] = useState<string[]>([]);
   const [jobsMeta, setJobsMeta] = useState<{
     total_evaluated: number;
     passed: number;
@@ -313,12 +320,14 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
     }
     searchDebounceRef.current = window.setTimeout(() => {
       setActiveJobSearch(jobSearch.trim());
+      setActiveJobTitleInclude(parsePipelineResultTitleFilters(jobTitleInclude));
+      setActiveJobTitleExclude(parsePipelineResultTitleFilters(jobTitleExclude));
       setJobsPage(1);
     }, 250);
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, [jobSearch]);
+  }, [jobSearch, jobTitleInclude, jobTitleExclude]);
 
   // Load main run detail
   const loadRunDetail = useCallback(async (
@@ -366,7 +375,9 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         activeJobSearch,
         jobSort,
         targetPage,
-        targetSize
+        targetSize,
+        activeJobTitleInclude,
+        activeJobTitleExclude
       );
 
       if (jobsAbortRef.current) {
@@ -388,6 +399,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
           result_bucket: resultBucketFilter,
           search: activeJobSearch,
           sort: jobSort,
+          job_title_include: activeJobTitleInclude,
+          job_title_exclude: activeJobTitleExclude,
           signal: controller?.signal,
         });
 
@@ -421,7 +434,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         }
       }
     },
-    [runId, jobsPage, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch, jobSort]
+    [runId, jobsPage, jobsPageSize, stageFilter, resultBucketFilter, activeJobSearch, jobSort, activeJobTitleInclude, activeJobTitleExclude]
   );
 
   // Poll events without reloading page
@@ -696,6 +709,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         result_bucket: resultBucketFilter,
         search: activeJobSearch,
         sort: jobSort,
+        job_title_include: activeJobTitleInclude,
+        job_title_exclude: activeJobTitleExclude,
       });
     } catch (err: any) {
       setError(err.message || "Failed to export jobs CSV.");
@@ -712,6 +727,8 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
         result_bucket: resultBucketFilter,
         search: activeJobSearch,
         sort: jobSort,
+        job_title_include: activeJobTitleInclude,
+        job_title_exclude: activeJobTitleExclude,
       });
     } catch (err: any) {
       setError(err.message || "Failed to export full job data.");
@@ -1311,6 +1328,30 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
               placeholder="Search jobs, attributes, skills, or outcomes"
               aria-label="Search pipeline results"
             />
+            <label className="run-page-size" htmlFor="jobResultsTitleInclude">
+              Include job titles
+              <textarea
+                id="jobResultsTitleInclude"
+                className="field"
+                rows={2}
+                value={jobTitleInclude}
+                onChange={(e) => setJobTitleInclude(e.target.value)}
+                placeholder="AI, analytics"
+                aria-label="Include job titles"
+              />
+            </label>
+            <label className="run-page-size" htmlFor="jobResultsTitleExclude">
+              Exclude job titles
+              <textarea
+                id="jobResultsTitleExclude"
+                className="field"
+                rows={2}
+                value={jobTitleExclude}
+                onChange={(e) => setJobTitleExclude(e.target.value)}
+                placeholder="duales"
+                aria-label="Exclude job titles"
+              />
+            </label>
             <div className="results-toolbar-actions">
               <label className="run-page-size" htmlFor="jobResultsSort">
                 Sort by:

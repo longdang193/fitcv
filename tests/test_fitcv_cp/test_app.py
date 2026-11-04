@@ -1436,6 +1436,8 @@ def test_new_scan_dialog_uses_shared_run_dialog_structure() -> None:
     assert 'dialog.workspace-dialog.run-dialog{width:' not in response.text
     assert 'id="scan-job-titles" name="job_titles" type="text"' in response.text
     assert 'placeholder="Data Engineer, Analytics Engineer"' in response.text
+    assert 'id="scan-excluded-job-titles" name="excluded_job_titles" type="text"' in response.text
+    assert 'placeholder="duales, contractor"' in response.text
     assert 'id="scan-locations" name="locations" type="text"' in response.text
     assert 'placeholder="Berlin, Germany"' in response.text
     assert '>Start Scan</button>' in response.text
@@ -4641,6 +4643,81 @@ def test_synonym_approve_forwards_policy_revisions() -> None:
     }
 
 
+def test_synonym_approve_all_forwards_filters_and_cross_type_revisions() -> None:
+    app = _app()
+    captured: dict[str, object] = {}
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "approve-all-1", "replayed": False, "response": None,
+    }
+    app.state.run_store.complete_idempotent_action_fn = lambda *_args: None
+
+    def approve_all(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"selected_count": 2, "approved_count": 2, "blocked_count": 0}
+
+    app.state.run_store.approve_all_synonym_suggestions_fn = approve_all
+    response = TestClient(app).post(
+        "/synonym-suggestions/actions/approve-all",
+        headers={"Idempotency-Key": "approve-all-key"},
+        json={
+            "synonym_type": None,
+            "search": " AI ",
+            "expected_revisions": {
+                "skills": {"expected_draft_revision": 3, "expected_active_bundle_revision_id": "bundle-2"},
+                "domain": {"expected_draft_revision": 4, "expected_active_bundle_revision_id": None},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "synonym_type": None,
+        "search": "AI",
+        "expected_revisions": {
+            "skills": {"expected_draft_revision": 3, "expected_active_bundle_revision_id": "bundle-2"},
+            "domain": {"expected_draft_revision": 4, "expected_active_bundle_revision_id": None},
+        },
+        "acted_by": "admin",
+    }
+
+
+def test_synonym_approve_all_returns_in_progress_for_reserved_duplicate() -> None:
+    app = _app()
+    app.state.run_store.reserve_idempotent_action_fn = lambda *_args: {
+        "action_id": "approve-all-pending", "replayed": True, "response": None,
+    }
+
+    response = TestClient(app).post(
+        "/synonym-suggestions/actions/approve-all",
+        headers={"Idempotency-Key": "approve-all-pending-key"},
+        json={"expected_revisions": {}},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "idempotency_in_progress"
+
+
+def test_run_jobs_forwards_repeated_title_filters(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _app()
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("fitcv_cp.app.sqlite_store_module.run_exists", lambda run_id: run_id == "run-1")
+    app.state.run_store.query_run_jobs_fn = lambda run_id, **kwargs: (
+        captured.update(run_id=run_id, **kwargs)
+        or {
+            "items": [], "total": 0, "total_evaluated": 0,
+            "passed": 0, "rejected": 0, "skipped": 0,
+        }
+    )
+
+    response = TestClient(app).get(
+        "/runs/run-1/jobs?job_title_include=AI&job_title_include=Data%20Scientist&job_title_exclude=duales"
+    )
+
+    assert response.status_code == 200
+    assert captured["job_title_include"] == ["ai", "data scientist"]
+    assert captured["job_title_exclude"] == ["duales"]
+
+
 def test_runs_rejects_invalid_page_size_with_machine_error() -> None:
     resp = TestClient(_app()).get("/runs?page_size=25")
 
@@ -4705,6 +4782,8 @@ def test_run_stages_and_jobs_use_canonical_envelopes(monkeypatch: pytest.MonkeyP
         "passed": 1,
         "rejected": 0,
         "skipped": 0,
+        "job_title_include": [],
+        "job_title_exclude": [],
     }
     assert detail_calls == ["run-1", "run-1"]
 
@@ -15608,11 +15687,141 @@ def test_export_full_run_jobs_includes_enriched_job_payload():
     assert manifest["row_count"] == 1
 
 
+def test_export_full_run_jobs_preserves_duplicate_url_occurrences() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-duplicate-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.get_run_fn = lambda _run_id: run
+    app.state.run_store.get_run_detail_fn = lambda _run_id: {"run_id": run.run_id}
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-1",
+                "source_url": "https://jobs.example.test/same",
+                "title": "AI Analyst",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/same", "marker": "first"},
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "skills": [],
+            },
+            {
+                "run_job_id": "job-2",
+                "source_url": "https://jobs.example.test/same",
+                "title": "AI Engineer",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/same", "marker": "second"},
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "skills": [],
+            },
+        ]
+    )
+
+    response = TestClient(app).get(
+        "/runs/run-duplicate-export/jobs/export.full.zip?job_title_include=AI"
+    )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        rows = [
+            json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode("utf-8").splitlines()
+            if line
+        ]
+    assert [row["raw_job"]["marker"] for row in rows] == ["first", "second"]
+
+
 def test_export_full_run_jobs_rejects_unknown_sort_value() -> None:
     response = TestClient(_app()).get("/runs/run-1/jobs/export.full.zip?sort=unknown")
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_failed"
+
+
+def test_export_full_run_jobs_rejects_unknown_stage_from_canonical_selector() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-invalid-stage-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = MagicMock(
+        side_effect=ValueError("stage must be all or a canonical stage id")
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-invalid-stage-export/jobs/export.full.zip?stage=invalid"
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_failed"
+
+
+def test_export_full_run_jobs_preserves_pipeline_outcome_filter_and_avoids_detail_read() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-outcome-filter-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.get_run_detail_fn = MagicMock(
+        side_effect=AssertionError("canonical export must use one selection snapshot")
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-accepted",
+                "source_url": "https://jobs.example.test/accepted",
+                "title": "Accepted AI Role",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/accepted"},
+                "outcome_code": "accepted",
+                "result_bucket": "passed",
+                "skills": [],
+            },
+            {
+                "run_job_id": "job-held",
+                "source_url": "https://jobs.example.test/held",
+                "title": "Held AI Role",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/held"},
+                "outcome_code": "held",
+                "result_bucket": "passed",
+                "skills": [],
+            },
+        ]
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-outcome-filter-export/jobs/export.full.zip?pipeline_outcome=accepted"
+        )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        rows = [
+            json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+        manifest = json.loads(archive.read("jobs.filtered.manifest.json"))
+    assert [row["job_url"] for row in rows] == ["https://jobs.example.test/accepted"]
+    assert manifest["filters"]["pipeline_outcome"] == ["accepted"]
 
 
 def test_export_full_run_jobs_preserves_nested_score_sort() -> None:

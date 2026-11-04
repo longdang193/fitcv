@@ -28,6 +28,7 @@ import re
 import secrets
 import sqlite3
 import sys
+import tempfile
 import time
 import uuid
 import zipfile
@@ -41,7 +42,7 @@ import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile, File, Form
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, ValidationError as PydanticValidationError, field_validator
 
@@ -121,6 +122,7 @@ from fitcv.pipeline_contracts import (
     timeline_stage_label,
 )
 from fitcv.ranking_contract import normalize_score_state
+from fitcv.rule_filter import evaluate_title_filter, normalize_title_keywords
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
 from fitcv.prompts import get_prompt_definition, render_prompt, required_template_variables
 from fitcv.prompts.loader import load_prompt_template
@@ -4385,6 +4387,12 @@ def _job_lookup_keys(row: dict[str, Any]) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
 
+    run_job_id = str(row.get("run_job_id") or "").strip()
+    if run_job_id:
+        id_key = f"id:{run_job_id}"
+        keys.append(id_key)
+        seen.add(id_key)
+
     raw_job_fingerprint = str(row.get("raw_job_fingerprint") or "").strip()
     if raw_job_fingerprint:
         fingerprint_key = f"fp:{raw_job_fingerprint}"
@@ -5018,14 +5026,35 @@ def _build_enriched_tab_context(
     canonical_jobs_by_id: dict[str, dict[str, Any]] = {}
     if enriched_jobs:
         try:
-            canonical_job_page = run_store.query_run_jobs(
-                run_id,
-                page=1,
-                page_size=10_000,
-                stage=None,
-            )
-        except Exception:
-            canonical_job_page = {}
+            canonical_job_page = {
+                "items": list(
+                    run_store.iter_run_jobs_for_export(
+                        run_id,
+                        stage="all",
+                        result_bucket="all",
+                        sort="title_asc",
+                    )
+                )
+            }
+        except (AttributeError, RuntimeError):
+            try:
+                canonical_job_page = {
+                    "items": list(
+                        (
+                            run_store.query_run_jobs(
+                                run_id,
+                                page=1,
+                                page_size=500,
+                                stage="all",
+                                result_bucket="all",
+                                sort="title_asc",
+                            ).get("items")
+                            or []
+                        )
+                    )
+                }
+            except (AttributeError, RuntimeError, ValueError):
+                canonical_job_page = {}
         canonical_jobs_by_id = {
             str(row.get("run_job_id") or ""): row
             for row in canonical_job_page.get("items", [])
@@ -6339,6 +6368,15 @@ class SynonymSuggestionActionRequest(BaseModel):
 class SynonymSuggestionApproveRequest(SynonymSuggestionActionRequest):
     expected_draft_revision: int
     expected_active_bundle_revision_id: str | None
+
+class SynonymPolicyRevisionExpectation(BaseModel):
+    expected_draft_revision: int
+    expected_active_bundle_revision_id: str | None
+
+class SynonymSuggestionApproveAllRequest(BaseModel):
+    synonym_type: Literal["skills", "domain", "role_family"] | None = None
+    search: str = ""
+    expected_revisions: dict[str, SynonymPolicyRevisionExpectation]
 
 class SynonymProcessingResource(BaseModel):
     model_config = {"extra": "allow"}
@@ -11161,6 +11199,13 @@ def create_app(
         )
         if reservation.get("replayed") and reservation.get("response") is not None:
             return _data_response(reservation["response"])
+        if reservation.get("replayed"):
+            raise ApiError(
+                409,
+                "idempotency_in_progress",
+                "An earlier synonym action is still in progress.",
+                action="Retry after the earlier request completes.",
+            )
         try:
             resource = store.transition_candidate_profile_lifecycle(
                 profile_id, lifecycle=lifecycle, expected_revision=body.expected_revision
@@ -11350,6 +11395,50 @@ def create_app(
     @app.post("/synonym-suggestions/actions/approve", response_model=FlexibleEnvelope)
     def approve_synonym_suggestions(request: Request, body: SynonymSuggestionApproveRequest) -> dict[str, Any]:
         return _apply_synonym_action(request, body, "approve")
+
+    @app.post("/synonym-suggestions/actions/approve-all", response_model=FlexibleEnvelope)
+    def approve_all_synonym_suggestions(
+        request: Request, body: SynonymSuggestionApproveAllRequest
+    ) -> dict[str, Any]:
+        key = _required_idempotency_key(request)
+        synonym_type = body.synonym_type
+        search = body.search.strip()
+        expected_revisions = {
+            synonym_type: revision.model_dump()
+            for synonym_type, revision in body.expected_revisions.items()
+        }
+        store = _resolve_run_store()
+        reservation = store.reserve_idempotent_action(
+            "synonym-suggestions:approve-all",
+            key,
+            _request_fingerprint({
+                "synonym_type": synonym_type,
+                "search": search,
+                "expected_revisions": expected_revisions,
+            }),
+        )
+        if reservation.get("replayed") and reservation.get("response") is not None:
+            return _data_response(reservation["response"])
+        if reservation.get("replayed"):
+            raise ApiError(
+                409,
+                "idempotency_in_progress",
+                "An earlier Approve All action is still in progress.",
+                action="Retry after the earlier request completes.",
+            )
+        try:
+            summary = store.approve_all_synonym_suggestions(
+                synonym_type=synonym_type,
+                search=search,
+                expected_revisions=expected_revisions,
+                acted_by="admin",
+            )
+        except (ValueError, sqlite_store_module.SynonymPolicyRevisionConflict) as exc:
+            code = str(exc)
+            status_code = 409 if code == "revision_conflict" else 422
+            raise ApiError(status_code, code, "Approve All was rejected.") from exc
+        store.complete_idempotent_action(str(reservation["action_id"]), summary)
+        return _data_response(summary)
 
     @app.post("/synonym-suggestions/actions/decline", response_model=FlexibleEnvelope)
     def decline_synonym_suggestions(request: Request, body: SynonymSuggestionActionRequest) -> dict[str, Any]:
@@ -11778,6 +11867,7 @@ def create_app(
 
     @app.get("/runs/{run_id}/jobs")
     def get_run_jobs(
+        request: Request,
         run_id: str,
         page: int = 1,
         page_size: int = 10,
@@ -11786,6 +11876,8 @@ def create_app(
         result_bucket: str = "all",
         sort: str = "score_desc",
     ) -> dict[str, Any]:
+        job_title_include = normalize_title_keywords(request.query_params.getlist("job_title_include"))
+        job_title_exclude = normalize_title_keywords(request.query_params.getlist("job_title_exclude"))
         page, page_size = _validated_page(page, page_size)
         if sort not in {"score_desc", "title_asc"}:
             raise ApiError(
@@ -11812,6 +11904,8 @@ def create_app(
                 stage=stage,
                 result_bucket=result_bucket,
                 sort=sort,
+                job_title_include=job_title_include,
+                job_title_exclude=job_title_exclude,
             )
         except ValueError as exc:
             raise ApiError(
@@ -11838,6 +11932,8 @@ def create_app(
                 "passed": int(result.get("passed") or 0),
                 "rejected": int(result.get("rejected") or 0),
                 "skipped": int(result.get("skipped") or 0),
+                "job_title_include": job_title_include,
+                "job_title_exclude": job_title_exclude,
             },
         )
 
@@ -12116,12 +12212,15 @@ def create_app(
 
     @app.get("/runs/{run_id}/jobs/export.csv")
     def export_canonical_run_jobs(
+        request: Request,
         run_id: str,
         search: str = "",
         stage: str = "all",
         result_bucket: str = "all",
         sort: str = "score_desc",
     ) -> Response:
+        job_title_include = normalize_title_keywords(request.query_params.getlist("job_title_include"))
+        job_title_exclude = normalize_title_keywords(request.query_params.getlist("job_title_exclude"))
         store = _resolve_run_store()
         if store.get_run_detail(run_id) is None:
             raise ApiError(404, "run_not_found", "Run not found.", action="Refresh Runs.")
@@ -12132,6 +12231,8 @@ def create_app(
                 stage=stage,
                 result_bucket=result_bucket,
                 sort=sort,
+                job_title_include=job_title_include,
+                job_title_exclude=job_title_exclude,
             )
             output = io.StringIO(newline="")
             writer = csv.writer(output, lineterminator="\n")
@@ -12173,16 +12274,27 @@ def create_app(
                 field_errors=[{"field": "sort", "code": "invalid_value", "message": "Use score_desc or title_asc."}],
                 action="Choose a supported sort order and retry.",
             )
-        return _build_enriched_filtered_export_zip(
-            request=request,
-            run_id=run_id,
-            stage=stage,
-            filter_name=result_bucket,
-            q=search,
-            sort=sort,
-            include_enriched=True,
-            filename=f"fitcv-run-{run_id}-full-export.zip",
-        )
+        try:
+            return _build_enriched_filtered_export_zip(
+                request=request,
+                run_id=run_id,
+                stage=stage,
+                filter_name=result_bucket,
+                q=search,
+                sort=sort,
+                job_title_include=normalize_title_keywords(request.query_params.getlist("job_title_include")),
+                job_title_exclude=normalize_title_keywords(request.query_params.getlist("job_title_exclude")),
+                include_enriched=True,
+                filename=f"fitcv-run-{run_id}-full-export.zip",
+            )
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[{"field": "filters", "code": "invalid_value", "message": str(exc)}],
+                action="Fix highlighted fields and retry.",
+            ) from exc
 
     @app.get("/runs/{run_id}/jobs/{run_job_id}/cvs")
     def get_canonical_cv_versions(run_id: str, run_job_id: str) -> dict[str, Any]:
@@ -16187,6 +16299,8 @@ def create_app(
         filter_name: str = "all",
         q: str = "",
         sort: str = "score_desc",
+        job_title_include: list[str] | None = None,
+        job_title_exclude: list[str] | None = None,
         include_enriched: bool = False,
         filename: str | None = None,
     ) -> Response:
@@ -16194,23 +16308,65 @@ def create_app(
         selected_pipeline_outcomes = _selected_enriched_pipeline_outcomes(
             request.query_params.getlist("pipeline_outcome")
         )
-        context = _build_enriched_tab_context(
-            run,
-            run_id=run_id,
-            client=client,
-            stage=stage,
-            filter_name=filter_name,
-            query=q,
-            sort=sort,
-            pipeline_outcomes=selected_pipeline_outcomes,
-            page=1,
-            page_size=1_000_000,
-        )
+        normalized_title_include = normalize_title_keywords(job_title_include)
+        normalized_title_exclude = normalize_title_keywords(job_title_exclude)
+        run_store = _resolve_run_store(client=client)
+        canonical_rows: list[dict[str, Any]] = []
+        canonical_selection_available = False
+        if include_enriched:
+            try:
+                canonical_rows = list(
+                    run_store.iter_run_jobs_for_export(
+                        run_id,
+                        stage=stage,
+                        result_bucket=filter_name,
+                        search=q,
+                        sort=sort,
+                        job_title_include=normalized_title_include,
+                        job_title_exclude=normalized_title_exclude,
+                    )
+                )
+                canonical_selection_available = True
+            except (AttributeError, RuntimeError):
+                canonical_rows = []
 
-        filtered_jobs = list(context.get("enriched_jobs") or [])
-        outcomes_by_url = dict(context.get("pipeline_outcomes_by_job_url") or {})
-        filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
-        selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
+        if canonical_selection_available:
+            filtered_jobs = [
+                row
+                for row in canonical_rows
+                if not selected_pipeline_outcomes
+                or not str(row.get("outcome_code") or row.get("pipeline_status") or "").strip()
+                or str(row.get("outcome_code") or row.get("pipeline_status") or "").strip()
+                in selected_pipeline_outcomes
+            ]
+            outcomes_by_url: dict[str, dict[str, Any]] = {}
+            filter_results_by_job_url: dict[str, dict[str, Any]] = {}
+            selected_outcomes = list(selected_pipeline_outcomes)
+        else:
+            context = _build_enriched_tab_context(
+                run,
+                run_id=run_id,
+                client=client,
+                stage=stage,
+                filter_name=filter_name,
+                query=q,
+                sort=sort,
+                pipeline_outcomes=selected_pipeline_outcomes,
+                page=1,
+                page_size=50,
+            )
+            filtered_jobs = [
+                job
+                for job in list(context.get("enriched_jobs") or [])
+                if evaluate_title_filter(
+                    job.get("title"),
+                    include_keywords=normalized_title_include,
+                    exclude_keywords=normalized_title_exclude,
+                )["passed"]
+            ]
+            outcomes_by_url = dict(context.get("pipeline_outcomes_by_job_url") or {})
+            filter_results_by_job_url = dict(context.get("filter_results_by_job_url") or {})
+            selected_outcomes = list(context.get("enriched_selected_pipeline_outcomes") or [])
 
         raw_jobs_by_url = _raw_jobs_by_url_from_run_input(run)
 
@@ -16221,14 +16377,32 @@ def create_app(
             job_url = str(job.get("job_url") or job.get("source_url") or job.get("jobUrl") or "").strip()
             if not job_url:
                 continue
-            raw_job = raw_jobs_by_url.get(job_url)
+            raw_job = job.get("source_snapshot") if isinstance(job.get("source_snapshot"), dict) else None
+            raw_job = raw_job or raw_jobs_by_url.get(job_url)
             if not isinstance(raw_job, dict):
                 dropped_rows.append({"job_url": job_url, "reason": "missing_raw_job"})
                 continue
 
-            outcome_row = _lookup_row_by_lookup_key(outcomes_by_url, job)
+            outcome_row = (
+                {
+                    "status": str(job.get("outcome_code") or job.get("status") or "").strip(),
+                    "pipeline_status": str(job.get("outcome_code") or job.get("status") or "").strip(),
+                }
+                if canonical_rows
+                else _lookup_row_by_lookup_key(outcomes_by_url, job)
+            )
             pipeline_status = str(outcome_row.get("status") or "").strip()
-            filter_row = _lookup_row_by_lookup_key(filter_results_by_job_url, job)
+            filter_row = (
+                {
+                    "passed": (
+                        True if str(job.get("result_bucket") or "") == "passed"
+                        else False if str(job.get("result_bucket") or "") in {"rejected", "skipped"}
+                        else None
+                    )
+                }
+                if canonical_rows
+                else _lookup_row_by_lookup_key(filter_results_by_job_url, job)
+            )
             passed = filter_row.get("passed")
             filter_status = "UNKNOWN"
             if passed is True:
@@ -16262,35 +16436,54 @@ def create_app(
             export_rows.sort(key=lambda row: order.get(str(row.get("job_url") or ""), len(order)))
         else:
             export_rows.sort(key=lambda row: str(row.get("job_url") or ""))
-        jsonl_text = "\n".join(_json.dumps(row, ensure_ascii=False) for row in export_rows)
-        jsonl_bytes = (jsonl_text + ("\n" if jsonl_text else "")).encode("utf-8")
-        checksum = hashlib.sha256(jsonl_bytes).hexdigest()
+        archive_fd, archive_name = tempfile.mkstemp(prefix=f"fitcv-{run_id}-", suffix=".zip")
+        os.close(archive_fd)
+        archive_path = Path(archive_name)
+        try:
+            with zipfile.ZipFile(archive_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+                checksum = hashlib.sha256()
+                with archive.open("jobs.filtered.jsonl", mode="w") as jsonl_file:
+                    for row in export_rows:
+                        line = (_json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
+                        checksum.update(line)
+                        jsonl_file.write(line)
 
-        manifest = {
-            "schema_version": "rerun_export_manifest.v1",
-            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "source_run_id": run_id,
-            "export_id": str(uuid.uuid4()),
-            "filters": {
-                "filter_name": str(filter_name or "all"),
-                "q": str(q or ""),
-                "pipeline_outcome": selected_outcomes,
-            },
-            "row_count": len(export_rows),
-            "ordering": sort if include_enriched else "job_url_asc",
-            "jsonl_file": "jobs.filtered.jsonl",
-            "checksum_sha256": checksum,
-            "warnings": dropped_rows,
-        }
+                manifest = {
+                    "schema_version": "rerun_export_manifest.v1",
+                    "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "source_run_id": run_id,
+                    "export_id": str(uuid.uuid4()),
+                    "filters": {
+                        "filter_name": str(filter_name or "all"),
+                        "q": str(q or ""),
+                        "pipeline_outcome": selected_outcomes,
+                        "job_title_include": normalized_title_include,
+                        "job_title_exclude": normalized_title_exclude,
+                    },
+                    "row_count": len(export_rows),
+                    "ordering": sort if include_enriched else "job_url_asc",
+                    "jsonl_file": "jobs.filtered.jsonl",
+                    "checksum_sha256": checksum.hexdigest(),
+                    "warnings": dropped_rows,
+                }
+                archive.writestr(
+                    "jobs.filtered.manifest.json",
+                    _json.dumps(manifest, ensure_ascii=False, indent=2),
+                )
+        except Exception:
+            archive_path.unlink(missing_ok=True)
+            raise
 
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("jobs.filtered.jsonl", jsonl_bytes)
-            archive.writestr("jobs.filtered.manifest.json", _json.dumps(manifest, ensure_ascii=False, indent=2))
-        buffer.seek(0)
+        def stream_archive() -> Any:
+            try:
+                with archive_path.open("rb") as archive_file:
+                    while chunk := archive_file.read(1024 * 1024):
+                        yield chunk
+            finally:
+                archive_path.unlink(missing_ok=True)
 
-        return Response(
-            content=buffer.getvalue(),
+        return StreamingResponse(
+            stream_archive(),
             media_type="application/zip",
             headers={
                 "Content-Disposition": (

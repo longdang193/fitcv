@@ -15,6 +15,7 @@ tags:
 
 import hashlib
 import json
+from contextlib import nullcontext
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -694,7 +695,10 @@ def _minimal_config() -> dict:
             "final_top_n": 2,
             "evidence_top_k": 3,
         },
-        "ranking_policy": {"policy_version": "ranking-v2"},
+        "ranking_policy": {
+            "policy_version": "ranking-v2",
+            "fit_label_thresholds": {"strong": 0.70, "stretch": 0.40},
+        },
         "decision_learning_policy": {
             "domain_id": "ranking_v1",
             "inverse_optimization": {
@@ -805,6 +809,49 @@ def _minimal_structured_cv() -> dict:
             "languages": [],
         },
     }
+
+
+def test_execute_ranking_stage_preserves_empty_evidence_ranking_input() -> None:
+    from fitcv.pipeline_stage_runner import execute_ranking_stage
+
+    job = _minimal_job()
+    profile = {**_minimal_profile(), "skills": [], "experiences": [], "projects": []}
+    config = _minimal_config()
+    captured: dict[str, Any] = {}
+
+    def fingerprint(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        captured["fingerprint_ranking_input"] = kwargs["ranking_input"]
+        return {"fingerprint": "empty-evidence-fingerprint"}
+
+    def score(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        captured["scoring_ranking_inputs"] = kwargs["ranking_inputs"]
+        return [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
+
+    with patch("fitcv.pipeline_stage_runner.select_ranking_evidence", return_value=[]):
+        execute_ranking_stage(
+            run_id="empty-evidence-ranking-input",
+            state={},
+            shortlist=[job],
+            candidate_summary="candidate",
+            profile=profile,
+            config=config,
+            final_top_n=1,
+            reporter=None,
+            pipeline_store=MagicMock(),
+            observe_span=lambda *_args, **_kwargs: nullcontext(),
+            set_span_attributes=lambda _attrs: None,
+            cancellation_check=None,
+            cancellation_error_cls=RuntimeError,
+            ranking_ai_score_reuse_index={},
+            build_ai_score_input_fingerprint=fingerprint,
+            extract_job_url=lambda value: str(value.get("job_url") or ""),
+            run_ai_scoring=score,
+            build_ranking_features=MagicMock(),
+            rank_jobs=MagicMock(),
+        )
+
+    assert captured["fingerprint_ranking_input"]["candidate_evidence"] == []
+    assert captured["scoring_ranking_inputs"][job["job_url"]]["candidate_evidence"] == []
 
 def _minimal_runtime_evidence(
     *,

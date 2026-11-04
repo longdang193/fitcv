@@ -19,6 +19,7 @@ lifecycle:
 
 import logging
 import re
+from functools import lru_cache
 from datetime import datetime, timezone
 from typing import Any
 
@@ -100,6 +101,7 @@ def normalize_title_keywords(values: Any) -> list[str]:
     return normalized
 
 
+@lru_cache(maxsize=256)
 def _title_keyword_pattern(keyword: str) -> re.Pattern[str]:
     escaped = re.escape(keyword).replace(r"\ ", r"\s+")
     return re.compile(rf"(?<!\w){escaped}(?!\w)", re.IGNORECASE)

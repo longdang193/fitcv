@@ -11,6 +11,7 @@ import {
   retainEventCursor,
   shouldLoadRunJobs,
 } from "./run-detail-page";
+import { parsePipelineResultTitleFilters } from "./title-filters";
 import { isRunPollingActive, PipelineRunResource, RunJobItem } from "../runs/types";
 
 function createMockRun(runId: string, status: string = "running"): PipelineRunResource {
@@ -114,14 +115,24 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
   describe("buildRunJobsQueryKey", () => {
     it("includes sort in the canonical query identity", () => {
       const key = buildRunJobsQueryKey("run-123", "ranking", "all", "engineer", "score_desc", 1, 10);
-      expect(key).toBe("run-123::ranking::all::engineer::score_desc::1::10");
+      expect(key).toBe("run-123::ranking::all::engineer::::::score_desc::1::10");
     });
 
     it("trims whitespace from search parameter for identity stability", () => {
       const key1 = buildRunJobsQueryKey("run-123", "ranking", "all", "  backend python  ", "score_desc", 1, 10);
       const key2 = buildRunJobsQueryKey("run-123", "ranking", "all", "backend python", "score_desc", 1, 10);
-      expect(key1).toBe("run-123::ranking::all::backend python::score_desc::1::10");
+      expect(key1).toBe("run-123::ranking::all::backend python::::::score_desc::1::10");
       expect(key1).toBe(key2);
+    });
+
+    it("distinguishes title inclusion and exclusion filters", () => {
+      const base = buildRunJobsQueryKey("run-1", "ranking", "all", "", "score_desc", 1, 10);
+      const included = buildRunJobsQueryKey("run-1", "ranking", "all", "", "score_desc", 1, 10, ["AI"], []);
+      const excluded = buildRunJobsQueryKey("run-1", "ranking", "all", "", "score_desc", 1, 10, [], ["duales"]);
+
+      expect(base).not.toBe(included);
+      expect(base).not.toBe(excluded);
+      expect(included).not.toBe(excluded);
     });
 
     it("distinguishes queries across run IDs, stages, buckets, pages, and page sizes", () => {
@@ -142,6 +153,13 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
       expect(base).not.toBe(differentPage);
       expect(base).not.toBe(differentSize);
     });
+  });
+
+  it("parses pipeline title filters from comma- or newline-separated values", () => {
+    expect(parsePipelineResultTitleFilters(" AI, Data Scientist\nAI ")).toEqual([
+      "AI",
+      "Data Scientist",
+    ]);
   });
 
   describe("Request Identity and Stale-Response Rejection", () => {

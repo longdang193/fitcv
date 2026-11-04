@@ -377,7 +377,7 @@ def execute_ranking_stage(
             selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
             ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
-            if ranking_input["candidate_evidence"] and extract_job_url(shortlisted_job):
+            if extract_job_url(shortlisted_job):
                 ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
             top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
             try:
@@ -386,7 +386,7 @@ def execute_ranking_stage(
                     candidate_summary,
                     top_evidence,
                     config,
-                    **({"ranking_input": ranking_input} if ranking_input["candidate_evidence"] else {}),
+                    ranking_input=ranking_input,
                     resolved_route=resolved_route,
                 )
             except Exception:
