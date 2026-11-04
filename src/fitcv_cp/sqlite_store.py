@@ -14097,6 +14097,9 @@ def get_run_job(run_id: str, run_job_id: str) -> dict[str, Any] | None:
         return _hydrate_run_job_ids(conn, run_id, [run_job_id])[0] if row else None
 
 
+_RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE = 200
+
+
 def iter_run_jobs_for_export(
     run_id: str,
     *,
@@ -14127,12 +14130,24 @@ def iter_run_jobs_for_export(
             (run_id,),
         ).fetchone() is None:
             raise RuntimeError(f"run not found: {run_id}")
-        rows_by_id = {
-            str(row.get("run_job_id") or ""): row
-            for row in _hydrate_run_job_ids(conn, run_id, selected_ids, stage=stage)
-        }
-        rows = [rows_by_id[run_job_id] for run_job_id in selected_ids if run_job_id in rows_by_id]
-    return iter(rows)
+
+    def iter_selected_rows() -> Iterator[dict[str, Any]]:
+        with _sqlite_connection(database_path, read_only=True) as conn:
+            conn.row_factory = sqlite3.Row
+            _require_control_plane_schema(conn)
+            conn.execute("BEGIN")
+            for offset in range(0, len(selected_ids), _RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE):
+                batch_ids = selected_ids[offset:offset + _RUN_JOB_EXPORT_HYDRATION_BATCH_SIZE]
+                rows_by_id = {
+                    str(row.get("run_job_id") or ""): row
+                    for row in _hydrate_run_job_ids(conn, run_id, batch_ids, stage=stage)
+                }
+                for run_job_id in batch_ids:
+                    row = rows_by_id.get(run_job_id)
+                    if row is not None:
+                        yield row
+
+    return iter_selected_rows()
 
 
 def list_run_structured_jobs(

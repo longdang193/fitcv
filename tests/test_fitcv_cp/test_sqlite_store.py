@@ -5015,6 +5015,29 @@ def test_query_and_export_preserve_duplicate_url_occurrences() -> None:
     assert [row["source_snapshot"]["marker"] for row in exported] == ["first", "second"]
 
 
+def test_export_hydrates_selected_jobs_in_bounded_batches(monkeypatch: pytest.MonkeyPatch) -> None:
+    run_id = "run-export-hydration-batches"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": f"Job {index:03d}", "job_url": f"https://example.com/{index}"} for index in range(450)],
+    )
+    original_hydrate = sqlite_store._hydrate_run_job_ids
+    batch_sizes: list[int] = []
+
+    def capture_batch_size(*args: object, **kwargs: object) -> list[dict[str, object]]:
+        run_job_ids = args[2]
+        batch_sizes.append(len(run_job_ids))
+        return original_hydrate(*args, **kwargs)
+
+    monkeypatch.setattr(sqlite_store, "_hydrate_run_job_ids", capture_batch_size)
+
+    exported = list(sqlite_store.iter_run_jobs_for_export(run_id, stage="all"))
+
+    assert len(exported) == 450
+    assert len(batch_sizes) > 1
+    assert max(batch_sizes) <= 200
+
+
 def test_approve_all_synonym_suggestions_uses_cross_type_revision_snapshot() -> None:
     for run_id in ("run-approve-all-skills", "run-approve-all-domain"):
         sqlite_store.insert_run(_make_run(run_id))

@@ -89,10 +89,16 @@ Scan-owned; Pipeline Results filters are transient read-only query state.
   Search filters, not approved/declined rows and not only the current page.
 - The backend owns the authoritative selection and count; the browser never
   expands the action into a client-side list of IDs.
-- The approve-all request uses the existing required `Idempotency-Key` flow.
-  Retrying the same key/fingerprint replays the stored response.
-- A policy conflict or persistence failure must not leave a partial approve-all
-  result. Existing single/batch approve behavior remains unchanged.
+- The approve-all request uses the existing required `Idempotency-Key` flow and
+  carries the expected draft and active-bundle revisions for the selected
+  cross-type snapshot. The revision values are part of the idempotency
+  fingerprint, so a retry cannot replay a response for a different snapshot.
+- A policy conflict commits deterministic blocked/skipped results and counts,
+  preserving existing single/batch approval semantics. Revision conflicts,
+  audit failures, and persistence failures roll back the complete operation.
+  Existing single/batch approve behavior remains unchanged.
+- If a duplicate idempotency key is currently reserved without a stored
+  response, return `409 idempotency_in_progress`; never re-enter the mutation.
 - Pipeline Results title filters are query-time display/export filters. They are
   not run settings, are not persisted into the run effective-settings snapshot,
   and do not affect source acquisition or pipeline stages.
@@ -128,7 +134,7 @@ Scan-owned; Pipeline Results filters are transient read-only query state.
 
 **Files And Symbols:**
 - Inspect: `src/fitcv_cp/app.py:SynonymSuggestionActionRequest`, `_apply_synonym_action`, and synonym action routes
-- Inspect: `src/fitcv_cp/store.py:apply_synonym_suggestion_action`
+- Inspect: `src/fitcv_cp/store.py:apply_synonym_suggestion_action`, idempotency wrapper
 - Inspect: `src/fitcv_cp/sqlite_store.py:query_synonym_suggestions`, `apply_synonym_suggestion_action`, `_record_synonym_processing_run`
 - Modify: `src/fitcv_cp/app.py` with an approve-all request model and `POST /synonym-suggestions/actions/approve-all`
 - Modify: `src/fitcv_cp/store.py` with the store protocol/delegating wrapper for the new operation
@@ -144,10 +150,10 @@ Scan-owned; Pipeline Results filters are transient read-only query state.
 - Stop for: a required schema migration, a change to existing single/batch approve semantics, partial-commit behavior, or a need to expose private policy data in the response.
 
 **Steps:**
-- [ ] Step 1: Add a request shape carrying optional normalized `synonym_type` and `search` filters; reserve/replay the idempotency action using the filter fingerprint.
+- [ ] Step 1: Add a request shape carrying optional normalized `synonym_type` and `search` filters plus the expected draft and active-bundle revision values (or one server-issued snapshot token that resolves to them); reserve/replay the idempotency action using filters and revision preconditions in the fingerprint.
 - [ ] Step 2: Select all pending rows server-side using the same Type/Search semantics as the queue, group by synonym type, and reuse the existing policy activation/validation logic rather than duplicating it.
-- [ ] Step 3: Execute the multi-type operation in one write transaction; on revision conflict, policy-cycle/alias conflict, audit failure, or persistence error roll back all status/policy changes and return the existing machine-readable error shape.
-- [ ] Step 4: Return processing-run metadata and counts for selected, approved, skipped/blocked, and issue rows; make repeated idempotency requests replay the original response.
+- [ ] Step 3: Execute the multi-type operation in one write transaction; commit deterministic blocked/skipped counts for policy-cycle/alias conflicts, but roll back all status/policy changes for revision conflict, audit failure, or persistence error and return the existing machine-readable error shape.
+- [ ] Step 4: Return processing-run metadata and counts for selected, approved, skipped/blocked, and issue rows; replay completed idempotent requests and return `409 idempotency_in_progress` for an in-flight duplicate without re-entering the mutation.
 
 **Verification:**
 - [ ] `python -m pytest tests/test_fitcv_cp/test_sqlite_store.py -q`
@@ -252,13 +258,13 @@ Scan-owned; Pipeline Results filters are transient read-only query state.
 - Modify: `src/fitcv_cp/sqlite_store.py` to accept title include/exclude lists and call `evaluate_title_filter` before result-bucket totals/filtering
 - Modify: `src/fitcv_cp/app.py` to expose repeated `job_title_include` and `job_title_exclude` query parameters on jobs and export routes and include active filters in response/export metadata
 - Modify: `frontend/src/features/runs/api.ts` and `frontend/src/features/run-detail/run-detail-page.tsx` to serialize transient filter lists, include them in query identity, reload page 1 on changes, and pass them to exports
-- Add/modify: `frontend/src/lib/filter-values.ts` as the shared UI parser for comma/newline-separated terms; update `frontend/src/features/scans/new-scan-dialog.tsx` to consume it instead of owning a duplicate parser
+- Add/modify: a Pipeline Results-local helper (for example `frontend/src/features/run-detail/title-filters.ts`) for comma/newline-separated terms; do not modify `frontend/src/features/scans/new-scan-dialog.tsx` or its existing newline-only acquisition parser
 - Verify: `tests/test_rule_filter.py`, `tests/test_fitcv_cp/test_sqlite_store.py`, `tests/test_fitcv_cp/test_app.py`, `frontend/src/test/runs.test.ts`, `frontend/src/features/run-detail/run-detail-page.test.tsx`, and a New Run submission regression test
 
 **Dependencies:**
 - Reuse `evaluate_title_filter` as the backend SSOT; do not reimplement substring/word-boundary semantics in SQLite or TypeScript.
 - Preserve the existing generic `search` filter and stage/result-bucket semantics.
-- Keep the existing Scan title filters working through the shared frontend value parser; Scan remains acquisition-time filtering and Pipeline Results remains display/export-time filtering.
+- Keep Scan acquisition parsing and payload semantics unchanged; Pipeline Results owns a separate display/export-time parser and filter state.
 
 **Authority:**
 - Preauthorized local actions: update the named query/export/UI/parser files and focused tests; run backend/frontend verification and local browser flow.
@@ -267,7 +273,7 @@ Scan-owned; Pipeline Results filters are transient read-only query state.
 **Steps:**
 - [ ] Step 1: Add repeated-list query parameters and store arguments for `job_title_include`/`job_title_exclude`; normalize empty/duplicate terms and evaluate the title against the canonical predicate before totals and result-bucket filtering.
 - [ ] Step 2: Extend both export routes and the enriched full-export builder so active title filters produce the same row set and are recorded in export metadata.
-- [ ] Step 3: Add two accessible Pipeline Results controls (include and exclude, one term per line or comma-separated), parse them through the shared helper, and include normalized values in `buildRunJobsQueryKey` and all fetch/export calls.
+- [ ] Step 3: Add two accessible Pipeline Results controls (include and exclude, one term per line or comma-separated), parse them through the Pipeline Results-local helper, and include normalized values in `buildRunJobsQueryKey` and all fetch/export calls.
 - [ ] Step 4: Keep New Run unchanged; add a focused assertion that its submitted FormData contains only existing run-trigger fields and never `job_title_include`/`job_title_exclude`.
 - [ ] Step 5: Add acceptance cases: `Working Student – AI Analytics` kept; `Duales Studium – AI Engineering` excluded; `Retail Analytics Intern` excluded when `AI` is included; `AI/ML Engineer` kept; empty include admits all non-excluded titles.
 

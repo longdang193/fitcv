@@ -1436,8 +1436,6 @@ def test_new_scan_dialog_uses_shared_run_dialog_structure() -> None:
     assert 'dialog.workspace-dialog.run-dialog{width:' not in response.text
     assert 'id="scan-job-titles" name="job_titles" type="text"' in response.text
     assert 'placeholder="Data Engineer, Analytics Engineer"' in response.text
-    assert 'id="scan-excluded-job-titles" name="excluded_job_titles" type="text"' in response.text
-    assert 'placeholder="duales, contractor"' in response.text
     assert 'id="scan-locations" name="locations" type="text"' in response.text
     assert 'placeholder="Berlin, Germany"' in response.text
     assert '>Start Scan</button>' in response.text
@@ -15714,9 +15712,19 @@ def test_export_full_run_jobs_preserves_duplicate_url_occurrences() -> None:
             },
             {
                 "run_job_id": "job-2",
-                "source_url": "https://jobs.example.test/same",
+                "source_url": "https://jobs.example.test/middle",
                 "title": "AI Engineer",
-                "source_snapshot": {"jobUrl": "https://jobs.example.test/same", "marker": "second"},
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/middle", "marker": "middle"},
+                "result_bucket": "passed",
+                "outcome_code": "accepted",
+                "reason_code": "eligible",
+                "skills": [],
+            },
+            {
+                "run_job_id": "job-3",
+                "source_url": "https://jobs.example.test/same",
+                "title": "AI Manager",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/same", "marker": "last"},
                 "result_bucket": "passed",
                 "outcome_code": "accepted",
                 "reason_code": "eligible",
@@ -15726,7 +15734,7 @@ def test_export_full_run_jobs_preserves_duplicate_url_occurrences() -> None:
     )
 
     response = TestClient(app).get(
-        "/runs/run-duplicate-export/jobs/export.full.zip?job_title_include=AI"
+        "/runs/run-duplicate-export/jobs/export.full.zip?job_title_include=AI&sort=title_asc"
     )
 
     assert response.status_code == 200
@@ -15736,7 +15744,59 @@ def test_export_full_run_jobs_preserves_duplicate_url_occurrences() -> None:
             for line in archive.read("jobs.filtered.jsonl").decode("utf-8").splitlines()
             if line
         ]
-    assert [row["raw_job"]["marker"] for row in rows] == ["first", "second"]
+    assert [row["raw_job"]["marker"] for row in rows] == ["first", "middle", "last"]
+
+
+def test_export_full_run_jobs_keeps_canonical_rows_without_default_outcome_filter() -> None:
+    app = _app()
+    run = PipelineRun(
+        run_id="run-screening-export",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    app.state.run_store.iter_run_jobs_for_export_fn = lambda _run_id, **_kwargs: iter(
+        [
+            {
+                "run_job_id": "job-passed",
+                "source_url": "https://jobs.example.test/passed",
+                "title": "Passed",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/passed"},
+                "outcome_code": "passed",
+                "result_bucket": "passed",
+            },
+            {
+                "run_job_id": "job-rejected",
+                "source_url": "https://jobs.example.test/rejected",
+                "title": "Rejected",
+                "source_snapshot": {"jobUrl": "https://jobs.example.test/rejected"},
+                "outcome_code": "rejected",
+                "result_bucket": "rejected",
+            },
+        ]
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        response = TestClient(app).get(
+            "/runs/run-screening-export/jobs/export.full.zip?stage=screening&result_bucket=all"
+        )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        rows = [
+            json.loads(line)
+            for line in archive.read("jobs.filtered.jsonl").decode().splitlines()
+            if line
+        ]
+        manifest = json.loads(archive.read("jobs.filtered.manifest.json"))
+    assert [row["job_url"] for row in rows] == [
+        "https://jobs.example.test/passed",
+        "https://jobs.example.test/rejected",
+    ]
+    assert manifest["filters"]["pipeline_outcome"] == []
 
 
 def test_export_full_run_jobs_rejects_unknown_sort_value() -> None:
