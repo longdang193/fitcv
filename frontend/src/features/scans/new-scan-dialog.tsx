@@ -338,8 +338,8 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
             label="Job Titles"
             type="textarea"
             rows={2}
-            hint="One filter per line or comma-separated. Matches any if empty."
-            placeholder="Software Engineer&#10;Data Scientist"
+            hint={'Use AND/OR for expressions, e.g. "AI" AND "Analytics". Separate alternatives with commas or new lines.'}
+            placeholder={'"AI" AND "Analytics"'}
             value={jobTitles}
             onChange={(e) => setJobTitles(e.target.value)}
           />
@@ -348,8 +348,8 @@ export const NewScanDialog: React.FC<NewScanDialogProps> = ({
             label="Exclude Job Titles"
             type="textarea"
             rows={2}
-            hint="One keyword or phrase per line or comma-separated. Matching titles are excluded."
-            placeholder="duales&#10;contractor"
+            hint={'Use AND/OR for expressions, e.g. "Duales" OR "Contractor". Matching titles are excluded.'}
+            placeholder={'"Duales" OR "Contractor"'}
             value={excludedJobTitles}
             onChange={(e) => setExcludedJobTitles(e.target.value)}
           />

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   RunDetailPage,
+  RESULTS_FILTER_DEBOUNCE_MS,
   buildRunJobsQueryKey,
   getPendingCvReviewUncertainty,
   isTerminalRunStatus,
@@ -88,6 +89,10 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
     expect(shouldLoadRunJobs(createMockRun("ready"))).toBe(true);
   });
 
+  it("waits one second after results filter typing settles", () => {
+    expect(RESULTS_FILTER_DEBOUNCE_MS).toBe(1000);
+  });
+
   describe("Terminal status and event cursor rules", () => {
     it("recognizes only terminal backend statuses", () => {
       expect(isTerminalRunStatus("succeeded")).toBe(true);
@@ -155,9 +160,13 @@ describe("Run Detail Request Ownership and Polling Coordination", () => {
     });
   });
 
-  it("parses pipeline title filters from comma- or newline-separated values", () => {
+  it("parses pipeline title filters while preserving quoted comma phrases", () => {
     expect(parsePipelineResultTitleFilters(" AI, Data Scientist\nAI ")).toEqual([
       "AI",
+      "Data Scientist",
+    ]);
+    expect(parsePipelineResultTitleFilters('"AI, ML" AND Analytics, Data Scientist')).toEqual([
+      '"AI, ML" AND Analytics',
       "Data Scientist",
     ]);
   });

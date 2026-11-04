@@ -84,6 +84,7 @@ const PIPELINE_STAGES: { stage_id: RunStageId; label: string; ordinal: number }[
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
+export const RESULTS_FILTER_DEBOUNCE_MS = 1000;
 const MAX_EVENT_PAGE_DRAIN = 100;
 
 export function isTerminalRunStatus(status: string): boolean {
@@ -323,7 +324,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
       setActiveJobTitleInclude(parsePipelineResultTitleFilters(jobTitleInclude));
       setActiveJobTitleExclude(parsePipelineResultTitleFilters(jobTitleExclude));
       setJobsPage(1);
-    }, 250);
+    }, RESULTS_FILTER_DEBOUNCE_MS);
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
@@ -1336,7 +1337,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 rows={2}
                 value={jobTitleInclude}
                 onChange={(e) => setJobTitleInclude(e.target.value)}
-                placeholder="AI, analytics"
+                placeholder={'"AI" AND "Analytics"'}
                 aria-label="Include job titles"
               />
             </label>
@@ -1348,7 +1349,7 @@ export const RunDetailPage: React.FC<RunDetailPageProps> = ({ runId, onBack, ini
                 rows={2}
                 value={jobTitleExclude}
                 onChange={(e) => setJobTitleExclude(e.target.value)}
-                placeholder="duales"
+                placeholder={'"Duales" OR "Contractor"'}
                 aria-label="Exclude job titles"
               />
             </label>

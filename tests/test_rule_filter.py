@@ -119,6 +119,41 @@ def test_title_filters_are_applied_by_rule_filter_and_explain_rejection() -> Non
     assert result["rejected"][0]["marks"][0]["details"]["matched_keyword"] == "duales"
 
 
+@pytest.mark.parametrize(
+    ("expression", "title", "expected"),
+    [
+        ('"AI" AND "Analytics"', "AI Analytics Engineer", True),
+        ('"AI" AND "Analytics"', "AI Engineer", False),
+        ('"AI" OR "Business Analytics"', "Business Analytics Manager", True),
+        ('"AI" OR "Business Analytics"', "Business Operations Manager", False),
+        ("AI, dumb", "AI Engineer", True),
+        ("AI, dumb", "Dumb Ideas Manager", True),
+    ],
+)
+def test_title_filter_supports_explicit_boolean_expressions(
+    expression: str,
+    title: str,
+    expected: bool,
+) -> None:
+    result = evaluate_title_filter(title, include_keywords=[expression])
+    assert result["passed"] is expected
+
+
+def test_title_filter_applies_boolean_expressions_to_exclusions() -> None:
+    excluded = evaluate_title_filter(
+        "Duales Studium - AI Engineering",
+        exclude_keywords=['"Duales" AND "AI"'],
+    )
+    allowed = evaluate_title_filter(
+        "Duales Studium - Business Engineering",
+        exclude_keywords=['"Duales" AND "AI"'],
+    )
+
+    assert excluded["passed"] is False
+    assert excluded["reason_code"] == "title_excluded"
+    assert allowed["passed"] is True
+
+
 def test_unselected_must_have_skill_missing_emits_mark_not_reject_by_default() -> None:
     result = apply_rule_filters(
         [_job(job_url="http://mark-only", required_skills=["Java"])],

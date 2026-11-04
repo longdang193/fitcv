@@ -19,6 +19,7 @@ lifecycle:
 
 import logging
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from datetime import datetime, timezone
 from typing import Any
@@ -90,14 +91,14 @@ def _normalized_string_list(value: Any) -> list[str]:
 
 
 def normalize_title_keywords(values: Any) -> list[str]:
-    """Return ordered, case-folded title keywords without empty duplicates."""
+    """Return ordered, case-folded title expressions without empty duplicates."""
     normalized: list[str] = []
     seen: set[str] = set()
     for value in values if isinstance(values, (list, tuple)) else ():
-        keyword = " ".join(str(value or "").split()).casefold()
-        if keyword and keyword not in seen:
-            seen.add(keyword)
-            normalized.append(keyword)
+        expression = " ".join(str(value or "").split()).casefold()
+        if expression and expression not in seen:
+            seen.add(expression)
+            normalized.append(expression)
     return normalized
 
 
@@ -107,32 +108,204 @@ def _title_keyword_pattern(keyword: str) -> re.Pattern[str]:
     return re.compile(rf"(?<!\w){escaped}(?!\w)", re.IGNORECASE)
 
 
+@dataclass(frozen=True)
+class _TitleExpression:
+    operator: str
+    value: str | tuple["_TitleExpression", "_TitleExpression"]
+
+
+def _title_operator_at(expression: str, index: int, operator: str) -> bool:
+    end = index + len(operator)
+    if expression[index:end].casefold() != operator.casefold():
+        return False
+    before = expression[index - 1] if index else ""
+    after = expression[end] if end < len(expression) else ""
+    return (
+        (not before or not (before.isalnum() or before == "_"))
+        and (not after or not (after.isalnum() or after == "_"))
+    )
+
+
+def _tokenize_title_expression(expression: str) -> list[tuple[str, str]]:
+    tokens: list[tuple[str, str]] = []
+    buffer: list[str] = []
+
+    def flush_buffer() -> None:
+        value = " ".join("".join(buffer).split()).casefold()
+        buffer.clear()
+        if value:
+            tokens.append(("term", value))
+
+    index = 0
+    while index < len(expression):
+        character = expression[index]
+        if character == '"':
+            flush_buffer()
+            index += 1
+            quoted: list[str] = []
+            while index < len(expression):
+                if expression[index] == "\\" and index + 1 < len(expression):
+                    quoted.append(expression[index + 1])
+                    index += 2
+                    continue
+                if expression[index] == '"':
+                    index += 1
+                    break
+                quoted.append(expression[index])
+                index += 1
+            value = " ".join("".join(quoted).split()).casefold()
+            if value:
+                tokens.append(("term", value))
+            continue
+        if character == ",":
+            flush_buffer()
+            tokens.append(("or", "OR"))
+            index += 1
+            continue
+        if character == "(":
+            flush_buffer()
+            tokens.append(("left_paren", character))
+            index += 1
+            continue
+        if character == ")":
+            flush_buffer()
+            tokens.append(("right_paren", character))
+            index += 1
+            continue
+        if _title_operator_at(expression, index, "AND"):
+            flush_buffer()
+            tokens.append(("and", "AND"))
+            index += 3
+            continue
+        if _title_operator_at(expression, index, "OR"):
+            flush_buffer()
+            tokens.append(("or", "OR"))
+            index += 2
+            continue
+        buffer.append(character)
+        index += 1
+    flush_buffer()
+    return tokens
+
+
+class _TitleExpressionParser:
+    def __init__(self, tokens: list[tuple[str, str]]) -> None:
+        self._tokens = tokens
+        self._position = 0
+
+    def parse(self) -> _TitleExpression | None:
+        if not self._tokens:
+            return None
+        expression = self._parse_or()
+        if expression is None or self._position != len(self._tokens):
+            return None
+        return expression
+
+    def _parse_or(self) -> _TitleExpression | None:
+        expression = self._parse_and()
+        while expression is not None and self._peek_kind() == "or":
+            self._position += 1
+            right = self._parse_and()
+            if right is None:
+                return None
+            expression = _TitleExpression("or", (expression, right))
+        return expression
+
+    def _parse_and(self) -> _TitleExpression | None:
+        expression = self._parse_primary()
+        while expression is not None and self._peek_kind() == "and":
+            self._position += 1
+            right = self._parse_primary()
+            if right is None:
+                return None
+            expression = _TitleExpression("and", (expression, right))
+        return expression
+
+    def _parse_primary(self) -> _TitleExpression | None:
+        kind, value = self._peek()
+        if kind == "term":
+            self._position += 1
+            return _TitleExpression("term", value)
+        if kind != "left_paren":
+            return None
+        self._position += 1
+        expression = self._parse_or()
+        if expression is None or self._peek_kind() != "right_paren":
+            return None
+        self._position += 1
+        return expression
+
+    def _peek(self) -> tuple[str, str]:
+        if self._position >= len(self._tokens):
+            return ("end", "")
+        return self._tokens[self._position]
+
+    def _peek_kind(self) -> str:
+        return self._peek()[0]
+
+
+@lru_cache(maxsize=256)
+def _parse_title_expression(expression: str) -> _TitleExpression | None:
+    return _TitleExpressionParser(_tokenize_title_expression(expression)).parse()
+
+
+def _evaluate_title_expression(
+    expression: _TitleExpression,
+    title_text: str,
+) -> tuple[bool, str | None]:
+    if expression.operator == "term":
+        keyword = str(expression.value)
+        matched = _title_keyword_pattern(keyword).search(title_text) is not None
+        return matched, keyword if matched else None
+
+    left, right = expression.value
+    left_passed, left_match = _evaluate_title_expression(left, title_text)
+    if expression.operator == "and":
+        if not left_passed:
+            return False, None
+        right_passed, right_match = _evaluate_title_expression(right, title_text)
+        return right_passed, left_match or right_match if right_passed else None
+    if left_passed:
+        return True, left_match
+    return _evaluate_title_expression(right, title_text)
+
+
 def evaluate_title_filter(
     title: Any,
     *,
     include_keywords: Any = None,
     exclude_keywords: Any = None,
 ) -> dict[str, Any]:
-    """Evaluate title inclusion/exclusion with OR-within and AND-between semantics."""
+    """Evaluate title expressions with quoted phrases and AND/OR operators."""
     title_text = " ".join(str(title or "").split())
     includes = normalize_title_keywords(include_keywords)
     excludes = normalize_title_keywords(exclude_keywords)
-    matched_exclusion = next(
-        (keyword for keyword in excludes if _title_keyword_pattern(keyword).search(title_text)),
-        None,
-    )
+    matched_exclusion: tuple[str, str | None] | None = None
+    for expression_text in excludes:
+        expression = _parse_title_expression(expression_text)
+        if expression is None:
+            continue
+        passed, matched = _evaluate_title_expression(expression, title_text)
+        if passed:
+            matched_exclusion = (expression_text, matched)
+            break
     if matched_exclusion:
         return {
             "passed": False,
             "reason_code": "title_excluded",
-            "matched_keyword": matched_exclusion,
+            "matched_keyword": matched_exclusion[1] or matched_exclusion[0],
             "title": title_text,
         }
     if includes:
-        matched_inclusion = next(
-            (keyword for keyword in includes if _title_keyword_pattern(keyword).search(title_text)),
-            None,
-        )
+        matched_inclusion: tuple[str, str | None] | None = None
+        for expression_text in includes:
+            expression = _parse_title_expression(expression_text)
+            if expression is None:
+                continue
+            passed, matched = _evaluate_title_expression(expression, title_text)
+            if passed:
+                matched_inclusion = (expression_text, matched)
+                break
         if matched_inclusion is None:
             return {
                 "passed": False,
@@ -142,7 +315,7 @@ def evaluate_title_filter(
             }
         return {
             "passed": True,
-            "matched_keyword": matched_inclusion,
+            "matched_keyword": matched_inclusion[1] or matched_inclusion[0],
             "title": title_text,
         }
     return {"passed": True, "title": title_text}

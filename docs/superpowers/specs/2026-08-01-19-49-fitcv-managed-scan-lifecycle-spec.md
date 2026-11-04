@@ -266,8 +266,11 @@ If execution stops after action reservation but before Scan persistence, retry c
 ### Retrieval, Filtering, and Ordering
 
 - all filters are evaluated against provider-adapted canonical fields, not provider-native shapes
-- values within `job_titles` use case-insensitive whole-word or phrase OR matching
-- values within `excluded_job_titles` use the same matching and reject a title when any exclusion matches
+- each value within `job_titles` or `excluded_job_titles` supports case-insensitive
+  whole-word or phrase matching with `AND` and `OR` operators; quoted values
+  preserve multi-word phrases and `AND` binds more tightly than `OR`
+- commas and separate values remain `OR` separators for backward compatibility
+- exclusion expressions reject a title when any exclusion expression matches
 - inclusion and exclusion combine with AND semantics: a title must match at least one inclusion when inclusions are present and must match no exclusions
 - raw provider substring prefilters are not authoritative; canonical title filtering runs after acquisition for every source
 - values within `locations` use case-insensitive Unicode substring OR matching

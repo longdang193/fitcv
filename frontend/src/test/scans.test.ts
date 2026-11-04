@@ -122,7 +122,7 @@ describe("scans feature route and api slice", () => {
     expect(newScanDialogSource).toContain('label="Job Titles"');
     expect(newScanDialogSource).toContain('label="Exclude Job Titles"');
     expect(newScanDialogSource).toContain("excluded_job_titles");
-    expect(newScanDialogSource).toContain('placeholder="duales&#10;contractor"');
+    expect(newScanDialogSource).toContain('"Duales" OR "Contractor"');
   });
 
   it("normalizes Scan filter lists consistently across commas and line breaks", () => {
