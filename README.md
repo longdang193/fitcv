@@ -36,7 +36,7 @@ recovery, troubleshooting, and developer setup live in
 
 FitCV accepts JSON exports from Apify job-scraping actors:
 
-- LinkedIn: `bebity/linkedin-jobs-scraper`
+- LinkedIn: `valig/linkedin-jobs-scraper`
 - Indeed: `indeed-jobs-scraper`
 - Stepstone: `stepstone-search-cheerio-ppr`
 
@@ -61,8 +61,15 @@ python scripts/fetch_jobs.py --source all --output data/jobs.json --dedupe-repor
 The script reads source inputs from `config/job_sources/`, reads
 `APIFY_API_TOKEN` from the process environment or local `.env`, keeps only
 records with complete descriptions, preserves raw provenance, and writes a
-separate deterministic dedupe report. StepStone remains supported for existing
-review-only ingestion, but is intentionally excluded from this orchestrator.
+separate deterministic dedupe report. It prints source/run progress, uses the
+source-configured Apify timeout (300 seconds for the current actors), salvages
+non-empty partial datasets when an Apify actor times out, and lets
+`--run-timeout` or `--poll-timeout` override those values. StepStone remains
+supported for existing review-only ingestion, but is intentionally excluded
+from this orchestrator.
+
+Apify sources may define either one `input` object or an ordered `runs` list.
+Runs execute sequentially and retain separate run IDs in the dedupe report.
 
 ### Managed Scan
 

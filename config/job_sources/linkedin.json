@@ -1,20 +1,36 @@
 {
   "source": "linkedin",
   "kind": "apify_actor",
-  "actor": "bebity/linkedin-jobs-scraper",
-  "input": {
-    "companyProfile": true,
-    "easyApply": false,
-    "enrichCompany": false,
-    "experienceLevels": ["1", "2", "3"],
-    "locations": ["Germany"],
-    "publishedAt": "r86400",
-    "rows": 100,
-    "titles": ["student", "Praktikum", "intern"],
-    "under10Applicants": false
-  },
+  "actor": "valig/linkedin-jobs-scraper",
+  "runs": [
+    {
+      "name": "student",
+      "input": {
+        "datePosted": "r86400",
+        "easyApply": false,
+        "keywords": "student",
+        "limit": 100,
+        "location": "Germany",
+        "titleExclude": ["duales"],
+        "titleInclude": ["AI"],
+        "under10Applicants": false
+      }
+    },
+    {
+      "name": "Praktikum",
+      "input": {
+        "datePosted": "r86400",
+        "easyApply": false,
+        "keywords": "Praktikum",
+        "limit": 100,
+        "location": "Germany",
+        "titleExclude": ["duales"],
+        "under10Applicants": false
+      }
+    }
+  ],
   "run": {
-    "timeoutSecs": 120,
+    "timeoutSecs": 300,
     "pollIntervalSecs": 2
   }
 }

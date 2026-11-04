@@ -260,11 +260,15 @@ ranking ownership, or the verified-claim authority used by CV generation.
 
 Managed Scan `job_titles` is the optional inclusion list and
 `excluded_job_titles` is the optional exclusion list. Matching is
-case-insensitive whole-word or phrase matching: OR within each list and AND
-between lists. Empty inclusion means any title unless an exclusion matches.
-For example, inclusion `AI` plus exclusion `duales` keeps `AI/ML Engineer` and
-`Working Student - AI Analytics`, excludes `Duales Studium - AI Engineering`,
-and excludes `Retail Analytics Intern` because it has no inclusion match.
+case-insensitive whole-word or phrase matching. Each value may use `AND` and
+`OR` operators (case-insensitive); `AND` binds more tightly than `OR`, and
+quoted values preserve multi-word phrases. Commas and separate list values are
+also treated as `OR` for backward compatibility. Empty inclusion means any
+title unless an exclusion matches. For example, inclusion `"AI" AND
+"Analytics"` matches `AI Analytics`, while `"AI" OR "Business Analytics"`
+matches either phrase. Exclusion expressions reject a title when any expression
+matches. The same expression grammar is used by the Pipeline Results Include
+job titles and Exclude job titles controls.
 Provider search terms are recall-preserving optimizations only; canonical
 post-acquisition filtering is authoritative and records the rejection reason.
 
