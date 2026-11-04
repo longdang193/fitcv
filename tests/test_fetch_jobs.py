@@ -138,7 +138,7 @@ def test_apify_lifecycle_uses_bearer_header_and_default_dataset(monkeypatch: pyt
 
     monkeypatch.setattr(fetcher, "request_json", fake_request)
     result = fetcher.run_apify_actor(
-        "bebity/linkedin-jobs-scraper",
+        "valig/linkedin-jobs-scraper",
         {"rows": 5},
         "secret-token",
         timeout_secs=30,
@@ -156,6 +156,31 @@ def test_apify_lifecycle_uses_bearer_header_and_default_dataset(monkeypatch: pyt
     assert "maxItems=5" in calls[0][1]
 
 
+def test_apify_lifecycle_reports_progress(monkeypatch: pytest.MonkeyPatch) -> None:
+    responses = iter([
+        {"data": {"id": "run-1", "status": "READY"}},
+        {"data": {"id": "run-1", "status": "SUCCEEDED", "defaultDatasetId": "ds-1"}},
+        {"data": [{"id": "job-1"}]},
+    ])
+    progress: list[str] = []
+
+    monkeypatch.setattr(fetcher, "request_json", lambda *args, **kwargs: next(responses))
+    result = fetcher.run_apify_actor(
+        "valig/linkedin-jobs-scraper",
+        {"rows": 5},
+        "token",
+        timeout_secs=30,
+        poll_timeout_secs=30,
+        poll_interval_secs=0,
+        progress=progress.append,
+    )
+
+    assert result["items"] == [{"id": "job-1"}]
+    assert any("starting actor valig/linkedin-jobs-scraper" in message for message in progress)
+    assert any("run run-1 status=SUCCEEDED" in message for message in progress)
+    assert any("dataset ds-1 returned 1 items" in message for message in progress)
+
+
 @pytest.mark.parametrize("status", ["FAILED", "TIMED-OUT", "ABORTED"])
 def test_apify_terminal_failure_states_raise(monkeypatch: pytest.MonkeyPatch, status: str) -> None:
     monkeypatch.setattr(
@@ -166,6 +191,184 @@ def test_apify_terminal_failure_states_raise(monkeypatch: pytest.MonkeyPatch, st
 
     with pytest.raises(fetcher.FetchError, match=status):
         fetcher.run_apify_actor("actor/name", {}, "token", timeout_secs=30, poll_timeout_secs=30, poll_interval_secs=0)
+
+
+def test_apify_timeout_error_identifies_actor_and_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        fetcher,
+        "request_json",
+        lambda *args, **kwargs: {"data": {"id": "run-1", "status": "TIMED-OUT"}},
+    )
+
+    with pytest.raises(fetcher.FetchError, match=r"actor/name.*TIMED-OUT.*actor timeout=30s"):
+        fetcher.run_apify_actor("actor/name", {}, "token", timeout_secs=30, poll_timeout_secs=30, poll_interval_secs=0)
+
+
+def test_apify_timeout_salvages_non_empty_partial_dataset(monkeypatch: pytest.MonkeyPatch) -> None:
+    responses = iter([
+        {"data": {"id": "run-1", "status": "RUNNING"}},
+        {"data": {"id": "run-1", "status": "TIMED-OUT", "defaultDatasetId": "ds-1"}},
+        {"data": [{"id": "job-1"}]},
+    ])
+    progress: list[str] = []
+
+    monkeypatch.setattr(fetcher, "request_json", lambda *args, **kwargs: next(responses))
+    result = fetcher.run_apify_actor(
+        "valig/linkedin-jobs-scraper",
+        {"rows": 5},
+        "token",
+        timeout_secs=30,
+        poll_timeout_secs=30,
+        poll_interval_secs=0,
+        progress=progress.append,
+    )
+
+    assert result["status"] == "TIMED-OUT"
+    assert result["partial"] is True
+    assert result["items"] == [{"id": "job-1"}]
+    assert any("salvaging 1 partial items" in message for message in progress)
+
+
+def test_fetch_sources_uses_configured_actor_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(actor_id, input_payload, token, **kwargs):
+        captured.update(kwargs)
+        return {"runId": "run-1", "datasetId": "ds-1", "items": []}
+
+    monkeypatch.setattr(fetcher, "run_apify_actor", fake_run)
+    records, failures, runs = fetcher.fetch_sources(
+        {
+            "linkedin": {
+                "source": "linkedin",
+                "kind": "apify_actor",
+                "actor": "actor/name",
+                "input": {},
+                "run": {"timeoutSecs": 300, "pollIntervalSecs": 7},
+            }
+        },
+        ["linkedin"],
+        "token",
+        run_timeout_secs=0,
+        poll_timeout_secs=0,
+    )
+
+    assert records == []
+    assert failures == []
+    assert runs == {
+        "linkedin": {
+            "runId": "run-1",
+            "datasetId": "ds-1",
+            "started": 1,
+            "status": "SUCCEEDED",
+            "partial": False,
+        }
+    }
+    assert captured["timeout_secs"] == 300
+    assert captured["poll_interval_secs"] == 7.0
+
+    fetcher.fetch_sources(
+        {
+            "linkedin": {
+                "source": "linkedin",
+                "kind": "apify_actor",
+                "actor": "actor/name",
+                "input": {},
+                "run": {"timeoutSecs": 300, "pollIntervalSecs": 7},
+            }
+        },
+        ["linkedin"],
+        "token",
+        run_timeout_secs=90,
+        poll_timeout_secs=120,
+    )
+
+    assert captured["timeout_secs"] == 90
+    assert captured["poll_timeout_secs"] == 120
+
+
+def test_fetch_sources_bounds_valig_linkedin_without_mutating_input(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(actor_id, input_payload, token, **kwargs):
+        captured["actor_id"] = actor_id
+        captured["input"] = input_payload
+        captured.update(kwargs)
+        return {"runId": "run-1", "datasetId": "ds-1", "items": []}
+
+    input_payload = {
+        "datePosted": "r86400",
+        "easyApply": False,
+        "keywords": "student",
+        "location": "Germany",
+        "under10Applicants": False,
+    }
+    monkeypatch.setattr(fetcher, "run_apify_actor", fake_run)
+    fetcher.fetch_sources(
+        {
+            "linkedin": {
+                "source": "linkedin",
+                "kind": "apify_actor",
+                "actor": "valig/linkedin-jobs-scraper",
+                "input": input_payload,
+                "run": {"timeoutSecs": 300, "pollIntervalSecs": 2},
+            }
+        },
+        ["linkedin"],
+        "token",
+        max_records_per_source=5,
+    )
+
+    assert captured["actor_id"] == "valig/linkedin-jobs-scraper"
+    assert captured["input"] == input_payload
+    assert captured["max_items"] == 5
+
+
+def test_fetch_sources_runs_named_inputs_sequentially(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, object]] = []
+    progress: list[str] = []
+
+    def fake_run(actor_id, input_payload, token, **kwargs):
+        calls.append({"actor": actor_id, "input": input_payload})
+        job_id = str(len(calls))
+        return {
+            "runId": f"run-{job_id}",
+            "datasetId": f"ds-{job_id}",
+            "items": [{
+                "id": f"job-{job_id}",
+                "url": f"https://linkedin.example/{job_id}",
+                "title": "Working Student AI",
+                "companyName": "Example",
+                "location": "Berlin, Germany",
+                "description": "A full job description with enough detail to pass the normalized description requirement.",
+            }],
+        }
+
+    monkeypatch.setattr(fetcher, "run_apify_actor", fake_run)
+    records, failures, runs = fetcher.fetch_sources(
+        {
+            "linkedin": {
+                "source": "linkedin",
+                "kind": "apify_actor",
+                "actor": "valig/linkedin-jobs-scraper",
+                "runs": [
+                    {"name": "ai", "input": {"keywords": "AI"}},
+                    {"name": "broad", "input": {"keywords": "student"}},
+                ],
+                "run": {"timeoutSecs": 300},
+            }
+        },
+        ["linkedin"],
+        "token",
+        progress=progress.append,
+    )
+
+    assert [call["input"] for call in calls] == [{"keywords": "AI"}, {"keywords": "student"}]
+    assert [record["sourceJobId"] for record in records] == ["job-1", "job-2"]
+    assert failures == []
+    assert list(runs) == ["linkedin/ai", "linkedin/broad"]
+    assert any("run 1/2 ai: starting" in message for message in progress)
+    assert any("run 2/2 broad: starting" in message for message in progress)
 
 
 def test_apify_client_deadline_aborts_running_run(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,6 +429,141 @@ def test_fuzzy_dedupe_retains_linkedin_over_workingstudentjobs() -> None:
     assert [record["source"] for record in kept] == ["linkedin"]
     assert len(excluded) == 1
     assert excluded[0]["duplicateOf"] == fetcher.record_identity(linkedin)
+
+
+def test_fuzzy_dedupe_retains_linkedin_even_when_other_source_is_newer() -> None:
+    linkedin = fetcher.linkedin_to_fitcv_record(
+        {
+            "id": "linkedin-job",
+            "jobUrl": "https://linkedin.example/job/linkedin-job",
+            "title": "Intern",
+            "companyName": "ACME",
+            "location": "Berlin",
+            "description": _long_description("same"),
+            "publishedAt": "2026-01-01",
+        },
+        None,
+    )
+    workingstudentjobs = {
+        **linkedin,
+        "source": "workingstudentjobs",
+        "sourceJobId": "workingstudentjobs-job",
+        "publishedAt": "2026-11-04",
+        "jobUrl": "https://workingstudentjobs.example/job/workingstudentjobs-job",
+    }
+
+    kept, excluded = fetcher.deduplicate_records([workingstudentjobs, linkedin])
+
+    assert [record["source"] for record in kept] == ["linkedin"]
+    assert len(excluded) == 1
+
+
+def test_fuzzy_dedupe_normalizes_country_aliases_in_location_bucket() -> None:
+    linkedin = fetcher.linkedin_to_fitcv_record(
+        {
+            "id": "linkedin-job",
+            "jobUrl": "https://linkedin.example/job/linkedin-job",
+            "title": "Intern",
+            "companyName": "ACME",
+            "location": "Berlin, Berlin, Germany",
+            "description": _long_description("same"),
+        },
+        None,
+    )
+    workingstudentjobs = {
+        **linkedin,
+        "source": "workingstudentjobs",
+        "sourceJobId": "workingstudentjobs-job",
+        "location": "Berlin, Berlin, DE",
+        "jobUrl": "https://workingstudentjobs.example/job/workingstudentjobs-job",
+    }
+
+    kept, excluded = fetcher.deduplicate_records([workingstudentjobs, linkedin])
+
+    assert [record["source"] for record in kept] == ["linkedin"]
+    assert len(excluded) == 1
+    assert excluded[0]["duplicateOf"] == fetcher.record_identity(linkedin)
+
+
+def test_fuzzy_dedupe_normalizes_company_suffix_and_city_aliases() -> None:
+    linkedin = fetcher.linkedin_to_fitcv_record(
+        {
+            "id": "linkedin-job",
+            "jobUrl": "https://linkedin.example/job/linkedin-job",
+            "title": "Intern",
+            "companyName": "Solactive",
+            "location": "Frankfurt, Hessen, Germany",
+            "description": _long_description("same"),
+        },
+        None,
+    )
+    indeed = {
+        **linkedin,
+        "source": "indeed",
+        "sourceJobId": "indeed-job",
+        "companyName": "Solactive AG",
+        "location": "Frankfurt am Main, Deutschland",
+        "jobUrl": "https://indeed.example/job/indeed-job",
+    }
+
+    kept, excluded = fetcher.deduplicate_records([indeed, linkedin])
+
+    assert [record["source"] for record in kept] == ["linkedin"]
+    assert len(excluded) == 1
+    assert excluded[0]["duplicateOf"] == fetcher.record_identity(linkedin)
+
+
+def test_fuzzy_dedupe_collapses_exact_jd_with_company_aliases() -> None:
+    first = fetcher.linkedin_to_fitcv_record(
+        {
+            "id": "first-job",
+            "jobUrl": "https://jobs.example/job/first-job",
+            "title": "Working Student",
+            "companyName": "Krieger Digital",
+            "location": "Schönefeld, Brandenburg, DE",
+            "description": _long_description("same"),
+        },
+        None,
+    )
+    second = {
+        **first,
+        "sourceJobId": "second-job",
+        "companyName": "Krieger Gruppe",
+        "jobUrl": "https://jobs.example/job/second-job",
+    }
+
+    kept, excluded = fetcher.deduplicate_records([second, first])
+
+    assert len(kept) == 1
+    assert len(excluded) == 1
+    assert excluded[0]["similarity"] == 1.0
+
+
+def test_fuzzy_dedupe_keeps_different_company_jds_below_alias_similarity() -> None:
+    shared = " ".join(f"shared{index}" for index in range(48))
+    first = fetcher.linkedin_to_fitcv_record(
+        {
+            "id": "first-job",
+            "jobUrl": "https://jobs.example/job/first-job",
+            "title": "Retail Sales Intern",
+            "companyName": "BYTECLUB",
+            "location": "Hude, Niedersachsen, DE",
+            "description": f"{shared} unique-first-a unique-first-b",
+        },
+        None,
+    )
+    second = {
+        **first,
+        "sourceJobId": "second-job",
+        "companyName": "COMSPOT",
+        "jobUrl": "https://jobs.example/job/second-job",
+        "description": f"{shared} unique-second-a unique-second-b",
+    }
+
+    kept, excluded = fetcher.deduplicate_records([first, second])
+
+    assert len(kept) == 2
+    assert excluded == []
 
 
 def test_description_intersection_exactly_ninety_percent_survives() -> None:

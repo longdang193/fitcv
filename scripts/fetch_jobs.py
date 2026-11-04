@@ -12,6 +12,7 @@ import re
 import sys
 import tempfile
 import time
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,8 @@ except ModuleNotFoundError:
 
 
 APIFY_API_BASE = "https://api.apify.com/v2"
+DEFAULT_APIFY_TIMEOUT_SECS = 300
+DEFAULT_APIFY_POLL_TIMEOUT_SECS = 360
 SUPPORTED_SOURCES = ("workingstudentjobs", "linkedin", "indeed")
 SOURCE_PRIORITY = {source: index for index, source in enumerate(("linkedin", "workingstudentjobs", "indeed"))}
 TERMINAL_STATUSES = {"SUCCEEDED", "FAILED", "TIMED-OUT", "ABORTED"}
@@ -115,20 +118,27 @@ def _data(value: Any) -> Any:
     return value
 
 
+def _emit_progress(progress: Callable[[str], None] | None, message: str) -> None:
+    if progress is not None:
+        progress(message)
+
+
 def run_apify_actor(
     actor_id: str,
     input_payload: dict[str, Any],
     token: str,
     *,
-    timeout_secs: int = 120,
-    poll_timeout_secs: int = 150,
+    timeout_secs: int = DEFAULT_APIFY_TIMEOUT_SECS,
+    poll_timeout_secs: int = DEFAULT_APIFY_POLL_TIMEOUT_SECS,
     poll_interval_secs: float = 2.0,
     max_items: int | None = None,
     request: Callable[..., Any] | None = None,
     sleep: Callable[[float], None] = time.sleep,
+    progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     if request is None:
         request = request_json
+    _emit_progress(progress, f"starting actor {actor_id} (actor timeout={timeout_secs}s, client poll timeout={poll_timeout_secs}s)")
     actor_path = actor_id.replace("/", "~")
     query = {"timeout": str(timeout_secs), "format": "json"}
     if max_items:
@@ -139,8 +149,11 @@ def run_apify_actor(
         raise FetchError("Apify start response did not include a run id")
     run_id = str(started["id"])
     status = str(started.get("status") or "RUNNING")
+    _emit_progress(progress, f"actor {actor_id} started run {run_id} status={status}")
     deadline = time.monotonic() + poll_timeout_secs
     run = started
+    poll_count = 0
+    last_reported_status = status
     while status not in TERMINAL_STATUSES:
         now = time.monotonic()
         if now >= deadline:
@@ -151,15 +164,36 @@ def run_apify_actor(
         if not isinstance(run, dict):
             raise FetchError(f"Apify run {run_id} returned malformed status")
         status = str(run.get("status") or "")
-    if status != "SUCCEEDED":
-        raise FetchError(f"Apify run {run_id} ended with status {status}")
+        poll_count += 1
+        if status != last_reported_status or poll_count % 15 == 0:
+            elapsed = int(poll_count * poll_interval_secs)
+            _emit_progress(progress, f"actor {actor_id} run {run_id} status={status} elapsed~{elapsed}s")
+            last_reported_status = status
+    if status not in {"SUCCEEDED", "TIMED-OUT"}:
+        raise FetchError(f"Apify actor {actor_id} run {run_id} ended with status {status}")
     dataset_id = str(run.get("defaultDatasetId") or "")
     if not dataset_id:
+        if status == "TIMED-OUT":
+            raise FetchError(
+                f"Apify actor {actor_id} run {run_id} ended with status TIMED-OUT "
+                f"(actor timeout={timeout_secs}s; no partial dataset was available; "
+                "increase --run-timeout or reduce source input)"
+            )
         raise FetchError(f"Apify run {run_id} succeeded without a default dataset")
+    _emit_progress(progress, f"fetching dataset {dataset_id} for actor {actor_id}")
     dataset = _data(request("GET", f"{APIFY_API_BASE}/datasets/{quote(dataset_id, safe='~')}/items?format=json&clean=true", token, timeout=30.0))
     if not isinstance(dataset, list) or not all(isinstance(item, dict) for item in dataset):
         raise FetchError(f"Apify dataset {dataset_id} returned malformed items")
-    return {"runId": run_id, "datasetId": dataset_id, "items": dataset}
+    if status == "TIMED-OUT":
+        if not dataset:
+            raise FetchError(
+                f"Apify actor {actor_id} run {run_id} ended with status TIMED-OUT "
+                f"(actor timeout={timeout_secs}s; partial dataset {dataset_id} was empty; "
+                "increase --run-timeout or reduce source input)"
+            )
+        _emit_progress(progress, f"warning: actor {actor_id} timed out; salvaging {len(dataset)} partial items")
+    _emit_progress(progress, f"dataset {dataset_id} returned {len(dataset)} items for actor {actor_id}")
+    return {"runId": run_id, "datasetId": dataset_id, "items": dataset, "status": status, "partial": status != "SUCCEEDED"}
 
 
 def _text(value: Any) -> str:
@@ -361,23 +395,42 @@ def fetch_workingstudentjobs_source(config: dict[str, Any], max_records: int = 0
     return records[:max_records] if max_records else records, failures
 
 
-def _smoke_config(config: dict[str, Any], source: str, max_records: int) -> tuple[dict[str, Any], int | None]:
+def _source_run_specs(config: dict[str, Any]) -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
+    common_run = config.get("run") if isinstance(config.get("run"), dict) else {}
+    configured_runs = config.get("runs")
+    if configured_runs is not None:
+        if not isinstance(configured_runs, list) or not configured_runs:
+            raise FetchError("Source configuration runs must be a non-empty list")
+        specs: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
+        for index, configured in enumerate(configured_runs, 1):
+            if not isinstance(configured, dict) or not isinstance(configured.get("input"), dict):
+                raise FetchError(f"Source configuration run {index} must contain an input object")
+            name = _text(configured.get("name")) or f"run-{index}"
+            run_config = {**common_run}
+            if isinstance(configured.get("run"), dict):
+                run_config.update(configured["run"])
+            specs.append((name, copy.deepcopy(configured["input"]), run_config))
+        return specs
+    if not isinstance(config.get("input"), dict):
+        raise FetchError("Source configuration must contain an input object or non-empty runs list")
+    return [("default", copy.deepcopy(config["input"]), dict(common_run))]
+
+
+def _smoke_input(input_payload: dict[str, Any], source: str, max_records: int) -> dict[str, Any]:
+    bounded = copy.deepcopy(input_payload)
     if not max_records:
-        return copy.deepcopy(config), None
-    bounded = copy.deepcopy(config)
+        return bounded
     if source == "linkedin":
-        bounded["input"]["rows"] = min(int(bounded["input"].get("rows") or max_records), max_records)
-        for key in ("titles", "locations"):
-            values = bounded["input"].get(key)
-            if isinstance(values, list) and values:
-                bounded["input"][key] = values[:1]
-        return bounded, max_records
+        if "rows" in bounded:
+            bounded["rows"] = min(int(bounded.get("rows") or max_records), max_records)
+            for key in ("titles", "locations"):
+                values = bounded.get(key)
+                if isinstance(values, list) and values:
+                    bounded[key] = values[:1]
+        return bounded
     if source == "indeed":
-        bounded["input"]["limit"] = min(int(bounded["input"].get("limit") or max_records), max_records)
-        return bounded, max_records
-    bounded.setdefault("request", {})["maxJobs"] = min(int(bounded.get("request", {}).get("maxJobs") or max_records), max_records)
-    bounded.setdefault("details", {})["require"] = True
-    return bounded, max_records
+        bounded["limit"] = min(int(bounded.get("limit") or max_records), max_records)
+    return bounded
 
 
 def fetch_sources(
@@ -386,9 +439,10 @@ def fetch_sources(
     token: str,
     *,
     max_records_per_source: int = 0,
-    run_timeout_secs: int = 120,
-    poll_timeout_secs: int = 150,
+    run_timeout_secs: int = 0,
+    poll_timeout_secs: int = 0,
     request: Callable[..., Any] | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]], dict[str, dict[str, Any]]]:
     if request is None:
         request = request_json
@@ -400,39 +454,66 @@ def fetch_sources(
             raise FetchError(f"Unsupported source: {source}")
         if source not in configs:
             raise FetchError(f"Missing source configuration: {source}")
-        config, bounded_limit = _smoke_config(configs[source], source, max_records_per_source)
+        config = copy.deepcopy(configs[source])
+        run_specs = _source_run_specs(config) if source != "workingstudentjobs" else [("default", config, {})]
+        _emit_progress(progress, f"source {source}: starting runs={len(run_specs)}")
         if source == "workingstudentjobs":
-            source_records, source_failures = fetch_workingstudentjobs_source(config, bounded_limit or 0)
+            source_records, source_failures = fetch_workingstudentjobs_source(config, max_records_per_source)
             records.extend(source_records)
             failures.extend(source_failures)
+            _emit_progress(progress, f"source {source}: completed records={len(source_records)} failures={len(source_failures)}")
             continue
         if not token:
             raise FetchError("APIFY_API_TOKEN is required for Apify sources")
-        run_config = config.get("run") if isinstance(config.get("run"), dict) else {}
-        configured_max_items = run_config.get("maxItems")
-        run_max_items = int(configured_max_items) if configured_max_items else None
-        result = run_apify_actor(
-            _text(config.get("actor")),
-            config.get("input") if isinstance(config.get("input"), dict) else {},
-            token,
-            timeout_secs=run_timeout_secs,
-            poll_timeout_secs=poll_timeout_secs,
-            poll_interval_secs=float(run_config.get("pollIntervalSecs") or 2),
-            max_items=run_max_items,
-            request=request,
-        )
-        runs[source] = {"runId": result["runId"], "datasetId": result["datasetId"], "started": 1}
-        mapper = linkedin_to_fitcv_record if source == "linkedin" else indeed_to_fitcv_record
-        mapped = [mapper(item, result) for item in result["items"] if isinstance(item, dict)]
-        incomplete = [record for record in mapped if record["descriptionStatus"] != "full"]
-        failures.extend({"sourceJobId": record["sourceJobId"], "reason": "incomplete_description"} for record in incomplete)
-        records.extend(record for record in mapped if record["descriptionStatus"] == "full")
-        if bounded_limit:
-            records = records[:]
-            source_records = [record for record in records if record["source"] == source]
-            if len(source_records) > bounded_limit:
-                remove_ids = {record["sourceJobId"] for record in source_records[bounded_limit:]}
-                records = [record for record in records if not (record["source"] == source and record["sourceJobId"] in remove_ids)]
+        source_record_count = 0
+        for run_index, (run_name, input_payload, run_config) in enumerate(run_specs, 1):
+            remaining_limit = max_records_per_source - source_record_count if max_records_per_source else 0
+            if max_records_per_source and remaining_limit <= 0:
+                _emit_progress(progress, f"source {source} run {run_index}/{len(run_specs)} {run_name}: skipped combined source limit")
+                break
+            _emit_progress(progress, f"source {source} run {run_index}/{len(run_specs)} {run_name}: starting")
+            configured_timeout = run_config.get("timeoutSecs")
+            actor_timeout_secs = run_timeout_secs or (int(configured_timeout) if configured_timeout else DEFAULT_APIFY_TIMEOUT_SECS)
+            configured_poll_timeout = run_config.get("pollTimeoutSecs")
+            actor_poll_timeout_secs = poll_timeout_secs or (int(configured_poll_timeout) if configured_poll_timeout else DEFAULT_APIFY_POLL_TIMEOUT_SECS)
+            configured_max_items = run_config.get("maxItems")
+            run_max_items = int(configured_max_items) if configured_max_items else None
+            if remaining_limit:
+                run_max_items = min(run_max_items or remaining_limit, remaining_limit)
+            result = run_apify_actor(
+                _text(config.get("actor")),
+                _smoke_input(input_payload, source, remaining_limit),
+                token,
+                timeout_secs=actor_timeout_secs,
+                poll_timeout_secs=actor_poll_timeout_secs,
+                poll_interval_secs=float(run_config.get("pollIntervalSecs") or 2),
+                max_items=run_max_items,
+                request=request,
+                progress=progress,
+            )
+            run_key = source if len(run_specs) == 1 and run_name == "default" else f"{source}/{run_name}"
+            runs[run_key] = {
+                "runId": result["runId"],
+                "datasetId": result["datasetId"],
+                "started": 1,
+                "status": result.get("status", "SUCCEEDED"),
+                "partial": bool(result.get("partial", False)),
+            }
+            mapper = linkedin_to_fitcv_record if source == "linkedin" else indeed_to_fitcv_record
+            mapped = [mapper(item, result) for item in result["items"] if isinstance(item, dict)]
+            incomplete = [record for record in mapped if record["descriptionStatus"] != "full"]
+            failures.extend({"sourceJobId": record["sourceJobId"], "reason": "incomplete_description"} for record in incomplete)
+            full_records = [record for record in mapped if record["descriptionStatus"] == "full"]
+            if remaining_limit:
+                full_records = full_records[:remaining_limit]
+            records.extend(full_records)
+            source_record_count += len(full_records)
+            _emit_progress(
+                progress,
+                f"source {source} run {run_index}/{len(run_specs)} {run_name}: completed raw_items={len(result['items'])} "
+                f"full_records={len(full_records)} failures={len(incomplete)} "
+                f"status={result.get('status', 'SUCCEEDED')} partial={bool(result.get('partial', False))}",
+            )
     return records, failures, runs
 
 
@@ -477,16 +558,38 @@ def _record_sort_key(record: dict[str, Any]) -> tuple[Any, ...]:
     missing_date, ordinal = _published_sort_value(record)
     return (
         0 if record.get("descriptionStatus") == "full" else 1,
+        SOURCE_PRIORITY.get(_text(record.get("source")), len(SOURCE_PRIORITY)),
         missing_date,
         -ordinal,
-        SOURCE_PRIORITY.get(_text(record.get("source")), len(SOURCE_PRIORITY)),
         _text(record.get("sourceJobId")),
         _normalized_url(record.get("jobUrl")),
     )
 
 
+def _bucket_text(value: Any) -> str:
+    folded = unicodedata.normalize("NFKD", _text(value).casefold())
+    folded = "".join(character for character in folded if not unicodedata.combining(character))
+    return re.sub(r"\W+", " ", folded).strip()
+
+
+def _company_bucket_text(value: Any) -> str:
+    normalized = _bucket_text(value)
+    return re.sub(r"\b(?:ag|gmbh|inc|llc|ltd|limited|se|kg|e v)\b$", "", normalized).strip()
+
+
+def _location_bucket_text(value: Any) -> str:
+    city = _text(value).split(",", 1)[0]
+    normalized = _bucket_text(city)
+    return re.sub(r"\s+am\s+main$", "", normalized).strip()
+
+
 def _bucket_key(record: dict[str, Any]) -> tuple[str, str, str] | None:
-    values = tuple(re.sub(r"\W+", " ", _text(record.get(field)).casefold()).strip() for field in ("companyName", "title", "location"))
+    values = (_company_bucket_text(record.get("companyName")), _bucket_text(record.get("title")), _location_bucket_text(record.get("location")))
+    return values if all(values) else None
+
+
+def _title_location_bucket_key(record: dict[str, Any]) -> tuple[str, str] | None:
+    values = (_bucket_text(record.get("title")), _location_bucket_text(record.get("location")))
     return values if all(values) else None
 
 
@@ -496,6 +599,7 @@ def deduplicate_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, A
     excluded: list[dict[str, Any]] = []
     exact_seen: dict[str, dict[str, Any]] = {}
     bucket_kept: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    title_location_kept: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for record in ordered:
         exact_keys = [record_identity(record)]
         url = _normalized_url(record.get("jobUrl"))
@@ -519,6 +623,17 @@ def deduplicate_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, A
                     duplicate = candidate
                     similarity = candidate_similarity
                     break
+        title_location_bucket = _title_location_bucket_key(record)
+        if duplicate is None and title_location_bucket and len(tokens) >= 40:
+            for candidate in title_location_kept.get(title_location_bucket, []):
+                candidate_tokens = description_tokens(_text(candidate.get("description")))
+                if len(candidate_tokens) < 40:
+                    continue
+                candidate_similarity = description_intersection_rate(_text(record.get("description")), _text(candidate.get("description")))
+                if candidate_similarity > 0.98:
+                    duplicate = candidate
+                    similarity = candidate_similarity
+                    break
         if duplicate is not None:
             excluded.append({"duplicateOf": record_identity(duplicate), "similarity": similarity, "source": record.get("source"), "sourceJobId": record.get("sourceJobId"), "jobUrl": record.get("jobUrl"), "reason": "description_intersection_gt_0.90"})
             continue
@@ -527,6 +642,8 @@ def deduplicate_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, A
             exact_seen[key] = record
         if bucket:
             bucket_kept.setdefault(bucket, []).append(record)
+        if title_location_bucket:
+            title_location_kept.setdefault(title_location_bucket, []).append(record)
     return kept, excluded
 
 
@@ -566,19 +683,24 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, default=Path("data/jobs.json"))
     parser.add_argument("--dedupe-report", type=Path, default=Path("data/jobs.dedupe.json"))
     parser.add_argument("--max-records-per-source", type=int, default=0)
-    parser.add_argument("--run-timeout", type=int, default=120)
-    parser.add_argument("--poll-timeout", type=int, default=150)
+    parser.add_argument("--run-timeout", type=int, default=0, help="override configured Apify actor timeout in seconds")
+    parser.add_argument("--poll-timeout", type=int, default=0, help="override configured Apify client poll timeout in seconds")
     return parser
+
+
+def _console_progress(message: str) -> None:
+    print(f"progress: {message}", flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    if args.max_records_per_source < 0 or args.run_timeout <= 0 or args.poll_timeout <= 0:
-        raise SystemExit("record and timeout limits must be positive")
+    if args.max_records_per_source < 0 or args.run_timeout < 0 or args.poll_timeout < 0:
+        raise SystemExit("record and timeout limits must be non-negative")
     env_values = load_env_file(Path(".env"))
     token = resolve_env("APIFY_API_TOKEN", env_values)
     selected = list(SUPPORTED_SOURCES) if args.source == "all" else [args.source]
     try:
+        _console_progress(f"loading source configurations from {args.config_dir}")
         configs = load_source_configs(args.config_dir)
         records, failures, runs = fetch_sources(
             configs,
@@ -587,13 +709,17 @@ def main(argv: list[str] | None = None) -> int:
             max_records_per_source=args.max_records_per_source,
             run_timeout_secs=args.run_timeout,
             poll_timeout_secs=args.poll_timeout,
+            progress=_console_progress,
         )
         if failures:
             print(f"warning: excluded {len(failures)} incomplete source records", file=sys.stderr)
+        _console_progress(f"validating {len(records)} normalized records")
         invalid = [(record_identity(record), validate_job_schema(record)) for record in records if validate_job_schema(record)]
         if invalid:
             raise FetchError(f"normalized output failed FitCV schema validation: {invalid[0][0]}")
+        _console_progress(f"deduplicating {len(records)} normalized records")
         kept, excluded = deduplicate_records(records)
+        _console_progress(f"writing {len(kept)} retained jobs and {len(excluded)} dedupe exclusions")
         write_outputs(args.output, args.dedupe_report, kept, excluded, runs)
     except FetchError as error:
         print(f"error: {error}", file=sys.stderr)

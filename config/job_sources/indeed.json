@@ -2,15 +2,30 @@
   "source": "indeed",
   "kind": "apify_actor",
   "actor": "valig/indeed-jobs-scraper",
-  "input": {
-    "country": "de",
-    "datePosted": "3",
-    "limit": 200,
-    "location": "Germany",
-    "title": "intern"
-  },
+  "runs": [
+    {
+      "name": "intern",
+      "input": {
+        "country": "de",
+        "datePosted": "3",
+        "limit": 150,
+        "location": "Germany",
+        "title": "intern"
+      }
+    },
+    {
+      "name": "student",
+      "input": {
+        "country": "de",
+        "datePosted": "3",
+        "limit": 150,
+        "location": "Germany",
+        "title": "student"
+      }
+    }
+  ],
   "run": {
-    "timeoutSecs": 120,
+    "timeoutSecs": 300,
     "pollIntervalSecs": 2
   }
 }
