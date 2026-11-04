@@ -54,6 +54,7 @@ from fitcv.preference_policy import (
 from fitcv.shortlist_runtime import build_contract_fingerprint
 from fitcv.ranking_contract import normalize_score_state
 from fitcv.rule_filter import evaluate_title_filter
+from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv_cp.backend_runtime import get_backend_runtime
 from fitcv_cp.candidate_profile_seeds import build_candidate_profile_seeds
 from fitcv_cp.company_catalog import BUNDLED_CATALOG_REVISION, BUNDLED_COMPANY_CATALOG, validate_catalog
@@ -13137,16 +13138,50 @@ def replace_filter_results(run_id: str, rows: list[dict[str, Any]]) -> None:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         jobs = conn.execute(
-            "SELECT run_job_id, source_url FROM run_jobs WHERE run_id=?",
+            "SELECT run_job_id, source_url, source_snapshot_json FROM run_jobs WHERE run_id=?",
             (run_id,),
         ).fetchall()
-        job_by_url = {str(row["source_url"] or ""): row["run_job_id"] for row in jobs}
+        job_by_identity: dict[str, str] = {}
+        legacy_job_ids_by_url: dict[str, list[str]] = {}
+        for job in jobs:
+            try:
+                source_snapshot = json.loads(str(job["source_snapshot_json"] or "{}"))
+            except (TypeError, json.JSONDecodeError):
+                source_snapshot = {}
+            identity = {
+                "run_job_id": job["run_job_id"],
+                "job_url": job["source_url"],
+                "raw_job_fingerprint": source_snapshot.get("raw_job_fingerprint")
+                if isinstance(source_snapshot, dict)
+                else None,
+            }
+            for key in job_identity_index_keys(identity):
+                job_by_identity.setdefault(key, str(job["run_job_id"]))
+            for key in job_identity_keys(identity):
+                if key.startswith("url:"):
+                    legacy_job_ids_by_url.setdefault(key, []).append(str(job["run_job_id"]))
         conn.execute(
             "DELETE FROM run_job_stage_results WHERE stage_id='screening' AND run_job_id IN (SELECT run_job_id FROM run_jobs WHERE run_id=?)",
             (run_id,),
         )
         for row in rows:
-            run_job_id = job_by_url.get(str(row.get("job_url") or row.get("source_job_url") or ""))
+            row_identity_keys = job_identity_index_keys(row)
+            run_job_id = next(
+                (
+                    job_by_identity[key]
+                    for key in row_identity_keys
+                    if key in job_by_identity
+                ),
+                None,
+            )
+            if run_job_id is None and not str(row.get("run_job_id") or "").strip():
+                legacy_url_key = next(
+                    (key for key in job_identity_keys(row) if key.startswith("url:")),
+                    None,
+                )
+                matching_job_ids = legacy_job_ids_by_url.get(legacy_url_key or "", [])
+                if len(matching_job_ids) == 1:
+                    run_job_id = matching_job_ids[0]
             if run_job_id is None:
                 raise ValueError("job_not_found")
             evidence = {
@@ -13502,15 +13537,116 @@ def _run_structured_payloads(conn: sqlite3.Connection, run_id: str) -> dict[str,
         ).fetchall()
     except sqlite3.OperationalError:
         return {}
+    run_url_counts: dict[str, int] = {}
+    try:
+        run_job_rows = conn.execute(
+            "SELECT source_url FROM run_jobs WHERE run_id=?",
+            (run_id,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        run_job_rows = []
+    for run_job_row in run_job_rows:
+        for key in job_identity_keys({"job_url": run_job_row[0]}):
+            if key.startswith("url:"):
+                run_url_counts[key] = run_url_counts.get(key, 0) + 1
     payloads: dict[str, dict[str, Any]] = {}
+    stable_payloads: dict[str, list[dict[str, Any]]] = {}
+    legacy_url_payloads: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         try:
             payload = json.loads(str(row[1] or "{}"))
         except (TypeError, json.JSONDecodeError):
             continue
         if isinstance(payload, dict):
-            payloads[str(row[0] or payload.get("job_url") or "").strip()] = payload
-    return {key: value for key, value in payloads.items() if key}
+            identity = {
+                **payload,
+                "job_url": payload.get("job_url") or row[0],
+            }
+            identity_keys = job_identity_keys(identity)
+            if any(key.startswith(("run:", "fp:")) for key in identity_keys):
+                for key in job_identity_index_keys(identity):
+                    stable_payloads.setdefault(key, []).append(payload)
+            else:
+                for key in identity_keys:
+                    if key.startswith("url:"):
+                        legacy_url_payloads.setdefault(key, []).append(payload)
+    for key, candidates in stable_payloads.items():
+        if len(candidates) == 1:
+            payloads[key] = candidates[0]
+    for key, candidates in legacy_url_payloads.items():
+        if len(candidates) == 1 and run_url_counts.get(key) == 1:
+            payloads[key] = candidates[0]
+    return payloads
+
+
+def _identity_payload_index(payloads: Any) -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
+    stable_payloads: dict[str, list[dict[str, Any]]] = {}
+    legacy_url_payloads: dict[str, list[dict[str, Any]]] = {}
+    values = payloads if isinstance(payloads, list) else []
+    for payload in values:
+        if not isinstance(payload, dict):
+            continue
+        identity = {
+            **payload,
+            "job_url": payload.get("job_url")
+            or payload.get("source_job_url")
+            or payload.get("source_url"),
+        }
+        identity_keys = job_identity_keys(identity)
+        if any(key.startswith(("run:", "fp:")) for key in identity_keys):
+            for key in job_identity_index_keys(identity):
+                stable_payloads.setdefault(key, []).append(payload)
+        else:
+            for key in identity_keys:
+                if key.startswith("url:"):
+                    legacy_url_payloads.setdefault(key, []).append(payload)
+    for key, candidates in stable_payloads.items():
+        if len(candidates) == 1:
+            indexed[key] = candidates[0]
+    for key, candidates in legacy_url_payloads.items():
+        if len(candidates) == 1:
+            indexed[key] = candidates[0]
+    return indexed
+
+
+def _run_job_identity(job_row: sqlite3.Row, source_snapshot: Any) -> dict[str, Any]:
+    return {
+        "run_job_id": str(job_row["run_job_id"] or "").strip(),
+        "job_url": str(job_row["source_url"] or "").strip(),
+        "raw_job_fingerprint": source_snapshot.get("raw_job_fingerprint")
+        if isinstance(source_snapshot, dict)
+        else None,
+    }
+
+
+def _identity_payload_for_job(
+    payloads: dict[str, dict[str, Any]],
+    job_identity: dict[str, Any],
+    *,
+    allow_legacy_url_fallback: bool = False,
+) -> dict[str, Any]:
+    run_job_id = str(job_identity.get("run_job_id") or "").strip()
+    if run_job_id:
+        return payloads.get(f"run:{run_job_id}", {})
+    for key in job_identity_index_keys(job_identity):
+        if key in payloads:
+            return payloads[key]
+    if not allow_legacy_url_fallback and any(
+        key.startswith(("run:", "fp:"))
+        for key in job_identity_keys(job_identity)
+    ):
+        return {}
+    for key in job_identity_keys(job_identity):
+        if not key.startswith("url:") or key not in payloads:
+            continue
+        payload = payloads[key]
+        if not any(
+            identity_key.startswith(("run:", "fp:"))
+            for identity_key in job_identity_keys(payload)
+        ):
+            return payload
+    return {}
 
 
 def _score_state_for_job(*payloads: Any) -> dict[str, Any]:
@@ -13574,7 +13710,7 @@ def _filtered_run_job_rows(
         run_row = conn.execute(
             "SELECT compatibility_json FROM pipeline_runs WHERE run_id=?", (run_id,)
         ).fetchone()
-        structured_by_url = _run_structured_payloads(conn, run_id)
+        structured_by_identity = _run_structured_payloads(conn, run_id)
         usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
 
     results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
@@ -13590,14 +13726,9 @@ def _filtered_run_job_rows(
         if isinstance(run_compatibility, dict)
         else None
     )
-    export_by_url: dict[str, dict[str, Any]] = {}
-    for row in (run_payload.get("results", []) if isinstance(run_payload, dict) else []):
-        if not isinstance(row, dict):
-            continue
-        for key in ("job_url", "source_job_url", "source_url"):
-            value = str(row.get(key) or "").strip()
-            if value:
-                export_by_url[value] = row
+    export_by_identity = _identity_payload_index(
+        run_payload.get("results", []) if isinstance(run_payload, dict) else []
+    )
     decision_feedback_source = (
         run_payload.get("decision_feedback_source")
         if isinstance(run_payload, dict)
@@ -13653,13 +13784,18 @@ def _filtered_run_job_rows(
             continue
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
-        canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        job_identity = _run_job_identity(job_row, source_snapshot)
+        canonical = _identity_payload_for_job(
+            structured_by_identity,
+            job_identity,
+            allow_legacy_url_fallback=True,
+        )
+        export_row = _identity_payload_for_job(export_by_identity, job_identity)
         score_state = _score_state_for_job(
             source_snapshot,
             canonical,
-            export_by_url.get(str(job_row["source_url"] or "").strip()),
+            export_row,
         )
-        export_row = export_by_url.get(str(job_row["source_url"] or "").strip())
         exported_cv_analysis = (
             export_row.get("cv_analysis")
             if isinstance(export_row, dict) and isinstance(export_row.get("cv_analysis"), dict)
@@ -13807,7 +13943,7 @@ def _select_run_job_ids(
            WHERE j.run_id=?""",
         (run_id,),
     ).fetchall()
-    structured_by_url = _run_structured_payloads(conn, run_id)
+    structured_by_identity = _run_structured_payloads(conn, run_id)
     run_row = conn.execute(
         "SELECT compatibility_json FROM pipeline_runs WHERE run_id=?", (run_id,)
     ).fetchone()
@@ -13815,11 +13951,9 @@ def _select_run_job_ids(
     export_payload = _decode_json_or_none(
         compatibility.get("results_export_json") if isinstance(compatibility, dict) else None
     )
-    export_by_url = {
-        str(row.get("job_url") or "").strip(): row
-        for row in (export_payload.get("results", []) if isinstance(export_payload, dict) else [])
-        if isinstance(row, dict) and str(row.get("job_url") or "").strip()
-    }
+    export_by_identity = _identity_payload_index(
+        export_payload.get("results", []) if isinstance(export_payload, dict) else []
+    )
     usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
     results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
     for result_row in result_rows:
@@ -13871,11 +14005,17 @@ def _select_run_job_ids(
             continue
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
-        canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        job_identity = _run_job_identity(job_row, source_snapshot)
+        canonical = _identity_payload_for_job(
+            structured_by_identity,
+            job_identity,
+            allow_legacy_url_fallback=True,
+        )
+        export_row = _identity_payload_for_job(export_by_identity, job_identity)
         score_state = _score_state_for_job(
             source_snapshot,
             canonical,
-            export_by_url.get(str(job_row["source_url"] or "").strip()),
+            export_row,
         )
         if not skills:
             skills = _normalise_job_skill_values(canonical.get("required_skills_canonical"))
@@ -13978,7 +14118,7 @@ def _hydrate_run_job_ids(
     run_row = conn.execute(
         "SELECT compatibility_json FROM pipeline_runs WHERE run_id=?", (run_id,)
     ).fetchone()
-    structured_by_url = _run_structured_payloads(conn, run_id)
+    structured_by_identity = _run_structured_payloads(conn, run_id)
     usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
     results_by_job: dict[str, dict[str, sqlite3.Row]] = {}
     for result_row in result_rows:
@@ -13991,11 +14131,9 @@ def _hydrate_run_job_ids(
         if isinstance(run_compatibility, dict)
         else None
     )
-    export_by_url = {
-        str(row.get("job_url") or "").strip(): row
-        for row in (run_payload.get("results", []) if isinstance(run_payload, dict) else [])
-        if isinstance(row, dict) and str(row.get("job_url") or "").strip()
-    }
+    export_by_identity = _identity_payload_index(
+        run_payload.get("results", []) if isinstance(run_payload, dict) else []
+    )
     decision_feedback_source = (
         run_payload.get("decision_feedback_source")
         if isinstance(run_payload, dict)
@@ -14036,11 +14174,17 @@ def _hydrate_run_job_ids(
             break
         skills = _normalise_job_skill_values(json.loads(str(job_row["skills_json"] or "[]")))
         source_snapshot = json.loads(str(job_row["source_snapshot_json"]))
-        canonical = structured_by_url.get(str(job_row["source_url"] or "").strip(), {})
+        job_identity = _run_job_identity(job_row, source_snapshot)
+        canonical = _identity_payload_for_job(
+            structured_by_identity,
+            job_identity,
+            allow_legacy_url_fallback=True,
+        )
+        export_row = _identity_payload_for_job(export_by_identity, job_identity)
         score_state = _score_state_for_job(
             source_snapshot,
             canonical,
-            export_by_url.get(str(job_row["source_url"] or "").strip()),
+            export_row,
         )
         if not skills:
             skills = _normalise_job_skill_values(canonical.get("required_skills_canonical")) or _normalise_job_skill_values(canonical.get("required_skills"))

@@ -70,6 +70,7 @@ from fitcv.agentic_cv_generation import (
 )
 from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv.candidate import (
+    converge_candidate_profile_for_runtime,
     flatten_skills,
     infer_effective_preferences,
     load_candidate_profile,
@@ -105,7 +106,9 @@ from fitcv.pipeline_stages.common import (
     pipeline_int,
     extract_job_title,
     extract_job_url,
+    job_identity_index_keys,
     job_identity_keys,
+    primary_job_identity_key,
     normalize_shortlist_row,
     json_safe_value,
     shortlist_outcome_for_row,
@@ -132,10 +135,10 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
-from fitcv.evidence import build_profile_evidence_pool, select_ranking_evidence
+from fitcv.evidence import build_evidence_projection, select_ranking_evidence
 from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
-from fitcv.pipeline_stage_runner import merge_passed_filter_records
+from fitcv.pipeline_stage_runner import execute_ranking_stage, merge_passed_filter_records
 from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
@@ -689,33 +692,90 @@ def _build_export_results(
         for item in items:
             seeded = _identity_seed(item)
             payload = transform(seeded) if transform is not None else seeded
-            for identity_key in job_identity_keys(seeded):
+            for identity_key in job_identity_index_keys(seeded):
                 indexed[identity_key] = payload
         return indexed
+
+    def _unique_rows_by_url(
+        items: list[dict[str, Any]],
+        *,
+        transform: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        candidates: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            seeded = _identity_seed(item)
+            payload = transform(seeded) if transform is not None else seeded
+            for identity_key in job_identity_keys(seeded):
+                if identity_key.startswith("url:"):
+                    candidates.setdefault(identity_key, []).append(payload)
+        return {
+            identity_key: rows[0]
+            for identity_key, rows in candidates.items()
+            if len(rows) == 1
+        }
 
     def _identity_keys_for(row: dict[str, Any]) -> list[str]:
         return job_identity_keys(_identity_seed(row))
 
-    def _lookup(indexed: dict[str, dict[str, Any]], row: dict[str, Any]) -> dict[str, Any] | None:
-        for identity_key in _identity_keys_for(row):
+    def _lookup(
+        indexed: dict[str, dict[str, Any]],
+        row: dict[str, Any],
+        url_fallback: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any] | None:
+        seeded = _identity_seed(row)
+        for identity_key in job_identity_index_keys(seeded):
             match = indexed.get(identity_key)
             if match is not None:
                 return match
+        if url_fallback is not None and not any(
+            key.startswith(("run:", "fp:")) for key in job_identity_keys(seeded)
+        ):
+            for identity_key in job_identity_keys(seeded):
+                if identity_key.startswith("url:"):
+                    return url_fallback.get(identity_key)
         return None
 
-    def _matches(identity_index: set[str], row: dict[str, Any]) -> bool:
-        return any(identity_key in identity_index for identity_key in _identity_keys_for(row))
+    def _matches(
+        identity_index: set[str],
+        row: dict[str, Any],
+        url_fallback: dict[str, dict[str, Any]] | None = None,
+    ) -> bool:
+        seeded = _identity_seed(row)
+        return any(
+            identity_key in identity_index
+            for identity_key in job_identity_index_keys(seeded)
+        ) or (
+            url_fallback is not None
+            and not any(
+                key.startswith(("run:", "fp:"))
+                for key in job_identity_keys(seeded)
+            )
+            and any(
+                identity_key in url_fallback
+                for identity_key in job_identity_keys(seeded)
+                if identity_key.startswith("url:")
+            )
+        )
 
     enriched_by_identity = _index_rows_by_identity(enriched)
+    enriched_by_url = _unique_rows_by_url(enriched)
     passed_by_identity = _index_rows_by_identity(passed_jobs)
+    passed_by_url = _unique_rows_by_url(passed_jobs)
     raw_shortlist_by_identity = _index_rows_by_identity(raw_shortlist, transform=normalize_shortlist_row)
+    raw_shortlist_by_url = _unique_rows_by_url(raw_shortlist, transform=normalize_shortlist_row)
     scoring_shortlist_by_identity = _index_rows_by_identity(shortlist_for_scoring, transform=normalize_shortlist_row)
+    scoring_shortlist_by_url = _unique_rows_by_url(shortlist_for_scoring, transform=normalize_shortlist_row)
     scoring_by_identity = _index_rows_by_identity(ranking_inputs)
+    scoring_by_url = _unique_rows_by_url(ranking_inputs)
     ranked_by_identity = _index_rows_by_identity(ranked)
+    ranked_by_url = _unique_rows_by_url(ranked)
     analysis_by_identity = _index_rows_by_identity(cv_analysis_results)
+    analysis_by_url = _unique_rows_by_url(cv_analysis_results)
     cv_by_identity = _index_rows_by_identity(cv_results)
+    cv_by_url = _unique_rows_by_url(cv_results)
     passed_job_urls = {extract_job_url(job) for job in passed_jobs if extract_job_url(job)}
     debug_by_identity = _index_rows_by_identity(cv_generation_debug_records)
+    debug_by_url = _unique_rows_by_url(cv_generation_debug_records)
     skipped_fit_gate_identity_keys = {
         identity_key
         for record in cv_generation_debug_records
@@ -756,16 +816,16 @@ def _build_export_results(
             rejected_after_enrichment_identity_keys.add(identity_key)
 
     def _status_for(raw_job: dict[str, Any]) -> str:
-        if _lookup(cv_by_identity, raw_job) is not None:
+        if _lookup(cv_by_identity, raw_job, cv_by_url) is not None:
             return "ranked_with_cv"
-        scoring_row = _lookup(scoring_by_identity, raw_job)
+        scoring_row = _lookup(scoring_by_identity, raw_job, scoring_by_url)
         if scoring_row is not None and normalize_score_state(scoring_row)["score_status"] != SCORE_STATUS_VALID:
             return "ranking_unavailable"
-        if _matches(blocked_by_reranker_identity_keys, raw_job):
+        if _matches(blocked_by_reranker_identity_keys, raw_job, debug_by_url):
             return PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER
-        if _matches(skipped_fit_gate_identity_keys, raw_job):
+        if _matches(skipped_fit_gate_identity_keys, raw_job, debug_by_url):
             return "ranked_skipped_fit_gate"
-        if _lookup(ranked_by_identity, raw_job) is not None:
+        if _lookup(ranked_by_identity, raw_job, ranked_by_url) is not None:
             return "ranked_no_cv"
         if _matches(rejected_before_enrichment_identity_keys, raw_job):
             return "rejected_before_enrichment"
@@ -773,9 +833,9 @@ def _build_export_results(
             return "rejected_after_enrichment"
         if scoring_row is not None:
             return "scored_not_ranked"
-        if _lookup(scoring_shortlist_by_identity, raw_job) is not None:
+        if _lookup(scoring_shortlist_by_identity, raw_job, scoring_shortlist_by_url) is not None:
             return "shortlisted_not_scored"
-        if _lookup(passed_by_identity, raw_job) is not None:
+        if _lookup(passed_by_identity, raw_job, passed_by_url) is not None:
             return "not_shortlisted"
         return "unknown_pipeline_state"
 
@@ -807,15 +867,15 @@ def _build_export_results(
     for input_index, raw_job in enumerate(raw_jobs):
         job_url = extract_job_url(raw_job)
         seeded_raw_job = _identity_seed(raw_job)
-        enriched_job = _lookup(enriched_by_identity, seeded_raw_job)
+        enriched_job = _lookup(enriched_by_identity, seeded_raw_job, enriched_by_url)
         deduplicated_job = deduplicated_by_input_index.get(input_index)
         score_source = {
-            **(_lookup(scoring_shortlist_by_identity, seeded_raw_job) or {}),
-            **(_lookup(scoring_by_identity, seeded_raw_job) or {}),
-            **(_lookup(ranked_by_identity, seeded_raw_job) or {}),
+            **(_lookup(scoring_shortlist_by_identity, seeded_raw_job, scoring_shortlist_by_url) or {}),
+            **(_lookup(scoring_by_identity, seeded_raw_job, scoring_by_url) or {}),
+            **(_lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) or {}),
         }
-        cv_row = _lookup(cv_by_identity, seeded_raw_job)
-        analysis_row = _lookup(analysis_by_identity, seeded_raw_job)
+        cv_row = _lookup(cv_by_identity, seeded_raw_job, cv_by_url)
+        analysis_row = _lookup(analysis_by_identity, seeded_raw_job, analysis_by_url)
         cv_payload = None
         if cv_row is not None:
             runtime_observations = list(cv_row.get("llm_runtime_observations") or [])
@@ -864,9 +924,13 @@ def _build_export_results(
             ]
             score_source = {}
 
-        raw_shortlist_row = _lookup(raw_shortlist_by_identity, seeded_raw_job)
-        scoring_shortlist_row = _lookup(scoring_shortlist_by_identity, seeded_raw_job)
-        matched_passed_job = _lookup(passed_by_identity, seeded_raw_job)
+        raw_shortlist_row = _lookup(raw_shortlist_by_identity, seeded_raw_job, raw_shortlist_by_url)
+        scoring_shortlist_row = _lookup(
+            scoring_shortlist_by_identity,
+            seeded_raw_job,
+            scoring_shortlist_by_url,
+        )
+        matched_passed_job = _lookup(passed_by_identity, seeded_raw_job, passed_by_url)
         matched_passed_job_url = extract_job_url(matched_passed_job or {})
         if matched_passed_job is not None and matched_passed_job_url:
             shortlist_status = _shortlist_status_for_export_row(
@@ -886,10 +950,10 @@ def _build_export_results(
             if score_source.get("baseline_fit") is not None
             else None
         )
-        debug_row = _lookup(debug_by_identity, seeded_raw_job)
+        debug_row = _lookup(debug_by_identity, seeded_raw_job, debug_by_url)
         if debug_row is not None:
             cv_status = str(debug_row.get("status") or "not_attempted")
-        elif _lookup(ranked_by_identity, seeded_raw_job) is not None:
+        elif _lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) is not None:
             cv_status = "not_attempted"
         else:
             cv_status = "not_applicable"
@@ -898,7 +962,14 @@ def _build_export_results(
         else:
             decision_chain = _build_decision_chain(
                 shortlist_status=shortlist_status,
-                advanced_to_scoring=_lookup(scoring_shortlist_by_identity, seeded_raw_job) is not None,
+                advanced_to_scoring=(
+                    _lookup(
+                        scoring_shortlist_by_identity,
+                        seeded_raw_job,
+                        scoring_shortlist_by_url,
+                    )
+                    is not None
+                ),
                 ranking_fit_label=ranking_fit_label,
                 ranking_fit_source=ranking_fit_source,
                 cv_status=cv_status,
@@ -1038,6 +1109,17 @@ def _build_export_results(
         rows.append(
             {
                 "job_url": job_url,
+                "run_job_id": (
+                    str(
+                        raw_job.get("run_job_id")
+                        or (enriched_job or {}).get("run_job_id")
+                        or score_source.get("run_job_id")
+                        or (analysis_row or {}).get("run_job_id")
+                        or (cv_row or {}).get("run_job_id")
+                        or ""
+                    ).strip()
+                    or None
+                ),
                 "source_job_url": str(raw_job.get("source_job_url") or job_url),
                 "raw_job_fingerprint": (
                     str(
@@ -3146,9 +3228,14 @@ def build_ranking_features(
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Build canonical ranking-v2 rows from shortlist and AI-score inputs."""
-    shortlist_index: dict[str, dict[str, Any]] = {
-        row["job_url"]: row for row in shortlist
-    }
+    shortlist_index: dict[str, dict[str, Any]] = {}
+    shortlist_by_url: dict[str, list[dict[str, Any]]] = {}
+    for row in shortlist:
+        for identity_key in job_identity_index_keys(row):
+            shortlist_index.setdefault(identity_key, row)
+        for identity_key in job_identity_keys(row):
+            if identity_key.startswith("url:"):
+                shortlist_by_url.setdefault(identity_key, []).append(row)
     ranking_context = dict(config.get("ranking_contract") or {})
     ranking_policy = dict(ranking_context.get("ranking_policy") or {})
     if not ranking_policy:
@@ -3161,8 +3248,24 @@ def build_ranking_features(
 
     features: list[dict[str, Any]] = []
     for ai_row in ai_scores:
-        job_url = str(ai_row.get("job_url") or "")
-        sl_row = shortlist_index.get(job_url)
+        sl_row = next(
+            (
+                shortlist_index[identity_key]
+                for identity_key in job_identity_index_keys(ai_row)
+                if identity_key in shortlist_index
+            ),
+            None,
+        )
+        if sl_row is None and not any(
+            key.startswith(("run:", "fp:")) for key in job_identity_keys(ai_row)
+        ):
+            url_key = next(
+                (key for key in job_identity_keys(ai_row) if key.startswith("url:")),
+                None,
+            )
+            matching_rows = shortlist_by_url.get(url_key or "", [])
+            if len(matching_rows) == 1:
+                sl_row = matching_rows[0]
         if sl_row is None:
             continue  # not in shortlist — skip
 
@@ -3591,6 +3694,9 @@ def run_pipeline(
                 profile = load_profile_yaml(profile_path)
             candidate_skill_names = flatten_skills(profile)
 
+        evidence_projection = build_evidence_projection(
+            converge_candidate_profile_for_runtime(profile or {})
+        )
         passed_jobs = list(state["passed_jobs"])
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         passed_job_urls = [extract_job_url(job) for job in passed_jobs if extract_job_url(job)]
@@ -3689,7 +3795,6 @@ def run_pipeline(
         shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
         shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
         candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
-
         if not candidate_query_components or not candidate_summary:
             from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
 
@@ -3697,186 +3802,93 @@ def run_pipeline(
             candidate_summary = build_candidate_query_text(profile, config)
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("ranking"):
-            with observe_span("pipeline.ai_score", attributes={"run_id": run_id}):
-                try:
-                    resolved_route = resolve_llm_routing("ranking_ai_score", runtime_config=config)
-                except Exception:
-                    resolved_route = None
-                ai_top_n = pipeline_int(config, "ai_score_top_n", default=0)
-                if cancellation_check and cancellation_check():
-                    raise PipelineCancelled("Cancelled before AI scoring")
-                ai_score_candidates = shortlist[:ai_top_n]
-                ranking_reuse_enabled = _reuse_stage_enabled(config, "ranking")
-                fresh_scoring_jobs: list[dict[str, Any]] = []
-                ranking_inputs_by_url: dict[str, dict[str, Any]] = {}
-                fresh_ai_score_fingerprints: dict[str, str] = {}
-                reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
-                profile_evidence_pool = build_profile_evidence_pool(profile or {})
-                for shortlisted_job in ai_score_candidates:
-                    selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
-                    ranking_profile = {**(profile or {}), "_projected_evidence_pool": selected_evidence}
-                    ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
-                    top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
-                    if extract_job_url(shortlisted_job):
-                        ranking_inputs_by_url[extract_job_url(shortlisted_job)] = ranking_input
-                    try:
-                        fingerprint_record = build_ai_score_input_fingerprint(
-                            shortlisted_job,
-                            candidate_summary,
-                            top_evidence,
-                            config,
-                            resolved_route=resolved_route,
-                            ranking_input=ranking_input,
-                        )
-                    except Exception:
-                        fingerprint_record = {"fingerprint": ""}
-                    job_url = extract_job_url(shortlisted_job)
-                    reused_ai_row = (
-                        ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
-                        if ranking_reuse_enabled
-                        else None
-                    )
-                    if reused_ai_row is not None and normalize_score_state(reused_ai_row)["score_status"] != SCORE_STATUS_VALID:
-                        reused_ai_row = None
-                    if reused_ai_row is not None and job_url:
-                        reused_ai_scores_by_url[job_url] = {
-                            **deepcopy(reused_ai_row),
-                            "job_url": job_url,
-                            "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
-                            "ai_score_reuse_status": "reused_exact_match",
-                            "reuse_decision": build_reuse_decision(
-                                decision="reused_exact_match",
-                                reason_code="exact_fingerprint_match",
-                                fingerprint=fingerprint_record["fingerprint"],
-                                source_artifact_type="ranking_ai_score",
-                            ),
-                        }
-                        continue
-                    fresh_scoring_jobs.append(shortlisted_job)
-                    if job_url:
-                        fresh_ai_score_fingerprints[job_url] = fingerprint_record["fingerprint"]
-
-                ranking_concurrency = _ranking_stage_concurrency(config)
-                ranking_effective_concurrency = _effective_stage_concurrency(
-                    ranking_concurrency,
-                    len(fresh_scoring_jobs),
+            ranking_concurrency = _ranking_stage_concurrency(config)
+            ai_scores, ranking_inputs = execute_ranking_stage(
+                run_id=run_id,
+                state=state,
+                shortlist=shortlist,
+                candidate_summary=candidate_summary,
+                profile=profile or {},
+                config=config,
+                final_top_n=final_top_n,
+                reporter=None,
+                pipeline_store=pipeline_store,
+                observe_span=observe_span,
+                set_span_attributes=set_span_attributes,
+                cancellation_check=cancellation_check,
+                cancellation_error_cls=PipelineCancelled,
+                ranking_ai_score_reuse_index=ranking_ai_score_reuse_index,
+                build_ai_score_input_fingerprint=build_ai_score_input_fingerprint,
+                extract_job_url=extract_job_url,
+                run_ai_scoring=run_ai_scoring,
+                build_ranking_features=build_ranking_features,
+                rank_jobs=rank_jobs,
+                preference_policy_resolver=preference_policy_resolver,
+                profile_for_projection=converge_candidate_profile_for_runtime(profile or {}),
+                evidence_projection=evidence_projection,
+                runtime_observation_callback=ranking_llm_runtime_observations.append,
+                build_reuse_decision_callback=build_reuse_decision,
+                resolve_llm_routing_callback=resolve_llm_routing,
+            )
+            reused_ai_count = sum(
+                1
+                for row in ai_scores
+                if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
+            )
+            fresh_ai_count = sum(
+                1
+                for row in ai_scores
+                if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
+            )
+            fresh_scoring_count = sum(
+                1
+                for row in ai_scores
+                if str(row.get("ai_score_reuse_status") or "")
+                in {"fresh_compute", "reuse_disabled"}
+            )
+            ranking_effective_concurrency = _effective_stage_concurrency(
+                ranking_concurrency,
+                fresh_scoring_count,
+            )
+            ranked = list(state["ranked"])
+            if reporter is not None:
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer3_ai_score",
+                    "info",
+                    f"AI scored: {len(ai_scores)} jobs",
+                    _bounded_event_payload(
+                        event_name="ranking_ai_scored",
+                        event_family="summary",
+                        source_stage="ranking",
+                        event_status="completed",
+                        output_snapshot={
+                            "ai_scored_jobs": len(ai_scores),
+                            "configured_concurrency": ranking_concurrency,
+                            "ranking_concurrency_effective": ranking_effective_concurrency,
+                        },
+                        artifact_refs={"stage_id": "ranking"},
+                    ),
                 )
-                fresh_ai_scores = (
-                    run_ai_scoring(
-                        fresh_scoring_jobs,
-                        candidate_summary,
-                        config,
-                        top_n=len(fresh_scoring_jobs),
-                        runtime_observation_callback=ranking_llm_runtime_observations.append,
-                        resolved_route=resolved_route,
-                        **({"ranking_inputs": ranking_inputs_by_url} if ranking_inputs_by_url else {}),
-                    )
-                    if fresh_scoring_jobs
-                    else []
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer3_ranking",
+                    "info",
+                    f"Final ranking: top {len(ranked)} jobs",
+                    _bounded_event_payload(
+                        event_name="ranking_completed",
+                        event_family="summary",
+                        source_stage="ranking",
+                        event_status="completed",
+                        output_snapshot={
+                            "ranked_jobs": len(ranked),
+                            "configured_concurrency": ranking_concurrency,
+                            "ranking_concurrency_effective": ranking_effective_concurrency,
+                            "reused_ai_scores": reused_ai_count,
+                            "fresh_ai_scores": fresh_ai_count,
+                        },
+                        artifact_refs={"stage_id": "ranking"},
+                    ),
                 )
-                fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
-                for ai_row in fresh_ai_scores:
-                    job_url = str(ai_row.get("job_url") or "")
-                    fresh_ai_scores_by_url[job_url] = {
-                        **ai_row,
-                        "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
-                        "ai_score_reuse_status": "fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
-                        "reuse_decision": build_reuse_decision(
-                            decision="fresh_compute" if ranking_reuse_enabled else "reuse_disabled",
-                            reason_code="no_reusable_snapshot_match" if ranking_reuse_enabled else "stage_reuse_disabled",
-                            fingerprint=fresh_ai_score_fingerprints.get(job_url),
-                            source_artifact_type="ranking_ai_score",
-                        ),
-                    }
-
-                ai_scores = []
-                for shortlisted_job in ai_score_candidates:
-                    job_url = extract_job_url(shortlisted_job)
-                    score_row: dict[str, Any] | None = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
-                    if score_row is not None:
-                        ai_scores.append(score_row)
-                reused_ai_count = sum(
-                    1 for row in ai_scores
-                    if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
-                )
-                fresh_ai_count = sum(
-                    1 for row in ai_scores
-                    if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
-                )
-                if reporter is not None:
-                    reporter.emit(  # type: ignore[union-attr]
-                        "layer3_ai_score",
-                        "info",
-                        f"AI scored: {len(ai_scores)} jobs",
-                        _bounded_event_payload(
-                            event_name="ranking_ai_scored",
-                            event_family="summary",
-                            source_stage="ranking",
-                            event_status="completed",
-                            output_snapshot={
-                                "ai_scored_jobs": len(ai_scores),
-                                "configured_concurrency": ranking_concurrency,
-                                "ranking_concurrency_effective": ranking_effective_concurrency,
-                            },
-                            artifact_refs={"stage_id": "ranking"},
-                        ),
-                    )
-                set_span_attributes(
-                    {
-                        "ai_score_candidates": len(ai_score_candidates),
-                        "ai_scores": len(ai_scores),
-                        "fresh_ai_scores": fresh_ai_count,
-                        "reused_ai_scores": reused_ai_count,
-                    }
-                )
-
-            with observe_span("pipeline.ranking", attributes={"run_id": run_id, "final_top_n": final_top_n}):
-                ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
-                resolved_preference_policy = resolve_run_preference_policy(
-                    ranking_rows=ranking_inputs,
-                    config=config,
-                    existing_payload=dict(state.get("resolved_preference_policy") or {}),
-                    resolver=preference_policy_resolver,
-                )
-                state["resolved_preference_policy"] = resolved_preference_policy_to_dict(
-                    resolved_preference_policy
-                )
-                ranked = rank_jobs(
-                    ranking_inputs,
-                    top_n=final_top_n,
-                    resolved_preference_policy=resolved_preference_policy,
-                )
-                pipeline_store.store_final_ranking(ranked, config)
-                if reporter is not None:
-                    reporter.emit(  # type: ignore[union-attr]
-                        "layer3_ranking",
-                        "info",
-                        f"Final ranking: top {len(ranked)} jobs",
-                        _bounded_event_payload(
-                            event_name="ranking_completed",
-                            event_family="summary",
-                            source_stage="ranking",
-                            event_status="completed",
-                            output_snapshot={
-                                "ranked_jobs": len(ranked),
-                                "configured_concurrency": ranking_concurrency,
-                                "ranking_concurrency_effective": ranking_effective_concurrency,
-                                "reused_ai_scores": reused_ai_count,
-                                "fresh_ai_scores": fresh_ai_count,
-                            },
-                            artifact_refs={"stage_id": "ranking"},
-                        ),
-                    )
-                state["ai_scores"] = ai_scores
-                state["ranking_llm_runtime_observations"] = ranking_llm_runtime_observations
-                state["ranking_inputs"] = ranking_inputs
-                state["ranked"] = ranked
-                set_span_attributes(
-                    {
-                        "ranking_inputs": len(ranking_inputs),
-                        "ranked_jobs": len(ranked),
-                    }
-                )
+            state["ranking_llm_runtime_observations"] = ranking_llm_runtime_observations
             stage_boundary_result = _handle_stage_boundary(
                 run_id=run_id,
                 last_completed_stage="ranking",
@@ -3983,6 +3995,7 @@ def run_pipeline(
                             profile,
                             config,
                             reusable_record=reusable_record,
+                            evidence_projection=evidence_projection,
                         )
                     )
 
@@ -5359,7 +5372,6 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
     return summary
-
 
 
 

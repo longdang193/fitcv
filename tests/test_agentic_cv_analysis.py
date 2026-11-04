@@ -17,6 +17,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 import yaml
+import pytest
 
 from fitcv.agentic_cv_analysis import (
     _answer_mentions_requirement,
@@ -178,6 +179,59 @@ def test_full_and_strict_keep_unresolved_project_experience_blocked() -> None:
         assert result["fit_classification"] == "skip"
 
 
+@pytest.mark.parametrize("mode", ["full", "strict"])
+def test_numeric_experience_bounds_use_candidate_years_for_gate(mode: str) -> None:
+    job = {
+        "job_url": "https://example.com/job/years",
+        "title": "Data Analyst",
+        "baseline_fit": 0.8,
+        "baseline_fit_label": "strong",
+        "required_skills": [],
+        "years_experience_min": 4,
+        "years_experience_max": 6,
+    }
+    profile = {**_profile(), "years_experience": 5}
+
+    result = analyze_ranked_job(
+        job,
+        profile,
+        {**_config(), "cv_analysis": {"experience_evidence_mode": mode}},
+    )
+
+    years_row = next(
+        row for row in result["requirement_coverage"]
+        if row["requirement_id"] == "professional_experience:years"
+    )
+    assert years_row["selected_support"] == "verified"
+    assert "professional_experience:years" in result["experience_evidence_summary"]["professional_experience"]["verified_requirement_ids"]
+    assert result["status"] == "ready_for_generation"
+
+
+def test_numeric_experience_resolution_verifies_without_canonical_skill() -> None:
+    job = {
+        "required_skills": [],
+        "years_experience_min": 4,
+        "years_experience_max": 6,
+    }
+    coverage = _build_requirement_coverage(
+        job,
+        [],
+        gap_summary={},
+        evidence_selection_summary={},
+        config={"cv_analysis": {"experience_evidence_mode": "strict"}},
+        requirement_resolutions=[{
+            "resolution_id": "years-resolution",
+            "requirement_instance_id": "professional_experience:years",
+            "resolution_key": "professional_experience:years",
+            "resolution_action": "RESOLVE_WITH_ANSWER",
+            "resolution_payload": {"answer_text": "I have 5 years of professional experience."},
+        }],
+    )
+
+    assert coverage[0]["selected_support"] == "verified"
+    assert coverage[0]["supporting_evidence_ids"] == ["years-resolution"]
+
+
 def test_extract_job_url_accepts_indeed_url_alias() -> None:
     assert extract_job_url(
         {
@@ -247,6 +301,30 @@ def test_analyze_ranked_job_accepts_prior_review_fit_without_ranking_score(
 
     assert result["fit_classification"] == "stretch"
     assert result["status"] != "blocked_by_reranker_fit"
+
+
+def test_analyze_ranked_job_reuses_supplied_projection_without_rebuilding() -> None:
+    projection = {
+        "items": [],
+        "fingerprint": "projection::shared",
+    }
+    config = _config()
+    config["cv_analysis"] = {"experience_evidence_mode": "full"}
+    config["_requirement_resolutions"] = [{"candidate_profile_id": "other-candidate"}]
+
+    with (
+        patch("fitcv.agentic_cv_analysis.build_evidence_projection", side_effect=AssertionError("projection rebuilt")),
+        patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle", return_value={"selected_evidence": []}),
+        patch("fitcv.agentic_cv_analysis.compute_gap", return_value={"matched": [], "missing": []}),
+    ):
+        result = analyze_ranked_job(
+            {**_job(), "baseline_fit_label": "strong"},
+            _profile(),
+            config,
+            evidence_projection=projection,
+        )
+
+    assert result["status"] in {"ready_for_generation", "skipped_fit_gate"}
 
 
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
@@ -557,12 +635,17 @@ def test_resolution_actions_remain_fail_closed(
     job = {**_job(), "required_skills": ["SQL"]}
     requirement_id = build_required_skill_descriptors(job, _config())[0]["requirement_id"]
 
-    def analyze(action: str, answer_text: str = "") -> dict:
+    def analyze(
+        action: str,
+        answer_text: str = "",
+        experience_mode: str = "full",
+    ) -> dict:
         return analyze_ranked_job(
             job,
             profile,
             {
                 **_config(),
+                "cv_analysis": {"experience_evidence_mode": experience_mode},
                 "_requirement_resolutions": [
                     {
                         "resolution_id": f"resolution-{action.lower()}",
@@ -583,9 +666,13 @@ def test_resolution_actions_remain_fail_closed(
     assert confirmed_omit["support_strength"] == "omitted"
     assert confirmed_omit["supporting_evidence_ids"] == []
 
-    override_block = analyze("OVERRIDE_BLOCK")["requirement_coverage"][0]
-    assert override_block["selected_support"] == "unsupported"
-    assert override_block["supporting_evidence_ids"] == []
+    for experience_mode in ("full", "strict"):
+        override_result = analyze("OVERRIDE_BLOCK", experience_mode=experience_mode)
+        override_block = override_result["requirement_coverage"][0]
+        assert override_block["selected_support"] == "unsupported"
+        assert override_block["supporting_evidence_ids"] == []
+        assert override_result["status"] == "ready_for_generation"
+        assert override_result["experience_evidence_summary"]["professional_experience"]["unverified_requirement_ids"] == []
 
     contradicted = analyze("RESOLVE_WITH_ANSWER", "I do not have SQL experience.")["requirement_coverage"][0]
     assert contradicted["selected_support"] == "contradicted"

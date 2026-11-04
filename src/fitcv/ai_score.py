@@ -50,7 +50,7 @@ from fitcv.llm_runtime import (
 )
 from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.persistence import get_local_sqlite_path, sqlite_connection
-from fitcv.pipeline_stages.common import job_identity_keys
+from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.evidence import project_candidate_evidence
 from fitcv.candidate import flatten_skills
 from fitcv.prompts import render_prompt
@@ -112,7 +112,6 @@ def build_ai_score_input_fingerprint(
         ranking_input=ranking_input, resolved_route=resolved_route,
     )
     payload = {
-        "job_url": str(job.get("job_url") or ""),
         "request": request_record["request_payload"],
         "route": request_record["route_payload"],
         "prompt": request_record["request"].prompt,
@@ -146,7 +145,7 @@ def build_ranking_request(
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {"routing_part": request.routing_part, "prompt": request.prompt, "response_mode": request.response_mode}
     route_payload = {key: getattr(route, key) for key in ("provider", "base_url", "wire_api", "model", "timeout_seconds", "request_start_interval_secs", "auth_mode", "temperature", "model_record_id", "configuration_revision")}
-    return {"request": request, "route": route, "request_payload": request_payload, "route_payload": route_payload, "fingerprint": _stable_json_fingerprint({"job_url": str(job.get("job_url") or ""), "request": request_payload, "route": route_payload})}
+    return {"request": request, "route": route, "request_payload": request_payload, "route_payload": route_payload, "fingerprint": _stable_json_fingerprint({"request": request_payload, "route": route_payload})}
 
 
 # ── prompt construction ────────────────────────────────────────────────────────
@@ -192,6 +191,11 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
     def bounded(values: Any, limit: int = 8) -> list[str]:
         return [str(value).strip() for value in list(values or [])[:limit] if str(value).strip()]
 
+    projected_evidence = profile.get("_projected_evidence_pool")
+    if not isinstance(projected_evidence, list):
+        from fitcv.evidence import project_candidate_evidence
+
+        projected_evidence = project_candidate_evidence(profile)
     evidence = [{
         "evidence_id": str(item.get("evidence_id") or ""),
         "kind": str(item.get("kind") or ""),
@@ -199,10 +203,25 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
         "text": str(item.get("text") or "")[:400],
         "source_section": str(item.get("source_section") or ""),
         "parent_id": str(item.get("parent_id") or ""),
-    } for item in project_candidate_evidence(profile)[:2]]
+    } for item in projected_evidence[:2] if isinstance(item, dict)]
+    all_required_skills = [
+        str(value).strip()
+        for value in list(job.get("required_skills_canonical") or job.get("required_skills") or [])
+        if str(value).strip()
+    ]
+    all_candidate_skills = [
+        str(value).strip()
+        for value in flatten_skills(profile)
+        if str(value).strip()
+    ]
+    required_skills = all_required_skills[:8]
+    candidate_skills = all_candidate_skills[:8]
+    candidate_skill_keys = {skill.casefold() for skill in all_candidate_skills}
+    matched_skills = [skill for skill in all_required_skills if skill.casefold() in candidate_skill_keys]
+    missing_skills = [skill for skill in all_required_skills if skill.casefold() not in candidate_skill_keys]
     requirements = {
         "title": str(job.get("title") or "")[:160],
-        "required_skills": bounded(job.get("required_skills_canonical") or job.get("required_skills")),
+        "required_skills": required_skills,
         "preferred_skills": bounded(job.get("preferred_skills_canonical") or job.get("preferred_skills")),
         "seniority": str(job.get("seniority") or ""),
         "job_family": str(job.get("job_family") or ""),
@@ -210,9 +229,17 @@ def build_ranking_job_input(job: dict[str, Any], profile: dict[str, Any]) -> dic
         "responsibilities": bounded(job.get("responsibilities")),
         "language_requirements": bounded(job.get("language_requirements") or job.get("languages")),
         "location": {"location_type": str(job.get("location_type") or ""), "actual_location": job.get("actual_location") or job.get("location") or None},
+        "years_experience_min": job.get("years_experience_min"),
+        "years_experience_max": job.get("years_experience_max"),
+        "skill_coverage": {
+            "matched": matched_skills[:8],
+            "missing": missing_skills[:8],
+            "matched_count": len(matched_skills),
+            "required_count": len(all_required_skills),
+        },
     }
     candidate = {
-        "skills": bounded(flatten_skills(profile)),
+        "skills": candidate_skills,
         "years_experience": profile.get("years_experience"),
         "target_role": str((profile.get("preferences") or {}).get("target_role") or ""),
     }
@@ -270,6 +297,8 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
 
     if "ai_score" not in data or data.get("ai_score") is None:
         return _failure("missing_ai_score", "Scoring response parse failure: missing_ai_score")
+    if isinstance(data.get("ai_score"), bool):
+        return _failure("invalid_ai_score", "Scoring response parse failure: invalid_ai_score")
     try:
         raw_score = float(data["ai_score"])
     except (TypeError, ValueError):
@@ -389,6 +418,9 @@ def _ranking_result_to_row(job: dict[str, Any], result: LlmRuntimeResult) -> dic
     else:
         value["retry_eligible"] = False
     value["job_url"] = str(job.get("job_url", ""))
+    for identity_field in ("run_job_id", "raw_job_fingerprint", "source_job_url"):
+        if job.get(identity_field) not in (None, ""):
+            value[identity_field] = job[identity_field]
     return value
 
 
@@ -453,7 +485,19 @@ def run_ai_scoring(
     transport_pool = transport_pool or get_ranking_transport_pool()
 
     def _score_single(input_index: int, job: dict[str, Any]) -> dict[str, Any]:
-        ranking_input = dict((ranking_inputs or {}).get(str(job.get("job_url") or "")) or job.get("ranking_input") or {})
+        ranking_input = dict(job.get("ranking_input") or {})
+        if not ranking_input and ranking_inputs:
+            identity_keys = job_identity_index_keys(job)
+            ranking_input = dict(
+                next(
+                    (
+                        ranking_inputs[key]
+                        for key in identity_keys
+                        if key in ranking_inputs
+                    ),
+                    {},
+                )
+            )
         top_evidence = list(ranking_input.get("candidate_evidence") or job.get("top_evidence", []) or [])[:2]
         scoring_candidate_summary = str(ranking_input.get("candidate_summary") or candidate_summary)
         try:
@@ -486,6 +530,11 @@ def run_ai_scoring(
         except Exception as exc:  # noqa: BLE001
             return {
                 "job_url": str(job.get("job_url", "")),
+                **{
+                    field_name: job[field_name]
+                    for field_name in ("run_job_id", "raw_job_fingerprint", "source_job_url")
+                    if job.get(field_name) not in (None, "")
+                },
                 "ai_score": None, "legacy_model_fit_label": None,
                 "score_status": SCORE_STATUS_UNSCORED,
                 "failure_code": "provider_failure",

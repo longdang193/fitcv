@@ -12,6 +12,7 @@ import pytest
 
 from fitcv.ai_score import (
     build_ai_score_contract_fingerprint,
+    build_ranking_job_input,
     build_scoring_prompt,
     parse_score_response,
 )
@@ -271,6 +272,7 @@ def test_parse_score_response_does_not_derive_fit_label() -> None:
         ({}, "missing_ai_score"),
         ({"ai_score": None}, "missing_ai_score"),
         ({"ai_score": "NaN"}, "invalid_ai_score"),
+        ({"ai_score": True}, "invalid_ai_score"),
     ],
 )
 def test_parse_score_response_invalid_scores_are_not_fit(payload: dict[str, Any], failure_code: str) -> None:
@@ -290,6 +292,56 @@ def test_parse_score_response_preserves_valid_zero() -> None:
     assert result["ai_score"] == 0.0
     assert result["score_status"] == "valid"
     assert result["failure_code"] is None
+
+
+def test_build_ranking_job_input_is_bounded_and_uses_supplied_projection() -> None:
+    profile = {
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "_projected_evidence_pool": [
+            {"evidence_id": "ev-1", "kind": "experience", "title": "SQL", "text": "Built SQL pipelines."},
+        ],
+    }
+    job = {
+        "title": "Data Engineer",
+        "required_skills": ["SQL", "Airflow"],
+        "years_experience_min": 3,
+        "years_experience_max": 6,
+    }
+
+    with patch("fitcv.evidence.project_candidate_evidence", side_effect=AssertionError("projection rebuilt")):
+        result = build_ranking_job_input(job, profile)
+
+    requirements = json.loads(result["job_requirements"])
+    assert requirements["years_experience_min"] == 3
+    assert requirements["years_experience_max"] == 6
+    assert requirements["skill_coverage"] == {
+        "matched": ["SQL"],
+        "missing": ["Airflow"],
+        "matched_count": 1,
+        "required_count": 2,
+    }
+    assert result["candidate_evidence"][0]["evidence_id"] == "ev-1"
+
+
+def test_build_ranking_job_input_counts_skills_before_bounding_prompt_fields() -> None:
+    from fitcv.ai_score import build_ranking_job_input
+
+    profile = {
+        "skills": [{"name": f"Skill {index}"} for index in range(1, 10)],
+        "_projected_evidence_pool": [],
+    }
+    job = {
+        "required_skills": [f"Skill {index}" for index in range(1, 10)],
+    }
+
+    result = build_ranking_job_input(job, profile)
+    requirements = json.loads(result["job_requirements"])
+
+    assert len(requirements["required_skills"]) == 8
+    assert len(requirements["skill_coverage"]["matched"]) == 8
+    assert requirements["skill_coverage"]["matched_count"] == 9
+    assert requirements["skill_coverage"]["required_count"] == 9
+    assert requirements["skill_coverage"]["missing"] == []
 
 
 def test_score_job_uses_shared_runtime_contract() -> None:

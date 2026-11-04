@@ -298,6 +298,58 @@ def test_build_ranking_features_merges_by_job_url() -> None:
     assert urls == {"https://example.com/1", "https://example.com/2"}
 
 
+def test_build_ranking_features_merges_duplicate_urls_by_stable_identity() -> None:
+    shortlist = [
+        {
+            "run_job_id": "run-1",
+            "job_url": "https://example.com/same",
+            "title": "First role",
+            "similarity_score": 0.9,
+            "rank": 1,
+        },
+        {
+            "run_job_id": "run-2",
+            "job_url": "https://example.com/same",
+            "title": "Second role",
+            "similarity_score": 0.4,
+            "rank": 2,
+        },
+    ]
+    ai_scores = [
+        {"run_job_id": "run-1", "job_url": "https://example.com/same", "ai_score": 0.8},
+        {"run_job_id": "run-2", "job_url": "https://example.com/same", "ai_score": 0.2},
+    ]
+
+    features = build_ranking_features(
+        shortlist,
+        ai_scores,
+        {"preferences": {}},
+        _ranking_v2_config(),
+    )
+
+    by_run_job_id = {row["run_job_id"]: row for row in features}
+    assert by_run_job_id["run-1"]["title"] == "First role"
+    assert by_run_job_id["run-1"]["vector_similarity"] == pytest.approx(0.9)
+    assert by_run_job_id["run-2"]["title"] == "Second role"
+    assert by_run_job_id["run-2"]["vector_similarity"] == pytest.approx(0.4)
+
+
+def test_build_ranking_features_does_not_attribute_legacy_url_row_to_duplicate_stable_rows() -> None:
+    shortlist = [
+        {"run_job_id": "run-1", "job_url": "https://example.com/same", "title": "First"},
+        {"run_job_id": "run-2", "job_url": "https://example.com/same", "title": "Second"},
+    ]
+
+    features = build_ranking_features(
+        shortlist,
+        [{"job_url": "https://example.com/same", "ai_score": 0.8}],
+        {"preferences": {}},
+        _ranking_v2_config(),
+    )
+
+    assert features == []
+
+
 def test_build_ranking_features_includes_vector_similarity() -> None:
     profile: dict = {"preferences": {}}
     features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, _ranking_v2_config())
@@ -503,6 +555,41 @@ def test_build_export_results_matches_raw_stepstone_url_to_normalized_pipeline_r
 
     assert rows[0]["pipeline_status"] == "ranked_no_cv"
     assert rows[0]["job_url"] == raw_url
+
+
+def test_build_export_results_reconciles_raw_url_only_rows_to_stable_downstream_rows() -> None:
+    downstream = {
+        "run_job_id": "run-job-1",
+        "raw_job_fingerprint": "raw-fp-1",
+        "job_url": "https://jobs.example.com/stable-role",
+        "title": "Stable Role",
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
+        "vector_similarity": 0.65,
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[{"job_url": downstream["job_url"], "title": downstream["title"]}],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[dict(downstream)],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[dict(downstream)],
+        ranked=[dict(downstream)],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["run_job_id"] == downstream["run_job_id"]
+    assert rows[0]["pipeline_status"] == "ranked_no_cv"
+    assert rows[0]["scores"]["baseline_fit"] == pytest.approx(0.82)
 
 
 def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
@@ -2500,7 +2587,9 @@ def _canonical_reusable_cv_analysis_record(
     config: dict[str, Any],
 ) -> dict[str, Any]:
     from fitcv.agentic_cv_analysis import analyze_ranked_job
+    from fitcv.candidate import converge_candidate_profile_for_runtime
     from fitcv.enrich import build_raw_job_fingerprint
+    from fitcv.evidence import build_evidence_projection
 
     job["raw_job_fingerprint"] = build_raw_job_fingerprint(job)["fingerprint"]
     evidence = {
@@ -2523,7 +2612,16 @@ def _canonical_reusable_cv_analysis_record(
             return_value={"matched": ["SQL"], "partial": [], "missing": []},
         ),
     ):
-        return dict(analyze_ranked_job(job, profile, config))
+        return dict(
+            analyze_ranked_job(
+                job,
+                profile,
+                config,
+                evidence_projection=build_evidence_projection(
+                    converge_candidate_profile_for_runtime(profile)
+                ),
+            )
+        )
 
 
 def _agentic_analysis_ready(
@@ -2982,6 +3080,10 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
         "job_family": "analytics",
         "fit_label": "strong",
         "fit_label_source": "reranker",
+        "ai_score": 0.92,
+        "baseline_fit": 0.92,
+        "baseline_fit_label": "strong",
+        "score_status": "valid",
     }
     profile = _minimal_profile()
     config = _minimal_config()
@@ -3063,6 +3165,10 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
         "job_family": "analytics",
         "fit_label": "strong",
         "fit_label_source": "reranker",
+        "ai_score": 0.92,
+        "baseline_fit": 0.92,
+        "baseline_fit_label": "strong",
+        "score_status": "valid",
     }
     profile = _minimal_profile()
     config = _minimal_config()

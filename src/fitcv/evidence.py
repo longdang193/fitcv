@@ -917,6 +917,9 @@ def build_cv_analysis_input_fingerprint(
         "years_experience_min": job_context.get("years_experience_min") if isinstance(job_context, dict) else None,
         "years_experience_max": job_context.get("years_experience_max") if isinstance(job_context, dict) else None,
         "fit_label": str(job_context.get("fit_label") or "") if isinstance(job_context, dict) else "",
+        "baseline_fit": job_context.get("baseline_fit") if isinstance(job_context, dict) else None,
+        "baseline_fit_label": str(job_context.get("baseline_fit_label") or "") if isinstance(job_context, dict) else "",
+        "score_status": str(job_context.get("score_status") or "") if isinstance(job_context, dict) else "",
         "requirement_descriptors": [
             {
                 key: value

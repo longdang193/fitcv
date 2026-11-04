@@ -14,6 +14,7 @@ tags:
 import pytest
 
 from fitcv.pipeline import _resolve_layer4_fit
+from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.ranking import rank_jobs
 from fitcv.ranking_contract import (
     build_baseline_result,
@@ -45,6 +46,31 @@ def test_valid_zero_score_remains_rankable_and_failures_do_not() -> None:
     ranked = rank_jobs(jobs, top_n=10)
     assert [row["job_url"] for row in ranked] == ["zero"]
     assert jobs[1]["score_status"] == "unscored"
+
+
+def test_job_identity_keys_prefer_run_then_fingerprint_and_suppress_url_aliases() -> None:
+    job = {
+        "run_job_id": "run-job-1",
+        "raw_job_fingerprint": "raw-1",
+        "job_url": "https://example.com/same",
+    }
+
+    assert job_identity_keys(job) == [
+        "run:run-job-1",
+        "fp:raw-1",
+        "url:https://example.com/same",
+    ]
+    assert job_identity_index_keys(job) == ["run:run-job-1", "fp:raw-1"]
+    assert job_identity_index_keys({"job_url": job["job_url"]}) == [
+        "url:https://example.com/same"
+    ]
+
+
+def test_present_unmatched_stable_identity_does_not_match_url_alias() -> None:
+    indexed = {"url:https://example.com/same": {"ai_score": 0.9}}
+    candidate = {"run_job_id": "run-job-missing", "job_url": "https://example.com/same"}
+
+    assert not any(key in indexed for key in job_identity_index_keys(candidate))
 
 
 def test_unknown_score_state_never_gets_baseline_fit_label() -> None:
