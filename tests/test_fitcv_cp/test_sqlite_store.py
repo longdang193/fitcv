@@ -6476,6 +6476,155 @@ def test_run_summary_conserves_passed_rejected_and_skipped_occurrences() -> None
     assert jobs["rejected"] == 3
     assert jobs["skipped"] == 1
 
+
+def test_run_detail_uses_terminal_counts_at_an_awaiting_checkpoint() -> None:
+    run_id = "run-awaiting-count-reconciliation"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Generated", "job_url": "https://example.com/generated"},
+            {"title": "Rejected", "job_url": "https://example.com/rejected"},
+            {"title": "Skipped", "job_url": "https://example.com/skipped"},
+        ],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id, stage_id, status in (
+            (run_job_ids[0], "cv-generation", "generated"),
+            (run_job_ids[1], "cv-generation", "rejected"),
+            (run_job_ids[2], "ranking", "skipped"),
+        ):
+            conn.execute(
+                """INSERT INTO run_job_stage_results
+                   (run_job_id, stage_id, status, outcome_code, evidence_json)
+                   VALUES (?, ?, ?, ?, '{}')""",
+                (run_job_id, stage_id, status, status),
+            )
+            conn.execute(
+                "UPDATE run_jobs SET current_stage_id=? WHERE run_job_id=?",
+                (stage_id, run_job_id),
+            )
+        conn.execute(
+            """UPDATE pipeline_runs
+               SET backend_status='awaiting_continue', total_jobs=3,
+                   passed_jobs=3, rejected_jobs=1, cvs_generated=1
+               WHERE run_id=?""",
+            (run_id,),
+        )
+        conn.commit()
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["counts"] == {
+        "total": 3,
+        "passed": 1,
+        "rejected": 1,
+        "skipped": 1,
+        "cvs_generated": 1,
+    }
+
+
+def test_awaiting_checkpoint_persists_terminal_counts_over_stage_summary() -> None:
+    run_id = "run-awaiting-count-persistence"
+    run_job_ids = _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "Passed", "job_url": "https://example.com/passed"},
+            {"title": "Rejected", "job_url": "https://example.com/rejected"},
+        ],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        for run_job_id, status in zip(run_job_ids, ("passed", "rejected")):
+            conn.execute(
+                """INSERT INTO run_job_stage_results
+                   (run_job_id, stage_id, status, outcome_code, evidence_json)
+                   VALUES (?, 'screening', ?, ?, '{}')""",
+                (run_job_id, status, status),
+            )
+            conn.execute(
+                "UPDATE run_jobs SET current_stage_id='screening' WHERE run_job_id=?",
+                (run_job_id,),
+            )
+        conn.commit()
+
+    sqlite_store.update_run_status(
+        run_id,
+        RunStatus.AWAITING_CONTINUE,
+        summary={"total_jobs": 2, "passed_filter": 2},
+    )
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        row = conn.execute(
+            "SELECT total_jobs, passed_jobs, rejected_jobs FROM pipeline_runs WHERE run_id=?",
+            (run_id,),
+        ).fetchone()
+
+    assert row is not None
+    assert tuple(row) == (2, 1, 1)
+
+
+def test_snapshot_progress_counts_terminal_stage_rows_when_summary_list_is_empty() -> None:
+    run_id = "run-snapshot-progress-reconciliation"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Analyst", "job_url": "https://example.com/analyst"}],
+    )
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {
+            "total_jobs": 1,
+            "completed_stages": [],
+            "stage_transition_artifacts": {
+                "stages": {
+                    stage_id: {"status": "completed"}
+                    for stage_id in (
+                        "enrichment",
+                        "screening",
+                        "shortlisting",
+                        "ranking",
+                        "cv-analysis",
+                        "cv-generation",
+                    )
+                }
+            },
+        },
+        run_status=RunStatus.AWAITING_CONTINUE,
+        snapshot_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["progress"] == {"completed": 6, "total": 6}
+
+
+def test_run_detail_reconciles_stale_progress_from_stage_execution_states() -> None:
+    run_id = "run-stale-progress-reconciliation"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Analyst", "job_url": "https://example.com/analyst"}],
+    )
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute(
+            """UPDATE pipeline_runs
+               SET backend_status='awaiting_continue', progress_completed=0, progress_total=6
+               WHERE run_id=?""",
+            (run_id,),
+        )
+        conn.execute(
+            """UPDATE run_stage_executions
+               SET status='succeeded', progress_completed=1, progress_total=1
+               WHERE run_id=?""",
+            (run_id,),
+        )
+        conn.commit()
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["progress"] == {"completed": 6, "total": 6}
+
+
 def test_run_detail_projects_input_capabilities_and_integrity_warning() -> None:
     run_job_ids = _create_normalized_run_with_jobs(
         "run-detail",
