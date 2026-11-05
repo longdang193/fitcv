@@ -776,20 +776,6 @@ def _supplement_sparse_required_skills(
         for canonical in _build_canonical_list(supplemented, "required_skills", config)
         if canonical.strip()
     }
-    for raw_value in _required_skill_fallback_values(
-        row,
-        config,
-        source_fields=("tech_stack",),
-    ):
-        normalized_text = raw_value.strip().lower()
-        canonical = _canonicalize_text_item("required_skills", raw_value, config)
-        if normalized_text in existing_text or canonical in existing_canonical:
-            continue
-        supplemented.append(raw_value)
-        existing_text.add(normalized_text)
-        existing_canonical.add(canonical)
-    if len(supplemented) >= _SPARSE_REQUIRED_SKILLS_THRESHOLD:
-        return supplemented
     for raw_value in _required_skill_candidates_from_description(row, config):
         normalized_text = raw_value.strip().lower()
         canonical = _canonicalize_text_item("required_skills", raw_value, config)
@@ -818,7 +804,7 @@ def _repair_required_skill_signal(
     )
     required_entities = existing_required_entities
     if not required_skills:
-        required_skills = _required_skill_fallback_values(repaired, config)
+        required_skills = _required_skill_candidates_from_description(repaired, config)
         if required_skills:
             required_skills_changed = True
     else:
@@ -1039,7 +1025,7 @@ def _canonical_actual_location(
 def _canonical_language_requirements(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
-    grouped: dict[str, dict[str, Any]] = {}
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
     for raw_item in value:
         item = _fact_mapping(raw_item)
         if item is None:
@@ -1055,7 +1041,7 @@ def _canonical_language_requirements(value: Any) -> list[dict[str, Any]]:
         requirement_type = requirement_type_raw if is_valid_type else "unspecified"
         expected_level = expected_level_raw if is_valid_level else "unspecified"
         group = grouped.setdefault(
-            language_key,
+            (language_key, requirement_type),
             {
                 "language": language,
                 "requirement_type": requirement_type,
@@ -1074,8 +1060,8 @@ def _canonical_language_requirements(value: Any) -> list[dict[str, Any]]:
         group["evidence"].extend(_canonical_evidence(item.get("evidence")))
 
     canonical: list[dict[str, Any]] = []
-    for language_key in sorted(grouped):
-        group = grouped[language_key]
+    for language_key, requirement_type in sorted(grouped, key=lambda item: (item[0], item[1])):
+        group = grouped[(language_key, requirement_type)]
         evidence_by_key = {
             (item["source_field"], item["text"]): item
             for item in group["evidence"]

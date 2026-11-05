@@ -192,6 +192,50 @@ def test_deduplicate_jobs_prefers_source_identity_over_url() -> None:
     assert len(result) == 1
 
 
+def test_deduplicate_jobs_keeps_blank_url_source_variants_distinct() -> None:
+    jobs = [
+        {
+            "source_provider": "indeed",
+            "source_job_id": "a",
+            "job_url": "",
+            "title": "Data Engineer",
+        },
+        {
+            "source_provider": "indeed",
+            "source_job_id": "b",
+            "job_url": "",
+            "title": "Data Engineer",
+        },
+    ]
+
+    assert len(deduplicate_jobs(jobs)) == 2
+
+
+def test_deduplicate_near_duplicates_preserves_material_location_and_application_variants() -> None:
+    jobs = [
+        {
+            "job_url": "url1",
+            "company_id": "101",
+            "title": "AI Trainer",
+            "description": "Same JD text",
+            "location": "Berlin",
+            "contract_type": "Full-time",
+            "apply_type": "EXTERNAL",
+        },
+        {
+            "job_url": "url2",
+            "company_id": "101",
+            "title": "AI Trainer",
+            "description": "Same JD text",
+            "location": "Hamburg",
+            "contract_type": "Part-time",
+            "apply_type": "QUICK_APPLY",
+        },
+    ]
+
+    assert len(deduplicate_near_duplicates(jobs)) == 2
+
+
 def test_normalize_job_preserves_stepstone_content_quality_metadata() -> None:
     job = {
         "id": 14515580,
@@ -355,7 +399,7 @@ def test_normalize_batch_with_exclusions_tracks_removed_duplicates() -> None:
     kept, excluded = normalize_batch_with_exclusions(jobs)
     assert len(kept) == 1
     assert [row["dedupe_reason"] for row in excluded] == [
-        "duplicate_job_url",
+        "duplicate_job_identity",
         "near_duplicate_job_posting",
     ]
     assert [row["input_index"] for row in excluded] == [1, 2]

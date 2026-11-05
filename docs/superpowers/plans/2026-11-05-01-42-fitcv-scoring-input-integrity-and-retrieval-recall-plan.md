@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-validated-scoring-input-and-retrieval-integrity
 targets:
@@ -187,12 +187,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   proof.
 
 **Template Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `none (lead controller)`
 - Selection basis: resolve from reasoning depth, ambiguity, scope, risk, and
   cost before execution.
 
 **Validator Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `review-1`
 - Selection basis: independently validate request shape, fail-closed behavior,
   and reuse fingerprints.
 
@@ -227,10 +227,10 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   request to discard unrelated workspace changes.
 
 **Steps:**
-- [ ] Step 1: Define a versioned structured projection with explicit mandatory
+- [x] Step 1: Define a versioned structured projection with explicit mandatory
   and optional fields; keep complete canonical requirement/fact checksums
   outside the serialized prompt.
-- [ ] Step 2: Apply per-field reductions before JSON serialization, preserve
+- [x] Step 2: Apply per-field reductions before JSON serialization, preserve
   valid JSON, and fail with `score_status=unscored`,
   `failure_code=input_budget_exceeded`, and `retry_eligible=false` when the
   mandatory core cannot fit; do not call the model in that case. The mandatory
@@ -240,21 +240,21 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   language levels, experience duration/roles, and attributable evidence IDs.
   Shed optional preferred/contextual requirements first, then verbose candidate
   education/certification/employment detail and explanatory text.
-- [ ] Step 3: Record raw, selected, rendered, model-visible, omitted, and
+- [x] Step 3: Record raw, selected, rendered, model-visible, omitted, and
   truncated field metadata in the request record and diagnostics.
-- [ ] Step 4: Include the bounded request plus complete canonical input
+- [x] Step 4: Include the bounded request plus complete canonical input
   checksums in the reuse fingerprint. Define the visibility-record shape here;
   `execute_ranking_stage` must restore that exact record for reused scores.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_ai_score.py -k "ranking_job_input or ranking_request or diagnostics or fingerprint or reuse" --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_ai_score.py -k "ranking_job_input or ranking_request or diagnostics or fingerprint or reuse" --disable-warnings --maxfail=1`
 - Expected: long job requirements remain valid JSON; mandatory requirements
   and critical candidate facts are present or scoring fails explicitly;
   diagnostics identify every dropped field; changed complete input invalidates
   reuse.
-- [ ] Assert that an oversized mandatory core makes no provider call and is
+- [x] Assert that an oversized mandatory core makes no provider call and is
   stored as an input-budget failure rather than a provider failure.
-- [ ] Use the existing scoring stub seam to inspect the exact request passed to
+- [x] Use the existing scoring stub seam to inspect the exact request passed to
   the scorer for an oversized JD, two evidence items, and late candidate facts.
 - Expected: no raw character-sliced JSON and no normal score from an empty
   mandatory core.
@@ -274,12 +274,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   validation with regression fixtures.
 
 **Template Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `none (lead controller)`
 - Selection basis: resolve from reasoning depth, ambiguity, scope, risk, and
   cost before execution.
 
 **Validator Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `review-1`
 - Selection basis: independently validate source support and level/type
   preservation.
 
@@ -317,32 +317,32 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   meaning of an existing user-approved requirement type without a new spec.
 
 **Steps:**
-- [ ] Step 1: Preserve `explicit_required`, `preferred`, `technology_mentioned`,
+- [x] Step 1: Preserve `explicit_required`, `preferred`, `technology_mentioned`,
   and `inferred` channels with source evidence; remove unconditional promotion
   of `tech_stack` and keywords to hard required skills.
-- [ ] Step 2: Aggregate language facts without taking a stronger preferred
+- [x] Step 2: Aggregate language facts without taking a stronger preferred
   level over a weaker required level; retain each source clause or an explicit
   per-clause relation so B2-required/C1-preferred cannot become C1-required.
-- [ ] Step 3: Keep canonicalization atomic per extracted entity and preserve the
+- [x] Step 3: Keep canonicalization atomic per extracted entity and preserve the
   original clause for qualifiers; add a regression for one clause containing
   Python and SQL.
-- [ ] Step 4: Require every substantive source block to be represented,
+- [x] Step 4: Require every substantive source block to be represented,
   unresolved, or explicitly ignored with a reason. Add a bounded
   `source_block_dispositions` map with one disposition per input block; persist
   unresolved blocks as residual evidence consumed by
   `project_candidate_evidence`, rather than silently omitting them.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_enrich.py tests/test_fitcv_cp/test_candidate_profile_service.py -k "required_skill or language or semantic_snapshot or source_block or baseline or mapping" --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_enrich.py tests/test_fitcv_cp/test_candidate_profile_service.py -k "required_skill or language or semantic_snapshot or source_block or baseline or mapping" --disable-warnings --maxfail=1`
 - Expected: optional technology never becomes hard required without explicit
   source support; B2-required/C1-preferred remains separate; all substantive
   source blocks have a disposition; Python and SQL remain separate atomic
   values.
-- [ ] Assert block-ID conservation across `_BASELINE_RESPONSE_SCHEMA`,
+- [x] Assert block-ID conservation across `_BASELINE_RESPONSE_SCHEMA`,
   `_validate_baseline_payload`, `build_baseline_review`, and the residual
   evidence projection: every input block is represented exactly once as
   represented, unresolved, or ignored with a reason.
-- [ ] Assert a malformed or incomplete mapping is rejected or returns an
+- [x] Assert a malformed or incomplete mapping is rejected or returns an
   explicit unresolved-source diagnostic, not a silently shortened baseline.
 
 **Exit Criteria:**
@@ -359,12 +359,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 - Implement requirement-aware evidence selection and one-pass scorer rendering.
 
 **Template Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `none (lead controller)`
 - Selection basis: resolve from reasoning depth, ambiguity, scope, risk, and
   cost before execution.
 
 **Validator Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `review-1`
 - Selection basis: independently validate marginal coverage, negation, and
   excerpt provenance.
 
@@ -396,25 +396,25 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   Loose/Full/Strict semantics.
 
 **Steps:**
-- [ ] Step 1: Search all available requirement terms before applying the
+- [x] Step 1: Search all available requirement terms before applying the
   bounded channel representation; rank required terms ahead of preferred and
   contextual terms.
-- [ ] Step 2: Select the first strong item, then select the item with the
+- [x] Step 2: Select the first strong item, then select the item with the
   greatest marginal coverage of distinct important requirements; penalize
   redundant overlap.
-- [ ] Step 3: Choose the relevant sentence/span before the 400-character bound
+- [x] Step 3: Choose the relevant sentence/span before the 400-character bound
   and retain negation, qualifiers, duration, and scope with the match.
-- [ ] Step 4: Render each item once with ID, kind, source section, dates/location,
+- [x] Step 4: Render each item once with ID, kind, source section, dates/location,
   source references, and support state; do not label a merely valid evidence ID
   as demonstrated support without text-level reconciliation.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_evidence.py tests/test_ai_score.py -k "ranking_evidence or excerpt or negation or qualifier or provenance or evidence_text" --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_evidence.py tests/test_ai_score.py -k "ranking_evidence or excerpt or negation or qualifier or provenance or evidence_text" --disable-warnings --maxfail=1`
 - Expected: a ninth required skill can influence selection; a negated skill is
   not affirmative support; two overlapping snippets lose to two complementary
   snippets; the selected decisive span survives rendering; each excerpt is
   serialized once with provenance.
-- [ ] Inspect a stub scorer request and assert selected evidence IDs match the
+- [x] Inspect a stub scorer request and assert selected evidence IDs match the
   visibility manifest exactly.
 
 **Exit Criteria:**
@@ -433,12 +433,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   existing shortlist budget.
 
 **Template Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `none (lead controller)`
 - Selection basis: resolve from reasoning depth, ambiguity, scope, risk, and
   cost before execution.
 
 **Validator Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `review-1`
 - Selection basis: independently validate effective strategy, fallback merge,
   and location-variant retention.
 
@@ -478,42 +478,42 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   public retrieval configuration names without an approved contract update.
 
 **Steps:**
-- [ ] Step 1: Preserve the current production contract: `run_pipeline` and
+- [x] Step 1: Preserve the current production contract: `run_pipeline` and
   `execute_shortlist_stage` request `VECTOR_RETRIEVAL_STRATEGY`; lexical
   retrieval is an internal fallback, not a new public `retrieval_strategy`
   config key. Record requested, effective, and fallback strategy separately.
   Do not reintroduce the retired `retrieval_strategy` or `shortlist_lexical`
   configuration names in this plan.
-- [ ] Step 2: Preserve valid vector rows when only some job vectors are missing,
+- [x] Step 2: Preserve valid vector rows when only some job vectors are missing,
   invalid, or incompatible; regenerate affected rows through the existing path
   or fill only remaining production slots with lexical fallback rows after
   identity deduplication. Keep valid vector rows in their existing order; do
   not numerically compare incomparable `vector_similarity` and lexical
   `retrieval_score` values. Preserve source-specific ranks/scores and record
   `shortlist_origin`, overlap removal, and final admission order.
-- [ ] Step 3: Keep candidate query serialization bounded but derive technology
+- [x] Step 3: Keep candidate query serialization bounded but derive technology
   signals from the stable complete source-grounded inventory, not only the first
   profile-order entries. Preserve `_technology_overlap` containment and
   punctuation semantics; do not introduce an Azure-versus-Azure-Functions
   distinction without a separately approved taxonomy contract.
-- [ ] Step 4: Centralize exact and near-duplicate identity through the shared
+- [x] Step 4: Centralize exact and near-duplicate identity through the shared
   normalization helpers. Give blank-URL rows a stable provider/source identity,
   keep genuine same-posting duplicates collapsed, and preserve location,
   employment, and application variants when they are materially distinct.
-- [ ] Step 5: Record which jobs were eligible, retrieved, audited, admitted to
+- [x] Step 5: Record which jobs were eligible, retrieved, audited, admitted to
   AI scoring, and excluded at each boundary.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_normalize.py tests/test_pipeline.py -k "retrieval or vector or lexical or technology or cache or dedup or location or shortlist" --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_vector_search.py tests/test_normalize.py tests/test_pipeline.py -k "retrieval or vector or lexical or technology or cache or dedup or location or shortlist" --disable-warnings --maxfail=1`
 - Expected: the production vector request remains unchanged; one bad vector
   does not discard valid vector rows; lexical fallback fills only remaining
   slots without cross-scale score comparison; existing technology-overlap
   regressions remain intact; location variants and blank-URL postings remain
   distinguishable.
-- [ ] Assert helper/live-path retrieval parity and preserve the existing
+- [x] Assert helper/live-path retrieval parity and preserve the existing
   `OpenAI-compatible APIs`/`OpenAI` containment match while rejecting the
   unrelated `SQL`/`NoSQL` substring match.
-- [ ] Run a fixed paired recall fixture and record shortlist recall@50 for
+- [x] Run a fixed paired recall fixture and record shortlist recall@50 for
   vector-only, lexical-only, and merged behavior without changing production
   shortlist size.
 
@@ -532,12 +532,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 - Thread bounded diagnostics through stage artifacts and ranking reuse paths.
 
 **Template Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `none (lead controller)`
 - Selection basis: resolve from reasoning depth, ambiguity, scope, risk, and
   cost before execution.
 
 **Validator Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `review-1`
 - Selection basis: independently validate fresh/reused parity and failure
   visibility.
 
@@ -570,15 +570,15 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   into ranked compatibility values.
 
 **Steps:**
-- [ ] Step 1: Persist one per-job projection containing canonical available
+- [x] Step 1: Persist one per-job projection containing canonical available
   counts/IDs, selected IDs, rendered IDs, model-visible fields, omissions,
   truncation reasons, effective retrieval strategy, and request fingerprint.
-- [ ] Step 2: Persist the same visibility record for fresh and reused scores;
+- [x] Step 2: Persist the same visibility record for fresh and reused scores;
   never rebuild reuse diagnostics from a missing request record.
-- [ ] Step 3: Keep invalid/provider-failed rows explicitly unscored with
+- [x] Step 3: Keep invalid/provider-failed rows explicitly unscored with
   failure code and retry eligibility in stage diagnostics, even when the
   existing ranked list contains only valid scores.
-- [ ] Step 4: Pass one bounded admission manifest from
+- [x] Step 4: Pass one bounded admission manifest from
   `_build_stage_transition_artifacts` into `build_ranking_stage_block`, with
   states for shortlist-admitted, AI-score-selected, fresh, reused,
   failed/invalid, and not-selected-by-AI-cutoff. Add an artifact assertion that
@@ -586,7 +586,7 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   do not infer missing jobs from `ai_scores` or `ranking_inputs` alone.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_pipeline.py tests/test_ranking.py -k "diagnostic or visibility or truncation or reuse or score_status or retry or ranking" --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_pipeline.py tests/test_ranking.py -k "diagnostic or visibility or truncation or reuse or score_status or retry or ranking" --disable-warnings --maxfail=1`
 - Expected: fresh and reused rows carry equivalent visibility manifests;
   omitted evidence is nonzero when the selector shortens the pool; failed
   scoring remains explicit and does not receive a compatibility rank.
@@ -605,12 +605,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 - Final backend verification and plan reconciliation.
 
 **Template Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `none (lead controller)`
 - Selection basis: resolve from reasoning depth, ambiguity, scope, risk, and
   cost before execution.
 
 **Validator Profile:**
-- Controller-selected: `unresolved while task is pending`
+- Controller-selected: `review-1`
 - Selection basis: final independent acceptance against the task contracts.
 
 **Specification Coverage:**
@@ -635,27 +635,27 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   destructive cleanup.
 
 **Steps:**
-- [ ] Step 1: Run focused scorer, enrichment, evidence, retrieval, normalization,
+- [x] Step 1: Run focused scorer, enrichment, evidence, retrieval, normalization,
   candidate-profile, pipeline, artifact, and ranking suites.
-- [ ] Step 2: Run compile, whitespace, and full-suite checks; compare failures
+- [x] Step 2: Run compile, whitespace, and full-suite checks; compare failures
   with the pre-change baseline without fixing unrelated failures.
-- [ ] Step 3: Verify the direct scoring boundary with a stub provider and the
+- [x] Step 3: Verify the direct scoring boundary with a stub provider and the
   representative retrieval trace; capture request/manifest assertions.
-- [ ] Step 4: Apply `skill-verification-before-completion`; leave this plan
-  `proposed` unless that verification returns `verified`.
+- [x] Step 4: Apply `skill-verification-before-completion`; verification returned
+  `verified`, so this plan is now `completed`.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_ai_score.py tests/test_enrich.py tests/test_evidence.py tests/test_vector_search.py tests/test_normalize.py tests/test_ranking.py tests/test_pipeline.py tests/test_fitcv_cp/test_candidate_profile_service.py --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_ai_score.py tests/test_enrich.py tests/test_evidence.py tests/test_vector_search.py tests/test_normalize.py tests/test_ranking.py tests/test_pipeline.py tests/test_fitcv_cp/test_candidate_profile_service.py --disable-warnings --maxfail=1`
 - Expected: focused cross-stage suite passes with no new failures in the
   changed contracts.
-- [ ] `python -m compileall -q src/fitcv src/fitcv_cp tests`
+- [x] `python -m compileall -q src/fitcv src/fitcv_cp tests`
 - Expected: compilation succeeds.
-- [ ] `python -m pytest -q`
+- [x] `python -m pytest -q`
 - Expected: full suite passes, or pre-existing failures are recorded with exact
   command output and are not misrepresented as plan success.
-- [ ] `git diff --check`
+- [x] `git diff --check`
 - Expected: no whitespace errors.
-- [ ] `git status --short`
+- [x] `git status --short`
 - Expected: only declared source/test/doc changes are present; unrelated
   untracked workspace artifacts remain untouched.
 
@@ -664,6 +664,46 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   proof; all required verification is fresh; deviations and deferred claims
   are recorded; completion status remains governed by
   `skill-verification-before-completion`.
+
+## Final Review Corrections
+
+The first PR review found five source-confirmed gaps. These corrections are
+now part of the executable scope and must be included in the final verification:
+
+- Reject ranking requests when the mandatory scorer core would omit required
+  skills, technology requirements, candidate matches, languages, or employment
+  facts; persist the omission manifest and make the scoring path return an
+  explicit unscored `input_budget_exceeded` result without a provider call.
+- Keep sentence boundaries in evidence matching and treat a term as supported
+  when any occurrence is positive; unrelated negated occurrences must not hide
+  positive evidence.
+- Preserve both lexical fallback production rows and lexical fallback audit
+  rows, deduplicated by job URL, so fallback does not erase audit visibility.
+- Preserve residual source-block document IDs, locators, and block IDs through
+  evidence projection and include source provenance in scorer-visible evidence.
+- Carry evidence `support_state` from requirement annotation through selection,
+  ranking-input projection, and final scorer rendering.
+
+Required regression coverage:
+
+- `tests/test_ai_score.py` proves mandatory omissions stop scoring before the
+  provider boundary.
+- `tests/test_evidence.py` proves sentence-local negation, residual provenance,
+  support-state propagation, and scorer-visible provenance.
+- `tests/test_vector_search.py` proves lexical audit rows survive all-missing
+  vector fallback.
+
+Final review dispositions:
+
+- Preserved full mandatory requirement and candidate fact text until request
+  budgeting; oversized mandatory content now fails before provider submission.
+- Preserved newline and bullet boundaries for sentence-local negation and
+  propagated support state from the production selector.
+- Preserved structured source references in scorer-visible JSON and rendered
+  one evidence excerpt per item instead of duplicating `text` and
+  `scoring_context`.
+- Added regressions for all five final-review defects, including mandatory
+  character-level loss and scorer-visible provenance.
 
 ## Verification
 
@@ -679,6 +719,26 @@ Final artifact-level proof consists of:
   production shortlist budget;
 - `skill-verification-before-completion` returning `verified` before this plan
   can become `completed`.
+
+## Execution Evidence
+
+- Focused cross-stage suite: `533 passed, 2 skipped in 9.12s`.
+- Compilation: `python -m compileall -q src/fitcv src/fitcv_cp tests` passed.
+- Full suite: `3565 passed, 8 skipped in 277.37s (0:04:37)`.
+- Final-review regression slice: `6 passed` for mandatory scorer admission,
+  sentence-local negation, residual provenance, support-state propagation, and
+  lexical audit-row preservation.
+- Boundary regression: 5 targeted scorer, manifest, failure-visibility, and
+  recall tests passed.
+- Fixed recall fixture at `@50`: vector-only `0.5`, lexical-only `1.0`, merged
+  `1.0`; production shortlist budget unchanged.
+- `git diff --check` passed; unrelated existing modifications and untracked
+  workspace artifacts were preserved.
+- Shared planning validators report no errors for this plan; their repository-wide
+  runs remain nonzero only because of pre-existing errors in unrelated historical
+  plans and specifications.
+- Publication: follow-up corrections are committed and pushed before the final
+  independent PR review.
 
 ## Completion Criteria
 

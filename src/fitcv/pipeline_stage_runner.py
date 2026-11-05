@@ -312,6 +312,53 @@ def execute_shortlist_stage(
         shortlist = materialize_scoring_shortlist(raw_shortlist, passed_jobs)
         pipeline_store.store_shortlist(shortlist, config)
         raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
+        shortlist_urls = set(unique_job_urls(shortlist))
+        audit_urls = set(unique_job_urls(audit_rows))
+        shortlist_admission_rows = []
+        for input_index, job in enumerate(passed_jobs):
+            job_url = str(job.get("job_url") or "").strip()
+            shortlist_row = next(
+                (row for row in shortlist if str(row.get("job_url") or "").strip() == job_url),
+                None,
+            )
+            shortlist_admission_rows.append(
+                {
+                    "identity": primary_job_identity_key(job) or job_url,
+                    "job_url": job_url,
+                    "input_index": input_index,
+                    "shortlist_status": (
+                        "shortlist_admitted" if job_url in shortlist_urls else "not_returned_in_raw_hits"
+                    ),
+                    "raw_hit_present": job_url in raw_shortlist_urls,
+                    "audited": job_url in audit_urls,
+                    "admission_order": (
+                        next(
+                            (index for index, row in enumerate(shortlist) if str(row.get("job_url") or "").strip() == job_url),
+                            None,
+                        )
+                        if job_url in shortlist_urls
+                        else None
+                    ),
+                    "shortlist_origin": str((shortlist_row or {}).get("shortlist_origin") or ""),
+                    "retrieval_strategy": str((shortlist_row or {}).get("retrieval_strategy") or shortlist_diagnostics.get("effective_strategy") or ""),
+                }
+            )
+        state["shortlist_admission_manifest"] = {
+            "contract_version": "shortlist_admission_manifest_v1",
+            "counts": {
+                "eligible": len(passed_jobs),
+                "raw_retrieved": len(raw_shortlist_urls),
+                "audited": len(audit_urls),
+                "admitted": len(shortlist_urls),
+                "not_returned": sum(1 for row in shortlist_admission_rows if row["shortlist_status"] != "shortlist_admitted"),
+            },
+            "retrieval": {
+                "requested_strategy": shortlist_diagnostics.get("requested_strategy"),
+                "effective_strategy": shortlist_diagnostics.get("effective_strategy"),
+                "fallback_reason": shortlist_diagnostics.get("fallback_reason"),
+            },
+            "rows": shortlist_admission_rows,
+        }
         raw_shortlist_anomaly_rows = raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
         if reporter is not None:
             shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
@@ -390,6 +437,7 @@ def execute_ranking_stage(
         reused_ai_scores_by_identity: dict[str, dict[str, Any]] = {}
         ranking_inputs_by_identity: dict[str, dict[str, Any]] = {}
         ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = {}
+        ranking_admission_rows: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
             selected_evidence = select_ranking_evidence(
                 profile_evidence_pool,
@@ -400,6 +448,16 @@ def execute_ranking_stage(
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
             ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile, config)
             identity_key = primary_job_identity_key(shortlisted_job)
+            manifest_identity = identity_key or extract_job_url(shortlisted_job)
+            ranking_admission_rows[manifest_identity] = {
+                "identity": manifest_identity,
+                "job_url": extract_job_url(shortlisted_job),
+                "shortlist_status": "shortlist_admitted",
+                "ai_score_status": "selected",
+                "score_execution": "pending",
+                "request_fingerprint": "",
+                "ranking_input_diagnostics": {},
+            }
             if identity_key:
                 ranking_inputs_by_identity[identity_key] = ranking_input
                 ranking_input_diagnostics_by_identity[identity_key] = build_ranking_input_diagnostics(
@@ -418,6 +476,21 @@ def execute_ranking_stage(
                 )
             except Exception:
                 fingerprint_record = {"fingerprint": ""}
+            if identity_key and fingerprint_record.get("request_record"):
+                ranking_input_diagnostics_by_identity[identity_key] = build_ranking_input_diagnostics(
+                    ranking_input,
+                    fingerprint_record["request_record"],
+                    retrieval_metadata=retrieval_metadata,
+                )
+            if manifest_identity in ranking_admission_rows:
+                ranking_admission_rows[manifest_identity].update(
+                    {
+                        "request_fingerprint": str(fingerprint_record.get("fingerprint") or ""),
+                        "ranking_input_diagnostics": deepcopy(
+                            ranking_input_diagnostics_by_identity.get(manifest_identity) or {}
+                        ),
+                    }
+                )
             job_url = extract_job_url(shortlisted_job)
             reused_ai_row = (
                 ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
@@ -437,11 +510,13 @@ def execute_ranking_stage(
                     },
                     "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
                     "ai_score_reuse_status": "reused_exact_match",
-                    "ranking_input_diagnostics": build_ranking_input_diagnostics(
+                    "ranking_input_diagnostics": ranking_input_diagnostics_by_identity.get(identity_key) or build_ranking_input_diagnostics(
                         ranking_input,
                         retrieval_metadata=retrieval_metadata,
                     ),
                 }
+                if manifest_identity in ranking_admission_rows:
+                    ranking_admission_rows[manifest_identity]["score_execution"] = "reused"
                 if build_reuse_decision_callback is not None:
                     reused_ai_scores_by_identity[identity_key]["reuse_decision"] = (
                         build_reuse_decision_callback(
@@ -455,6 +530,8 @@ def execute_ranking_stage(
             fresh_scoring_jobs.append(shortlisted_job)
             if identity_key:
                 fresh_ai_score_fingerprints[identity_key] = fingerprint_record["fingerprint"]
+            if manifest_identity in ranking_admission_rows:
+                ranking_admission_rows[manifest_identity]["score_execution"] = "fresh"
 
         fresh_ai_scores = (
             run_ai_scoring(
@@ -521,6 +598,52 @@ def execute_ranking_stage(
             score_row: dict[str, Any] | None = reused_ai_scores_by_identity.get(identity_key) or fresh_ai_scores_by_identity.get(identity_key)
             if score_row is not None:
                 ai_scores.append(score_row)
+                manifest_identity = primary_job_identity_key(shortlisted_job) or extract_job_url(shortlisted_job)
+                manifest_row = ranking_admission_rows.get(manifest_identity)
+                if manifest_row is not None:
+                    score_status = normalize_score_state(score_row)["score_status"]
+                    manifest_row.update(
+                        {
+                            "score_status": score_status,
+                            "failure_code": score_row.get("failure_code"),
+                            "retry_eligible": bool(score_row.get("retry_eligible", False)),
+                            "score_execution": (
+                                "invalid" if score_status == "invalid"
+                                else "failed" if score_status == "unscored"
+                                else manifest_row.get("score_execution") or "fresh"
+                            ),
+                        }
+                    )
+                    manifest_row["ranking_input_diagnostics"] = deepcopy(
+                        score_row.get("ranking_input_diagnostics")
+                        or manifest_row.get("ranking_input_diagnostics")
+                        or {}
+                    )
+        ranking_admission_rows.update(
+            {
+                primary_job_identity_key(job) or extract_job_url(job): {
+                    "identity": primary_job_identity_key(job) or extract_job_url(job),
+                    "job_url": extract_job_url(job),
+                    "shortlist_status": "shortlist_admitted",
+                    "ai_score_status": "not-selected-by-ai-cutoff",
+                    "score_execution": "not-attempted",
+                }
+                for job in shortlist[ai_top_n:]
+            }
+        )
+        state["ranking_admission_manifest"] = {
+            "contract_version": "ranking_admission_manifest_v1",
+            "counts": {
+                "shortlist_admitted": len(shortlist),
+                "ai_score_selected": len(ai_score_candidates),
+                "not_selected_by_ai_cutoff": max(0, len(shortlist) - len(ai_score_candidates)),
+                "fresh": sum(1 for row in ranking_admission_rows.values() if row.get("score_execution") == "fresh"),
+                "reused": sum(1 for row in ranking_admission_rows.values() if row.get("score_execution") == "reused"),
+                "failed": sum(1 for row in ranking_admission_rows.values() if row.get("score_execution") == "failed"),
+                "invalid": sum(1 for row in ranking_admission_rows.values() if row.get("score_execution") == "invalid"),
+            },
+            "rows": list(ranking_admission_rows.values()),
+        }
         reused_ai_count = sum(
             1 for row in ai_scores
             if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"

@@ -75,11 +75,13 @@ class PipelineState:
     raw_shortlist: list[dict[str, Any]] = field(default_factory=list)
     shortlist: list[dict[str, Any]] = field(default_factory=list)
     shortlist_diagnostics: dict[str, Any] = field(default_factory=dict)
+    shortlist_admission_manifest: dict[str, Any] = field(default_factory=dict)
     candidate_query_debug: dict[str, Any] = field(default_factory=dict)
     ai_scores: list[dict[str, Any]] = field(default_factory=list)
     ranking_llm_runtime_observations: list[dict[str, Any]] = field(default_factory=list)
     resolved_preference_policy: dict[str, Any] = field(default_factory=dict)
     ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = field(default_factory=dict)
+    ranking_admission_manifest: dict[str, Any] = field(default_factory=dict)
     ranking_inputs: list[dict[str, Any]] = field(default_factory=list)
     ranked: list[dict[str, Any]] = field(default_factory=list)
     cv_analysis_results: list[dict[str, Any]] = field(default_factory=list)
@@ -127,8 +129,10 @@ class PipelineState:
             if key in {
                 "candidate_query_debug",
                 "shortlist_diagnostics",
+                "shortlist_admission_manifest",
                 "resolved_preference_policy",
                 "ranking_input_diagnostics_by_identity",
+                "ranking_admission_manifest",
             }:
                 if isinstance(value, dict):
                     setattr(state, key, dict(value))
@@ -178,11 +182,13 @@ class PipelineState:
             "raw_shortlist",
             "shortlist",
             "shortlist_diagnostics",
+            "shortlist_admission_manifest",
             "candidate_query_debug",
             "ai_scores",
             "ranking_llm_runtime_observations",
             "resolved_preference_policy",
             "ranking_input_diagnostics_by_identity",
+            "ranking_admission_manifest",
             "ranking_inputs",
             "ranked",
             "cv_analysis_results",
@@ -205,6 +211,7 @@ class PipelineState:
             "raw_shortlist": list(self.raw_shortlist),
             "shortlist": list(self.shortlist),
             "shortlist_diagnostics": dict(self.shortlist_diagnostics),
+            "shortlist_admission_manifest": dict(self.shortlist_admission_manifest),
             "candidate_query_debug": dict(self.candidate_query_debug),
             "ai_scores": list(self.ai_scores),
             "ranking_llm_runtime_observations": list(self.ranking_llm_runtime_observations),
@@ -213,6 +220,7 @@ class PipelineState:
                 str(identity): dict(diagnostics)
                 for identity, diagnostics in self.ranking_input_diagnostics_by_identity.items()
             },
+            "ranking_admission_manifest": dict(self.ranking_admission_manifest),
             "ranking_inputs": list(self.ranking_inputs),
             "ranked": list(self.ranked),
             "cv_analysis_results": list(self.cv_analysis_results),

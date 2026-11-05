@@ -415,6 +415,7 @@ def build_shortlist_stage_block(
     shortlist_row_sample_builder: Callable[[dict[str, Any]], dict[str, Any] | None],
     extract_job_url: Callable[[dict[str, Any]], str],
     extract_job_title: Callable[[dict[str, Any]], str],
+    shortlist_admission_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not shortlist_reached:
         return stage_block_not_reached_builder("shortlist")
@@ -518,6 +519,7 @@ def build_shortlist_stage_block(
     ]
     block["audit_sample"] = [dict(row) for row in audit_rows]
     block["candidate_query_debug"] = dict(shortlist_candidate_query_debug)
+    block["admission_manifest"] = dict(shortlist_admission_manifest or {})
     return block
 
 
@@ -550,6 +552,7 @@ def build_ranking_stage_block(
     effective_preferences_resolver: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
     llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
+    ranking_admission_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not ranking_reached:
         return stage_block_not_reached_builder("ranking")
@@ -663,6 +666,7 @@ def build_ranking_stage_block(
         llm_runtime_observations=llm_runtime_observations,
     )
     block["scorer_input_diagnostics"] = scorer_input_diagnostics
+    block["admission_manifest"] = dict(ranking_admission_manifest or {})
     evidence_personalization = (
         block.get("stage_result", {})
         .get("evidence", {})

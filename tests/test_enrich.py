@@ -958,7 +958,7 @@ def test_apply_structured_normalization_preserves_raw_scalar_companions() -> Non
     assert result["job_family"] == "data_engineering"
 
 
-def test_merge_scraped_and_enriched_repairs_required_skills_from_keyword_signal() -> None:
+def test_merge_scraped_and_enriched_does_not_promote_keywords_to_required_skills() -> None:
     result = merge_scraped_and_enriched(
         scraped={
             "job_url": "https://example.com/jobs/keyword-fallback",
@@ -1000,7 +1000,8 @@ def test_merge_scraped_and_enriched_repairs_required_skills_from_keyword_signal(
         config={},
     )
 
-    assert result["required_skills"] == [
+    assert result["required_skills"] == []
+    assert result["keywords"] == [
         "Bauingenieur",
         "Tragwerksplaner",
         "Statiker",
@@ -1010,7 +1011,7 @@ def test_merge_scraped_and_enriched_repairs_required_skills_from_keyword_signal(
     assert result["required_skill_entities"] == []
 
 
-def test_merge_scraped_and_enriched_supplements_sparse_required_skills_from_tech_stack() -> None:
+def test_merge_scraped_and_enriched_keeps_technology_mentions_separate_from_required_skills() -> None:
     result = merge_scraped_and_enriched(
         scraped={
             "job_url": "https://example.com/jobs/sparse-required-skills",
@@ -1046,8 +1047,9 @@ def test_merge_scraped_and_enriched_supplements_sparse_required_skills_from_tech
         config={},
     )
 
-    assert result["required_skills"] == ["Excel/Sheets", "Excel", "Sheets", "SQL", "BI-Tools"]
-    assert result["required_skills_canonical"] == ["bi-tools", "excel", "excel/sheets", "sheets", "sql"]
+    assert result["required_skills"] == ["Excel/Sheets"]
+    assert result["required_skills_canonical"] == ["excel/sheets"]
+    assert result["tech_stack"] == ["Excel", "Sheets", "SQL", "BI-Tools"]
 
 
 def test_merge_scraped_and_enriched_supplements_sparse_generic_required_skills_from_description() -> None:
@@ -2093,11 +2095,20 @@ def test_structured_normalization_reduces_duplicate_languages_deterministically(
     assert result["language_requirements"] == [
         {
             "language": "German",
+            "expected_level": "b2",
+            "requirement_type": "preferred",
+            "extraction_status": "complete",
+            "evidence": [
+                {"source_field": "description", "text": "German preferred"},
+            ],
+            "extraction_version": "language-requirement-extraction-v1",
+        },
+        {
+            "language": "German",
             "expected_level": "c1",
             "requirement_type": "required",
             "extraction_status": "partial",
             "evidence": [
-                {"source_field": "description", "text": "German preferred"},
                 {"source_field": "title", "text": "German C1"},
             ],
             "extraction_version": "language-requirement-extraction-v1",

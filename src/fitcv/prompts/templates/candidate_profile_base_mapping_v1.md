@@ -27,6 +27,13 @@ Return exactly one JSON object with these two array properties:
         }
       ]
     }
+  ],
+  "source_block_dispositions": [
+    {
+      "source_block_id": "block-id-from-input",
+      "disposition": "represented | unresolved | ignored",
+      "reason": "short source-grounded explanation"
+    }
   ]
 }
 ```
@@ -36,5 +43,6 @@ Return exactly one JSON object with these two array properties:
 Use only these `fields` keys for each section: `experiences`: `role`, `company`, `company_url`, `location`, `start`, `end`; `education`: `institution`, `degree`, `field`, `location`, `start`, `end`; `projects`: `name`, `context`, `url`, `start`, `end`; `achievements`: `title`, `issuer`, `date`, `url`; `certifications`: `name`, `issuer`, `date`, `expires`, `credential_id`, `url`; `volunteering`: `organization`, `role`, `location`, `start`, `end`; `languages`: `name`, `level`.
 Use `fields` for canonical facts. Every section other than `languages` must include at least one evidence item; language collections do not use evidence. Each evidence `kind` must be `work_responsibility`, `work_achievement`, `project_highlight`, `academic_project`, `course`, `thesis`, `seminar`, `certification_proof`, or `volunteer_contribution`.
 Every proposed value must cite one or more exact input `source_block_ids`. Return empty arrays when no supported value exists.
+Return exactly one disposition for every supplied source block. Use `represented` when a block is cited by a proposal, collection, or evidence item; use `unresolved` when it contains candidate material that cannot be mapped safely; use `ignored` only for non-substantive structure and explain why.
 
 $payload

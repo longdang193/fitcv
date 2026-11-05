@@ -73,6 +73,16 @@ RANKING_MAX_EVIDENCE = 2
 RANKING_MAX_REQUIREMENT_IDS = 32
 
 
+class RankingInputBudgetExceeded(ValueError):
+    """Raised when the mandatory ranking input cannot fit the request budget."""
+
+    failure_code = "input_budget_exceeded"
+
+    def __init__(self, message: str, *, visibility_manifest: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.visibility_manifest = dict(visibility_manifest or {})
+
+
 def _semantic_policy(config: dict[str, Any] | None) -> dict[str, Any]:
     candidate = (config or {}).get("semantic_policy")
     return candidate if isinstance(candidate, dict) else compile_semantic_policy(config or {})
@@ -95,6 +105,30 @@ def _bounded_values(values: Any, *, limit: int, item_chars: int = RANKING_TERM_M
         if text and key not in seen:
             seen.add(key)
             result.append(text)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _bounded_source_refs(values: Any, *, limit: int = 4) -> list[dict[str, Any] | str]:
+    result: list[dict[str, Any] | str] = []
+    seen: set[str] = set()
+    for value in list(values or []):
+        if isinstance(value, dict):
+            reference = {
+                str(key): value[key]
+                for key in ("document_id", "source_block_id", "locator")
+                if key in value and value[key] not in (None, "")
+            }
+            if isinstance(reference.get("locator"), dict):
+                reference["locator"] = dict(reference["locator"])
+            normalized = json.dumps(reference, ensure_ascii=False, sort_keys=True)
+        else:
+            reference = _bounded_text(value, RANKING_TERM_MAX_CHARS)
+            normalized = reference.casefold()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            result.append(reference)
         if len(result) >= limit:
             break
     return result
@@ -159,6 +193,7 @@ def build_ai_score_input_fingerprint(
     return {
         "payload": payload,
         "fingerprint": _stable_json_fingerprint(payload),
+        "request_record": request_record,
     }
 
 
@@ -174,18 +209,104 @@ def build_ranking_request(
     from fitcv.embeddings import build_job_summary_text
 
     source = ranking_input or {}
-    jd_summary = _bounded_text(source.get("job_requirements") or build_job_summary_text(job), 4_000)
+    mandatory_job_fields = {
+        "title",
+        "required_skills",
+        "technology_requirements",
+        "language_requirements",
+        "location",
+        "years_experience_min",
+        "years_experience_max",
+    }
+    mandatory_candidate_fields = {
+        "skills",
+        "languages",
+        "employment",
+        "years_experience",
+        "target_role",
+    }
 
-    def bound_candidate_summary(value: Any) -> tuple[str, bool]:
-        raw = str(value or "")
+    def _structured_payload(value: Any) -> dict[str, Any] | None:
         try:
-            payload = json.loads(raw)
+            parsed = json.loads(str(value or ""))
         except (TypeError, ValueError, json.JSONDecodeError):
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
+    def _serialize_payload(payload: dict[str, Any]) -> str:
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+    def bound_job_summary(value: Any) -> tuple[str, bool, dict[str, Any], list[dict[str, Any]]]:
+        raw = str(value or "")
+        payload = _structured_payload(raw)
+        if payload is None:
+            bounded = _bounded_text(raw, 4_000)
+            metadata = {
+                "raw_fields": ["job_requirements"],
+                "selected_fields": ["job_requirements"],
+                "rendered_fields": ["job_requirements"],
+                "model_visible_fields": ["job_requirements"],
+                "omitted_fields": [],
+                "truncated_fields": ["job_requirements"] if bounded != raw else [],
+            }
+            return bounded, bounded != raw, metadata, [{"job_requirements": bounded}]
+        bounded_payload = dict(payload)
+        for key in ("required_skills", "technology_requirements", "preferred_skills", "language_requirements", "responsibilities"):
+            values = bounded_payload.get(key)
+            if isinstance(values, list):
+                bounded_payload[key] = [
+                    str(item).strip()
+                    if not isinstance(item, dict)
+                    else {
+                        field: str(field_value).strip()
+                        for field, field_value in item.items()
+                        if str(field_value or "").strip()
+                    }
+                    for item in values
+                    if isinstance(item, (dict, str, int, float))
+                ]
+        for key in ("title", "seniority", "job_family", "domain"):
+            if key in bounded_payload:
+                bounded_payload[key] = _bounded_text(bounded_payload[key], RANKING_TERM_MAX_CHARS)
+        if isinstance(bounded_payload.get("location"), dict):
+            bounded_payload["location"] = {
+                key: _bounded_text(value, RANKING_TERM_MAX_CHARS)
+                for key, value in bounded_payload["location"].items()
+                if value not in (None, "")
+            }
+        selected_fields = [key for key in bounded_payload if key in payload]
+        metadata = {
+            "raw_fields": sorted(str(key) for key in payload),
+            "selected_fields": selected_fields,
+            "rendered_fields": selected_fields,
+            "model_visible_fields": selected_fields,
+            "omitted_fields": [],
+            "truncated_fields": [
+                key for key in selected_fields if bounded_payload.get(key) != payload.get(key)
+            ],
+        }
+        variants: list[dict[str, Any]] = [dict(bounded_payload)]
+        reduced = dict(bounded_payload)
+        for key in ("preferred_skills", "responsibilities", "domain", "job_family", "seniority"):
+            if key in reduced:
+                reduced.pop(key)
+                variants.append(dict(reduced))
+        return _serialize_payload(bounded_payload), _serialize_payload(bounded_payload) != raw, metadata, variants
+
+    def bound_candidate_summary(value: Any) -> tuple[str, bool, dict[str, Any], list[dict[str, Any]]]:
+        raw = str(value or "")
+        payload = _structured_payload(raw)
+        if payload is None:
             bounded = _bounded_text(raw, 2_500)
-            return bounded, bounded != raw
-        if not isinstance(payload, dict):
-            bounded = _bounded_text(raw, 2_500)
-            return bounded, bounded != raw
+            metadata = {
+                "raw_fields": ["candidate_summary"],
+                "selected_fields": ["candidate_summary"],
+                "rendered_fields": ["candidate_summary"],
+                "model_visible_fields": ["candidate_summary"],
+                "omitted_fields": [],
+                "truncated_fields": ["candidate_summary"] if bounded != raw else [],
+            }
+            return bounded, bounded != raw, metadata, [{"candidate_summary": bounded}]
         ordered_keys = (
             "skills",
             "languages",
@@ -206,23 +327,23 @@ def build_ranking_request(
                 continue
             bounded_payload[key] = [
                 {
-                    field: _bounded_text(field_value, 120)
+                    field: str(field_value).strip()
                     for field, field_value in value.items()
-                    if _bounded_text(field_value, 120)
+                    if str(field_value or "").strip()
                 }
                 if isinstance(value, dict)
-                else _bounded_text(value, 120)
+                else str(value).strip()
                 for value in values
                 if isinstance(value, (dict, str, int, float))
             ]
 
         def serialize() -> str:
-            return json.dumps(bounded_payload, ensure_ascii=False, sort_keys=True)
+            return _serialize_payload(bounded_payload)
 
         changed = serialize() != raw
         while len(serialize()) > 2_500:
             removed = False
-            for key in ("certifications", "education", "employment", "languages"):
+            for key in ("certifications", "education"):
                 values = bounded_payload.get(key)
                 if isinstance(values, list) and len(values) > 1:
                     values.pop()
@@ -231,7 +352,7 @@ def build_ranking_request(
             if removed:
                 changed = True
                 continue
-            for key in ("certifications", "education", "employment", "languages"):
+            for key in ("certifications", "education"):
                 values = bounded_payload.get(key)
                 if isinstance(values, list):
                     shortened = False
@@ -251,11 +372,53 @@ def build_ranking_request(
                         break
             else:
                 break
-        return serialize(), changed
+        selected_fields = [key for key in bounded_payload if key in payload]
+        metadata = {
+            "raw_fields": sorted(str(key) for key in payload),
+            "selected_fields": selected_fields,
+            "rendered_fields": selected_fields,
+            "model_visible_fields": selected_fields,
+            "omitted_fields": [key for key in payload if key not in bounded_payload],
+            "truncated_fields": [
+                key for key in selected_fields if bounded_payload.get(key) != payload.get(key)
+            ],
+        }
+        variants: list[dict[str, Any]] = [dict(bounded_payload)]
+        reduced = dict(bounded_payload)
+        for key in ("certifications", "education"):
+            if key in reduced:
+                reduced.pop(key)
+                variants.append(dict(reduced))
+        return serialize(), changed, metadata, variants
 
-    candidate_text, candidate_summary_truncated = bound_candidate_summary(
+    jd_raw = source.get("job_requirements") or build_job_summary_text(job)
+    jd_summary, jd_summary_truncated, job_visibility, job_variants = bound_job_summary(jd_raw)
+
+    candidate_text, candidate_summary_truncated, candidate_visibility, candidate_variants = bound_candidate_summary(
         source.get("candidate_summary") or candidate_summary
     )
+    mandatory_omissions = {
+        str(key): int(value or 0)
+        for key, value in dict((source.get("contract_metadata") or {}).get("mandatory_omissions") or {}).items()
+    }
+    if any(value > 0 for value in mandatory_omissions.values()):
+        visibility_manifest = {
+            "job": {**job_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("job_")]},
+            "candidate": {**candidate_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("candidate_")]},
+            "evidence": {
+                "raw_count": len(list(source.get("candidate_evidence") or top_evidence or [])),
+                "selected_count": len(list(source.get("candidate_evidence") or top_evidence or [])),
+                "rendered_count": 0,
+                "model_visible_count": 0,
+                "omitted_count": 0,
+            },
+            "mandatory_omissions": mandatory_omissions,
+            "mandatory_core_complete": False,
+        }
+        raise RankingInputBudgetExceeded(
+            "mandatory ranking facts were omitted before request bounding",
+            visibility_manifest=visibility_manifest,
+        )
     evidence = (
         list(source.get("candidate_evidence") or [])[:RANKING_MAX_EVIDENCE]
         if "candidate_evidence" in source
@@ -266,12 +429,21 @@ def build_ranking_request(
         if not isinstance(item, dict):
             return str(item)
         fields = [
+            _bounded_text(item.get("evidence_id"), RANKING_TERM_MAX_CHARS),
+            _bounded_text(item.get("kind") or item.get("evidence_type"), RANKING_TERM_MAX_CHARS),
+            _bounded_text(item.get("source_section"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("title"), RANKING_TERM_MAX_CHARS),
+            _bounded_text(item.get("parent_id"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("parent_title"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("organization"), RANKING_TERM_MAX_CHARS),
-            _bounded_text(item.get("scoring_context"), RANKING_EVIDENCE_TEXT_MAX_CHARS),
             ", ".join(_bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS)),
-            _bounded_text(item.get("text"), RANKING_EVIDENCE_TEXT_MAX_CHARS),
+            _bounded_text(
+                item.get("scoring_context") or item.get("text"),
+                RANKING_EVIDENCE_TEXT_MAX_CHARS,
+            ),
+            json.dumps(_bounded_source_refs(item.get("source_refs"), limit=4), ensure_ascii=False, sort_keys=True),
+            _bounded_text(item.get("support_state"), RANKING_TERM_MAX_CHARS),
+            _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         ]
         return " | ".join(value for value in fields if value)
 
@@ -286,7 +458,7 @@ def build_ranking_request(
         return len(json.dumps({**base_request_payload, "prompt": prompt_value}, ensure_ascii=False))
 
     if serialized_request_size("") > RANKING_REQUEST_MAX_CHARS:
-        raise ValueError("ranking request mandatory contract exceeds 12000 characters")
+        raise RankingInputBudgetExceeded("ranking request mandatory contract exceeds 12000 characters")
     truncation_steps: list[str] = []
     if candidate_summary_truncated:
         truncation_steps.append("candidate_facts:field_aware_bound")
@@ -294,44 +466,52 @@ def build_ranking_request(
     def render_prompt(current_jd: str, current_candidate: str, current_evidence: list[str]) -> str:
         return build_scoring_prompt(current_jd, current_candidate, current_evidence, config=config)
 
-    prompt = render_prompt(jd_summary, candidate_text, [evidence_text(item) for item in evidence])
-    if serialized_request_size(prompt) > RANKING_REQUEST_MAX_CHARS:
-        for evidence_count in range(len(evidence) - 1, -1, -1):
-            candidate_prompt = render_prompt(
-                jd_summary,
-                candidate_text,
-                [evidence_text(item) for item in evidence[:evidence_count]],
-            )
-            if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
-                prompt = candidate_prompt
-                truncation_steps.append(f"candidate_evidence:{len(evidence)}->{evidence_count}")
-                break
-        else:
-            for candidate_limit in (2_000, 1_000, 500, 0):
-                candidate_prompt = render_prompt(
-                    jd_summary,
-                    candidate_text[:candidate_limit],
-                    [],
-                )
-                if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
-                    prompt = candidate_prompt
-                    truncation_steps.append(f"candidate_facts:{len(candidate_text)}->{candidate_limit}")
-                    break
-            else:
-                for jd_limit in (3_000, 2_000, 1_000, 500, 0):
-                    candidate_prompt = render_prompt(
-                        jd_summary[:jd_limit],
-                        "",
-                        [],
-                    )
-                    if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
-                        prompt = candidate_prompt
-                        truncation_steps.append(f"job_requirements:{len(jd_summary)}->{jd_limit}")
-                        break
-                else:
-                    raise ValueError(
-                        "ranking request mandatory contract exceeds 12000 characters"
-                    )
+    selected_job = jd_summary
+    selected_candidate = candidate_text
+    selected_evidence = [evidence_text(item) for item in evidence]
+    attempts: list[tuple[str, str, list[str], str]] = [
+        (jd_summary, candidate_text, selected_evidence, "full"),
+    ]
+    for candidate_variant in candidate_variants[1:]:
+        attempts.append((jd_summary, _serialize_payload(candidate_variant), selected_evidence, "candidate_optional"))
+    for job_variant in job_variants[1:]:
+        attempts.append((_serialize_payload(job_variant), candidate_text, selected_evidence, "job_optional"))
+    for job_variant in job_variants[1:]:
+        for candidate_variant in candidate_variants[1:]:
+            attempts.append((_serialize_payload(job_variant), _serialize_payload(candidate_variant), selected_evidence, "optional"))
+    base_attempts = list(attempts)
+    for evidence_count in range(len(evidence) - 1, -1, -1):
+        attempts.extend(
+            (job_value, candidate_value, selected_evidence[:evidence_count], f"candidate_evidence:{len(evidence)}->{evidence_count}")
+            for job_value, candidate_value, _evidence, _reason in base_attempts
+        )
+    prompt = ""
+    for job_value, candidate_value, evidence_value, reason in attempts:
+        candidate_prompt = render_prompt(job_value, candidate_value, evidence_value)
+        if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
+            prompt = candidate_prompt
+            selected_job = job_value
+            selected_candidate = candidate_value
+            selected_evidence = evidence_value
+            if reason != "full":
+                truncation_steps.append(reason)
+            break
+    if not prompt:
+        visibility_manifest = {
+            "job": job_visibility,
+            "candidate": candidate_visibility,
+            "evidence": {
+                "raw_count": len(list(source.get("candidate_evidence") or evidence)),
+                "selected_count": len(evidence),
+                "rendered_count": 0,
+                "model_visible_count": 0,
+                "omitted_count": len(evidence),
+            },
+        }
+        raise RankingInputBudgetExceeded(
+            "ranking request mandatory contract exceeds 12000 characters",
+            visibility_manifest=visibility_manifest,
+        )
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {
         **base_request_payload,
@@ -352,6 +532,32 @@ def build_ranking_request(
         "canonical_checksums": dict((source.get("contract_metadata") or {}).get("canonical_checksums") or {}),
         "prompt_truncated": bool(truncation_steps),
         "prompt_truncation_steps": truncation_steps,
+        "visibility_manifest": {
+            "job": {
+                **job_visibility,
+                "rendered_fields": list(_structured_payload(selected_job) or job_visibility)[0:] if _structured_payload(selected_job) else job_visibility["rendered_fields"],
+                "model_visible_fields": list(_structured_payload(selected_job) or job_visibility)[0:] if _structured_payload(selected_job) else job_visibility["model_visible_fields"],
+            },
+            "candidate": {
+                **candidate_visibility,
+                "rendered_fields": list(_structured_payload(selected_candidate) or candidate_visibility)[0:] if _structured_payload(selected_candidate) else candidate_visibility["rendered_fields"],
+                "model_visible_fields": list(_structured_payload(selected_candidate) or candidate_visibility)[0:] if _structured_payload(selected_candidate) else candidate_visibility["model_visible_fields"],
+            },
+            "evidence": {
+                "raw_count": len(list(source.get("candidate_evidence") or evidence)),
+                "selected_count": len(evidence),
+                "rendered_count": len(selected_evidence),
+                "model_visible_count": len(selected_evidence),
+                "selected_ids": [
+                    str(item.get("evidence_id") or "")
+                    for item in evidence[:len(selected_evidence)]
+                    if isinstance(item, dict)
+                ],
+                "omitted_count": max(0, len(evidence) - len(selected_evidence)),
+            },
+            "mandatory_omissions": mandatory_omissions,
+            "mandatory_core_complete": not any(value > 0 for value in mandatory_omissions.values()),
+        },
         "fingerprint": _stable_json_fingerprint({"request": request_payload, "route": route_payload}),
     }
 
@@ -439,11 +645,17 @@ def build_ranking_input_diagnostics(
             if key in backend_metadata
         },
         "omitted_counts": dict(metadata.get("omitted_counts") or {}),
+        "mandatory_omissions": dict(metadata.get("mandatory_omissions") or {}),
+        "mandatory_core_complete": not any(
+            int(value or 0) > 0
+            for value in dict(metadata.get("mandatory_omissions") or {}).values()
+        ),
         "request_char_count": serialized_request,
         "request_max_chars": RANKING_REQUEST_MAX_CHARS,
         "request_within_budget": serialized_request is None or serialized_request <= RANKING_REQUEST_MAX_CHARS,
         "prompt_truncated": bool((request_record or {}).get("prompt_truncated")),
         "prompt_truncation_steps": list((request_record or {}).get("prompt_truncation_steps") or []),
+        "visibility_manifest": dict((request_record or {}).get("visibility_manifest") or {}),
     }
 
 
@@ -496,12 +708,17 @@ def build_ranking_job_input(
     def bounded(values: Any, limit: int = 8) -> list[str]:
         return _bounded_values(values, limit=limit)
 
-    def canonical_values(values: Any, limit: int = 8) -> tuple[list[str], list[str]]:
+    def canonical_values(
+        values: Any,
+        limit: int = 8,
+        *,
+        preserve_full: bool = False,
+    ) -> tuple[list[str], list[str]]:
         display: list[str] = []
         canonical: list[str] = []
         seen: set[str] = set()
         for value in list(values or []):
-            text = _bounded_text(value, RANKING_TERM_MAX_CHARS)
+            text = str(value or "").strip() if preserve_full else _bounded_text(value, RANKING_TERM_MAX_CHARS)
             key = _canonical_skill(text, policy)
             if not text or not key or key in seen:
                 continue
@@ -533,13 +750,16 @@ def build_ranking_job_input(
             build_evidence_excerpt(item, job, semantic_policy=policy),
             RANKING_EVIDENCE_TEXT_MAX_CHARS,
         ),
-        "source_refs": _bounded_values(item.get("source_refs"), limit=4),
+        "support_state": _bounded_text(item.get("support_state"), RANKING_TERM_MAX_CHARS),
+        "source_refs": _bounded_source_refs(item.get("source_refs"), limit=4),
+        "source_ref": _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
     } for item in projected_evidence[:RANKING_MAX_EVIDENCE] if isinstance(item, dict)]
     required_values = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
     all_required_skills, required_canonical = canonical_values(
         required_values,
         limit=max(8, len(required_values)),
+        preserve_full=True,
     )
     all_candidate_skills: list[str] = []
     candidate_skill_keys_seen: set[str] = set()
@@ -550,9 +770,13 @@ def build_ranking_job_input(
             continue
         candidate_skill_keys_seen.add(canonical)
         all_candidate_skills.append(display)
-    technology_requirements, technology_canonical = canonical_values(
-        job.get("tech_stack_canonical") or job.get("tech_stack")
+    technology_values = list(job.get("tech_stack_canonical") or job.get("tech_stack") or [])
+    all_technology_requirements, technology_canonical = canonical_values(
+        technology_values,
+        limit=max(8, len(technology_values)),
+        preserve_full=True,
     )
+    technology_requirements = all_technology_requirements[:RANKING_MAX_SKILLS]
     preferred_skills, preferred_canonical = canonical_values(
         job.get("preferred_skills_canonical") or job.get("preferred_skills")
     )
@@ -569,21 +793,42 @@ def build_ranking_job_input(
     candidate_skill_keys = {_canonical_skill(skill, policy) for skill in all_candidate_skills}
     matched_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical in candidate_skill_keys]
     missing_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical not in candidate_skill_keys]
-    languages = [
+    all_candidate_languages = [
         {"name": _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS), "level": _bounded_text(item.get("level"), RANKING_TERM_MAX_CHARS)}
-        for item in list(profile.get("languages") or [])[:8]
+        for item in list(profile.get("languages") or [])
         if isinstance(item, dict) and _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS)
     ]
-    employment = [
+    languages = all_candidate_languages[:8]
+    all_candidate_employment = [
         {
             "role": _bounded_text(item.get("role"), RANKING_TERM_MAX_CHARS),
             "company": _bounded_text(item.get("company") or item.get("organization"), RANKING_TERM_MAX_CHARS),
             "start": _bounded_text(item.get("start"), 32),
             "end": _bounded_text(item.get("end"), 32),
         }
-        for item in list(profile.get("experiences") or [])[:8]
+        for item in list(profile.get("experiences") or [])
         if isinstance(item, dict)
     ]
+    employment = all_candidate_employment[:8]
+    mandatory_skill_keys = set(required_canonical) | set(technology_canonical)
+    visible_candidate_skill_keys = {
+        _canonical_skill(skill, policy)
+        for skill in candidate_skills
+    }
+    job_language_values = list(job.get("language_requirements") or job.get("languages") or [])
+    mandatory_candidate_skill_keys = {
+        _canonical_skill(skill, policy)
+        for skill in all_candidate_skills
+        if _canonical_skill(skill, policy) in mandatory_skill_keys
+    }
+    mandatory_omissions = {
+        "job_required_skills": max(0, len(all_required_skills) - len(required_skills)),
+        "job_technology_requirements": max(0, len(all_technology_requirements) - len(technology_requirements)),
+        "job_language_requirements": max(0, len(job_language_values) - min(8, len(job_language_values))),
+        "candidate_required_skills": len(mandatory_candidate_skill_keys - visible_candidate_skill_keys),
+        "candidate_languages": max(0, len(all_candidate_languages) - 8),
+        "candidate_employment": max(0, len(all_candidate_employment) - 8),
+    }
     education = [
         {key: _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS) for key in ("degree", "field", "institution", "start", "end") if _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)}
         for item in list(profile.get("education") or [])[:4]
@@ -603,7 +848,11 @@ def build_ranking_job_input(
         "domain": str(job.get("domain") or ""),
         "responsibilities": bounded(job.get("responsibilities")),
         "technology_requirements": technology_requirements,
-        "language_requirements": bounded(job.get("language_requirements") or job.get("languages")),
+        "language_requirements": [
+            str(value).strip()
+            for value in list(job.get("language_requirements") or job.get("languages") or [])
+            if str(value).strip()
+        ],
         "location": {"location_type": str(job.get("location_type") or ""), "actual_location": job.get("actual_location") or job.get("location") or None},
         "years_experience_min": job.get("years_experience_min"),
         "years_experience_max": job.get("years_experience_max"),
@@ -629,11 +878,29 @@ def build_ranking_job_input(
         "canonical_checksums": {
             "job_requirements": _stable_json_fingerprint(requirements),
             "candidate_facts": _stable_json_fingerprint(candidate),
+            "job_requirements_complete": _stable_json_fingerprint({
+                key: job.get(key)
+                for key in (
+                    "title", "required_skills", "required_skills_canonical",
+                    "preferred_skills", "preferred_skills_canonical", "tech_stack",
+                    "tech_stack_canonical", "language_requirements", "languages",
+                    "location", "actual_location", "location_type", "years_experience_min",
+                    "years_experience_max", "seniority", "job_family", "domain",
+                    "responsibilities",
+                )
+                if key in job
+            }),
+            "candidate_facts_complete": _stable_json_fingerprint({
+                key: value
+                for key, value in profile.items()
+                if not str(key).startswith("_")
+            }),
         },
         "omitted_counts": {
             "candidate_skills": max(0, len(all_candidate_skills) - len(candidate_skills)),
             "evidence": max(0, len(projected_evidence) - len(evidence)),
         },
+        "mandatory_omissions": mandatory_omissions,
         "requirement_ids": [
             *[f"required:{index}" for index in range(len(required_skills))],
             *[f"technology:{index}" for index in range(len(technology_requirements))],
@@ -939,6 +1206,30 @@ def run_ai_scoring(
                 request_record,
             )
             return score_row
+        except RankingInputBudgetExceeded as exc:
+            return {
+                "job_url": str(job.get("job_url", "")),
+                **{
+                    field_name: job[field_name]
+                    for field_name in ("run_job_id", "raw_job_fingerprint", "source_job_url")
+                    if job.get(field_name) not in (None, "")
+                },
+                "ai_score": None, "legacy_model_fit_label": None,
+                "score_status": SCORE_STATUS_UNSCORED,
+                "failure_code": exc.failure_code,
+                "retry_eligible": False,
+                "score_reasoning": f"Scoring error: {exc}",
+                "matched_strengths": [], "key_risks": [],
+                "parser_status": exc.failure_code,
+                "ranking_input_diagnostics": {
+                    "contract_version": RANKING_INPUT_CONTRACT_VERSION,
+                    "request_within_budget": False,
+                    "request_max_chars": RANKING_REQUEST_MAX_CHARS,
+                    "prompt_truncated": True,
+                    "prompt_truncation_steps": ["mandatory_core_did_not_fit"],
+                    "visibility_manifest": exc.visibility_manifest,
+                },
+            }
         except Exception as exc:  # noqa: BLE001
             return {
                 "job_url": str(job.get("job_url", "")),
@@ -954,6 +1245,10 @@ def run_ai_scoring(
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
                 "parser_status": "runtime_exception",
+                "ranking_input_diagnostics": build_ranking_input_diagnostics(
+                    ranking_input,
+                    request_record if "request_record" in locals() else None,
+                ),
             }
 
     scored_by_index: dict[int, dict[str, Any]] = {}
