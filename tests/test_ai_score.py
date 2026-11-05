@@ -396,6 +396,32 @@ def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> No
     assert candidate["mandatory_facts"]["certifications"][0]["name"] == required_certification
 
 
+def test_late_education_and_certification_match_ordinary_requirement_wording() -> None:
+    profile = {
+        "education": [
+            {"degree": f"Unrelated {index}", "field": "History", "institution": "Example University"}
+            for index in range(15)
+        ] + [{"degree": "Bachelor of Science", "field": "Computer Science", "institution": "Example University"}],
+        "certifications": [
+            {"name": f"Unrelated {index}", "issuer": "Issuer"}
+            for index in range(15)
+        ] + [{"name": "AWS Certified Solutions Architect", "issuer": "Amazon"}],
+    }
+    ranking_input = build_ranking_job_input(
+        {
+            "education_requirements": ["Bachelor's degree in Computer Science or a related field"],
+            "certification_requirements": ["AWS Certified Solutions Architect certification required"],
+        },
+        profile,
+    )
+
+    candidate = json.loads(ranking_input["candidate_summary"])
+    assert candidate["education"][0]["field"] == "Computer Science"
+    assert candidate["certifications"][0]["name"] == "AWS Certified Solutions Architect"
+    assert candidate["mandatory_facts"]["education"]
+    assert candidate["mandatory_facts"]["certifications"]
+
+
 def test_request_refuses_to_hide_the_only_attributable_evidence() -> None:
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",

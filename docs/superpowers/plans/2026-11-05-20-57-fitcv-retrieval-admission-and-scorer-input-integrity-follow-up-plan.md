@@ -364,7 +364,8 @@ artifacts remain untouched.
   raw extraction failure cannot become an apparently complete score input.
 - Candidate education, certification, and mandatory-clause facts are projected
   ahead of optional records, with job-relevant late records retained in the
-  scorer-visible `mandatory_facts` payload.
+  scorer-visible `mandatory_facts` payload using normalized phrase/token
+  matching rather than exact-string equality.
 - Evidence-budget reduction never tries zero evidence when attributable evidence
   was selected; an over-budget request fails before provider invocation.
 - Hybrid fusion keeps the fixed top-50 budget while rescuing the strongest

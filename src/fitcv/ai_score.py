@@ -912,12 +912,43 @@ def build_ranking_job_input(
         "candidate_mandatory_clauses": 0,
         "job_enrichment_fallback": int(job.get("enrich_reuse_status") == "enrichment_fallback"),
     }
-    def prioritize_records(values: Any, required_values: Any, fields: tuple[str, ...]) -> list[dict[str, str]]:
-        required_keys = {
-            _canonical_skill(value, policy)
-            for value in list(required_values or [])
-            if _canonical_skill(value, policy)
+    def requirement_tokens(value: Any) -> set[str]:
+        stop_words = {"and", "the", "for", "with", "from", "this", "that", "required", "related"}
+        return {
+            token
+            for token in re.findall(r"[a-z0-9+#]+", str(value or "").casefold())
+            if len(token) >= 3 and token not in stop_words
         }
+
+    def record_matches_requirement(
+        record: dict[str, str],
+        required_values: Any,
+        fields: tuple[str, ...],
+    ) -> bool:
+        record_values = [
+            _canonical_skill(record.get(field), policy)
+            for field in fields
+            if _canonical_skill(record.get(field), policy)
+        ]
+        record_text = " ".join(record_values)
+        record_terms = requirement_tokens(record_text)
+        for required_value in list(required_values or []):
+            required_key = _canonical_skill(required_value, policy)
+            if not required_key:
+                continue
+            if any(
+                candidate == required_key
+                or (len(candidate) >= 8 and (candidate in required_key or required_key in candidate))
+                for candidate in record_values
+            ):
+                return True
+            required_terms = requirement_tokens(required_value)
+            overlap = record_terms & required_terms
+            if len(overlap) >= max(2, math.ceil(len(record_terms) * 0.6)):
+                return True
+        return False
+
+    def prioritize_records(values: Any, required_values: Any, fields: tuple[str, ...]) -> list[dict[str, str]]:
         records: list[dict[str, str]] = []
         for item in list(values or []):
             if not isinstance(item, dict):
@@ -933,7 +964,7 @@ def build_ranking_job_input(
             records,
             key=lambda record: (
                 0
-                if any(_canonical_skill(record.get(key), policy) in required_keys for key in fields)
+                if record_matches_requirement(record, required_values, fields)
                 else 1
             ),
         )
@@ -951,16 +982,14 @@ def build_ranking_job_input(
         ("name", "issuer", "date", "expires"),
     )
     candidate_mandatory_clauses = mandatory_clause_records(profile.get("mandatory_clauses"))
-    education_keys = {_canonical_skill(value, policy) for value in education_requirements}
-    certification_keys = {_canonical_skill(value, policy) for value in certification_requirements}
     mandatory_facts = {
         "education": [
             record for record in education
-            if any(_canonical_skill(record.get(key), policy) in education_keys for key in ("degree", "field"))
+            if record_matches_requirement(record, education_requirements, ("degree", "field"))
         ],
         "certifications": [
             record for record in certifications
-            if any(_canonical_skill(record.get(key), policy) in certification_keys for key in ("name", "issuer"))
+            if record_matches_requirement(record, certification_requirements, ("name", "issuer"))
         ],
         "mandatory_clauses": candidate_mandatory_clauses,
     }
