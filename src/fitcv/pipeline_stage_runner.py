@@ -317,49 +317,75 @@ def execute_shortlist_stage(
         raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
         shortlist_urls = set(unique_job_urls(shortlist))
         audit_urls = set(unique_job_urls(audit_rows))
+        production_rows_by_url = {
+            str(row.get("job_url") or "").strip(): row
+            for row in shortlist
+            if str(row.get("job_url") or "").strip()
+        }
+        audit_rows_by_url = {
+            str(row.get("job_url") or "").strip(): row
+            for row in audit_rows
+            if str(row.get("job_url") or "").strip()
+        }
+        retrieval_rows_by_url = {**audit_rows_by_url, **production_rows_by_url}
         shortlist_admission_rows = []
         fusion_fingerprint = str(shortlist_diagnostics.get("fusion_fingerprint") or "")
         effective_strategy = str(shortlist_diagnostics.get("effective_strategy") or "")
         requested_strategy = str(shortlist_diagnostics.get("requested_strategy") or "")
         for input_index, job in enumerate(passed_jobs):
             job_url = str(job.get("job_url") or "").strip()
-            shortlist_row = next(
-                (row for row in shortlist if str(row.get("job_url") or "").strip() == job_url),
-                None,
-            )
+            retrieval_row = retrieval_rows_by_url.get(job_url) or {}
+            is_admitted = job_url in shortlist_urls
+            raw_hit_present = job_url in raw_shortlist_urls or job_url in audit_urls
             shortlist_admission_rows.append(
                 {
                     "identity": primary_job_identity_key(job) or job_url,
                     "job_url": job_url,
                     "input_index": input_index,
-                    "shortlist_status": (
-                        "shortlist_admitted" if job_url in shortlist_urls else "not_returned_in_raw_hits"
-                    ),
-                    "raw_hit_present": job_url in raw_shortlist_urls,
+                    "shortlist_status": "shortlist_admitted" if is_admitted else "not_returned_in_raw_hits",
+                    "raw_hit_present": raw_hit_present,
                     "audited": job_url in audit_urls,
                     "admission_order": (
                         next(
                             (index for index, row in enumerate(shortlist) if str(row.get("job_url") or "").strip() == job_url),
                             None,
                         )
-                        if job_url in shortlist_urls
+                        if is_admitted
                         else None
                     ),
-                    "shortlist_origin": str((shortlist_row or {}).get("shortlist_origin") or ""),
-                    "retrieval_strategy": str((shortlist_row or {}).get("retrieval_strategy") or shortlist_diagnostics.get("effective_strategy") or ""),
-                    "vector_rank": (shortlist_row or {}).get("vector_rank"),
-                    "vector_similarity": (shortlist_row or {}).get("vector_similarity"),
-                    "lexical_rank": (shortlist_row or {}).get("lexical_rank"),
-                    "lexical_score": (shortlist_row or {}).get("lexical_score"),
+                    "shortlist_origin": str(retrieval_row.get("shortlist_origin") or ""),
+                    "retrieval_strategy": str(retrieval_row.get("retrieval_strategy") or shortlist_diagnostics.get("effective_strategy") or ""),
+                    "vector_rank": retrieval_row.get("vector_rank"),
+                    "vector_similarity": retrieval_row.get("vector_similarity"),
+                    "lexical_rank": retrieval_row.get("lexical_rank"),
+                    "lexical_score": retrieval_row.get("lexical_score"),
                     "requested_strategy": requested_strategy,
                     "effective_strategy": effective_strategy,
                     "fusion_fingerprint": fusion_fingerprint,
-                    "admission_reason": "within_fused_cutoff" if job_url in shortlist_urls else None,
+                    "admission_reason": "within_fused_cutoff" if is_admitted else None,
                     "exclusion_reason": (
-                        "after_fused_cutoff" if job_url in raw_shortlist_urls else "not_returned_in_raw_hits"
-                    ) if job_url not in shortlist_urls else None,
+                        "after_fused_cutoff" if job_url in audit_urls else "not_returned_in_raw_hits"
+                    ) if not is_admitted else None,
                 }
             )
+        audit_sample_n = max(0, int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0)))
+
+        def bounded_sample(status: str | None = None) -> list[dict[str, Any]]:
+            rows = [
+                row for row in shortlist_admission_rows
+                if status is None or row.get("shortlist_status") == status
+            ]
+            return sorted(rows, key=lambda row: (str(row.get("job_url") or ""), int(row.get("input_index") or 0)))[:audit_sample_n]
+
+        admitted_sample = bounded_sample("shortlist_admitted")
+        below_cutoff_sample = [
+            row for row in sorted(
+                shortlist_admission_rows,
+                key=lambda item: (str(item.get("job_url") or ""), int(item.get("input_index") or 0)),
+            )
+            if row.get("exclusion_reason") == "after_fused_cutoff"
+        ][:audit_sample_n]
+        not_returned_sample = bounded_sample("not_returned_in_raw_hits")
         state["shortlist_admission_manifest"] = {
             "contract_version": "shortlist_admission_manifest_v1",
             "counts": {
@@ -367,14 +393,20 @@ def execute_shortlist_stage(
                 "raw_retrieved": len(raw_shortlist_urls),
                 "audited": len(audit_urls),
                 "admitted": len(shortlist_urls),
-                "not_returned": sum(1 for row in shortlist_admission_rows if row["shortlist_status"] != "shortlist_admitted"),
+                "after_fused_cutoff": sum(1 for row in shortlist_admission_rows if row.get("exclusion_reason") == "after_fused_cutoff"),
+                "not_returned": sum(1 for row in shortlist_admission_rows if row["shortlist_status"] == "not_returned_in_raw_hits"),
             },
             "retrieval": {
                 "requested_strategy": shortlist_diagnostics.get("requested_strategy"),
                 "effective_strategy": shortlist_diagnostics.get("effective_strategy"),
                 "fallback_reason": shortlist_diagnostics.get("fallback_reason"),
+                "fusion_fingerprint": shortlist_diagnostics.get("fusion_fingerprint"),
             },
-            "rows": shortlist_admission_rows,
+            "sample_limit": audit_sample_n,
+            "rows": admitted_sample,
+            "admitted_sample": admitted_sample,
+            "audit_sample": below_cutoff_sample,
+            "not_returned_sample": not_returned_sample,
         }
         persist_ledger = getattr(pipeline_store, "store_shortlist_admission_ledger", None)
         if persist_ledger is not None:

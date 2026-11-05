@@ -767,6 +767,19 @@ def apply_rule_filters(
 
         for reason_code, check_fn in checks:
             if not check_fn(job, prefs):
+                if (
+                    reason_code == "missing_fit_context"
+                    and str(job.get("enrich_reuse_status") or "") == "enrichment_fallback"
+                    and str(job.get("description_cleaned") or job.get("description") or "").strip()
+                ):
+                    marks.append(
+                        {
+                            "code": "enrichment_fallback",
+                            "message": "Structured enrichment failed; raw job text remains available for retrieval.",
+                            "details": {"original_reason": reason_code},
+                        }
+                    )
+                    continue
                 if reason_code in selected_filter_codes:
                     reasons.append(reason_code)
                 else:

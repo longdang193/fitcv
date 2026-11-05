@@ -289,6 +289,22 @@ def _technology_overlap(job_technology: list[Any], candidate_technology: list[An
     return matched / len(job_terms)
 
 
+def _description_overlap(description: Any, candidate_terms: list[Any]) -> float:
+    description_terms = _technology_term_tokens(description)
+    if not description_terms:
+        return 0.0
+    candidate_term_sets = [_technology_term_tokens(value) for value in candidate_terms]
+    candidate_term_sets = [terms for terms in candidate_term_sets if terms]
+    if not candidate_term_sets:
+        return 0.0
+    matched = sum(
+        1
+        for candidate_set in candidate_term_sets
+        if candidate_set & description_terms
+    )
+    return matched / len(candidate_term_sets)
+
+
 def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
     inventory = _profile_technology_inventory(profile)
     counts: dict[str, int] = {}
@@ -674,8 +690,18 @@ def _lexical_search_result(
         parts = preference["components"]
         job_technology = list(job.get("tech_stack_canonical") or job.get("tech_stack") or [])
         technology_overlap = _technology_overlap(job_technology, candidate_technology)
-        base_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
-        retrieval_score = (base_score * 0.75) + (technology_overlap * 0.25)
+        description_overlap = _description_overlap(
+            job.get("description_cleaned") or job.get("description"),
+            [*candidate_skills, *candidate_technology],
+        )
+        base_score = (
+            skill_score
+            + title_score
+            + float(parts["domain"])
+            + float(parts["role_family"])
+            + float(parts["work_mode"])
+        ) / 5.0
+        retrieval_score = (base_score * 0.65) + (technology_overlap * 0.20) + (description_overlap * 0.15)
         scored.append({
             **job,
             "job_url": job_url,
@@ -684,8 +710,10 @@ def _lexical_search_result(
                 "skill_overlap": skill_score,
                 "title_relevance": title_score,
                 "domain": parts["domain"],
+                "role_family": parts["role_family"],
                 "location": parts["work_mode"],
                 "technology_overlap": technology_overlap,
+                "description_overlap": description_overlap,
             },
         })
     scored.sort(
@@ -699,6 +727,7 @@ def _lexical_search_result(
         {
             **row,
             "vector_rank": index + 1,
+            "lexical_rank": index + 1,
             "shortlist_origin": "lexical_search",
             "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
         }
@@ -784,6 +813,7 @@ def _hybrid_search_result(
     lexical_result: dict[str, Any],
     eligible_job_urls: list[str],
     top_n: int,
+    channel_depth: int | None = None,
 ) -> dict[str, Any]:
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
@@ -807,11 +837,12 @@ def _hybrid_search_result(
         target["lexical_rank"] = min(int(target.get("lexical_rank") or rank), rank)
         target["lexical_score"] = row.get("retrieval_score")
 
+    effective_channel_depth = int(channel_depth or max(len(vector_rows), len(lexical_rows), len(eligible_job_urls)))
     _, fusion_fingerprint = hash_payload(
         {
             "contract": HYBRID_RETRIEVAL_STRATEGY,
-            "vector_depth": 50,
-            "lexical_depth": 50,
+            "vector_depth": effective_channel_depth,
+            "lexical_depth": effective_channel_depth,
             "rrf_k": HYBRID_RRF_K,
             "channel_weights": {"vector": HYBRID_CHANNEL_WEIGHT, "lexical": HYBRID_CHANNEL_WEIGHT},
             "dedupe": "normalized_job_url",
@@ -865,8 +896,8 @@ def _hybrid_search_result(
             "fallback_reason": None,
             "fusion_contract": {
                 "version": HYBRID_RETRIEVAL_STRATEGY,
-                "vector_depth": 50,
-                "lexical_depth": 50,
+                "vector_depth": effective_channel_depth,
+                "lexical_depth": effective_channel_depth,
                 "rrf_k": HYBRID_RRF_K,
                 "channel_weights": {"vector": HYBRID_CHANNEL_WEIGHT, "lexical": HYBRID_CHANNEL_WEIGHT},
                 "dedupe": "normalized_job_url",
@@ -877,6 +908,7 @@ def _hybrid_search_result(
             "eligible_jobs_total": len(eligible_job_urls),
             "vector_candidate_total": len(vector_rows),
             "lexical_candidate_total": len(lexical_rows),
+            "fusion_channel_depth": effective_channel_depth,
             "scored_jobs_total": len(fused),
             "production_shortlist_total": len(production_rows),
             "production_cutoff_rank": len(production_rows),
@@ -920,11 +952,12 @@ def run_vector_search(
                 reason="fallback_data_unavailable",
                 config=config,
             )
+        channel_depth = len(eligible_job_urls)
         vector_result = run_vector_search(
             profile,
             eligible_job_urls,
             config,
-            top_n=50,
+            top_n=channel_depth,
             structured_jobs=structured_jobs,
             requested_strategy=VECTOR_RETRIEVAL_STRATEGY,
             _allow_lexical_fallback=False,
@@ -933,7 +966,7 @@ def run_vector_search(
             profile,
             eligible_job_urls,
             config,
-            50,
+            channel_depth,
             structured_jobs,
             requested_strategy=requested_strategy,
         )
@@ -942,6 +975,7 @@ def run_vector_search(
             lexical_result=lexical_result,
             eligible_job_urls=eligible_job_urls,
             top_n=effective_top_n,
+            channel_depth=channel_depth,
         )
     if requested_strategy == LEXICAL_RETRIEVAL_STRATEGY:
         if structured_jobs is None:

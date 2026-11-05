@@ -220,6 +220,27 @@ def test_missing_fit_context_rejects_by_default() -> None:
         }
     ]
 
+
+def test_enrichment_fallback_with_raw_description_survives_missing_context_filter() -> None:
+    result = apply_rule_filters(
+        [
+            _job(
+                job_url="http://fallback-raw-description",
+                seniority=None,
+                location_type=None,
+                job_family=None,
+                domain=None,
+                description_cleaned="Build a Rust service.",
+                enrich_reuse_status="enrichment_fallback",
+            )
+        ],
+        _prefs(),
+    )
+
+    assert result["passed"] == ["http://fallback-raw-description"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["code"] == "enrichment_fallback"
+
 def test_unselected_missing_fit_context_emits_mark_not_reject() -> None:
     result = apply_rule_filters(
         [

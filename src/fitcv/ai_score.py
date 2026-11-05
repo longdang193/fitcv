@@ -383,13 +383,7 @@ def build_ranking_request(
                 key for key in selected_fields if bounded_payload.get(key) != payload.get(key)
             ],
         }
-        variants: list[dict[str, Any]] = [dict(bounded_payload)]
-        reduced = dict(bounded_payload)
-        for key in ("certifications", "education"):
-            if key in reduced:
-                reduced.pop(key)
-                variants.append(dict(reduced))
-        return serialize(), changed, metadata, variants
+        return serialize(), changed, metadata, [dict(bounded_payload)]
 
     jd_raw = source.get("job_requirements") or build_job_summary_text(job)
     jd_summary, jd_summary_truncated, job_visibility, job_variants = bound_job_summary(jd_raw)

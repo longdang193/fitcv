@@ -499,6 +499,30 @@ def test_lexical_retrieval_uses_late_project_technology_inventory() -> None:
     assert result["production_rows"][0]["retrieval_components"]["technology_overlap"] == 1.0
 
 
+def test_lexical_retrieval_uses_raw_description_when_enrichment_falls_back() -> None:
+    profile = {
+        "preferences": {"target_role": "Data Analyst"},
+        "skills": ["Rust"],
+    }
+    result = run_vector_search(
+        profile,
+        ["job-raw"],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
+        top_n=1,
+        structured_jobs=[
+            {
+                "job_url": "job-raw",
+                "title": "Data Analyst",
+                "description_cleaned": "Build a Rust service.",
+                "enrich_reuse_status": "enrichment_fallback",
+            }
+        ],
+        requested_strategy="lexical_v1",
+    )
+
+    assert result["production_rows"][0]["retrieval_components"]["description_overlap"] == 1.0
+
+
 def test_technology_overlap_preserves_punctuation_that_distinguishes_languages() -> None:
     assert _technology_overlap(["C++"], ["C++"]) == 1.0
     assert _technology_overlap(["C#"], ["C#"]) == 1.0
@@ -1113,37 +1137,44 @@ def test_run_vector_search_fallback_preserves_lexical_audit_rows(
     assert [row["job_url"] for row in result["audit_rows"]] == ["https://example.com/lexical-audit"]
 
 
-def test_hybrid_fusion_uses_only_fixed_depth_production_channels() -> None:
+def test_hybrid_fusion_allows_rank_51_candidate_into_fixed_top_50() -> None:
+    candidate_url = "https://example.com/rank-51-both"
     vector_result = {
         "production_rows": [
-            {"job_url": "https://example.com/vector-1", "vector_rank": 1},
-            {"job_url": "https://example.com/vector-2", "vector_rank": 2},
+            *[
+                {"job_url": f"https://example.com/vector-{index}", "vector_rank": index}
+                for index in range(1, 51)
+            ],
+            {"job_url": candidate_url, "vector_rank": 51},
         ],
-        "audit_rows": [{"job_url": "https://example.com/vector-audit", "vector_rank": 3}],
+        "audit_rows": [],
         "diagnostics": {},
     }
     lexical_result = {
         "production_rows": [
-            {"job_url": "https://example.com/lexical-1", "lexical_rank": 1},
-            {"job_url": "https://example.com/lexical-2", "lexical_rank": 2},
+            {"job_url": candidate_url, "lexical_rank": 51},
+            *[
+                {"job_url": f"https://example.com/lexical-{index}", "lexical_rank": index}
+                for index in range(52, 102)
+            ],
         ],
-        "audit_rows": [{"job_url": "https://example.com/lexical-audit", "lexical_rank": 3}],
+        "audit_rows": [],
         "diagnostics": {},
     }
 
     result = _hybrid_search_result(
         vector_result=vector_result,
         lexical_result=lexical_result,
-        eligible_job_urls=[row["job_url"] for row in vector_result["production_rows"]],
-        top_n=4,
+        eligible_job_urls=[
+            row["job_url"] for row in vector_result["production_rows"] + lexical_result["production_rows"]
+        ],
+        top_n=50,
+        channel_depth=101,
     )
 
-    returned_urls = {
-        row["job_url"] for row in result["production_rows"] + result["audit_rows"]
-    }
-    assert "https://example.com/vector-audit" not in returned_urls
-    assert result["diagnostics"]["vector_candidate_total"] == 2
-    assert result["diagnostics"]["lexical_candidate_total"] == 2
+    assert candidate_url in {row["job_url"] for row in result["production_rows"]}
+    assert len(result["production_rows"]) == 50
+    assert result["diagnostics"]["fusion_channel_depth"] == 101
 
 
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(

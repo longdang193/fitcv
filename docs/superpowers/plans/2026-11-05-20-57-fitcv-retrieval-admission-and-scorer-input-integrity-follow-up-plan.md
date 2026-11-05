@@ -2,21 +2,29 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-retrieval-admission-and-scorer-input-integrity-follow-up
 targets:
   - config/runtime/pipeline.yaml
   - src/fitcv/config.py
   - src/fitcv/vector_search.py
+  - src/fitcv/embeddings.py
   - src/fitcv/enrich.py
+  - src/fitcv/rule_filter.py
   - src/fitcv/ai_score.py
+  - src/fitcv/evidence.py
   - src/fitcv/pipeline.py
+  - src/fitcv/pipeline_stage_runner.py
+  - src/fitcv/pipeline_stage_context.py
   - src/fitcv/pipeline_store.py
   - tests/test_vector_search.py
   - tests/test_enrich.py
+  - tests/test_rule_filter.py
   - tests/test_ai_score.py
+  - tests/test_evidence.py
   - tests/test_pipeline.py
+  - tests/test_pipeline_stage_resume_parity.py
   - tests/test_pipeline_checkpoint_contract.py
   - tests/fixtures/retrieval_admission_fixture.json
 ---
@@ -131,13 +139,13 @@ artifacts remain untouched.
 - Stop for: any request to increase either top-50 budget, disable eligibility filters, mix incomparable channel scores, or alter unrelated source configuration.
 
 **Steps:**
-- [ ] Step 1: Add a failing production-path regression with 51 eligible jobs: 50 vector-backed rows including one weak vector result and one highly relevant lexical-only/missing-vector row.
-- [ ] Step 2: Select `hybrid_rrf_v1` as the runtime and default retrieval strategy while retaining explicit support for `vector_cosine_v1` and `lexical_v1` callers.
-- [ ] Step 3: Ensure the hybrid production cohort is fused and cut once at 50; below-cutoff audit rows must not consume admission capacity.
-- [ ] Step 4: Update stale expectations that assert missing-vector jobs are never scored, and preserve diagnostics for requested/effective strategy and admission reason.
+- [x] Step 1: Add a failing production-path regression with 101 eligible jobs whose vector and lexical channel orders are deliberately disjoint; include one item at rank 51 in both channels whose combined RRF score should enter the final cohort.
+- [x] Step 2: Select `hybrid_rrf_v1` as the runtime and default retrieval strategy while retaining explicit support for `vector_cosine_v1` and `lexical_v1` callers.
+- [x] Step 3: Change the hybrid channel-depth contract so vector and lexical ranks are computed over the full eligible population (or an explicitly proven deterministic overfetch depth); fuse those ranks once and cut only the fused result at the configured 50. Keep below-cutoff audit rows out of admission capacity.
+- [x] Step 4: Update stale expectations that assert missing-vector jobs are never scored, preserve requested/effective strategy and admission diagnostics, and replace `test_hybrid_fusion_uses_only_fixed_depth_production_channels` with the rank-51 boundary proof.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_pipeline.py -k "hybrid or missing_vector or retrieval_strategy or shortlist"`
+- [x] `python -m pytest -q tests/test_vector_search.py tests/test_pipeline.py -k "hybrid or missing_vector or retrieval_strategy or shortlist"`
 - Expected: the lexical-only job enters the 50, the weak vector job is displaced, exactly 50 jobs reach scoring, and no audit-only row is admitted.
 
 **Exit Criteria:**
@@ -180,13 +188,13 @@ artifacts remain untouched.
 - Stop for: changing the compatibility formula, adding nondeterministic ranking, or introducing a new persistence/configuration layer for query hints.
 
 **Steps:**
-- [ ] Step 1: Add a failing test showing an accepted non-primary role family must improve lexical relevance when other fields tie.
-- [ ] Step 2: Include the existing computed `role_family` preference component in the lexical score and expose it in `retrieval_components`; retain deterministic documented weighting from the existing preference policy.
-- [ ] Step 3: Build project passage candidates from every declared project, score coverage against accepted role families, skills, domains, and technologies, and select at most eight with a greedy project-diversity term and stable project/name/index tie-breaks.
-- [ ] Step 4: Add tests where eight weak projects precede one strong late project and where project order is permuted; assert the selected bounded query content is relevant and order-invariant.
+- [x] Step 1: Add a failing test showing an accepted non-primary role family must improve lexical relevance when other fields tie.
+- [x] Step 2: Include the existing computed `role_family` preference component in the lexical score and expose it in `retrieval_components`; retain deterministic documented weighting from the existing preference policy.
+- [x] Step 3: Build project passage candidates from every declared project, score coverage against accepted role families, skills, domains, and technologies, and select at most eight with a greedy project-diversity term and stable project/name/index tie-breaks.
+- [x] Step 4: Add tests where eight weak projects precede one strong late project and where project order is permuted; assert the selected bounded query content is relevant and order-invariant.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py -k "role_family or project_evidence or query_components or lexical"`
+- [x] `python -m pytest -q tests/test_vector_search.py -k "role_family or project_evidence or query_components or lexical"`
 - Expected: role-family alignment appears in lexical components, the late strong project is selected, and equivalent project permutations produce the same bounded query payload and fingerprint.
 
 **Exit Criteria:**
@@ -217,9 +225,10 @@ artifacts remain untouched.
 
 **Files And Symbols:**
 - Inspect: `src/fitcv/enrich.py:parse_extraction_response`, `_enrich_result_to_row`, `_is_semantically_blank_enrichment_row`, `_enrich_one`
-- Inspect: `src/fitcv/vector_search.py:build_job_summary_text`, `_lexical_search_result`
-- Modify: `src/fitcv/enrich.py`, `src/fitcv/vector_search.py`
-- Verify: `tests/test_enrich.py`, `tests/test_vector_search.py`
+- Inspect: `src/fitcv/embeddings.py:build_job_summary_text`, `src/fitcv/vector_search.py:_lexical_search_result`, `src/fitcv/rule_filter.py:check_fit_context`
+- Inspect: `src/fitcv/pipeline.py:run_pipeline` and the fresh-enrichment persistence owner
+- Modify: `src/fitcv/enrich.py`, `src/fitcv/embeddings.py`, `src/fitcv/vector_search.py`, `src/fitcv/pipeline.py`, `src/fitcv/rule_filter.py`
+- Verify: `tests/test_enrich.py`, `tests/test_rule_filter.py`, `tests/test_vector_search.py`, `tests/test_pipeline.py`
 
 **Dependencies:**
 - Task 1 complete; the fallback must feed the same competitive retrieval path rather than bypass admission policy.
@@ -229,13 +238,14 @@ artifacts remain untouched.
 - Stop for: dropping raw descriptions, treating an empty structured row as a successful cache entry, or changing LLM provider/retry policy outside the malformed-extraction case.
 
 **Steps:**
-- [ ] Step 1: Add a failing test for a generic-title job whose raw description contains a unique required technology and whose extraction response is unparseable or materially blank.
-- [ ] Step 2: Make `_enrich_result_to_row` reject parser errors plus material blankness through the existing retry/error boundary instead of logging and merging an empty extraction as success.
-- [ ] Step 3: After retries are exhausted, retain an explicit enrichment-failure diagnostic and route `description_cleaned` through a deterministic raw-description retrieval fallback; do not write the row as a normal fully enriched cache hit.
-- [ ] Step 4: Update the old empty-success assertion and add cache/reuse tests proving failed enrichment cannot become a reusable semantically blank row.
+- [x] Step 1: Add a failing test for a generic-title job whose raw description contains a unique required technology and whose extraction response is unparseable or materially blank.
+- [x] Step 2: Define one terminal per-job `enrichment_fallback` row/status contract. `_enrich_result_to_row` must reject parser errors and material blankness; `_enrich_one` must use the existing bounded attempt count for the malformed/blank case, then return the fallback row instead of aborting the batch.
+- [x] Step 3: Make the fallback preserve `description_cleaned`, raw-job identity, and explicit failure diagnostics; make `pipeline.py` exclude it from `FRESH_ENRICHMENT_STATUS` and normal successful structured-job persistence. It must remain eligible for retrieval without weakening normal `missing_fit_context` behavior: recover deterministic fit context from the raw description or explicitly classify only that diagnosed fallback path.
+- [x] Step 4: Put the raw-description fallback at an actual retrieval boundary: add a bounded lexical description-overlap signal in `vector_search.py`/`embeddings.py` and prove it survives enrich → rule-filter → shortlist. Do not rely on a nonexistent `vector_search.py:build_job_summary_text` owner.
+- [x] Step 5: Update the old empty-success assertion and add cache/reuse tests proving failed enrichment cannot become a reusable semantically blank row.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_enrich.py tests/test_vector_search.py -k "malformed or blank or fallback or description or reuse"`
+- [x] `python -m pytest -q tests/test_enrich.py tests/test_vector_search.py -k "malformed or blank or fallback or description or reuse"`
 - Expected: recovery is attempted, the unique raw-description requirement remains searchable when recovery is exhausted, and semantically blank rows are not treated as successful reusable enrichment.
 
 **Exit Criteria:**
@@ -266,10 +276,10 @@ artifacts remain untouched.
 - `skill-backend-verification`, `skill-test-driven-development`, `skill-code-standards`
 
 **Files And Symbols:**
+- Inspect: `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`, `src/fitcv/evidence.py:select_ranking_evidence`
 - Inspect: `src/fitcv/ai_score.py:build_ranking_job_input`, `build_ranking_request`, `RankingInputBudgetExceeded`
-- Inspect: `src/fitcv/evidence.py:_select_final_evidence`, `_assess_requirement_support`
-- Modify: `src/fitcv/ai_score.py`
-- Verify: `tests/test_ai_score.py`, `tests/test_evidence.py`
+- Modify: `src/fitcv/ai_score.py` only when request projection/budget behavior is deficient; otherwise retain the existing selector and make its production path the tested owner.
+- Verify: `tests/test_pipeline_stage_runner.py` (if present), `tests/test_ai_score.py`, `tests/test_evidence.py`
 
 **Dependencies:**
 - Tasks 1–3 complete so the scorer receives the final admitted/enriched job contract.
@@ -279,14 +289,14 @@ artifacts remain untouched.
 - Stop for: increasing the request limit, changing score weights, submitting a request with omitted mandatory facts, or making provider calls in a budget-failure test.
 
 **Steps:**
-- [ ] Step 1: Add failing tests with the matching education and certification records in position five, then add budget pressure that would remove them under the current first-four/pop-and-drop behavior.
-- [ ] Step 2: Add deterministic job-specific mandatory-fact selection before optional bounding. Retain candidate records that can satisfy education, certification, language, employment, or mandatory-clause requirements; trim only unrelated optional records.
-- [ ] Step 3: Track actual omission counts in `contract_metadata["mandatory_omissions"]` and compute `mandatory_core_complete` from the rendered payload rather than zero-initialized counters.
-- [ ] Step 4: Change evidence reduction in `build_ranking_request` to stop at one selected evidence item when attributable evidence exists. If the mandatory core plus one evidence item cannot fit, raise `RankingInputBudgetExceeded` with `failure_code == "input_budget_exceeded"` before provider invocation.
-- [ ] Step 5: Preserve the empty-evidence scoring path only when no attributable evidence was selected or exists, and assert the visibility manifest distinguishes that case from budget omission.
+- [x] Step 1: Add failing tests with the matching education and certification records in position five, then add budget pressure that would remove them under the current first-four/pop-and-drop behavior.
+- [x] Step 2: Add deterministic job-specific mandatory-fact selection before optional bounding. Retain candidate records that can satisfy education, certification, language, employment, or mandatory-clause requirements; trim only unrelated optional records.
+- [x] Step 3: Track actual omission counts in `contract_metadata["mandatory_omissions"]` and compute `mandatory_core_complete` from the rendered payload rather than zero-initialized counters.
+- [x] Step 4: Exercise `execute_ranking_stage` with multiple project/experience items, including a late strongly job-relevant record, and prove `select_ranking_evidence` chooses it before request budgeting. Change evidence reduction in `build_ranking_request` only as needed to retain at least one selected attributable item; if the mandatory core plus one selected item cannot fit, raise `RankingInputBudgetExceeded` with `failure_code == "input_budget_exceeded"` before provider invocation.
+- [x] Step 5: Preserve the empty-evidence scoring path only when no attributable evidence was selected or exists, and assert the visibility manifest distinguishes that case from budget omission.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_ai_score.py tests/test_evidence.py -k "mandatory or education or certification or evidence or budget or visibility"`
+- [x] `python -m pytest -q tests/test_ai_score.py tests/test_evidence.py -k "mandatory or education or certification or evidence or budget or visibility"`
 - Expected: required facts remain model-visible, selected evidence count never becomes zero under budget reduction, genuine empty evidence remains scoreable, and budget failure suppresses the provider call.
 
 **Exit Criteria:**
@@ -318,10 +328,12 @@ artifacts remain untouched.
 
 **Files And Symbols:**
 - Inspect: `src/fitcv/pipeline.py:run_pipeline`, `_sample_rows`, `_build_shortlist_quality_metrics`
+- Inspect: `src/fitcv/pipeline_stage_runner.py:execute_shortlist_stage`
 - Inspect: `src/fitcv/pipeline_store.py:persist_shortlist_admission_ledger`
 - Inspect: `src/fitcv/vector_search.py:_lexical_search_result`, `_hybrid_search_result`
-- Modify: `src/fitcv/pipeline.py`, `src/fitcv/vector_search.py`
-- Verify: `tests/test_pipeline.py`, `tests/test_pipeline_checkpoint_contract.py`, `tests/test_vector_search.py`
+- Inspect: `src/fitcv/pipeline_stage_context.py:PipelineState`, `payload_keys`
+- Modify: `src/fitcv/pipeline.py`, `src/fitcv/pipeline_stage_runner.py`, `src/fitcv/vector_search.py`, `src/fitcv/pipeline_stage_context.py` only if required to remove private audit-state dependence
+- Verify: `tests/test_pipeline.py`, `tests/test_pipeline_checkpoint_contract.py`, `tests/test_pipeline_stage_resume_parity.py`, `tests/test_vector_search.py`
 
 **Dependencies:**
 - Tasks 1–4 complete so admission rows, evidence diagnostics, and effective strategy metadata are final.
@@ -331,13 +343,13 @@ artifacts remain untouched.
 - Stop for: deleting or truncating durable ledger rows, changing checkpoint schema without a compatibility test, or adding a second persistence owner.
 
 **Steps:**
-- [ ] Step 1: Add a failing 10,000-row pipeline/checkpoint test asserting manifest samples stay within `shortlist_audit_sample_n` while the durable ledger contains all rows.
-- [ ] Step 2: Extract bounded deterministic admitted/below-cutoff/error samples and aggregate counts from the full `admission_rows` population before assigning `shortlist_admission_manifest` to checkpoint state.
-- [ ] Step 3: Pass the configured `shortlist_audit_sample_n` explicitly into the hybrid result builder or publish it in lexical diagnostics, then emit fused below-cutoff audit rows without allowing them into admission.
-- [ ] Step 4: Round-trip the checkpoint and resume the same run; assert counts, samples, effective strategy, and sample fingerprint are unchanged.
+- [x] Step 1: Add a failing 10,000-row pipeline/checkpoint test asserting manifest samples stay within `shortlist_audit_sample_n` while the durable ledger contains all rows.
+- [x] Step 2: Before persisting the ledger or creating the bounded manifest, build a deterministic retrieval lookup from production plus audit rows. Attach channel ranks/scores from either set; mark production rows `shortlist_admitted`, audit rows `after_fused_cutoff`, and only true non-participants `not_returned_in_raw_hits`.
+- [x] Step 3: Choose `shortlist_admission_manifest` as the checkpoint SSOT for bounded audit visibility. Store bounded admitted/below-cutoff/error samples and aggregate counts there; update resumed artifact consumers to reconstruct/read `audit_sample` from the manifest rather than `_shortlist_audit_rows`.
+- [x] Step 4: Round-trip the checkpoint and resume the same run; assert the actual downstream shortlist-stage `audit_sample`, counts, effective strategy, and sample fingerprint are unchanged. Add a schema/compatibility test for the manifest contract.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_pipeline.py tests/test_pipeline_checkpoint_contract.py tests/test_vector_search.py -k "manifest or ledger or checkpoint or resume or audit"`
+- [x] `python -m pytest -q tests/test_pipeline.py tests/test_pipeline_checkpoint_contract.py tests/test_vector_search.py -k "manifest or ledger or checkpoint or resume or audit"`
 - Expected: checkpoint row arrays remain bounded, SQL ledger cardinality is complete, hybrid audit samples equal the configured bound, and rerun/resume identities are stable.
 
 **Exit Criteria:**
@@ -347,7 +359,7 @@ artifacts remain untouched.
 
 Final artifact-level verification after all tasks:
 
-- `python -m pytest -q tests/test_vector_search.py tests/test_enrich.py tests/test_ai_score.py tests/test_evidence.py tests/test_pipeline.py tests/test_pipeline_checkpoint_contract.py`
+- `python -m pytest -q tests/test_vector_search.py tests/test_enrich.py tests/test_rule_filter.py tests/test_ai_score.py tests/test_evidence.py tests/test_pipeline.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline_stage_resume_parity.py`
 - `python -m compileall -q src/fitcv tests`
 - `python -m pytest -q`
 - `git diff --check`
@@ -356,11 +368,11 @@ The final evidence must show that:
 
 - `vector_search_top_n == 50` and `ai_score_top_n == 50` remain unchanged;
 - the scorer request limit remains `12,000` characters;
-- a strong lexical-only/missing-vector job can displace a weak vector job at a full cutoff;
+- full-population hybrid fusion allows a rank-51/rank-51 candidate to compete for the final 50 without increasing the final admission budget;
 - role-family and late project evidence affect retrieval deterministically;
-- malformed enrichment preserves raw retrieval signal and does not become a normal blank cache hit;
+- malformed enrichment returns a diagnosed fallback row through the batch, survives the intended filter path, preserves raw retrieval signal, and does not become a normal blank cache hit;
 - mandatory scorer facts and selected evidence are visible or produce explicit `input_budget_exceeded` before provider invocation;
-- the complete admission ledger is durable while checkpoint manifests and audit samples stay bounded; and
+- the complete admission ledger is durable while checkpoint manifests and audit samples stay bounded, and below-cutoff rows retain truthful fused metadata;
 - rerun/checkpoint resume produces the same effective strategy, samples, fingerprints, and score-input diagnostics.
 
 ## Completion Criteria
@@ -368,11 +380,11 @@ The final evidence must show that:
 The plan is ready for completion verification when:
 
 1. all eight source-validated findings have an owning task and focused regression proof;
-2. the production and resumed retrieval paths use one competitive fixed-cutoff admission contract;
+2. the production and resumed retrieval paths use one competitive fixed-cutoff admission contract whose channels are fused before the final cut;
 3. accepted role families and project evidence selection are source-grounded, bounded, and order-stable;
-4. malformed enrichment cannot erase raw job requirements before retrieval;
+4. malformed enrichment cannot erase raw job requirements before retrieval, and its fallback status/persistence/filter behavior is explicit;
 5. every scored request retains job-specific mandatory facts and non-empty selected evidence when attributable evidence exists, or returns explicit `input_budget_exceeded`;
-6. checkpoint manifests are bounded and the durable admission ledger remains complete;
+6. checkpoint manifests are bounded, the durable admission ledger remains complete, and resumed audit visibility uses one checkpoint SSOT;
 7. all focused tests, checkpoint tests, and the full suite pass with no unrelated working-tree changes; and
 8. `skill-verification-before-completion` returns `verified` before this plan changes from `proposed` to `completed`.
 

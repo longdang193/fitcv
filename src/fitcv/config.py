@@ -108,7 +108,7 @@ MIXED_FALLBACK_RETRIEVAL_STRATEGY = "vector_cosine_v1_with_lexical_fallback"
 CHECKPOINT_RETRIEVAL_STRATEGIES = SUPPORTED_RETRIEVAL_STRATEGIES | {
     MIXED_FALLBACK_RETRIEVAL_STRATEGY,
 }
-DEFAULT_RETRIEVAL_STRATEGY = "vector_cosine_v1"
+DEFAULT_RETRIEVAL_STRATEGY = "hybrid_rrf_v1"
 
 
 def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:
