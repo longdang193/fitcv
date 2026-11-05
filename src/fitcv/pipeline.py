@@ -71,6 +71,7 @@ from fitcv.agentic_cv_generation import (
 from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv.candidate import (
     converge_candidate_profile_for_runtime,
+    flatten_rankable_skills,
     flatten_skills,
     infer_effective_preferences,
     load_candidate_profile,
@@ -1788,6 +1789,9 @@ def _build_stage_progress_summary(
     enrich_llm_runtime_observations = list(state.get("enrich_llm_runtime_observations") or [])
     ranking_llm_runtime_observations = list(state.get("ranking_llm_runtime_observations") or [])
     ranking_inputs = list(state.get("ranking_inputs") or [])
+    ranking_input_diagnostics_by_identity = dict(
+        state.get("ranking_input_diagnostics_by_identity") or {}
+    )
     ranked = list(state.get("ranked") or [])
     cv_analysis_results = list(state.get("cv_analysis_results") or [])
     cv_generation_debug_records = list(state.get("cv_generation_debug_records") or [])
@@ -1820,6 +1824,7 @@ def _build_stage_progress_summary(
         candidate_query_debug=candidate_query_debug_value,
         ai_scores=ai_scores,
         ranking_inputs=ranking_inputs,
+        ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
         ranked=ranked,
         cv_analysis_results=cv_analysis_results,
         enrich_llm_runtime_observations=enrich_llm_runtime_observations,
@@ -3018,6 +3023,7 @@ def _build_stage_transition_artifacts(
     candidate_query_components: dict[str, Any],
     ai_scores: list[dict[str, Any]],
     ranking_inputs: list[dict[str, Any]],
+    ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] | None = None,
     ranked: list[dict[str, Any]],
     cv_analysis_results: list[dict[str, Any]] | None = None,
     final_top_n: int,
@@ -3318,6 +3324,7 @@ def _build_stage_transition_artifacts(
                 ranking_reached=ranking_reached,
                 ai_scores=ai_scores,
                 ranking_inputs=ranking_inputs,
+                ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
                 ranked=ranked,
                 ranked_urls=ranked_urls,
                 final_top_n=final_top_n,
@@ -3404,7 +3411,7 @@ def build_ranking_features(
     ranking_policy = dict(ranking_context.get("ranking_policy") or {})
     if not ranking_policy:
         raise ValueError("ranking-v2 requires config.ranking_contract")
-    candidate_skills = flatten_skills(profile)
+    candidate_skills = flatten_rankable_skills(profile)
     preference_resolution = infer_effective_preferences(profile, config)
     effective_preferences = dict(preference_resolution["effective_preferences"] or {})
     inferred_preferences = dict(preference_resolution["inferred_preferences"] or {})
@@ -3630,6 +3637,9 @@ def run_pipeline(
         ai_scores = list(state["ai_scores"])
         ranking_llm_runtime_observations = list(state["ranking_llm_runtime_observations"])
         ranking_inputs = list(state["ranking_inputs"])
+        ranking_input_diagnostics_by_identity = dict(
+            state.get("ranking_input_diagnostics_by_identity") or {}
+        )
         ranked = list(state["ranked"])
         cv_analysis_results = list(state["cv_analysis_results"])
         results: list[dict[str, Any]] = list(state["cv_results"])
@@ -5378,6 +5388,7 @@ def run_pipeline(
             candidate_query_debug=candidate_query_debug,
             ai_scores=ai_scores,
             ranking_inputs=ranking_inputs,
+            ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
             ranked=ranked,
             cv_analysis_results=cv_analysis_results,
             enrich_llm_runtime_observations=enrich_llm_runtime_observations,

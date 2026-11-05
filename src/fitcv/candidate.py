@@ -341,8 +341,16 @@ def _adapt_legacy_parent(
     section: str,
     item: dict[str, Any],
     document_id: str,
-) -> tuple[dict[str, Any], list[str]]:
+) -> tuple[dict[str, Any], list[str], dict[str, dict[str, list[str]]]]:
     normalized = copy.deepcopy(item)
+    parent_skill_names = [str(value or "").strip() for value in item.get("skills") or []]
+    bullet_skill_names = {
+        str(skill or "").strip(): index
+        for index, bullet in enumerate(item.get("bullets") or [])
+        if isinstance(bullet, dict)
+        for skill in bullet.get("skills") or []
+        if str(skill or "").strip()
+    }
     legacy_project_technology = (
         list(normalized.get("tech_stack") or []) if section == "projects" else []
     )
@@ -369,6 +377,7 @@ def _adapt_legacy_parent(
     elif end.lower() == "present":
         normalized["end"] = "Present"
     evidence: list[dict[str, Any]] = []
+    parent_evidence_ids: list[str] = []
     for index, value in enumerate(normalized.pop("evidence", []) or []):
         if not isinstance(value, dict):
             continue
@@ -384,6 +393,8 @@ def _adapt_legacy_parent(
         )
         if candidate:
             evidence.append(candidate)
+            parent_evidence_ids.append(candidate["id"])
+    bullet_evidence_ids: dict[int, str] = {}
     if section == "experiences":
         for index, bullet in enumerate(normalized.pop("bullets", []) or []):
             raw = bullet.get("text") if isinstance(bullet, dict) else bullet
@@ -396,6 +407,7 @@ def _adapt_legacy_parent(
             )
             if candidate:
                 evidence.append(candidate)
+                bullet_evidence_ids[index] = candidate["id"]
     elif section == "education":
         thesis = normalized.pop("thesis", None)
         if isinstance(thesis, dict):
@@ -500,7 +512,26 @@ def _adapt_legacy_parent(
     allowed_fields = {"id", "source_refs", "evidence", *section_definition.get("item", {})}
     normalized = {key: value for key, value in normalized.items() if key in allowed_fields}
     normalized["evidence"] = evidence
-    return normalized, [entry["id"] for entry in evidence]
+    all_evidence_ids = [entry["id"] for entry in evidence]
+    claim_refs: dict[str, dict[str, list[str]]] = {
+        "skills": {},
+        "role_families": {},
+        "domain_tags": {},
+        "responsibility_themes": {},
+    }
+    parent_refs = parent_evidence_ids
+    if section == "projects":
+        parent_refs = all_evidence_ids
+    for name in parent_skill_names:
+        if name:
+            claim_refs["skills"].setdefault(name, [])
+            claim_refs["skills"][name] = list(dict.fromkeys([*claim_refs["skills"][name], *parent_refs]))
+    for name, bullet_index in bullet_skill_names.items():
+        evidence_id = bullet_evidence_ids.get(bullet_index)
+        if evidence_id:
+            claim_refs["skills"].setdefault(name, [])
+            claim_refs["skills"][name] = list(dict.fromkeys([*claim_refs["skills"][name], evidence_id]))
+    return normalized, all_evidence_ids, claim_refs
 
 
 def adapt_candidate_profile_to_v2(
@@ -607,14 +638,18 @@ def adapt_candidate_profile_to_v2(
                 "domain_tags": list(value.get("domain_tags") or []),
                 "responsibility_themes": list(value.get("responsibility_themes") or []),
             }
-            parent, evidence_ids = _adapt_legacy_parent(section, value, document_id)
+            parent, evidence_ids, scoped_claim_refs = _adapt_legacy_parent(section, value, document_id)
             adapted.append(parent)
             parent_evidence[parent["id"]] = evidence_ids
             for claim_section, names in metadata.items():
                 for name in names:
                     normalized_name = str(name or "").strip()
-                    if normalized_name:
-                        legacy_claim_refs[claim_section].setdefault(normalized_name, set()).update(evidence_ids)
+                    if not normalized_name:
+                        continue
+                    scoped_refs = scoped_claim_refs.get(claim_section, {}).get(normalized_name)
+                    legacy_claim_refs[claim_section].setdefault(normalized_name, set()).update(
+                        scoped_refs if scoped_refs is not None else evidence_ids
+                    )
         normalized[section] = adapted
     skills: list[dict[str, Any]] = []
     for index, value in enumerate(profile.get("skills") or []):
@@ -1403,6 +1438,56 @@ def flatten_skills(profile: dict[str, Any]) -> list[str]:
     for project in profile.get("projects", []):
         for skill in project.get("skills", []):
             _add(str(skill))
+
+    return result
+
+
+def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
+    """Return only supported, demonstrated skills for ranking and retrieval.
+
+    ``flatten_skills`` remains the compatibility projection for callers that
+    need every declared skill. Ranking must not count claims explicitly marked
+    unsupported or unverified, while legacy/raw profiles without claim
+    metadata remain eligible for the existing compatibility behavior.
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+
+    def _add(value: Any, support_status: Any = None) -> None:
+        if isinstance(value, dict):
+            support_status = value.get("support_status", support_status)
+            value = value.get("name")
+        text = str(value or "").strip()
+        status = str(support_status or "supported").strip().casefold()
+        if not text or status in {"unsupported", "unverified", "rejected"}:
+            return
+        key = text.casefold()
+        if key in seen:
+            return
+        seen.add(key)
+        result.append(text)
+
+    for skill in profile.get("skills") or []:
+        if isinstance(skill, dict):
+            _add(skill.get("name"), skill.get("support_status"))
+        else:
+            _add(skill)
+
+    for experience in profile.get("experiences") or []:
+        if not isinstance(experience, dict):
+            continue
+        for bullet in experience.get("bullets") or []:
+            if isinstance(bullet, dict):
+                status = bullet.get("support_status")
+                for skill in bullet.get("skills") or []:
+                    _add(skill.get("name") if isinstance(skill, dict) else skill, status)
+
+    for project in profile.get("projects") or []:
+        if not isinstance(project, dict):
+            continue
+        status = project.get("support_status")
+        for skill in project.get("skills") or []:
+            _add(skill.get("name") if isinstance(skill, dict) else skill, status)
 
     return result
 

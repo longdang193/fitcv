@@ -526,6 +526,7 @@ def build_ranking_stage_block(
     ranking_reached: bool,
     ai_scores: list[dict[str, Any]],
     ranking_inputs: list[dict[str, Any]],
+    ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] | None = None,
     ranked: list[dict[str, Any]],
     ranked_urls: set[str],
     final_top_n: int,
@@ -552,6 +553,11 @@ def build_ranking_stage_block(
 ) -> dict[str, Any]:
     if not ranking_reached:
         return stage_block_not_reached_builder("ranking")
+    scorer_input_diagnostics = {
+        str(identity): dict(diagnostics)
+        for identity, diagnostics in (ranking_input_diagnostics_by_identity or {}).items()
+        if isinstance(diagnostics, dict)
+    }
     policy = dict(resolved_preference_policy or {})
     runtime_contract = dict(policy.get("runtime_contract") or {})
     residuals = [float(row.get("preference_residual") or 0.0) for row in ranking_inputs]
@@ -656,6 +662,7 @@ def build_ranking_stage_block(
         ],
         llm_runtime_observations=llm_runtime_observations,
     )
+    block["scorer_input_diagnostics"] = scorer_input_diagnostics
     evidence_personalization = (
         block.get("stage_result", {})
         .get("evidence", {})

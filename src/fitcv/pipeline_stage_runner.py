@@ -23,7 +23,7 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from fitcv.fit_factors import build_candidate_fit_context
-from fitcv.ai_score import build_ranking_job_input
+from fitcv.ai_score import build_ranking_input_diagnostics, build_ranking_job_input
 from fitcv.evidence import build_evidence_projection, select_ranking_evidence
 from fitcv.pipeline_stages.common import primary_job_identity_key
 from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
@@ -384,13 +384,17 @@ def execute_ranking_stage(
         fresh_ai_score_fingerprints: dict[str, str] = {}
         reused_ai_scores_by_identity: dict[str, dict[str, Any]] = {}
         ranking_inputs_by_identity: dict[str, dict[str, Any]] = {}
+        ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
             selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
-            ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile)
+            ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile, config)
             identity_key = primary_job_identity_key(shortlisted_job)
             if identity_key:
                 ranking_inputs_by_identity[identity_key] = ranking_input
+                ranking_input_diagnostics_by_identity[identity_key] = build_ranking_input_diagnostics(
+                    ranking_input
+                )
             top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
             try:
                 fingerprint_record = build_ai_score_input_fingerprint(
@@ -422,6 +426,7 @@ def execute_ranking_stage(
                     },
                     "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
                     "ai_score_reuse_status": "reused_exact_match",
+                    "ranking_input_diagnostics": build_ranking_input_diagnostics(ranking_input),
                 }
                 if build_reuse_decision_callback is not None:
                     reused_ai_scores_by_identity[identity_key]["reuse_decision"] = (
@@ -542,6 +547,7 @@ def execute_ranking_stage(
             reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
         state["ai_scores"] = ai_scores
         state["ranking_inputs"] = ranking_inputs
+        state["ranking_input_diagnostics_by_identity"] = ranking_input_diagnostics_by_identity
         state["ranked"] = ranked
         set_span_attributes(
             {

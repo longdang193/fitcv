@@ -13,6 +13,7 @@ import pytest
 
 from fitcv.ai_score import (
     build_ai_score_contract_fingerprint,
+    build_ranking_input_diagnostics,
     build_ranking_job_input,
     build_ranking_request,
     build_scoring_prompt,
@@ -416,6 +417,37 @@ def test_build_ranking_request_serializes_bounded_evidence_context_into_prompt()
 
     assert "Claude Code host integration" in request["request"].prompt
     assert "OpenAI" in request["request"].prompt
+
+
+def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> None:
+    profile = {
+        "skills": [{"name": f"Skill {index}"} for index in range(1, 10)],
+        "_projected_evidence_pool": [
+            {"evidence_id": "ev-1", "parent_title": "Project One", "text": "One"},
+            {"evidence_id": "ev-2", "parent_title": "Project Two", "text": "Two"},
+            {"evidence_id": "ev-3", "parent_title": "Project Three", "text": "Three"},
+        ],
+    }
+    ranking_input = build_ranking_job_input(
+        {"required_skills": ["Skill 1"]},
+        profile,
+    )
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config-revision",
+    )
+    request = build_ranking_request(
+        {}, "candidate", [], {}, ranking_input=ranking_input, resolved_route=route,
+    )
+    diagnostics = build_ranking_input_diagnostics(ranking_input, request)
+
+    assert diagnostics["contract_version"] == "ranking_input_v3"
+    assert diagnostics["selected_evidence_count"] == 2
+    assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2"]
+    assert diagnostics["candidate_skill_count"] == 8
+    assert diagnostics["request_within_budget"] is True
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
 def test_explicit_empty_candidate_evidence_does_not_fall_back_to_legacy_evidence() -> None:

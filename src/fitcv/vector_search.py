@@ -23,7 +23,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any, TypedDict
 
-from fitcv.candidate import flatten_skills, infer_role_family
+from fitcv.candidate import flatten_rankable_skills, flatten_skills, infer_role_family
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
 from fitcv.embeddings import (
     build_embedding_backend_metadata,
@@ -141,6 +141,15 @@ def _normalized_vector(vector: list[float]) -> list[float]:
     norm = math.sqrt(sum(value * value for value in vector))
     return [value / norm for value in vector]
 
+
+def _effective_embedding_metadata(config: dict[str, Any], backend_id: str) -> dict[str, Any]:
+    configured_model = "hash-v1" if backend_id == "sqlite_deterministic_local" else None
+    return build_embedding_backend_metadata(
+        config,
+        configured_model=configured_model,
+        backend=backend_id,
+    )
+
 def _validated_vector(value: Any, *, expected_dimension: int | None = None) -> list[float] | None:
     if not isinstance(value, list) or not value:
         return None
@@ -213,7 +222,7 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
     values.append(text)
 
 
-def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
+def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
     values: list[str] = []
     seen: set[str] = set()
     for project in profile.get("projects", []) or []:
@@ -223,17 +232,28 @@ def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
         for evidence in project.get("evidence", []) or []:
             if not isinstance(evidence, dict):
                 continue
-            if str(evidence.get("title") or "").strip().casefold() != "technology stack":
+            title = str(evidence.get("title") or "").strip().casefold()
+            if title != "technology stack" and not any(
+                marker in title for marker in ("technology", "tool", "stack", "platform", "api")
+            ):
                 continue
             text = str(evidence.get("text") or "").strip()
             if text:
                 technology_values.append(text)
+        technology_values.extend(project.get("skills", []) or [])
         for technology in technology_values:
-            text = str(technology or "").strip()[:CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS]
+            if isinstance(technology, dict):
+                technology = technology.get("name")
+            text = str(technology or "").strip()
             _append_unique_text(values, text, seen)
-            if len(values) >= CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT:
-                return values
     return values
+
+
+def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
+    return [
+        value[:CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS]
+        for value in _profile_technology_inventory(profile)[:CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT]
+    ]
 
 
 def _normalize_query_scalar(value: Any) -> str:
@@ -263,7 +283,7 @@ def build_candidate_query_components(
 
     skills: list[str] = []
     seen_skills: set[str] = set()
-    for skill in flatten_skills(profile):
+    for skill in flatten_rankable_skills(profile):
         _append_unique_text(skills, skill, seen_skills)
         if len(skills) >= max_skills:
             break
@@ -444,7 +464,8 @@ def resolve_candidate_query_embedding(
     components = build_candidate_query_components(profile, config)
     query_text = build_candidate_query_text(profile, config)
     signature_record = build_candidate_query_signature_record(components)
-    configured_backend_id = build_embedding_backend_metadata(config)["backend_id"]
+    requested_embedding_metadata = build_embedding_backend_metadata(config)
+    configured_backend_id = requested_embedding_metadata["backend_id"]
     contract_record = build_candidate_query_embedding_contract_fingerprint(
         config,
         embedding_backend=configured_backend_id,
@@ -468,7 +489,11 @@ def resolve_candidate_query_embedding(
                 cached_embedding = list(json.loads(str(row[0])) or [])
             except Exception:
                 cached_embedding = []
-            if cached_embedding:
+            cached_embedding = _validated_vector(
+                cached_embedding,
+                expected_dimension=int(requested_embedding_metadata["dimension"]),
+            )
+            if cached_embedding is not None:
                 return _build_candidate_query_embedding_record(
                     text=query_text,
                     components=components,
@@ -476,11 +501,31 @@ def resolve_candidate_query_embedding(
                     candidate_query_signature=signature_record["signature"],
                     candidate_query_contract_fingerprint=contract_record["fingerprint"],
                     candidate_query_reuse_status=REUSED_CACHED_QUERY_EMBEDDING_STATUS,
-                    embedding_backend_id=build_embedding_backend_metadata(config)["backend_id"],
+                    embedding_backend_id=configured_backend_id,
                 )
         embedding_result = generate_embedding_with_metadata(query_text, config)
-        embedding_vector = list(embedding_result["embedding"])
-        actual_backend_id = str(embedding_result["backend_id"])
+        actual_backend_id = str(embedding_result.get("backend_id") or configured_backend_id)
+        embedding_backend_metadata = {
+            key: embedding_result.get(key)
+            for key in (
+                "backend_id",
+                "configured_model",
+                "dimension",
+                "model_revision",
+                "preprocessing_version",
+                "contract_fingerprint",
+            )
+        }
+        embedding_vector = _validated_vector(
+            list(embedding_result["embedding"]),
+            expected_dimension=(
+                int(embedding_backend_metadata["dimension"])
+                if embedding_backend_metadata.get("dimension") is not None
+                else None
+            ),
+        )
+        if embedding_vector is None:
+            raise ValueError("embedding backend returned an invalid candidate query vector")
         actual_contract_record = build_candidate_query_embedding_contract_fingerprint(
             config,
             embedding_backend=actual_backend_id,
@@ -530,10 +575,11 @@ def _lexical_search_result(
     requested_strategy: str,
     fallback_reason: str | None = None,
     embedding_backend_id: str | None = None,
+    embedding_backend_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     components = build_candidate_query_components(profile, config)
     prefs = dict(profile.get("preferences") or {})
-    candidate_skills = flatten_skills(profile)
+    candidate_skills = flatten_rankable_skills(profile)
     jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
@@ -551,7 +597,7 @@ def _lexical_search_result(
         preference = compute_declared_preference_fit_details(job, prefs, config)
         parts = preference["components"]
         job_technology = list(job.get("tech_stack_canonical") or job.get("tech_stack") or [])
-        candidate_technology = list(components.get("technology_hints") or [])
+        candidate_technology = _profile_technology_inventory(profile)
         job_technology_keys = {str(value).strip().casefold() for value in job_technology if str(value).strip()}
         candidate_technology_keys = {
             str(value).strip().casefold() for value in candidate_technology if str(value).strip()
@@ -596,6 +642,10 @@ def _lexical_search_result(
     audit_rows = [{**row, "shortlist_origin": "audit"} for row in ranked_rows[top_n:top_n + audit_sample_n]]
     cutoff = production_rows[-1] if production_rows else None
     embedding_metadata = build_embedding_backend_metadata(config)
+    effective_embedding_metadata = dict(
+        embedding_backend_metadata
+        or _effective_embedding_metadata(config, embedding_backend_id or "structured_jobs_lexical")
+    )
     return {
         "production_rows": production_rows,
         "audit_rows": audit_rows,
@@ -607,6 +657,8 @@ def _lexical_search_result(
             "fallback_reason": fallback_reason,
             "backend_id": "structured_jobs_lexical",
             "embedding_backend_id": embedding_backend_id or embedding_metadata["backend_id"],
+            "requested_embedding_backend_id": embedding_metadata["backend_id"],
+            "effective_embedding_backend_metadata": effective_embedding_metadata,
             "configured_model": embedding_metadata["configured_model"],
             "dimension": embedding_metadata["dimension"],
             "contract_fingerprint": embedding_metadata["contract_fingerprint"],
@@ -867,6 +919,7 @@ def run_vector_search(
     production_cutoff = production_rows[-1] if production_rows else None
     eligible_total = len(eligible_job_urls)
     embedding_metadata = build_embedding_backend_metadata(config)
+    effective_embedding_metadata = _effective_embedding_metadata(config, embedding_backend_id)
     return {
         "production_rows": production_rows,
         "audit_rows": audit_rows,
@@ -878,6 +931,8 @@ def run_vector_search(
             "fallback_reason": None,
             "backend_id": embedding_metadata["backend_id"],
             "embedding_backend_id": embedding_backend_id,
+            "requested_embedding_backend_id": embedding_metadata["backend_id"],
+            "effective_embedding_backend_metadata": effective_embedding_metadata,
             "configured_model": embedding_metadata["configured_model"],
             "dimension": len(candidate_embedding) if candidate_embedding is not None else embedding_metadata["dimension"],
             "model_revision": embedding_metadata["model_revision"],
