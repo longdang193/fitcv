@@ -1868,10 +1868,11 @@ def _jaccard_tokens(left: str, right: str) -> float:
 
 
 def _term_is_present(text: str, term: str) -> bool:
-    def searchable(value: str) -> str:
-        return re.sub(r"[ \t\f\v]+", " ", re.sub(r"[^a-z0-9+#\r\n]+", " ", str(value or "").lower())).strip()
+    def searchable(value: str, *, preserve_boundaries: bool = False) -> str:
+        allowed = r"[^a-z0-9+#.!?;\r\n]+" if preserve_boundaries else r"[^a-z0-9+#]+"
+        return re.sub(r"[ \t\f\v]+", " ", re.sub(allowed, " ", str(value or "").lower())).strip()
 
-    searchable_text = searchable(text)
+    searchable_text = searchable(text, preserve_boundaries=True)
     searchable_term = searchable(term)
     if not searchable_term:
         return False

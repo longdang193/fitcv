@@ -785,12 +785,8 @@ def _hybrid_search_result(
     top_n: int,
 ) -> dict[str, Any]:
     """Fuse bounded vector and lexical channels without mixing score scales."""
-    vector_rows = list(vector_result.get("production_rows") or []) + list(
-        vector_result.get("audit_rows") or []
-    )
-    lexical_rows = list(lexical_result.get("production_rows") or []) + list(
-        lexical_result.get("audit_rows") or []
-    )
+    vector_rows = list(vector_result.get("production_rows") or [])
+    lexical_rows = list(lexical_result.get("production_rows") or [])
     by_url: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(vector_rows, start=1):
         url = str(row.get("job_url") or "").strip()
@@ -1005,11 +1001,12 @@ def run_vector_search(
             str(row[1]) for row in conn.execute("PRAGMA table_info(job_embeddings)").fetchall()
         }
         embedding_table_available = bool(embedding_columns)
-        contract_select = (
+        contract_expression = (
             "embedding_contract_fingerprint"
             if "embedding_contract_fingerprint" in embedding_columns
-            else "'' AS embedding_contract_fingerprint"
+            else "''"
         )
+        contract_select = f"{contract_expression} AS embedding_contract_fingerprint"
         signature_expression = (
             "embedding_input_signature"
             if "embedding_input_signature" in embedding_columns
@@ -1025,7 +1022,7 @@ def run_vector_search(
             {contract_select},
             {signature_select},
             ROW_NUMBER() OVER (
-              PARTITION BY job_url, COALESCE({signature_expression}, '')
+              PARTITION BY job_url, COALESCE({signature_expression}, ''), COALESCE({contract_expression}, '')
               ORDER BY created_at DESC, id DESC
             ) AS row_number,
             COUNT(*) OVER (PARTITION BY job_url) AS embedding_row_count

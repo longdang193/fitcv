@@ -469,6 +469,42 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
     assert merged["domain"] == "fintech"
 
 
+def test_merge_scraped_and_enriched_preserves_mandatory_clause_provenance() -> None:
+    description = "German proficiency of at least B2 is mandatory for this role."
+    merged = merge_scraped_and_enriched(
+        {"job_url": "url1", "description": description},
+        {
+            "mandatory_clauses": [
+                {
+                    "clause_id": "language-clause-1",
+                    "clause_type": "language",
+                    "value": "German B2",
+                    "required": True,
+                    "source_spans": [
+                        {
+                            "source_field": "description",
+                            "text": description,
+                            "start": 0,
+                            "end": len(description),
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+
+    clause = merged["mandatory_clauses"][0]
+    assert clause["clause_id"] == "language-clause-1"
+    assert clause["source_spans"] == [
+        {
+            "source_field": "description",
+            "text": description,
+            "start": 0,
+            "end": len(description),
+        }
+    ]
+
+
 
 def _rate_limit_error():
     from fitcv.enrich import EnrichRuntimeError

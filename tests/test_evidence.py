@@ -2731,6 +2731,18 @@ def test_ranking_channel_matching_rejects_partial_or_unordered_multi_token_terms
     assert score_evidence_item_by_channel(exact, job)["coverage"]["required"] == ["machine learning platform"]
 
 
+def test_ranking_channel_matching_does_not_combine_separate_sentences() -> None:
+    job = {"responsibilities": ["Build agents"]}
+    item = {
+        "text": "Built dashboards. Agents were out of scope.",
+        "scoring_context": "Built dashboards. Agents were out of scope.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, job)["coverage"]
+
+    assert coverage["responsibilities"] == []
+
+
 def test_ranking_channel_matching_keeps_positive_occurrence_after_unrelated_negation() -> None:
     item = {
         "title": "Pipelines",

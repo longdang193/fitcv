@@ -1146,31 +1146,56 @@ def _canonical_mandatory_clause_records(
         if not value:
             continue
         clause_type = _normalize_text_item(item.get("clause_type")) or "mandatory"
-        source_text = _normalize_text_item(item.get("source_text") or item.get("text")) or value
-        start = item.get("source_start")
-        end = item.get("source_end")
-        try:
-            start = int(start) if start is not None else None
-            end = int(end) if end is not None else None
-        except (TypeError, ValueError):
-            start, end = None, None
+        source_spans: list[dict[str, Any]] = []
+        for raw_span in list(item.get("source_spans") or []):
+            if not isinstance(raw_span, dict):
+                continue
+            span_text = _normalize_text_item(raw_span.get("text"))
+            if not span_text:
+                continue
+            start = raw_span.get("start")
+            end = raw_span.get("end")
+            try:
+                start = int(start) if start is not None else None
+                end = int(end) if end is not None else None
+            except (TypeError, ValueError):
+                start, end = None, None
+            source_spans.append(
+                {
+                    "source_field": _normalize_text_item(raw_span.get("source_field")) or "description",
+                    "text": span_text,
+                    "start": start,
+                    "end": end,
+                }
+            )
+        if not source_spans:
+            source_text = _normalize_text_item(item.get("source_text") or item.get("text")) or value
+            start = item.get("source_start")
+            end = item.get("source_end")
+            try:
+                start = int(start) if start is not None else None
+                end = int(end) if end is not None else None
+            except (TypeError, ValueError):
+                start, end = None, None
+            source_spans = [
+                {
+                    "source_field": "description",
+                    "text": source_text,
+                    "start": start,
+                    "end": end,
+                }
+            ]
+        clause_id = _normalize_text_item(item.get("clause_id")) or hashlib.sha256(
+            f"{clause_type}\0{value}\0{source_spans[0]['text']}".encode("utf-8")
+        ).hexdigest()[:16]
         records.append(
             {
-                "clause_id": hashlib.sha256(
-                    f"{clause_type}\0{value}\0{source_text}".encode("utf-8")
-                ).hexdigest()[:16],
+                "clause_id": clause_id,
                 "clause_type": clause_type,
                 "value": value,
                 "normalized_value": comparison_key(value),
                 "required": bool(item.get("required", True)),
-                "source_spans": [
-                    {
-                        "source_field": "description",
-                        "text": source_text,
-                        "start": start,
-                        "end": end,
-                    }
-                ],
+                "source_spans": source_spans,
             }
         )
     seen = {str(record["normalized_value"]) for record in records}

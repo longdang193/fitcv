@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from fitcv.ranking_contract import adapt_legacy_ranking_row, resolve_fit_label_for_row
+from fitcv.config import SUPPORTED_RETRIEVAL_STRATEGIES
 
 
 def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
@@ -52,6 +53,11 @@ def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
         raise ValueError(
             "incompatible shortlist retrieval strategy in checkpoint: "
             "legacy vector-derived checkpoint missing retrieval_strategy"
+        )
+    if expected_strategy and expected_strategy not in SUPPORTED_RETRIEVAL_STRATEGIES:
+        raise ValueError(
+            "incompatible shortlist retrieval strategy in checkpoint: "
+            f"unsupported retrieval_strategy {expected_strategy!r}"
         )
     if diagnostic_strategy and any(strategy != diagnostic_strategy for strategy in row_strategies):
         raise ValueError(

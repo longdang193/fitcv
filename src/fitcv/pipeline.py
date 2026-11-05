@@ -88,6 +88,7 @@ from fitcv.config import (
     load_config,
     resolve_retrieval_strategy,
     resolve_model_routing_part,
+    SUPPORTED_RETRIEVAL_STRATEGIES,
 )
 from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
@@ -1663,8 +1664,7 @@ def _validate_checkpoint_retrieval_strategy(state: dict[str, Any]) -> str:
         if isinstance(row, dict) and str(row.get("retrieval_strategy") or "").strip()
     }
     checkpoint_strategies = row_strategies | ({checkpoint_strategy} if checkpoint_strategy else set())
-    supported_strategies = {LEXICAL_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY}
-    if len(checkpoint_strategies) > 1 or any(strategy not in supported_strategies for strategy in checkpoint_strategies):
+    if len(checkpoint_strategies) > 1 or any(strategy not in SUPPORTED_RETRIEVAL_STRATEGIES for strategy in checkpoint_strategies):
         raise ValueError("incompatible shortlist retrieval strategy in checkpoint")
     return checkpoint_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
 
