@@ -2711,6 +2711,26 @@ def test_ranking_channel_matching_does_not_use_substrings_or_single_token_overla
     assert coverage["technology"] == []
 
 
+def test_ranking_channel_matching_rejects_partial_or_unordered_multi_token_terms() -> None:
+    job = {"required_skills": ["machine learning platform"]}
+    partial = {
+        "text": "Built a machine learning pipeline.",
+        "scoring_context": "Built a machine learning pipeline.",
+    }
+    unordered = {
+        "text": "Built a platform for machine learning.",
+        "scoring_context": "Built a platform for machine learning.",
+    }
+    exact = {
+        "text": "Built a machine learning platform.",
+        "scoring_context": "Built a machine learning platform.",
+    }
+
+    assert score_evidence_item_by_channel(partial, job)["coverage"]["required"] == []
+    assert score_evidence_item_by_channel(unordered, job)["coverage"]["required"] == []
+    assert score_evidence_item_by_channel(exact, job)["coverage"]["required"] == ["machine learning platform"]
+
+
 def test_ranking_channel_matching_keeps_positive_occurrence_after_unrelated_negation() -> None:
     item = {
         "title": "Pipelines",

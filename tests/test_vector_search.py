@@ -112,6 +112,30 @@ def test_build_candidate_query_components_include_role_family_and_domain_hints()
     assert components["domain_hints"] == ["banking", "retail_banking", "fraud_detection", "fintech"]
 
 
+def test_build_candidate_query_components_preserve_all_declared_role_families_and_project_evidence() -> None:
+    profile = {
+        "preferences": {
+            "role_families": ["analytics", "data_engineering", "ml_engineering", "platform"],
+        },
+        "projects": [{
+            "name": "Fraud Detection Platform",
+            "business_value": "Reduced false positives for risk operations",
+            "highlights": ["Built streaming feature pipeline"],
+        }],
+    }
+
+    components = build_candidate_query_components(profile)
+    text = build_candidate_query_text(profile)
+
+    assert components["role_families"] == ["analytics", "data_engineering", "ml_engineering", "platform"]
+    assert components["project_evidence_hints"] == [
+        "Fraud Detection Platform",
+        "Reduced false positives for risk operations",
+        "Built streaming feature pipeline",
+    ]
+    assert "Built streaming feature pipeline" in text
+
+
 def test_build_candidate_query_components_bound_skill_count() -> None:
     profile = {
         "headline": "Data Engineer",

@@ -130,6 +130,10 @@ _ARRAY_FIELDS: frozenset[str] = frozenset({
     "responsibilities",
     "tech_stack",
     "keywords",
+    "qualifications",
+    "education",
+    "certifications",
+    "employment_constraints",
 })
 _CANONICAL_SKILL_FIELDS: frozenset[str] = frozenset({
     "required_skills",
@@ -145,7 +149,7 @@ _SCALAR_FIELDS: frozenset[str] = frozenset({
     "years_experience_max",
 })
 
-_KNOWN_FIELDS: frozenset[str] = _ARRAY_FIELDS | _SCALAR_FIELDS
+_KNOWN_FIELDS: frozenset[str] = _ARRAY_FIELDS | _SCALAR_FIELDS | {"mandatory_clauses"}
 _LANGUAGE_CANONICALS: frozenset[str] = frozenset({
     "english",
     "german",
@@ -867,6 +871,9 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
             return []
         return _normalize_array_values(value)
 
+    if key == "mandatory_clauses":
+        return value if isinstance(value, list) else []
+
     if key == "location_type":
         return _normalize_enum(value, _get_valid_location_types(config))
 
@@ -1108,6 +1115,11 @@ class EnrichmentOutput(_BaseModel):
     responsibilities: list[str] = _Field(default_factory=list)
     tech_stack: list[str] = _Field(default_factory=list)
     keywords: list[str] = _Field(default_factory=list)
+    qualifications: list[str] = _Field(default_factory=list)
+    education: list[str] = _Field(default_factory=list)
+    certifications: list[str] = _Field(default_factory=list)
+    employment_constraints: list[str] = _Field(default_factory=list)
+    mandatory_clauses: list[dict[str, Any]] = _Field(default_factory=list)
     location_type: str | None = None
     seniority: str | None = None
     domain: str | None = None
@@ -1116,6 +1128,93 @@ class EnrichmentOutput(_BaseModel):
     years_experience_max: int | None = None
     actual_location: ActualLocationOutput | None = None
     language_requirements: list[LanguageRequirementOutput] = _Field(default_factory=list)
+
+
+def _canonical_mandatory_clause_records(
+    clauses: Any,
+    fallback_values: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Normalize mandatory facts before they reach scorer budgeting."""
+    records: list[dict[str, Any]] = []
+    raw_items = list(clauses) if isinstance(clauses, list) else []
+    for item in raw_items:
+        if isinstance(item, str):
+            item = {"clause_type": "mandatory", "value": item}
+        if not isinstance(item, dict):
+            continue
+        value = _normalize_text_item(item.get("value") or item.get("normalized_value"))
+        if not value:
+            continue
+        clause_type = _normalize_text_item(item.get("clause_type")) or "mandatory"
+        source_text = _normalize_text_item(item.get("source_text") or item.get("text")) or value
+        start = item.get("source_start")
+        end = item.get("source_end")
+        try:
+            start = int(start) if start is not None else None
+            end = int(end) if end is not None else None
+        except (TypeError, ValueError):
+            start, end = None, None
+        records.append(
+            {
+                "clause_id": hashlib.sha256(
+                    f"{clause_type}\0{value}\0{source_text}".encode("utf-8")
+                ).hexdigest()[:16],
+                "clause_type": clause_type,
+                "value": value,
+                "normalized_value": comparison_key(value),
+                "required": bool(item.get("required", True)),
+                "source_spans": [
+                    {
+                        "source_field": "description",
+                        "text": source_text,
+                        "start": start,
+                        "end": end,
+                    }
+                ],
+            }
+        )
+    seen = {str(record["normalized_value"]) for record in records}
+    for value in fallback_values or []:
+        normalized = _normalize_text_item(value)
+        if not normalized or comparison_key(normalized) in seen:
+            continue
+        records.append(
+            {
+                "clause_id": hashlib.sha256(f"mandatory\0{normalized}".encode("utf-8")).hexdigest()[:16],
+                "clause_type": "mandatory",
+                "value": normalized,
+                "normalized_value": comparison_key(normalized),
+                "required": True,
+                "source_spans": [
+                    {"source_field": "description", "text": normalized, "start": None, "end": None}
+                ],
+            }
+        )
+        seen.add(comparison_key(normalized))
+    return records
+
+
+def _attach_mandatory_clause_spans(
+    description: str,
+    clauses: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    source = str(description or "")
+    lowered = source.lower()
+    attached: list[dict[str, Any]] = []
+    for clause in clauses:
+        record = dict(clause)
+        spans = []
+        for span in list(record.get("source_spans") or []):
+            span_record = dict(span)
+            text = str(span_record.get("text") or record.get("value") or "").strip()
+            start = lowered.find(text.lower()) if text else -1
+            if start >= 0:
+                span_record["start"] = start
+                span_record["end"] = start + len(text)
+            spans.append(span_record)
+        record["source_spans"] = spans
+        attached.append(record)
+    return attached
 
 
 def _apply_structured_normalization(
@@ -1150,6 +1249,14 @@ def _apply_structured_normalization(
     responsibilities = _normalize_array_values(output.responsibilities)
     tech_stack = _normalize_array_values(output.tech_stack)
     keywords = _normalize_array_values(output.keywords)
+    qualifications = _normalize_array_values(output.qualifications)
+    education = _normalize_array_values(output.education)
+    certifications = _normalize_array_values(output.certifications)
+    employment_constraints = _normalize_array_values(output.employment_constraints)
+    mandatory_clauses = _canonical_mandatory_clause_records(
+        output.mandatory_clauses,
+        [*qualifications, *education, *certifications, *employment_constraints],
+    )
     required_skill_entities = _build_skill_entities(
         required_skills,
         "required_skills",
@@ -1211,6 +1318,11 @@ def _apply_structured_normalization(
         **_build_array_companions(field_name="responsibilities", raw_values=responsibilities, config=config),
         **_build_array_companions(field_name="tech_stack", raw_values=tech_stack, config=config),
         **_build_array_companions(field_name="keywords", raw_values=keywords, config=config),
+        "qualifications": qualifications,
+        "education": education,
+        "certifications": certifications,
+        "employment_constraints": employment_constraints,
+        "mandatory_clauses": mandatory_clauses,
         "mapping_suggestions": mapping_suggestions,
         "domain_mapping_suggestions": domain_mapping_suggestions,
         "role_family_mapping_suggestions": role_family_mapping_suggestions,
@@ -1231,6 +1343,18 @@ _EXTRACTION_SCHEMA = """\
   "responsibilities":     ["key responsibilities"],
   "tech_stack":           ["specific tools and technologies"],
   "keywords":             ["searchable keywords"],
+  "qualifications":       ["mandatory qualifications"],
+  "education":            ["mandatory education requirements"],
+  "certifications":       ["mandatory certifications"],
+  "employment_constraints": ["mandatory employment constraints"],
+  "mandatory_clauses": [
+    {
+      "clause_type": "qualification | education | certification | employment_constraint | mandatory",
+      "value": "normalized mandatory fact",
+      "required": true,
+      "source_text": "short exact quote from the description"
+    }
+  ],
   "actual_location": {
     "raw_text": "display location text or null",
     "city": "city or null",
@@ -1543,6 +1667,15 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     parsed["language_requirements"] = _canonical_language_requirements(
         raw.get("language_requirements")
     )
+    parsed["mandatory_clauses"] = _canonical_mandatory_clause_records(
+        parsed.get("mandatory_clauses"),
+        [
+            *(parsed.get("qualifications") or []),
+            *(parsed.get("education") or []),
+            *(parsed.get("certifications") or []),
+            *(parsed.get("employment_constraints") or []),
+        ],
+    )
 
     return {
         "parsed": parsed,
@@ -1675,6 +1808,18 @@ def merge_scraped_and_enriched(
         if isinstance(raw_language_requirements, list)
         else []
     )
+    mandatory_clauses = _attach_mandatory_clause_spans(
+        str(scraped.get("description") or ""),
+        _canonical_mandatory_clause_records(
+            enriched.get("mandatory_clauses"),
+            [
+                *(enriched.get("qualifications") or []),
+                *(enriched.get("education") or []),
+                *(enriched.get("certifications") or []),
+                *(enriched.get("employment_constraints") or []),
+            ],
+        ),
+    )
 
     merged: dict[str, Any] = {
         # ── scraped fields ────────────────────────────────────────────
@@ -1697,6 +1842,11 @@ def merge_scraped_and_enriched(
         # ── LLM-enriched fields ───────────────────────────────────────
         "actual_location":     actual_location,
         "language_requirements": language_requirements,
+        "qualifications": list(enriched.get("qualifications") or []),
+        "education": list(enriched.get("education") or []),
+        "certifications": list(enriched.get("certifications") or []),
+        "employment_constraints": list(enriched.get("employment_constraints") or []),
+        "mandatory_clauses": mandatory_clauses,
         "location_type_raw":    enriched.get("location_type_raw"),
         "location_type":        enriched.get("location_type"),
         "seniority_raw":        enriched.get("seniority_raw"),
@@ -2150,7 +2300,8 @@ _MERGE_COLUMNS = [
     "experience_level", "sector", "salary_min", "salary_max", "salary_currency",
     "applications_count", "published_at", "location_type_raw", "location_type",
     "seniority_raw", "seniority", "required_skills", "required_skills_canonical",
-    "required_skill_entities_json", "preferred_skills", "preferred_skills_canonical",
+    "required_skill_entities_json", "qualifications", "education", "certifications",
+    "employment_constraints", "mandatory_clauses_json", "preferred_skills", "preferred_skills_canonical",
     "preferred_skill_entities_json", "responsibilities", "responsibilities_canonical",
     "domain_raw", "domain", "tech_stack", "tech_stack_canonical",
     "years_experience_min", "years_experience_max", "keywords", "keywords_canonical",
@@ -2181,6 +2332,11 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("required_skills", "STRING", "REPEATED"),
     ("required_skills_canonical", "STRING", "REPEATED"),
     ("required_skill_entities_json", "STRING", "NULLABLE"),
+    ("qualifications", "STRING", "REPEATED"),
+    ("education", "STRING", "REPEATED"),
+    ("certifications", "STRING", "REPEATED"),
+    ("employment_constraints", "STRING", "REPEATED"),
+    ("mandatory_clauses_json", "STRING", "NULLABLE"),
     ("preferred_skills", "STRING", "REPEATED"),
     ("preferred_skills_canonical", "STRING", "REPEATED"),
     ("preferred_skill_entities_json", "STRING", "NULLABLE"),
@@ -2210,6 +2366,7 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
 
 _STRUCTURED_JSON_LIST_FIELDS: tuple[tuple[str, str], ...] = (
     ("required_skill_entities", "required_skill_entities_json"),
+    ("mandatory_clauses", "mandatory_clauses_json"),
     ("preferred_skill_entities", "preferred_skill_entities_json"),
     ("mapping_suggestions", "mapping_suggestions_json"),
     ("domain_mapping_suggestions", "domain_mapping_suggestions_json"),
@@ -2313,6 +2470,11 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("required_skills",      "STRING",    "REPEATED"),
     ("required_skills_canonical", "STRING", "REPEATED"),
     ("required_skill_entities_json", "STRING", "NULLABLE"),
+    ("qualifications", "STRING", "REPEATED"),
+    ("education", "STRING", "REPEATED"),
+    ("certifications", "STRING", "REPEATED"),
+    ("employment_constraints", "STRING", "REPEATED"),
+    ("mandatory_clauses_json", "STRING", "NULLABLE"),
     ("preferred_skills",     "STRING",    "REPEATED"),
     ("preferred_skills_canonical", "STRING", "REPEATED"),
     ("preferred_skill_entities_json", "STRING", "NULLABLE"),

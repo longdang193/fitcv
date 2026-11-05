@@ -328,7 +328,36 @@ def test_build_ranking_job_input_is_bounded_and_uses_supplied_projection() -> No
     assert result["candidate_evidence"][0]["evidence_id"] == "ev-1"
 
 
-def test_build_ranking_job_input_counts_skills_before_bounding_prompt_fields() -> None:
+def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() -> None:
+    result = build_ranking_job_input(
+        {
+            "title": "Data Engineer",
+            "required_skills": ["Python"],
+            "qualifications": ["Bachelor's degree in computer science"],
+            "education_requirements": ["Bachelor's degree"],
+            "certification_requirements": ["AWS Certified Solutions Architect"],
+            "employment_constraints": ["Must be eligible to work in the US"],
+            "mandatory_clauses": [{
+                "clause_id": "education:1",
+                "clause_type": "education",
+                "value": "Bachelor's degree in computer science",
+                "normalized_value": "bachelor's degree in computer science",
+                "required": True,
+                "source_span": {"start": 42, "end": 82, "quote": "Bachelor's degree in computer science"},
+            }],
+        },
+        {"skills": [{"name": "Python"}]},
+    )
+
+    requirements = json.loads(result["job_requirements"])
+    assert requirements["qualifications"] == ["Bachelor's degree in computer science"]
+    assert requirements["certification_requirements"] == ["AWS Certified Solutions Architect"]
+    assert requirements["employment_constraints"] == ["Must be eligible to work in the US"]
+    assert requirements["mandatory_clauses"][0]["source_span"]["quote"] == "Bachelor's degree in computer science"
+    assert "mandatory:education:1" in result["contract_metadata"]["requirement_ids"]
+
+
+def test_build_ranking_job_input_preserves_mandatory_skills_before_request_budgeting() -> None:
     from fitcv.ai_score import build_ranking_job_input
 
     profile = {
@@ -342,7 +371,7 @@ def test_build_ranking_job_input_counts_skills_before_bounding_prompt_fields() -
     result = build_ranking_job_input(job, profile)
     requirements = json.loads(result["job_requirements"])
 
-    assert len(requirements["required_skills"]) == 8
+    assert len(requirements["required_skills"]) == 9
     assert len(requirements["skill_coverage"]["matched"]) == 8
     assert requirements["skill_coverage"]["matched_count"] == 9
     assert requirements["skill_coverage"]["required_count"] == 9
@@ -447,39 +476,34 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     assert diagnostics["contract_version"] == "ranking_input_v3"
     assert diagnostics["selected_evidence_count"] == 2
     assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2"]
-    assert diagnostics["candidate_skill_count"] == 8
+    assert diagnostics["candidate_skill_count"] == 9
     assert diagnostics["request_within_budget"] is True
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
-def test_ranking_input_budget_exceeded_for_omitted_decisive_facts_without_provider_call() -> None:
+def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() -> None:
     required_skills = [f"Required Skill {index}" for index in range(1, 10)]
     job = {"job_url": "https://example.com/over-budget", "required_skills": required_skills}
     profile = {"skills": [{"name": skill} for skill in required_skills]}
     ranking_input = build_ranking_job_input(job, profile)
 
-    assert ranking_input["contract_metadata"]["mandatory_omissions"]["job_required_skills"] == 1
-    assert ranking_input["contract_metadata"]["mandatory_omissions"]["candidate_required_skills"] == 1
-
-    provider_calls = 0
-
-    def fail_if_called(*_args: object, **_kwargs: object) -> None:
-        nonlocal provider_calls
-        provider_calls += 1
-        raise AssertionError("provider must not be called")
-
-    with patch.object(ai_score_module, "score_job", side_effect=fail_if_called):
-        result = run_ai_scoring(
-            [{**job, "ranking_input": ranking_input}],
-            "candidate",
-            {},
-            top_n=1,
-        )
-
-    assert provider_calls == 0
-    assert result[0]["failure_code"] == "input_budget_exceeded"
-    assert result[0]["score_status"] == "unscored"
-    assert result[0]["ranking_input_diagnostics"]["visibility_manifest"]["mandatory_core_complete"] is False
+    assert ranking_input["contract_metadata"]["mandatory_omissions"]["job_required_skills"] == 0
+    assert ranking_input["contract_metadata"]["mandatory_omissions"]["candidate_required_skills"] == 0
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+    request = build_ranking_request(
+        job,
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=route,
+    )
+    assert request["visibility_manifest"]["mandatory_core_complete"] is True
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
 def test_ranking_request_preserves_full_mandatory_requirement_text() -> None:

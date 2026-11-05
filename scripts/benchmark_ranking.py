@@ -23,7 +23,12 @@ from fitcv.embeddings import (
     SENTENCE_TRANSFORMERS_BACKEND,
     embed_and_store_jobs,
 )
-from fitcv.vector_search import LEXICAL_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY, run_vector_search
+from fitcv.vector_search import (
+    HYBRID_RETRIEVAL_STRATEGY,
+    LEXICAL_RETRIEVAL_STRATEGY,
+    VECTOR_RETRIEVAL_STRATEGY,
+    run_vector_search,
+)
 
 _EVALUATOR_FIELDS = {
     "label",
@@ -549,7 +554,12 @@ def _run_once(
     effective_strategies: set[str] = set()
     backend_ids: set[str] = set()
     backend_metadata: dict[str, Any] = {}
-    requested_strategy = VECTOR_RETRIEVAL_STRATEGY if arm in {"incumbent", "multilingual"} else LEXICAL_RETRIEVAL_STRATEGY
+    requested_strategy = {
+        "incumbent": VECTOR_RETRIEVAL_STRATEGY,
+        "multilingual": VECTOR_RETRIEVAL_STRATEGY,
+        "lexical": LEXICAL_RETRIEVAL_STRATEGY,
+        "hybrid": HYBRID_RETRIEVAL_STRATEGY,
+    }[arm]
     for profile_id, pool in profiles.items():
         source_rows = list(pool["candidates"])
         eligible_count += len(source_rows)
@@ -566,13 +576,18 @@ def _run_once(
             pool,
             requested_strategy=requested_strategy,
         )
-        if arm == "multilingual":
+        if arm in {"multilingual", "hybrid"}:
+            embedding_backend = (
+                "sqlite_deterministic_local"
+                if arm == "hybrid"
+                else SENTENCE_TRANSFORMERS_BACKEND
+            )
             request["config"].update(
                 {
-                    "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+                    "embedding_backend": embedding_backend,
                     "shortlist_embedding_model": DEFAULT_SENTENCE_TRANSFORMERS_MODEL,
                     "embedding_model_revision": DEFAULT_SENTENCE_TRANSFORMERS_REVISION,
-                    "embedding_dimension": 384,
+                    "embedding_dimension": 256 if arm == "hybrid" else 384,
                     "embedding_failure_policy": "raise",
                 }
             )
@@ -620,7 +635,7 @@ def _run_once(
         rows: list[dict[str, Any]] = []
         for source in source_rows:
             candidate_id = str(source["candidate_id"])
-            cache_key = f"lexical_v1:{profile_id}:{candidate_id}"
+            cache_key = f"{requested_strategy}:{profile_id}:{candidate_id}"
             if cache_key in cache:
                 cache_hits += 1
             else:
@@ -762,7 +777,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixture", default="tests/fixtures/ranking_gold.json")
     parser.add_argument("--mode", default="replayed")
-    parser.add_argument("--arm", choices=("incumbent", "lexical", "multilingual"), default="incumbent")
+    parser.add_argument("--arm", choices=("incumbent", "lexical", "hybrid", "multilingual"), default="incumbent")
     parser.add_argument("--warmup-iterations", type=int, default=1)
     parser.add_argument("--measured-iterations", type=int, default=5)
     parser.add_argument("--output", required=True)
@@ -778,7 +793,7 @@ def main() -> None:
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    if args.arm == "multilingual":
+    if args.arm in {"hybrid", "multilingual"}:
         os.environ["FITCV_CP_SQLITE_PATH"] = str(output.with_suffix(".sqlite3"))
 
     data = json.loads(fixture_path.read_text(encoding="utf-8"))
