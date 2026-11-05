@@ -15,10 +15,13 @@ targets:
   - src/fitcv/enrich.py
   - src/fitcv/rule_filter.py
   - src/fitcv/job_sources.py
+  - src/fitcv/ats_export.py
+  - src/fitcv/personio_export.py
   - src/fitcv/vector_search.py
   - config/runtime/pipeline.yaml
   - src/fitcv/pipeline.py
   - src/fitcv/pipeline_stage_runner.py
+  - src/fitcv/pipeline_store.py
   - src/fitcv_cp/app.py
   - src/fitcv_cp/sqlite_store.py
   - src/fitcv_cp/scan_worker.py
@@ -31,9 +34,12 @@ targets:
   - tests/test_enrich.py
   - tests/test_rule_filter.py
   - tests/test_job_sources.py
+  - tests/test_ats_export.py
+  - tests/test_personio_export.py
   - tests/test_fitcv_cp/test_scan_worker.py
   - tests/test_vector_search.py
   - tests/test_pipeline.py
+  - tests/test_pipeline_store.py
   - tests/test_pipeline_stage_resume_parity.py
   - tests/test_pipeline_checkpoint_contract.py
   - tests/test_fitcv_cp/test_app.py
@@ -63,6 +69,11 @@ Review basis:
 - Repository longdang193/fitcv, branch main, commit
   42da99f313e6248ab6723a0f5c887c5510e69d18.
 - Completed sequential GPT-5.6-Sol / High and GPT-6 / High GitHub reviews.
+- Published-plan review by GPT-5.6-Sol / High at commit
+  e32a6b0142a9760f638fdb12522110cab3d30e8f identified five actionable gaps:
+  missing pipeline-store ownership and migration proof, Gem-only acquisition
+  coverage, incomplete v2 language-schema handling, an insufficient final-request
+  acceptance probe, and an underspecified decimal experience-bound contract.
 - Attached profile-level verdict supplied in the task context.
 - The attached verdict directly reproduced: missing fit-context rejection,
   loss of ongoing education and language-level facts, and incorrect project
@@ -226,7 +237,7 @@ follow-up calibration or surface-verification work.
 - skill-backend-verification, skill-test-driven-development, skill-code-standards
 
 **Files And Symbols:**
-- Inspect and modify src/fitcv/candidate.py:converge_candidate_profile_for_runtime.
+- Inspect and modify src/fitcv/candidate.py:CANDIDATE_PROFILE_V2_FIELD_REGISTRY, adapt_candidate_profile_to_v2, validate_candidate_profile_v2, and converge_candidate_profile_for_runtime.
 - Inspect and modify src/fitcv/fit_factors.py:_candidate_level and build_candidate_fit_context.
 - Inspect and modify src/fitcv/ai_score.py:build_ranking_job_input, build_ranking_request, and the nested bound_candidate_summary contract.
 - Verify tests/test_candidate.py, tests/test_fit_factors.py, and tests/test_ai_score.py.
@@ -239,16 +250,16 @@ follow-up calibration or surface-verification work.
 - Stop for: changing the 50-job/12,000-character limits, changing score weights, modifying unrelated working-tree files, or needing provider/network access.
 
 **Steps:**
-- [ ] Step 1: Preserve complete language records during legacy-to-v2 convergence, including level, native, read, write, speak, and source_refs; make ranking language normalization call the existing _candidate_level resolver rather than reading only level.
+- [ ] Step 1: Extend CANDIDATE_PROFILE_V2_FIELD_REGISTRY and adapt_candidate_profile_to_v2 so already-v2 and legacy profiles preserve complete language records, including level, native, read, write, speak, and source_refs; validate those fields in validate_candidate_profile_v2; make ranking language normalization call the existing _candidate_level resolver rather than reading only level.
 - [ ] Step 2: Add typed education matching for degree, field, and active enrollment dates; keep an ongoing relevant degree ahead of optional education records when the job has an education or enrollment requirement.
 - [ ] Step 3: Replace tail-only candidate trimming with required-fact reservation. Serialize mandatory candidate records first, then trim optional records and text while preserving required IDs, values, and source references.
 - [ ] Step 4: Compute mandatory_core_complete by reconciling required fact IDs and normalized values against the final model_visible candidate payload. Set omitted or value-mismatched requirements to explicit nonzero omission records before provider invocation.
-- [ ] Step 5: Add regression tests for the attached BI fixture: reversing education order must not remove the active master’s record; German B1 must retain its level; native/read/write/speak-only language entries must normalize consistently; and a bounded payload must never report complete after required-value loss.
+- [ ] Step 5: Add regression tests for the attached BI fixture and both profile shapes: legacy-to-v2 conversion and already-v2 validation must preserve the language dimensions; reversing education order must not remove the active master’s record; German B1 must retain its level; native/read/write/speak-only language entries must normalize consistently; and a bounded payload must never report complete after required-value loss.
 
 **Verification:**
 - [ ] python -m pytest -q tests/test_candidate.py tests/test_fit_factors.py tests/test_ai_score.py -k "language or education or mandatory or candidate or budget"
 - Expected: all focused tests pass; final rendered payload contains the required language level, enrollment dates, and fact IDs; omission diagnostics become nonzero when a required value is intentionally removed.
-- [ ] Directly call build_ranking_job_input() with the sanitized fixture and assert the serialized candidate payload is within the existing bound and retains the required facts.
+- [ ] Exercise build_ranking_job_input() as the earlier-stage serialization check, then build the full build_ranking_request() and inspect its final rendered/model-visible candidate payload. Assert required IDs and normalized values against that final payload and assert the existing 12,000-character request-budget result.
 
 **Exit Criteria:**
 - Required candidate facts survive convergence and budgeting, and completeness diagnostics are value-aware and test-proven.
@@ -329,7 +340,7 @@ follow-up calibration or surface-verification work.
 
 **Files And Symbols:**
 - Inspect and modify src/fitcv/rule_filter.py:check_fit_context, check_freshness, apply_pre_enrichment_global_filters, and apply_rule_filters.
-- Inspect and modify src/fitcv/enrich.py:_is_semantically_blank_enrichment_row, _coerce_field, and enrich_batch.
+- Inspect and modify src/fitcv/enrich.py:EnrichmentOutput, _is_semantically_blank_enrichment_row, _coerce_field, and enrich_batch; define the accepted numeric representation for years_experience_min/max and preserve it through structured validation and persistence.
 - Inspect and modify src/fitcv/pipeline.py:run_pipeline and src/fitcv/pipeline_stage_runner.py:execute_enrich_stage / execute_rule_filter_stage where incomplete status is persisted.
 - Verify tests/test_rule_filter.py, tests/test_enrich.py, and tests/test_pipeline.py.
 
@@ -344,9 +355,9 @@ follow-up calibration or surface-verification work.
 - [ ] Step 1: Route title outcomes through _get_selected_rule_filter_codes() so unselected title signals become marks; preserve hard behavior only when the signal is explicitly selected.
 - [ ] Step 2: Make freshness independently opt-in: a missing global_job_filters.max_age_days disables freshness rather than implying 30 days; persist the effective global filter settings.
 - [ ] Step 3: Treat absent location_type, seniority, role family, and domain as unknown/extraction warnings when raw description or substantive requirements exist. Reject only when no usable source text or substantive requirement remains, or when an explicit hard exclusion fails.
-- [ ] Step 4: Expand _is_semantically_blank_enrichment_row() to recognize qualifications, education, certifications, employment constraints, mandatory clauses, actual location, language requirements, and validated decimal experience bounds.
+- [ ] Step 4: Expand _is_semantically_blank_enrichment_row() to recognize qualifications, education, certifications, employment constraints, mandatory clauses, actual location, language requirements, and validated decimal experience bounds. Update EnrichmentOutput.years_experience_min/max and _coerce_field() together so a valid decimal such as 1.5 is not truncated to 1; preserve the same numeric value through structured validation, enrichment persistence, and scorer input.
 - [ ] Step 5: Preserve raw job text and mark mandatory_input_incomplete when recovery cannot produce a complete scorer contract; do not emit a normal valid score from incomplete mandatory input.
-- [ ] Step 6: Add tests for the attached missing-fit-context reproduction, mandatory-language/certification-only enrichment, explicit title exclusion, unconfigured freshness, and raw-text fallback behavior.
+- [ ] Step 6: Add tests for the attached missing-fit-context reproduction, mandatory-language/certification-only enrichment, explicit title exclusion, unconfigured freshness, raw-text fallback behavior, and a decimal experience-bound round trip such as 1.5 through coercion, EnrichmentOutput, persistence, and scorer input.
 
 **Verification:**
 - [ ] python -m pytest -q tests/test_rule_filter.py tests/test_enrich.py tests/test_pipeline.py -k "fit_context or title or freshness or blank or fallback or mandatory or extraction"
@@ -380,8 +391,9 @@ follow-up calibration or surface-verification work.
 
 **Files And Symbols:**
 - Inspect and modify src/fitcv/job_sources.py:ScannerRequest, build_scanner_request, provider acquisition functions, and acquire_scanner_jobs.
+- Inspect and modify src/fitcv/ats_export.py:_matches and the Greenhouse, Ashby, Lever, Gem, and Workday pre-detail acquisition paths; inspect and modify src/fitcv/personio_export.py title filtering and fallback detail loading.
 - Inspect and modify callers in src/fitcv_cp/app.py and src/fitcv_cp/scan_worker.py so acquisition capacity is explicit and separate from pipeline scoring settings.
-- Verify tests/test_job_sources.py and tests/test_fitcv_cp/test_scan_worker.py.
+- Verify tests/test_job_sources.py, tests/test_ats_export.py, tests/test_personio_export.py, tests/test_fitcv_cp/test_scan_worker.py, tests/test_pipeline.py, and tests/test_ranking.py.
 
 **Dependencies:**
 - Task 3 complete; admission semantics distinguish discovery filtering from explicit user exclusions.
@@ -393,12 +405,13 @@ follow-up calibration or surface-verification work.
 **Steps:**
 - [ ] Step 1: Add an explicit acquisition bound to ScannerRequest and its callers, defaulting to the existing validated upper bound of 200; retain max_jobs compatibility at the request boundary while making the distinction visible in diagnostics.
 - [ ] Step 2: Keep vector_search_top_n and ai_score_top_n at 50; use acquisition capacity only to provide a broader candidate pool for downstream retrieval.
-- [ ] Step 3: Remove Gem’s title-only hard discovery filter before detail retrieval; fetch bounded detail rows, then apply description-aware relevance downstream. Preserve provider safety and timeout bounds.
-- [ ] Step 4: Record provider truncation, title-discard, keyword-query, and fetched-detail counts so recall losses are measurable.
-- [ ] Step 5: Add tests proving a relevant description with an adjacent title survives acquisition, the acquisition bound is honored, deduplication remains stable, and final scoring still admits at most 50 jobs.
+- [ ] Step 3: Remove title-only hard discovery filtering before detail retrieval across every keyword-constrained acquisition path: Greenhouse, Ashby, Lever, Gem, Workday, and Personio. Fetch bounded detail rows, then apply description-aware relevance downstream. Preserve provider safety and timeout bounds.
+- [ ] Step 4: Make Workday keyword behavior explicit: do not rely on provider searchText alone to establish relevance; either request the bounded broad feed or record the provider-query limitation and ensure the local detail path can recover description-relevant adjacent-title jobs.
+- [ ] Step 5: Record provider truncation, title-discard, keyword-query, and fetched-detail counts so recall losses are measurable.
+- [ ] Step 6: Add provider-specific tests proving a relevant description with an adjacent title survives acquisition for each affected path, the Workday query behavior is bounded and observable, deduplication remains stable, and the pipeline/ranking contract still admits at most 50 jobs for final scoring.
 
 **Verification:**
-- [ ] python -m pytest -q tests/test_job_sources.py tests/test_fitcv_cp/test_scan_worker.py
+- [ ] python -m pytest -q tests/test_job_sources.py tests/test_ats_export.py tests/test_personio_export.py tests/test_fitcv_cp/test_scan_worker.py tests/test_pipeline.py tests/test_ranking.py
 - Expected: bounded acquisition requests pass; provider safety tests remain green; nonmatching-title but description-relevant fixtures are returned for downstream filtering; final pipeline limits remain unchanged.
 - [ ] Assert the acquisition diagnostics distinguish fetched, provider_capped, title_discarded, and downstream_not_admitted counts.
 
@@ -483,8 +496,9 @@ follow-up calibration or surface-verification work.
 - Inspect and modify src/fitcv/ai_score.py:build_ranking_request and build_ranking_input_diagnostics.
 - Inspect and modify src/fitcv/pipeline.py:_materialize_scoring_shortlist and run_pipeline.
 - Inspect and modify src/fitcv/pipeline_stage_runner.py:execute_shortlist_stage and execute_ranking_stage.
+- Inspect and modify src/fitcv/pipeline_store.py:persist_shortlist_admission_ledger and its existing SQLite schema/row serialization; extend the current ledger additively rather than creating a second admission store, update final score-state fields after ranking, and preserve migration compatibility for existing databases.
 - Inspect src/fitcv_cp/sqlite_store.py:query_run_jobs and _score_state_for_job and src/fitcv_cp/app.py:_sort_enriched_rows; modify only the existing score-state/result contract needed to propagate score_status and failure_code, preserving score_desc ordering semantics unless a labeled product decision changes it.
-- Verify tests/test_ai_score.py, tests/test_pipeline.py, tests/test_pipeline_stage_resume_parity.py, tests/test_pipeline_checkpoint_contract.py, tests/test_fitcv_cp/test_app.py, and tests/test_fitcv_cp/test_sqlite_store.py.
+- Verify tests/test_ai_score.py, tests/test_pipeline.py, tests/test_pipeline_store.py, tests/test_pipeline_stage_resume_parity.py, tests/test_pipeline_checkpoint_contract.py, tests/test_fitcv_cp/test_app.py, and tests/test_fitcv_cp/test_sqlite_store.py.
 
 **Dependencies:**
 - Tasks 1 through 5 complete; final candidate/evidence/retrieval contracts are settled.
@@ -500,10 +514,10 @@ follow-up calibration or surface-verification work.
 - [ ] Step 4: Persist separate pre-budget, selected, rendered, and model-visible evidence IDs, mandatory omission reasons, field checksums, and the final prompt hash.
 - [ ] Step 5: Keep checkpoint samples bounded while the durable admission ledger remains complete; round-trip the same manifest through resume and assert stable fingerprints.
 - [ ] Step 6: Preserve and expose score_status/failure_code alongside ai_score so unscored or failed rows are explicit and never coerced to numeric zero; keep retrieval relevance and AI compatibility as separate fields where the existing result contract supports both.
-- [ ] Step 7: Add tests forcing two-to-one evidence reduction, mandatory-budget refusal, below-cutoff ledger rows, unscored/failed score states, resume, and production/stage parity. Do not assert a Wabtec historical score or cutoff without a recorded run artifact.
+- [ ] Step 7: Add direct persistence tests for the extended pipeline_store ledger, including additive schema migration and post-ranking updates. Force two-to-one evidence reduction, mandatory-budget refusal, below-cutoff ledger rows, unscored/failed score states, resume, and production/stage parity. Do not assert a Wabtec historical score or cutoff without a recorded run artifact.
 
 **Verification:**
-- [ ] python -m pytest -q tests/test_ai_score.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -k "diagnostic or budget or ledger or cutoff or manifest or resume or parity or score or unscored"
+- [ ] python -m pytest -q tests/test_ai_score.py tests/test_pipeline.py tests/test_pipeline_store.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_sqlite_store.py -k "diagnostic or budget or ledger or cutoff or manifest or resume or parity or score or unscored or migration"
 - Expected: model-visible diagnostics equal the rendered request; budget failures are explicit; every eligible job has one truthful outcome; checkpoint samples are bounded and resume-stable; null/failed scores remain distinguishable from valid zero scores.
 
 **Exit Criteria:**
