@@ -225,7 +225,10 @@ def test_local_retry_clears_finished_at_and_preserves_run_truth(
     assert retried.error_stage is None
     assert retried.partial_completion is False
     assert retried.progress_completed == 0
-    assert retried.progress_total == 1
+    assert retried.progress_total == 6
+    detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail is not None
+    assert detail["progress"] == {"completed": 0, "total": 6}
     assert retried.queue_job_id == "local-retry-submission-b"
     assert retried.jobs_input_json == run.jobs_input_json
     assert retried.candidate_profile_json == run.candidate_profile_json
@@ -257,8 +260,8 @@ def test_local_retry_enqueue_failure_restores_failed_state(
     assert restored.error_message == "worker failed"
     assert restored.error_stage == "worker"
     assert restored.partial_completion is True
-    assert restored.progress_completed == 1
-    assert restored.progress_total == 1
+    assert restored.progress_completed == 6
+    assert restored.progress_total == 6
     assert restored.queue_job_id is None
     assert any(event.stage == "retry_enqueue_failed" for event in sqlite_store.get_events(run.run_id))
 

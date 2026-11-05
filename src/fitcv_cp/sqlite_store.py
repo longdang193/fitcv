@@ -11064,9 +11064,10 @@ def update_run_status(
                 stored_passed=run.passed_filter,
                 stored_rejected=run.rejected_jobs,
             )
-            total_jobs = int(
+            normalized_job_count = int(
                 conn.execute("SELECT COUNT(*) FROM run_jobs WHERE run_id=?", (run_id,)).fetchone()[0]
             )
+            total_jobs = normalized_job_count or int(run.total_jobs or 0)
             updated = dataclasses.replace(
                 updated,
                 total_jobs=total_jobs,
@@ -11110,6 +11111,16 @@ def update_run_status(
                     (finished_at or datetime.datetime.now(datetime.timezone.utc)).isoformat(),
                     run_id,
                 ),
+            )
+        if bool(_compat_kwargs.get("reset_stage_progress")):
+            conn.execute(
+                """UPDATE run_stage_executions
+                   SET status='pending', progress_completed=0, progress_total=0,
+                       passed_count=0, rejected_count=0, started_at=NULL, finished_at=NULL,
+                       warning_json=NULL, error_code=NULL, error_message=NULL,
+                       evidence_reference=NULL, row_revision=row_revision+1
+                   WHERE run_id=?""",
+                (run_id,),
             )
         _write_normalized_run(conn, updated, insert=False)
         conn.commit()

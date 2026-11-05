@@ -6600,6 +6600,30 @@ def test_awaiting_checkpoint_persists_terminal_counts_over_stage_summary() -> No
     assert tuple(row) == (2, 1, 1)
 
 
+def test_awaiting_checkpoint_preserves_aggregate_total_without_normalized_jobs() -> None:
+    run = _make_run("run-awaiting-aggregate-only")
+    run.total_jobs = 10
+    run.passed_filter = 7
+    run.rejected_jobs = 3
+    sqlite_store.insert_run(run)
+
+    sqlite_store.update_run_status(
+        run.run_id,
+        RunStatus.AWAITING_CONTINUE,
+        summary={"total_jobs": 0, "passed_filter": 0},
+    )
+
+    detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail is not None
+    assert detail["counts"] == {
+        "total": 10,
+        "passed": 7,
+        "rejected": 3,
+        "skipped": 0,
+        "cvs_generated": 0,
+    }
+
+
 def test_snapshot_progress_counts_terminal_stage_rows_when_summary_list_is_empty() -> None:
     run_id = "run-snapshot-progress-reconciliation"
     _create_normalized_run_with_jobs(
