@@ -178,6 +178,20 @@ def test_backfill_preserves_legacy_rows_and_reconciles_all_dispositions(migratio
         assert conn.execute("SELECT COUNT(*) FROM run_stage_executions WHERE run_id='legacy-incomplete'").fetchone()[0] == 6
         assert conn.execute("SELECT COUNT(*) FROM run_stage_executions WHERE run_id='legacy-malformed'").fetchone()[0] == 6
         assert conn.execute("SELECT COUNT(*) FROM run_jobs WHERE run_id='legacy-complete'").fetchone()[0] == 2
+        detail = sqlite_store.get_run_detail("legacy-complete")
+        listing = sqlite_store.query_runs(page=1, page_size=10)
+        listed = next(item for item in listing["items"] if item["run_id"] == "legacy-complete")
+        assert detail is not None
+        assert detail["counts"] == {
+            "total": 2,
+            "passed": 1,
+            "rejected": 1,
+            "skipped": 0,
+            "cvs_generated": 0,
+        }
+        assert listed["counts"] == detail["counts"]
+        assert detail["progress"] == {"completed": 6, "total": 6}
+        assert listed["progress"] == {"completed": 6, "total": 6}
         compatibility = json.loads(conn.execute("SELECT compatibility_json FROM pipeline_runs WHERE run_id='legacy-malformed'").fetchone()[0])
         assert compatibility["legacy_run"]["raw_run_json"] == "{malformed-run-json"
         payload = json.loads(conn.execute("SELECT payload_json FROM process_events WHERE event_id='event-malformed'").fetchone()[0])
@@ -191,6 +205,33 @@ def test_backfill_preserves_legacy_rows_and_reconciles_all_dispositions(migratio
         assert conn.execute("SELECT COUNT(*) FROM run_history_migration_ledger WHERE disposition='quarantined'").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM run_history_migration_ledger WHERE disposition='conflict'").fetchone()[0] == 2
         assert conn.execute("SELECT run_id, run_json, created_at FROM local_pipeline_runs ORDER BY run_id").fetchall() == before
+
+
+def test_backfill_preserves_aggregate_only_run_counts(migration_db: Path) -> None:
+    payload = _run_payload("legacy-aggregate-only")
+    payload.update({"total_jobs": 10, "passed_filter": 7, "rejected_jobs": 3})
+    with sqlite3.connect(migration_db) as conn:
+        conn.execute(
+            "INSERT INTO local_pipeline_runs(run_id, run_json, created_at) VALUES (?, ?, ?)",
+            ("legacy-aggregate-only", json.dumps(payload), "2026-09-05T10:00:00+00:00"),
+        )
+        conn.commit()
+
+    sqlite_store.backfill_legacy_run_history(migration_db, batch_size=100)
+
+    detail = sqlite_store.get_run_detail("legacy-aggregate-only")
+    listing = sqlite_store.query_runs(page=1, page_size=20)
+    listed = next(item for item in listing["items"] if item["run_id"] == "legacy-aggregate-only")
+    expected_counts = {
+        "total": 10,
+        "passed": 7,
+        "rejected": 3,
+        "skipped": 0,
+        "cvs_generated": 0,
+    }
+    assert detail is not None
+    assert detail["counts"] == expected_counts
+    assert listed["counts"] == expected_counts
 
 
 def test_backfill_changed_source_fingerprint_conflicts_without_overwrite(migration_db: Path) -> None:

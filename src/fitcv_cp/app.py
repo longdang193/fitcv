@@ -173,6 +173,7 @@ from fitcv_cp.queue import (
     enqueue_cv_regenerate_once_with_job_id,
 )
 from fitcv_cp.run_lifecycle import (
+    PROTOTYPE_STAGES,
     can_archive_run,
     can_cancel_run,
     can_retry_run,
@@ -14976,7 +14977,8 @@ def create_app(
             clear_error=True,
             partial_completion=False,
             progress_completed=0,
-            progress_total=run.total_jobs or 0,
+            progress_total=len(PROTOTYPE_STAGES),
+            reset_stage_progress=True,
         )
         _persist_run_orchestration_binding(
             run.run_id,
