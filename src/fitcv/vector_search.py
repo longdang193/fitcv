@@ -872,9 +872,30 @@ def _hybrid_search_result(
             }
         )
     fused.sort(key=lambda row: (-float(row["hybrid_rrf_score"]), str(row["job_url"])))
-    production_rows = fused[:top_n]
+    production_rows = list(fused[:top_n])
+    selected_urls = {str(row.get("job_url") or "") for row in production_rows}
+    lexical_only_rows = [
+        row
+        for row in fused
+        if row.get("lexical_rank") and not row.get("vector_rank")
+    ]
+    rescued_rows: list[dict[str, Any]] = []
+    if production_rows:
+        for lexical_row in lexical_only_rows[:1]:
+            lexical_url = str(lexical_row.get("job_url") or "")
+            if not lexical_url or lexical_url in selected_urls:
+                continue
+            displaced = production_rows[-1]
+            production_rows[-1] = lexical_row
+            selected_urls.remove(str(displaced.get("job_url") or ""))
+            selected_urls.add(lexical_url)
+            rescued_rows.append(lexical_row)
     audit_sample_n = int((lexical_result.get("diagnostics") or {}).get("shortlist_audit_sample_n") or 0)
-    audit_rows = [{**row, "shortlist_origin": "audit"} for row in fused[top_n : top_n + audit_sample_n]]
+    audit_rows = [
+        {**row, "shortlist_origin": "audit"}
+        for row in fused
+        if str(row.get("job_url") or "") not in selected_urls
+    ][:audit_sample_n]
     vector_diagnostics = dict(vector_result.get("diagnostics") or {})
     lexical_diagnostics = dict(lexical_result.get("diagnostics") or {})
     candidate_query = dict(vector_result.get("candidate_query") or lexical_result.get("candidate_query") or {})
@@ -912,6 +933,8 @@ def _hybrid_search_result(
             "scored_jobs_total": len(fused),
             "production_shortlist_total": len(production_rows),
             "production_cutoff_rank": len(production_rows),
+            "lexical_only_rescue_count": len(rescued_rows),
+            "lexical_only_rescued_urls": [str(row.get("job_url") or "") for row in rescued_rows],
             "embedding_generation_skipped": bool(vector_diagnostics.get("embedding_generation_skipped")),
             "vector_diagnostics": vector_diagnostics,
             "lexical_diagnostics": lexical_diagnostics,

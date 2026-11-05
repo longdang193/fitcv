@@ -1177,6 +1177,30 @@ def test_hybrid_fusion_allows_rank_51_candidate_into_fixed_top_50() -> None:
     assert result["diagnostics"]["fusion_channel_depth"] == 101
 
 
+def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
+    dual_channel_rows = [
+        {"job_url": f"https://example.com/dual-{index}", "vector_rank": index}
+        for index in range(1, 51)
+    ]
+    lexical_rows = [
+        {"job_url": f"https://example.com/dual-{index}", "lexical_rank": index}
+        for index in range(1, 51)
+    ]
+    lexical_only_url = "https://example.com/lexical-only-winner"
+    lexical_rows.insert(0, {"job_url": lexical_only_url, "lexical_rank": 1})
+
+    result = _hybrid_search_result(
+        vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
+        lexical_result={"production_rows": lexical_rows, "audit_rows": [], "diagnostics": {}},
+        eligible_job_urls=[row["job_url"] for row in lexical_rows],
+        top_n=50,
+        channel_depth=51,
+    )
+
+    assert lexical_only_url in {row["job_url"] for row in result["production_rows"]}
+    assert result["diagnostics"]["lexical_only_rescue_count"] == 1
+
+
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

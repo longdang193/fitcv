@@ -357,6 +357,20 @@ artifacts remain untouched.
 
 ## Verification
 
+### Review-cycle follow-up fixes
+
+- Enrichment fallback rows remain eligible for filtering and retrieval, but are
+  explicitly returned as `mandatory_input_incomplete` before provider scoring;
+  raw extraction failure cannot become an apparently complete score input.
+- Candidate education, certification, and mandatory-clause facts are projected
+  ahead of optional records, with job-relevant late records retained in the
+  scorer-visible `mandatory_facts` payload.
+- Evidence-budget reduction never tries zero evidence when attributable evidence
+  was selected; an over-budget request fails before provider invocation.
+- Hybrid fusion keeps the fixed top-50 budget while rescuing the strongest
+  lexical-only candidate that would otherwise be displaced by dual-channel
+  RRF participation.
+
 Final artifact-level verification after all tasks:
 
 - `python -m pytest -q tests/test_vector_search.py tests/test_enrich.py tests/test_rule_filter.py tests/test_ai_score.py tests/test_evidence.py tests/test_pipeline.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline_stage_resume_parity.py`

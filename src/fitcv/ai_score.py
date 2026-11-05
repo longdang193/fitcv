@@ -83,6 +83,12 @@ class RankingInputBudgetExceeded(ValueError):
         self.visibility_manifest = dict(visibility_manifest or {})
 
 
+class RankingInputIncomplete(RankingInputBudgetExceeded):
+    """Raised when enrichment did not produce a safe scorer contract."""
+
+    failure_code = "mandatory_input_incomplete"
+
+
 def _semantic_policy(config: dict[str, Any] | None) -> dict[str, Any]:
     candidate = (config or {}).get("semantic_policy")
     return candidate if isinstance(candidate, dict) else compile_semantic_policy(config or {})
@@ -311,6 +317,8 @@ def build_ranking_request(
             "skills",
             "languages",
             "employment",
+            "mandatory_facts",
+            "mandatory_clauses",
             "education",
             "certifications",
             "years_experience",
@@ -409,7 +417,12 @@ def build_ranking_request(
             "mandatory_omissions": mandatory_omissions,
             "mandatory_core_complete": False,
         }
-        raise RankingInputBudgetExceeded(
+        exception_type = (
+            RankingInputIncomplete
+            if int(mandatory_omissions.get("job_enrichment_fallback") or 0) > 0
+            else RankingInputBudgetExceeded
+        )
+        raise exception_type(
             "mandatory ranking facts were omitted before request bounding",
             visibility_manifest=visibility_manifest,
         )
@@ -474,7 +487,8 @@ def build_ranking_request(
         for candidate_variant in candidate_variants[1:]:
             attempts.append((_serialize_payload(job_variant), _serialize_payload(candidate_variant), selected_evidence, "optional"))
     base_attempts = list(attempts)
-    for evidence_count in range(len(evidence) - 1, -1, -1):
+    evidence_counts = range(len(evidence) - 1, 0, -1) if evidence else (0,)
+    for evidence_count in evidence_counts:
         attempts.extend(
             (job_value, candidate_value, selected_evidence[:evidence_count], f"candidate_evidence:{len(evidence)}->{evidence_count}")
             for job_value, candidate_value, _evidence, _reason in base_attempts
@@ -893,23 +907,69 @@ def build_ranking_job_input(
         "candidate_required_skills": 0,
         "candidate_languages": 0,
         "candidate_employment": 0,
+        "candidate_education": 0,
+        "candidate_certifications": 0,
+        "candidate_mandatory_clauses": 0,
+        "job_enrichment_fallback": int(job.get("enrich_reuse_status") == "enrichment_fallback"),
     }
-    education = [
-        {key: _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS) for key in ("degree", "field", "institution", "start", "end") if _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)}
-        for item in list(profile.get("education") or [])[:4]
-        if isinstance(item, dict)
-    ]
-    certifications = [
-        {key: _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS) for key in ("name", "issuer", "date", "expires") if _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)}
-        for item in list(profile.get("certifications") or [])[:4]
-        if isinstance(item, dict)
-    ]
+    def prioritize_records(values: Any, required_values: Any, fields: tuple[str, ...]) -> list[dict[str, str]]:
+        required_keys = {
+            _canonical_skill(value, policy)
+            for value in list(required_values or [])
+            if _canonical_skill(value, policy)
+        }
+        records: list[dict[str, str]] = []
+        for item in list(values or []):
+            if not isinstance(item, dict):
+                continue
+            record = {
+                key: _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)
+                for key in fields
+                if _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)
+            }
+            if record:
+                records.append(record)
+        return sorted(
+            records,
+            key=lambda record: (
+                0
+                if any(_canonical_skill(record.get(key), policy) in required_keys for key in fields)
+                else 1
+            ),
+        )
+
+    education_requirements = list(job.get("education_requirements") or job.get("education") or [])
+    certification_requirements = list(job.get("certification_requirements") or job.get("certifications") or [])
+    education = prioritize_records(
+        profile.get("education"),
+        education_requirements,
+        ("degree", "field", "institution", "start", "end"),
+    )
+    certifications = prioritize_records(
+        profile.get("certifications"),
+        certification_requirements,
+        ("name", "issuer", "date", "expires"),
+    )
+    candidate_mandatory_clauses = mandatory_clause_records(profile.get("mandatory_clauses"))
+    education_keys = {_canonical_skill(value, policy) for value in education_requirements}
+    certification_keys = {_canonical_skill(value, policy) for value in certification_requirements}
+    mandatory_facts = {
+        "education": [
+            record for record in education
+            if any(_canonical_skill(record.get(key), policy) in education_keys for key in ("degree", "field"))
+        ],
+        "certifications": [
+            record for record in certifications
+            if any(_canonical_skill(record.get(key), policy) in certification_keys for key in ("name", "issuer"))
+        ],
+        "mandatory_clauses": candidate_mandatory_clauses,
+    }
     requirements = {
         "title": str(job.get("title") or "")[:160],
         "required_skills": required_skills,
         "qualifications": bounded(job.get("qualifications"), limit=16),
-        "education_requirements": bounded(job.get("education_requirements") or job.get("education"), limit=16),
-        "certification_requirements": bounded(job.get("certification_requirements") or job.get("certifications"), limit=16),
+        "education_requirements": bounded(education_requirements, limit=16),
+        "certification_requirements": bounded(certification_requirements, limit=16),
         "employment_constraints": bounded(job.get("employment_constraints"), limit=16),
         "mandatory_clauses": job_mandatory_clauses,
         "preferred_skills": preferred_skills,
@@ -941,7 +1001,8 @@ def build_ranking_job_input(
         "employment": employment,
         "education": education,
         "certifications": certifications,
-        "mandatory_clauses": mandatory_clause_records(profile.get("mandatory_clauses")),
+        "mandatory_facts": mandatory_facts,
+        "mandatory_clauses": candidate_mandatory_clauses,
     }
     contract_metadata = {
         "version": RANKING_INPUT_CONTRACT_VERSION,
