@@ -109,6 +109,30 @@ def _bounded_values(values: Any, *, limit: int, item_chars: int = RANKING_TERM_M
             break
     return result
 
+
+def _bounded_source_refs(values: Any, *, limit: int = 4) -> list[dict[str, Any] | str]:
+    result: list[dict[str, Any] | str] = []
+    seen: set[str] = set()
+    for value in list(values or []):
+        if isinstance(value, dict):
+            reference = {
+                str(key): value[key]
+                for key in ("document_id", "source_block_id", "locator")
+                if key in value and value[key] not in (None, "")
+            }
+            if isinstance(reference.get("locator"), dict):
+                reference["locator"] = dict(reference["locator"])
+            normalized = json.dumps(reference, ensure_ascii=False, sort_keys=True)
+        else:
+            reference = _bounded_text(value, RANKING_TERM_MAX_CHARS)
+            normalized = reference.casefold()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            result.append(reference)
+        if len(result) >= limit:
+            break
+    return result
+
 # ── constants ─────────────────────────────────────────────────────────────────
 def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
     payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -231,12 +255,12 @@ def build_ranking_request(
             values = bounded_payload.get(key)
             if isinstance(values, list):
                 bounded_payload[key] = [
-                    _bounded_text(item, RANKING_TERM_MAX_CHARS)
+                    str(item).strip()
                     if not isinstance(item, dict)
                     else {
-                        field: _bounded_text(field_value, RANKING_TERM_MAX_CHARS)
+                        field: str(field_value).strip()
                         for field, field_value in item.items()
-                        if _bounded_text(field_value, RANKING_TERM_MAX_CHARS)
+                        if str(field_value or "").strip()
                     }
                     for item in values
                     if isinstance(item, (dict, str, int, float))
@@ -303,12 +327,12 @@ def build_ranking_request(
                 continue
             bounded_payload[key] = [
                 {
-                    field: _bounded_text(field_value, 120)
+                    field: str(field_value).strip()
                     for field, field_value in value.items()
-                    if _bounded_text(field_value, 120)
+                    if str(field_value or "").strip()
                 }
                 if isinstance(value, dict)
-                else _bounded_text(value, 120)
+                else str(value).strip()
                 for value in values
                 if isinstance(value, (dict, str, int, float))
             ]
@@ -328,7 +352,7 @@ def build_ranking_request(
             if removed:
                 changed = True
                 continue
-            for key in ("certifications", "education", "employment", "languages", "skills"):
+            for key in ("certifications", "education"):
                 values = bounded_payload.get(key)
                 if isinstance(values, list):
                     shortened = False
@@ -413,10 +437,12 @@ def build_ranking_request(
             _bounded_text(item.get("parent_title"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("organization"), RANKING_TERM_MAX_CHARS),
             ", ".join(_bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS)),
+            _bounded_text(
+                item.get("scoring_context") or item.get("text"),
+                RANKING_EVIDENCE_TEXT_MAX_CHARS,
+            ),
+            json.dumps(_bounded_source_refs(item.get("source_refs"), limit=4), ensure_ascii=False, sort_keys=True),
             _bounded_text(item.get("support_state"), RANKING_TERM_MAX_CHARS),
-            _bounded_text(item.get("scoring_context"), RANKING_EVIDENCE_TEXT_MAX_CHARS),
-            _bounded_text(item.get("text"), RANKING_EVIDENCE_TEXT_MAX_CHARS),
-            ", ".join(_bounded_values(item.get("source_refs"), limit=4)),
             _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         ]
         return " | ".join(value for value in fields if value)
@@ -682,12 +708,17 @@ def build_ranking_job_input(
     def bounded(values: Any, limit: int = 8) -> list[str]:
         return _bounded_values(values, limit=limit)
 
-    def canonical_values(values: Any, limit: int = 8) -> tuple[list[str], list[str]]:
+    def canonical_values(
+        values: Any,
+        limit: int = 8,
+        *,
+        preserve_full: bool = False,
+    ) -> tuple[list[str], list[str]]:
         display: list[str] = []
         canonical: list[str] = []
         seen: set[str] = set()
         for value in list(values or []):
-            text = _bounded_text(value, RANKING_TERM_MAX_CHARS)
+            text = str(value or "").strip() if preserve_full else _bounded_text(value, RANKING_TERM_MAX_CHARS)
             key = _canonical_skill(text, policy)
             if not text or not key or key in seen:
                 continue
@@ -720,7 +751,7 @@ def build_ranking_job_input(
             RANKING_EVIDENCE_TEXT_MAX_CHARS,
         ),
         "support_state": _bounded_text(item.get("support_state"), RANKING_TERM_MAX_CHARS),
-        "source_refs": _bounded_values(item.get("source_refs"), limit=4),
+        "source_refs": _bounded_source_refs(item.get("source_refs"), limit=4),
         "source_ref": _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
     } for item in projected_evidence[:RANKING_MAX_EVIDENCE] if isinstance(item, dict)]
@@ -728,6 +759,7 @@ def build_ranking_job_input(
     all_required_skills, required_canonical = canonical_values(
         required_values,
         limit=max(8, len(required_values)),
+        preserve_full=True,
     )
     all_candidate_skills: list[str] = []
     candidate_skill_keys_seen: set[str] = set()
@@ -742,6 +774,7 @@ def build_ranking_job_input(
     all_technology_requirements, technology_canonical = canonical_values(
         technology_values,
         limit=max(8, len(technology_values)),
+        preserve_full=True,
     )
     technology_requirements = all_technology_requirements[:RANKING_MAX_SKILLS]
     preferred_skills, preferred_canonical = canonical_values(
@@ -815,7 +848,11 @@ def build_ranking_job_input(
         "domain": str(job.get("domain") or ""),
         "responsibilities": bounded(job.get("responsibilities")),
         "technology_requirements": technology_requirements,
-        "language_requirements": bounded(job.get("language_requirements") or job.get("languages")),
+        "language_requirements": [
+            str(value).strip()
+            for value in list(job.get("language_requirements") or job.get("languages") or [])
+            if str(value).strip()
+        ],
         "location": {"location_type": str(job.get("location_type") or ""), "actual_location": job.get("actual_location") or job.get("location") or None},
         "years_experience_min": job.get("years_experience_min"),
         "years_experience_max": job.get("years_experience_max"),

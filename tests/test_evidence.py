@@ -2735,6 +2735,20 @@ def test_ranking_channel_matching_rejects_only_negated_occurrences() -> None:
     assert coverage["required"] == []
 
 
+def test_production_evidence_selection_preserves_support_state_across_newlines() -> None:
+    item = {
+        "evidence_id": "ev-python",
+        "title": "Pipelines",
+        "text": "No Java experience\nBuilt Python pipelines in production.",
+        "scoring_context": "No Java experience\nBuilt Python pipelines in production.",
+    }
+
+    selected = select_ranking_evidence([item], {"required_skills": ["Python"]}, limit=1)
+
+    assert selected[0]["support_state"] == "supported"
+    assert selected[0]["channel_coverage"]["required"] == ["Python"]
+
+
 def test_residual_evidence_preserves_document_locator_provenance() -> None:
     profile = {
         "schema_version": "candidate-profile.v2",

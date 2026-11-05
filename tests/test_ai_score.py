@@ -482,6 +482,90 @@ def test_ranking_input_budget_exceeded_for_omitted_decisive_facts_without_provid
     assert result[0]["ranking_input_diagnostics"]["visibility_manifest"]["mandatory_core_complete"] is False
 
 
+def test_ranking_request_preserves_full_mandatory_requirement_text() -> None:
+    required_skill = "Kubernetes " + ("production-cluster " * 12)
+    job = {"job_url": "https://example.com/kubernetes", "required_skills": [required_skill]}
+    ranking_input = build_ranking_job_input(job, {"skills": [{"name": required_skill}]})
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+
+    request = build_ranking_request(
+        job,
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=route,
+    )
+
+    required_text = required_skill.strip()
+    assert required_text in ranking_input["job_requirements"]
+    assert required_text in request["request"].prompt
+    assert request["visibility_manifest"]["mandatory_core_complete"] is True
+
+
+def test_ranking_request_renders_one_evidence_excerpt_with_metadata() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+    excerpt = "UNIQUE_EVIDENCE_PASSAGE"
+    request = build_ranking_request(
+        {},
+        "candidate",
+        [],
+        {},
+        ranking_input={
+            "job_requirements": "OpenAI agent builder",
+            "candidate_summary": "candidate",
+            "candidate_evidence": [{
+                "evidence_id": "ev-1",
+                "text": excerpt,
+                "scoring_context": excerpt,
+                "support_state": "supported",
+            }],
+        },
+        resolved_route=route,
+    )
+
+    assert request["request"].prompt.count(excerpt) == 1
+
+
+def test_ranking_request_preserves_structured_source_provenance() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+    request = build_ranking_request(
+        {},
+        "candidate",
+        [],
+        {},
+        ranking_input={
+            "job_requirements": "OpenAI agent builder",
+            "candidate_summary": "candidate",
+            "candidate_evidence": [{
+                "evidence_id": "ev-residual",
+                "text": "Residual source evidence",
+                "source_refs": [{
+                    "document_id": "doc_cv",
+                    "source_block_id": "block_7",
+                    "locator": {"page": 3, "paragraph": 2},
+                }],
+            }],
+        },
+        resolved_route=route,
+    )
+
+    assert '"source_block_id": "block_7"' in request["request"].prompt
+    assert '"page": 3' in request["request"].prompt
+
+
 def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflow() -> None:
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",

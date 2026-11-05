@@ -1565,6 +1565,11 @@ def select_ranking_evidence(
                 **item,
                 "score": float(channel_score["score"]) + float(compatibility_score) * 0.1,
                 "channel_coverage": channel_score["coverage"],
+                "support_state": str(
+                    channel_score.get("support_state")
+                    or item.get("support_state")
+                    or "unverified"
+                ),
                 "_selection_index": index,
             }
         )
@@ -1835,22 +1840,23 @@ def _ranking_requirement_channels(
 
 
 def _evidence_search_text(item: dict[str, Any]) -> str:
-    return re.sub(
-        r"\s+",
-        " ",
-        " ".join(
-            _normalize_optional_text(value)
-            for value in (
-                item.get("title"),
-                item.get("parent_title"),
-                item.get("organization"),
-                item.get("role"),
-                item.get("scoring_context"),
-                item.get("text"),
-                *list(item.get("skills") or []),
-                *list(item.get("tech_stack") or []),
-            )
-        ),
+    parts = [
+        _normalize_optional_text(value)
+        for value in (
+            item.get("title"),
+            item.get("parent_title"),
+            item.get("organization"),
+            item.get("role"),
+            item.get("scoring_context"),
+            item.get("text"),
+            *list(item.get("skills") or []),
+            *list(item.get("tech_stack") or []),
+        )
+    ]
+    return "\n".join(
+        re.sub(r"[^\S\r\n]+", " ", part).strip()
+        for part in parts
+        if part
     ).strip()
 
 

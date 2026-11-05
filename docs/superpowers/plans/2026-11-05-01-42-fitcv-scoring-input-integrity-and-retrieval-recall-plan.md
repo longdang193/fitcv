@@ -693,6 +693,18 @@ Required regression coverage:
 - `tests/test_vector_search.py` proves lexical audit rows survive all-missing
   vector fallback.
 
+Final review dispositions:
+
+- Preserved full mandatory requirement and candidate fact text until request
+  budgeting; oversized mandatory content now fails before provider submission.
+- Preserved newline and bullet boundaries for sentence-local negation and
+  propagated support state from the production selector.
+- Preserved structured source references in scorer-visible JSON and rendered
+  one evidence excerpt per item instead of duplicating `text` and
+  `scoring_context`.
+- Added regressions for all five final-review defects, including mandatory
+  character-level loss and scorer-visible provenance.
+
 ## Verification
 
 Final artifact-level proof consists of:
@@ -710,9 +722,9 @@ Final artifact-level proof consists of:
 
 ## Execution Evidence
 
-- Focused cross-stage suite: `529 passed, 2 skipped in 11.84s`.
+- Focused cross-stage suite: `533 passed, 2 skipped in 9.12s`.
 - Compilation: `python -m compileall -q src/fitcv src/fitcv_cp tests` passed.
-- Full suite: `3561 passed, 8 skipped in 307.34s (0:05:07)`.
+- Full suite: `3565 passed, 8 skipped in 277.37s (0:04:37)`.
 - Final-review regression slice: `6 passed` for mandatory scorer admission,
   sentence-local negation, residual provenance, support-state propagation, and
   lexical audit-row preservation.
