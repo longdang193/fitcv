@@ -1669,15 +1669,45 @@ def test_enrich_job_repairs_malformed_json() -> None:
     assert result["location_type"] == "remote"
 
 
-def test_enrich_job_fallback_empty_on_bad_text(caplog: pytest.LogCaptureFixture) -> None:
-    import logging
+def test_enrich_job_rejects_malformed_output_for_batch_retry() -> None:
+    from fitcv.enrich import EnrichRuntimeError
 
-    with caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
-        result = _enrich_job_from_text("I cannot extract structured data from this input.")
+    with pytest.raises(EnrichRuntimeError) as exc_info:
+        _enrich_job_from_text("I cannot extract structured data from this input.")
 
-    assert result["required_skills"] == []
-    assert result["location_type"] is None
-    assert "parse errors" in caplog.text.lower()
+    assert exc_info.value.failure.code == "malformed_extraction"
+    assert exc_info.value.failure.retryable is True
+
+
+def test_enrich_batch_returns_raw_preserving_fallback_after_parse_retries() -> None:
+    from unittest.mock import patch
+
+    from fitcv.enrich import ENRICHMENT_FALLBACK_STATUS, EnrichRuntimeError, enrich_batch
+    from fitcv.llm_runtime import LlmRuntimeFailure
+
+    failure = EnrichRuntimeError(
+        LlmRuntimeFailure(
+            stage="parse",
+            code="malformed_extraction",
+            message="bad JSON",
+            retryable=True,
+        )
+    )
+    job = {**_job_fixture(), "description": "Build a unique Rust service."}
+    with patch("fitcv.enrich.enrich_job", side_effect=failure), patch("time.sleep"):
+        rows = enrich_batch(
+            [job],
+            {
+                "stage_runtime": {"enrich": {"concurrency": 1}},
+                "runtime_inputs": {"system_settings_snapshot": {"maximum_attempts": 2}},
+            },
+        )
+
+    assert len(rows) == 1
+    assert rows[0]["job_url"] == job["job_url"]
+    assert rows[0]["description_cleaned"] == job["description"]
+    assert rows[0]["enrich_reuse_status"] == ENRICHMENT_FALLBACK_STATUS
+    assert rows[0]["enrichment_failure"]["attempts"] == 2
 
 
 def test_enrich_job_falls_back_when_structured_payload_fails_validation() -> None:

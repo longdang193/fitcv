@@ -13,6 +13,8 @@ import pytest
 
 import fitcv.ai_score as ai_score_module
 from fitcv.ai_score import (
+    RankingInputBudgetExceeded,
+    RankingInputIncomplete,
     build_ai_score_contract_fingerprint,
     build_ranking_input_diagnostics,
     build_ranking_job_input,
@@ -355,6 +357,106 @@ def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() ->
     assert requirements["employment_constraints"] == ["Must be eligible to work in the US"]
     assert requirements["mandatory_clauses"][0]["source_span"]["quote"] == "Bachelor's degree in computer science"
     assert "mandatory:education:1" in result["contract_metadata"]["requirement_ids"]
+
+
+def test_fallback_enrichment_is_explicitly_unscored() -> None:
+    ranking_input = build_ranking_job_input(
+        {
+            "enrich_reuse_status": "enrichment_fallback",
+            "description_cleaned": "Requirements: German C1 and AWS certification",
+        },
+        {"skills": []},
+    )
+
+    with pytest.raises(RankingInputIncomplete, match="mandatory ranking facts"):
+        build_ranking_request(
+            {},
+            ranking_input["candidate_summary"],
+            [],
+            {},
+            ranking_input=ranking_input,
+        )
+
+
+def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> None:
+    required_certification = "AWS Certified Solutions Architect"
+    profile = {
+        "certifications": [
+            {"name": f"Unrelated {index}", "issuer": "Issuer"}
+            for index in range(1, 5)
+        ] + [{"name": required_certification, "issuer": "Amazon"}],
+    }
+    ranking_input = build_ranking_job_input(
+        {"certification_requirements": [required_certification]},
+        profile,
+    )
+
+    candidate = json.loads(ranking_input["candidate_summary"])
+    assert candidate["certifications"][0]["name"] == required_certification
+    assert candidate["mandatory_facts"]["certifications"][0]["name"] == required_certification
+
+
+def test_late_education_and_certification_match_ordinary_requirement_wording() -> None:
+    profile = {
+        "education": [
+            {"degree": f"Unrelated {index}", "field": "History", "institution": "Example University"}
+            for index in range(15)
+        ] + [{"degree": "Bachelor of Science", "field": "Computer Science", "institution": "Example University"}],
+        "certifications": [
+            {"name": f"Unrelated {index}", "issuer": "Issuer"}
+            for index in range(15)
+        ] + [{"name": "AWS Certified Solutions Architect", "issuer": "Amazon"}],
+    }
+    ranking_input = build_ranking_job_input(
+        {
+            "education_requirements": ["Bachelor's degree in Computer Science or a related field"],
+            "certification_requirements": ["AWS Certified Solutions Architect certification required"],
+        },
+        profile,
+    )
+
+    candidate = json.loads(ranking_input["candidate_summary"])
+    assert candidate["education"][0]["field"] == "Computer Science"
+    assert candidate["certifications"][0]["name"] == "AWS Certified Solutions Architect"
+    assert candidate["mandatory_facts"]["education"]
+    assert candidate["mandatory_facts"]["certifications"]
+
+
+def test_request_refuses_to_hide_the_only_attributable_evidence() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+    requirement = "Mandatory requirement " + ("context " * 700)
+    ranking_input = {
+        "job_requirements": json.dumps({
+            "mandatory_clauses": [{
+                "clause_id": "qualification-1",
+                "clause_type": "qualification",
+                "value": requirement,
+                "normalized_value": requirement.casefold(),
+                "required": True,
+            }],
+        }),
+        "candidate_summary": "candidate",
+        "candidate_evidence": [{
+            "evidence_id": "ev-source",
+            "title": "Source-backed project",
+            "text": "Built the required system.",
+            "source_ref": "cv:page-1",
+        }],
+    }
+
+    with pytest.raises(RankingInputBudgetExceeded):
+        build_ranking_request(
+            {},
+            "candidate",
+            [],
+            {},
+            ranking_input=ranking_input,
+            resolved_route=route,
+        )
 
 
 def test_build_ranking_request_preserves_long_mandatory_clause_before_budgeting() -> None:

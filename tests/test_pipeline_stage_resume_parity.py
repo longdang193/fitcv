@@ -231,7 +231,7 @@ def test_pipeline_state_restores_legacy_checkpoint_adaptation_count() -> None:
 
 def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> None:
     from fitcv.pipeline_stage_runner import execute_shortlist_stage
-    from fitcv.vector_search import VECTOR_RETRIEVAL_STRATEGY
+    from fitcv.vector_search import HYBRID_RETRIEVAL_STRATEGY, VECTOR_RETRIEVAL_STRATEGY
 
     production_row = {
         "job_url": "https://example.com/production",
@@ -287,7 +287,7 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
             {"job_url": production_row["job_url"], "title": "Production"},
             {"job_url": audit_row["job_url"], "title": "Audit"},
         ],
-        config={"pipeline": {}},
+        config={"pipeline": {"shortlist_audit_sample_n": 1}},
         vector_top_n=1,
         reporter=None,
         pipeline_store=SimpleNamespace(
@@ -312,16 +312,93 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
         "raw_retrieved": 1,
         "audited": 1,
         "admitted": 1,
+        "after_fused_cutoff": 1,
         "not_returned": 1,
     }
     assert state["_shortlist_audit_rows"] == [audit_row]
+    assert state["shortlist_admission_manifest"]["audit_sample"][0]["exclusion_reason"] == "after_fused_cutoff"
+    assert state["shortlist_admission_manifest"]["audit_sample"][0]["vector_rank"] == 2
     assert all(row["job_url"] != audit_row["job_url"] for row in stored[0])
     assert captured_request["urls"] == [production_row["job_url"], audit_row["job_url"]]
     assert captured_request["structured_jobs"] == [
         {"job_url": production_row["job_url"], "title": "Production"},
         {"job_url": audit_row["job_url"], "title": "Audit"},
     ]
-    assert captured_request["requested_strategy"] == VECTOR_RETRIEVAL_STRATEGY
+    assert captured_request["requested_strategy"] == HYBRID_RETRIEVAL_STRATEGY
+
+
+def test_shortlist_manifest_is_bounded_while_admission_ledger_is_complete() -> None:
+    from fitcv.pipeline_stage_runner import execute_shortlist_stage
+    from fitcv.vector_search import HYBRID_RETRIEVAL_STRATEGY
+
+    passed_jobs = [
+        {"job_url": f"https://example.com/job-{index}", "title": "Role"}
+        for index in range(10_000)
+    ]
+    production_rows = [
+        {
+            "job_url": job["job_url"],
+            "vector_rank": index + 1,
+            "lexical_rank": index + 1,
+            "retrieval_strategy": HYBRID_RETRIEVAL_STRATEGY,
+        }
+        for index, job in enumerate(passed_jobs[:50])
+    ]
+    audit_row = {
+        "job_url": passed_jobs[50]["job_url"],
+        "vector_rank": 51,
+        "lexical_rank": 51,
+        "retrieval_strategy": HYBRID_RETRIEVAL_STRATEGY,
+        "shortlist_origin": "audit",
+    }
+    stored_ledger: list[dict] = []
+    state: dict = {}
+
+    def fake_run_vector_search(profile, urls, config, *, top_n, structured_jobs, requested_strategy):
+        return {
+            "production_rows": production_rows,
+            "audit_rows": [audit_row],
+            "diagnostics": {
+                "requested_strategy": requested_strategy,
+                "effective_strategy": HYBRID_RETRIEVAL_STRATEGY,
+                "fusion_fingerprint": "fingerprint",
+            },
+            "candidate_query": {"text": "query", "components": {}},
+        }
+
+    execute_shortlist_stage(
+        run_id="run-bounded",
+        state=state,
+        profile={"preferences": {}},
+        passed_jobs=passed_jobs,
+        config={"pipeline": {"shortlist_audit_sample_n": 1}},
+        vector_top_n=50,
+        reporter=None,
+        pipeline_store=SimpleNamespace(
+            embed_and_store_jobs=lambda jobs, config: None,
+            store_shortlist=lambda rows, config: None,
+            store_shortlist_admission_ledger=lambda rows, diagnostics, run_id, config: stored_ledger.extend(rows),
+        ),
+        observe_span=lambda *args, **kwargs: nullcontext(),
+        set_span_attributes=lambda attributes: None,
+        run_vector_search=fake_run_vector_search,
+        materialize_scoring_shortlist=lambda rows, jobs: [
+            {**next(job for job in jobs if job["job_url"] == row["job_url"]), **row}
+            for row in rows
+        ],
+        unique_job_urls=lambda rows: [str(row["job_url"]) for row in rows],
+        raw_shortlist_anomaly_urls=lambda rows, jobs: [],
+    )
+
+    manifest = state["shortlist_admission_manifest"]
+    assert len(stored_ledger) == 10_000
+    assert len(manifest["rows"]) <= 1
+    assert len(manifest["admitted_sample"]) <= 1
+    assert len(manifest["audit_sample"]) <= 1
+    assert len(manifest["not_returned_sample"]) <= 1
+    assert manifest["counts"]["after_fused_cutoff"] == 1
+    assert stored_ledger[50]["exclusion_reason"] == "after_fused_cutoff"
+    assert stored_ledger[50]["vector_rank"] == 51
 
 
 def test_rule_filter_stage_builds_context_once_and_preserves_full_payload() -> None:

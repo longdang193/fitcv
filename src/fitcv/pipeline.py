@@ -129,6 +129,7 @@ from fitcv.pipeline_stages.common import (
 )
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
+    ENRICHMENT_FALLBACK_STATUS,
     FRESH_ENRICHMENT_STATUS,
     REUSED_CACHED_ENRICHMENT_STATUS,
     build_enrich_contract_fingerprint,
@@ -350,6 +351,14 @@ def _finalize_fresh_enriched_rows(
             continue
         row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
         row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
+        if str(row.get("enrich_reuse_status") or "") == ENRICHMENT_FALLBACK_STATUS:
+            row["reuse_decision"] = build_reuse_decision(
+                decision=ENRICHMENT_FALLBACK_STATUS,
+                reason_code=str((row.get("enrichment_failure") or {}).get("code") or "enrichment_failed"),
+                fingerprint=raw_job_fingerprints.get(job_url),
+                source_artifact_type="enrich",
+            )
+            continue
         row["enrich_reuse_status"] = FRESH_ENRICHMENT_STATUS
         row["reuse_decision"] = build_reuse_decision(
             decision=FRESH_ENRICHMENT_STATUS,
@@ -515,7 +524,8 @@ def _enrich_jobs_with_reuse(
                 raw_job_fingerprints=raw_job_fingerprints,
                 enrich_contract_fingerprint=enrich_contract_fingerprint,
             )[0]
-            persistence_buffer.append(finalized_row)
+            if str(finalized_row.get("enrich_reuse_status") or "") != ENRICHMENT_FALLBACK_STATUS:
+                persistence_buffer.append(finalized_row)
             if len(persistence_buffer) >= _ENRICH_PERSISTENCE_BUFFER_SIZE:
                 _flush_persistence_buffer()
 
@@ -600,7 +610,10 @@ def _enrich_jobs_with_reuse(
         pending_fresh_rows = [
             row
             for row in fresh_rows
-            if (extract_job_url(row) or "") not in incrementally_saved_fresh_urls
+            if (
+                str(row.get("enrich_reuse_status") or "") != ENRICHMENT_FALLBACK_STATUS
+                and (extract_job_url(row) or "") not in incrementally_saved_fresh_urls
+            )
         ]
         if pending_fresh_rows and pipeline_store is not None:
             pipeline_store.load_structured_jobs(pending_fresh_rows, config)
@@ -1799,9 +1812,13 @@ def _build_stage_progress_summary(
     candidate_filter_rejected_jobs = list(state.get("candidate_filter_rejected_jobs") or [])
     raw_shortlist = list(state.get("raw_shortlist") or [])
     shortlist = list(state.get("shortlist") or [])
-    shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
     shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
     shortlist_admission_manifest = dict(state.get("shortlist_admission_manifest") or {})
+    shortlist_audit_rows = list(
+        state.get("_shortlist_audit_rows")
+        or shortlist_admission_manifest.get("audit_sample")
+        or []
+    )
     ai_scores = list(state.get("ai_scores") or [])
     enrich_llm_runtime_observations = list(state.get("enrich_llm_runtime_observations") or [])
     ranking_llm_runtime_observations = list(state.get("ranking_llm_runtime_observations") or [])
@@ -3656,8 +3673,13 @@ def run_pipeline(
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         raw_shortlist = list(state["raw_shortlist"])
         shortlist = list(state["shortlist"])
-        shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
         shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
+        shortlist_admission_manifest = dict(state.get("shortlist_admission_manifest") or {})
+        shortlist_audit_rows = list(
+            state.get("_shortlist_audit_rows")
+            or shortlist_admission_manifest.get("audit_sample")
+            or []
+        )
         ai_scores = list(state["ai_scores"])
         ranking_llm_runtime_observations = list(state["ranking_llm_runtime_observations"])
         ranking_inputs = list(state["ranking_inputs"])
@@ -4050,7 +4072,12 @@ def run_pipeline(
 
         raw_shortlist = list(state["raw_shortlist"])
         shortlist = list(state["shortlist"])
-        shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
+        shortlist_admission_manifest = dict(state.get("shortlist_admission_manifest") or {})
+        shortlist_audit_rows = list(
+            state.get("_shortlist_audit_rows")
+            or shortlist_admission_manifest.get("audit_sample")
+            or []
+        )
         shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
         candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
         if not candidate_query_components or not candidate_summary:

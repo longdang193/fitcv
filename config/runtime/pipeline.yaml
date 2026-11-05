@@ -28,7 +28,7 @@ embedding_batch_size: 100
 
 # ── Semantic retrieval (Task 8) ────────────────────────────────────────────────
 pipeline:
-  retrieval_strategy: vector_cosine_v1     # vector_cosine_v1, lexical_v1, or hybrid_rrf_v1
+  retrieval_strategy: hybrid_rrf_v1        # vector_cosine_v1, lexical_v1, or hybrid_rrf_v1
   vector_search_top_n: 50              # canonical shortlist top-N for vector search
   shortlist_audit_sample_n: 5          # deterministic below-cutoff retrieval audit sample
   ai_score_top_n: 50                   # canonical ranking top-N for AI scoring

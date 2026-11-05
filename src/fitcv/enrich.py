@@ -282,6 +282,7 @@ ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
 ENRICH_CONTRACT_VERSION = "enrich_contract_v2"
 FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
 REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
+ENRICHMENT_FALLBACK_STATUS = "enrichment_fallback"
 _SPARSE_REQUIRED_SKILLS_THRESHOLD = 3
 
 # ── Markdown fence stripper ───────────────────────────────────────────────────
@@ -2175,12 +2176,47 @@ def _enrich_result_to_row(
 
     extraction = result.parsed_value
     if extraction["errors"]:
-        logger.warning(
-            "Enrichment parse errors for job %r: %s",
-            job.get("title") or job.get("job_url"),
-            "; ".join(extraction["errors"]),
+        raise EnrichRuntimeError(
+            LlmRuntimeFailure(
+                stage="parse",
+                code="malformed_extraction",
+                message="; ".join(str(error) for error in extraction["errors"]),
+                retryable=True,
+            )
         )
-    return merge_scraped_and_enriched(job, extraction["parsed"], config)
+    merged = merge_scraped_and_enriched(job, extraction["parsed"], config)
+    if _is_semantically_blank_enrichment_row(merged):
+        raise EnrichRuntimeError(
+            LlmRuntimeFailure(
+                stage="validate",
+                code="blank_enrichment",
+                message="Enrichment response contained no usable structured fields.",
+                retryable=True,
+            )
+        )
+    return merged
+
+
+def _build_enrichment_fallback_row(
+    job: dict[str, Any],
+    config: dict[str, Any],
+    failure: LlmRuntimeFailure,
+    *,
+    attempts: int,
+) -> dict[str, Any]:
+    row = merge_scraped_and_enriched(job, {}, config)
+    row.update(
+        {
+            "enrich_reuse_status": ENRICHMENT_FALLBACK_STATUS,
+            "enrichment_failure": {
+                "stage": failure.stage,
+                "code": failure.code,
+                "message": failure.message,
+                "attempts": attempts,
+            },
+        }
+    )
+    return row
 
 
 def enrich_job(
@@ -2255,8 +2291,25 @@ def _enrich_one(
                 and failure.code == "adapter_http_error"
                 and failure.http_status == 429
             )
-            if not retryable_rate_limit or attempt_number >= maximum_attempts:
+            retryable_failure = failure.retryable or retryable_rate_limit
+            if not retryable_failure:
                 raise
+            if attempt_number >= maximum_attempts:
+                if failure.stage not in {"parse", "validate"}:
+                    raise
+                logger.warning(
+                    "Enrichment fallback for job %r after %d attempts: %s",
+                    job.get("title") or job.get("job_url"),
+                    attempt_number,
+                    failure.message,
+                )
+                enriched = _build_enrichment_fallback_row(
+                    job,
+                    config,
+                    failure,
+                    attempts=attempt_number,
+                )
+                break
             if backoff_seconds > 0:
                 time.sleep(backoff_seconds)
             continue
@@ -2274,6 +2327,19 @@ def _enrich_one(
                 pass
         return enriched
 
+    if "enriched" in locals():
+        if job_event_callback and job_url:
+            try:
+                job_event_callback(
+                    {
+                        "phase": "job_done",
+                        "job_url": job_url,
+                        "elapsed_secs": int(max(0.0, time.monotonic() - started_at)),
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return enriched
     raise RuntimeError("enrichment attempts exhausted")
 
 
