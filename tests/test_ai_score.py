@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
+import fitcv.ai_score as ai_score_module
 from fitcv.ai_score import (
     build_ai_score_contract_fingerprint,
     build_ranking_input_diagnostics,
@@ -483,23 +484,59 @@ def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflo
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
-def test_ranking_request_enforces_serialized_budget_after_json_escaping() -> None:
+def test_ranking_request_rejects_unbounded_custom_prompt_overflow(monkeypatch: pytest.MonkeyPatch) -> None:
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
         model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
         auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="configuration",
     )
     noisy = ('"\\\n' * 2_000)
-    request = build_ranking_request(
-        {},
-        noisy,
-        [],
-        {},
-        ranking_input={"job_requirements": noisy, "candidate_summary": noisy, "candidate_evidence": []},
-        resolved_route=route,
+    monkeypatch.setattr(ai_score_module, "build_scoring_prompt", lambda *args, **kwargs: noisy)
+    with pytest.raises(ValueError, match="mandatory"):
+        build_ranking_request(
+            {},
+            noisy,
+            [],
+            {},
+            ranking_input={"job_requirements": noisy, "candidate_summary": noisy, "candidate_evidence": []},
+            resolved_route=route,
+        )
+
+
+def test_ranking_input_diagnostics_include_bounded_visible_requirements_and_backend() -> None:
+    ranking_input = {
+        "candidate_summary": json.dumps({"skills": [f"Skill {index}" for index in range(1, 12)]}),
+        "candidate_evidence": [{"evidence_id": "ev-1", "title": "Project", "text": "Evidence"}],
+        "contract_metadata": {
+            "version": "ranking_input_v3",
+            "requirement_ids": [f"required:{index}" for index in range(100)],
+            "canonical_checksums": {"candidate_facts": "candidate-checksum"},
+        },
+    }
+
+    diagnostics = build_ranking_input_diagnostics(
+        ranking_input,
+        {
+            "request_payload": {"prompt": "bounded"},
+            "prompt_truncated": True,
+            "prompt_truncation_steps": ["candidate_facts:field_aware_bound"],
+        },
+        retrieval_metadata={
+            "retrieval_strategy": "lexical_v1",
+            "effective_strategy": "lexical_v1",
+            "backend_id": "disabled",
+            "effective_embedding_backend_metadata": {"backend_id": "disabled", "dimension": 0},
+        },
     )
 
-    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+    assert diagnostics["visible_candidate_skills"] == [f"Skill {index}" for index in range(1, 9)]
+    assert diagnostics["bounded_requirement_ids"] == [f"required:{index}" for index in range(32)]
+    assert diagnostics["effective_retrieval_metadata"] == {
+        "retrieval_strategy": "lexical_v1",
+        "effective_strategy": "lexical_v1",
+        "backend_id": "disabled",
+        "effective_embedding_backend_metadata": {"backend_id": "disabled", "dimension": 0},
+    }
 
 
 def test_ranking_job_input_dedupes_aliases_and_keeps_required_priority() -> None:
@@ -1195,6 +1232,78 @@ def test_stage_runner_recomputes_invalid_cached_score(monkeypatch: pytest.Monkey
         build_ranking_features=lambda *_a, **_k: [], rank_jobs=lambda *_a, **_k: [], preference_policy_resolver=lambda _: None,
     )
     assert calls == ["recomputed"]
+
+
+def test_ranking_stage_persists_selected_evidence_and_scorer_diagnostics(monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+    from fitcv.pipeline_stage_runner import execute_ranking_stage
+
+    captured: dict[str, Any] = {}
+
+    class Store:
+        def store_final_ranking(self, *_: Any) -> None:
+            return None
+
+    job = {
+        "job_url": "https://example.com/agent-role",
+        "title": "AI Agent Builder",
+        "required_skills_canonical": ["Python", "OpenAI"],
+        "tech_stack_canonical": ["OpenAI"],
+        "responsibilities": ["Build agent workflows"],
+    }
+    profile = {
+        "skills": [{"name": "Python"}, {"name": "OpenAI"}],
+        "projects": [
+            {
+                "id": "agent-project",
+                "name": "Agent Platform",
+                "skills": ["Python", "OpenAI"],
+                "tech_stack": ["OpenAI"],
+                "highlights": ["Built agent workflows with OpenAI APIs."],
+            }
+        ],
+    }
+
+    def score(jobs: list[dict[str, Any]], *_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        captured["ranking_inputs"] = kwargs["ranking_inputs"]
+        return [{"job_url": jobs[0]["job_url"], "ai_score": 0.8, "score_status": "valid"}]
+
+    state: dict[str, Any] = {
+        "shortlist_diagnostics": {
+            "requested_strategy": "lexical_v1",
+            "effective_strategy": "lexical_v1",
+            "backend_id": "structured_jobs_lexical",
+        }
+    }
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_run_preference_policy", lambda **_kwargs: object())
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolved_preference_policy_to_dict", lambda _policy: {})
+    execute_ranking_stage(
+        run_id="run-1",
+        state=state,
+        shortlist=[job],
+        candidate_summary="Candidate builder",
+        profile=profile,
+        config={"pipeline": {"ai_score_top_n": 1}, "reuse": {"ranking": {"enabled": False}}},
+        final_top_n=1,
+        reporter=None,
+        pipeline_store=Store(),
+        observe_span=lambda *_args, **_kwargs: nullcontext(),
+        set_span_attributes=lambda _attrs: None,
+        cancellation_check=None,
+        cancellation_error_cls=RuntimeError,
+        ranking_ai_score_reuse_index={},
+        build_ai_score_input_fingerprint=lambda *_args, **_kwargs: {"fingerprint": "fp"},
+        extract_job_url=lambda row: row["job_url"],
+        run_ai_scoring=score,
+        build_ranking_features=lambda *_args, **_kwargs: [],
+        rank_jobs=lambda *_args, **_kwargs: [],
+        preference_policy_resolver=lambda _contract: None,
+    )
+
+    identity = "url:https://example.com/agent-role"
+    assert identity in captured["ranking_inputs"]
+    assert captured["ranking_inputs"][identity]["candidate_evidence"]
+    assert state["ranking_input_diagnostics_by_identity"][identity]["selected_evidence_ids"]
 
 
 def test_route_resolution_failure_maps_to_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:

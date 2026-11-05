@@ -70,6 +70,7 @@ RANKING_TERM_MAX_CHARS = 160
 RANKING_EVIDENCE_TEXT_MAX_CHARS = 400
 RANKING_MAX_SKILLS = 8
 RANKING_MAX_EVIDENCE = 2
+RANKING_MAX_REQUIREMENT_IDS = 32
 
 
 def _semantic_policy(config: dict[str, Any] | None) -> dict[str, Any]:
@@ -328,15 +329,9 @@ def build_ranking_request(
                         truncation_steps.append(f"job_requirements:{len(jd_summary)}->{jd_limit}")
                         break
                 else:
-                    low, high = 0, len(prompt)
-                    while low < high:
-                        midpoint = (low + high + 1) // 2
-                        if serialized_request_size(prompt[:midpoint]) <= RANKING_REQUEST_MAX_CHARS:
-                            low = midpoint
-                        else:
-                            high = midpoint - 1
-                    prompt = prompt[:low]
-                    truncation_steps.append("mandatory_prompt_tail")
+                    raise ValueError(
+                        "ranking request mandatory contract exceeds 12000 characters"
+                    )
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {
         **base_request_payload,
@@ -364,6 +359,8 @@ def build_ranking_request(
 def build_ranking_input_diagnostics(
     ranking_input: dict[str, Any] | None,
     request_record: dict[str, Any] | None = None,
+    *,
+    retrieval_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return bounded, persisted diagnostics for the exact scorer handoff."""
     source = ranking_input or {}
@@ -371,10 +368,18 @@ def build_ranking_input_diagnostics(
     evidence = [item for item in list(source.get("candidate_evidence") or []) if isinstance(item, dict)]
     request_payload = dict((request_record or {}).get("request_payload") or {})
     candidate_skill_count = 0
+    visible_candidate_skills: list[str] = []
     candidate_summary_value = source.get("candidate_summary")
     if isinstance(candidate_summary_value, str):
         try:
-            candidate_skill_count = len(list((json.loads(candidate_summary_value) or {}).get("skills") or []))
+            candidate_payload = json.loads(candidate_summary_value) or {}
+            candidate_skills = list(candidate_payload.get("skills") or [])
+            candidate_skill_count = len(candidate_skills)
+            visible_candidate_skills = [
+                _bounded_text(value, RANKING_TERM_MAX_CHARS)
+                for value in candidate_skills[:RANKING_MAX_SKILLS]
+                if _bounded_text(value, RANKING_TERM_MAX_CHARS)
+            ]
         except (TypeError, ValueError, json.JSONDecodeError):
             candidate_skill_count = 0
     serialized_request = (
@@ -382,6 +387,25 @@ def build_ranking_input_diagnostics(
         if request_payload
         else None
     )
+    retrieval = dict(retrieval_metadata or {})
+    backend_metadata = {
+        key: retrieval[key]
+        for key in (
+            "retrieval_strategy",
+            "requested_strategy",
+            "effective_strategy",
+            "backend_id",
+            "embedding_backend_id",
+            "requested_embedding_backend_id",
+            "effective_embedding_backend_metadata",
+            "configured_model",
+            "dimension",
+            "model_revision",
+            "preprocessing_version",
+            "contract_fingerprint",
+        )
+        if key in retrieval
+    }
     return {
         "contract_version": str(metadata.get("version") or RANKING_INPUT_CONTRACT_VERSION),
         "semantic_policy_fingerprint": str(metadata.get("semantic_policy_fingerprint") or ""),
@@ -394,6 +418,26 @@ def build_ranking_input_diagnostics(
         ],
         "selected_evidence_count": len(evidence[:RANKING_MAX_EVIDENCE]),
         "candidate_skill_count": candidate_skill_count,
+        "visible_candidate_skills": visible_candidate_skills,
+        "bounded_requirement_ids": [
+            str(value)
+            for value in list(metadata.get("requirement_ids") or [])[:RANKING_MAX_REQUIREMENT_IDS]
+            if str(value).strip()
+        ],
+        "effective_backend_metadata": backend_metadata,
+        "effective_retrieval_metadata": {
+            key: backend_metadata[key]
+            for key in (
+                "retrieval_strategy",
+                "requested_strategy",
+                "effective_strategy",
+                "backend_id",
+                "embedding_backend_id",
+                "requested_embedding_backend_id",
+                "effective_embedding_backend_metadata",
+            )
+            if key in backend_metadata
+        },
         "omitted_counts": dict(metadata.get("omitted_counts") or {}),
         "request_char_count": serialized_request,
         "request_max_chars": RANKING_REQUEST_MAX_CHARS,
@@ -477,12 +521,18 @@ def build_ranking_job_input(
         "evidence_id": str(item.get("evidence_id") or ""),
         "kind": str(item.get("kind") or ""),
         "title": _bounded_text(item.get("title"), RANKING_TERM_MAX_CHARS),
-        "text": _bounded_text(build_evidence_excerpt(item, job), RANKING_EVIDENCE_TEXT_MAX_CHARS),
+        "text": _bounded_text(
+            build_evidence_excerpt(item, job, semantic_policy=policy),
+            RANKING_EVIDENCE_TEXT_MAX_CHARS,
+        ),
         "source_section": _bounded_text(item.get("source_section"), RANKING_TERM_MAX_CHARS),
         "parent_id": _bounded_text(item.get("parent_id"), RANKING_TERM_MAX_CHARS),
         "parent_title": _bounded_text(item.get("parent_title"), RANKING_TERM_MAX_CHARS),
         "organization": _bounded_text(item.get("organization"), RANKING_TERM_MAX_CHARS),
-        "scoring_context": _bounded_text(build_evidence_excerpt(item, job), RANKING_EVIDENCE_TEXT_MAX_CHARS),
+        "scoring_context": _bounded_text(
+            build_evidence_excerpt(item, job, semantic_policy=policy),
+            RANKING_EVIDENCE_TEXT_MAX_CHARS,
+        ),
         "source_refs": _bounded_values(item.get("source_refs"), limit=4),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
     } for item in projected_evidence[:RANKING_MAX_EVIDENCE] if isinstance(item, dict)]
@@ -584,6 +634,12 @@ def build_ranking_job_input(
             "candidate_skills": max(0, len(all_candidate_skills) - len(candidate_skills)),
             "evidence": max(0, len(projected_evidence) - len(evidence)),
         },
+        "requirement_ids": [
+            *[f"required:{index}" for index in range(len(required_skills))],
+            *[f"technology:{index}" for index in range(len(technology_requirements))],
+            *[f"preferred:{index}" for index in range(len(preferred_skills))],
+            *[f"responsibility:{index}" for index in range(len(requirements["responsibilities"]))],
+        ],
     }
     return {
         "job_requirements": json.dumps(requirements, ensure_ascii=False, sort_keys=True),

@@ -19,6 +19,7 @@ import hashlib
 import json
 import logging
 import math
+import re
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, TypedDict
@@ -247,6 +248,39 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
             text = str(technology or "").strip()
             _append_unique_text(values, text, seen)
     return values
+
+
+_GENERIC_TECHNOLOGY_TOKENS = frozenset(
+    {"api", "apis", "framework", "frameworks", "platform", "platforms", "tool", "tools", "technology", "technologies"}
+)
+
+
+def _technology_term_tokens(value: Any) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[\w]+(?:[+#]+)?", str(value or "").casefold())
+        if token not in _GENERIC_TECHNOLOGY_TOKENS
+    }
+
+
+def _technology_overlap(job_technology: list[Any], candidate_technology: list[Any]) -> float:
+    job_terms = [_technology_term_tokens(value) for value in job_technology]
+    candidate_terms = [_technology_term_tokens(value) for value in candidate_technology]
+    job_terms = [tokens for tokens in job_terms if tokens]
+    if not job_terms:
+        return 0.0
+    matched = sum(
+        1
+        for job_tokens in job_terms
+        if any(
+            job_tokens == candidate_tokens
+            or job_tokens.issubset(candidate_tokens)
+            or candidate_tokens.issubset(job_tokens)
+            for candidate_tokens in candidate_terms
+            if candidate_tokens
+        )
+    )
+    return matched / len(job_terms)
 
 
 def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
@@ -581,6 +615,7 @@ def _lexical_search_result(
     prefs = dict(profile.get("preferences") or {})
     candidate_skills = flatten_rankable_skills(profile)
     jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
+    candidate_technology = _profile_technology_inventory(profile)
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
         job = jobs_by_url.get(job_url)
@@ -597,16 +632,7 @@ def _lexical_search_result(
         preference = compute_declared_preference_fit_details(job, prefs, config)
         parts = preference["components"]
         job_technology = list(job.get("tech_stack_canonical") or job.get("tech_stack") or [])
-        candidate_technology = _profile_technology_inventory(profile)
-        job_technology_keys = {str(value).strip().casefold() for value in job_technology if str(value).strip()}
-        candidate_technology_keys = {
-            str(value).strip().casefold() for value in candidate_technology if str(value).strip()
-        }
-        technology_overlap = (
-            len(job_technology_keys & candidate_technology_keys) / len(job_technology_keys)
-            if job_technology_keys
-            else 0.0
-        )
+        technology_overlap = _technology_overlap(job_technology, candidate_technology)
         base_score = (skill_score + title_score + float(parts["domain"]) + float(parts["work_mode"])) / 4.0
         retrieval_score = (base_score * 0.75) + (technology_overlap * 0.25)
         scored.append({
@@ -774,6 +800,11 @@ def run_vector_search(
         if key != "embedding"
     }
     placeholders = ",".join(["?"] * len(eligible_job_urls))
+    current_signatures = {
+        str(job.get("job_url") or ""): str(job.get("embedding_input_signature") or "")
+        for job in list(structured_jobs or [])
+        if isinstance(job, dict) and str(job.get("job_url") or "")
+    }
     with sqlite_connection(sqlite_path(), timeout=30) as conn:
         configure_sqlite_connection(conn)
         embedding_columns = {
@@ -785,23 +816,32 @@ def run_vector_search(
             if "embedding_contract_fingerprint" in embedding_columns
             else "'' AS embedding_contract_fingerprint"
         )
+        signature_expression = (
+            "embedding_input_signature"
+            if "embedding_input_signature" in embedding_columns
+            else "''"
+        )
+        signature_select = f"{signature_expression} AS embedding_input_signature"
         query = f"""        WITH ranked_embeddings AS (
           SELECT
             id,
             job_url,
             embedding_json,
+                created_at,
             {contract_select},
+            {signature_select},
             ROW_NUMBER() OVER (
-              PARTITION BY job_url
+              PARTITION BY job_url, COALESCE({signature_expression}, '')
               ORDER BY created_at DESC, id DESC
             ) AS row_number,
             COUNT(*) OVER (PARTITION BY job_url) AS embedding_row_count
           FROM job_embeddings
           WHERE chunk_type = 'job_summary' AND job_url IN ({placeholders})
         )
-        SELECT job_url, embedding_json, embedding_contract_fingerprint, embedding_row_count
+        SELECT job_url, embedding_json, embedding_contract_fingerprint, embedding_input_signature, embedding_row_count, created_at, id
         FROM ranked_embeddings
         WHERE row_number = 1
+        ORDER BY job_url, created_at DESC, id DESC
         """
         try:
             rows = list(conn.execute(query, tuple(eligible_job_urls)).fetchall())
@@ -811,21 +851,35 @@ def run_vector_search(
             rows = []
             embedding_table_available = False
 
-    latest_by_url = {
-        str(job_url): (embedding_json, str(contract_fingerprint or ""), int(row_count))
-        for job_url, embedding_json, contract_fingerprint, row_count in rows
-    }
+    latest_by_url: dict[str, tuple[str, str, str, int, str, int]] = {}
+    for job_url, embedding_json, contract_fingerprint, input_signature, row_count, created_at, embedding_id in rows:
+        normalized_url = str(job_url)
+        signature = str(input_signature or "")
+        current_signature = current_signatures.get(normalized_url, "")
+        if current_signature and signature != current_signature:
+            continue
+        candidate = (
+            str(embedding_json),
+            str(contract_fingerprint or ""),
+            signature,
+            int(row_count),
+            str(created_at or ""),
+            int(embedding_id),
+        )
+        previous = latest_by_url.get(normalized_url)
+        if previous is None or (candidate[4], candidate[5]) >= (previous[4], previous[5]):
+            latest_by_url[normalized_url] = candidate
     missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
     invalid_urls: list[str] = []
     incompatible_contract_urls: list[str] = []
-    duplicate_urls = sorted(job_url for job_url, (_, _, count) in latest_by_url.items() if count > 1)
+    duplicate_urls = sorted(job_url for job_url, (_, _, _, count, _, _) in latest_by_url.items() if count > 1)
     expected_contract = str(build_embedding_contract_fingerprint(config)["fingerprint"])
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
         latest = latest_by_url.get(job_url)
         if latest is None:
             continue
-        embedding_json, embedding_contract_fingerprint, _ = latest
+        embedding_json, embedding_contract_fingerprint, _, _, _, _ = latest
         if embedding_table_available and "embedding_contract_fingerprint" in embedding_columns and embedding_contract_fingerprint != expected_contract:
             incompatible_contract_urls.append(job_url)
             continue

@@ -379,6 +379,26 @@ def _adapt_legacy_parent(
         normalized["end"] = "Present"
     evidence: list[dict[str, Any]] = []
     parent_evidence_ids: list[str] = []
+    if section == "projects":
+        parent_context = next(
+            (
+                normalized.get(key)
+                for key in ("summary", "description", "business_value", "name")
+                if str(normalized.get(key) or "").strip()
+            ),
+            None,
+        )
+        parent_context_evidence = _legacy_evidence(
+            parent_id=parent_id,
+            kind="project_highlight",
+            title="Project context",
+            text=parent_context,
+            index=-1,
+            document_id=document_id,
+        )
+        if parent_context_evidence:
+            evidence.append(parent_context_evidence)
+            parent_evidence_ids.append(parent_context_evidence["id"])
     for index, value in enumerate(normalized.pop("evidence", []) or []):
         if not isinstance(value, dict):
             continue
@@ -521,8 +541,6 @@ def _adapt_legacy_parent(
         "responsibility_themes": {},
     }
     parent_refs = parent_evidence_ids
-    if section == "projects":
-        parent_refs = all_evidence_ids
     for name in parent_skill_names:
         if name:
             claim_refs["skills"].setdefault(name, [])

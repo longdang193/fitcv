@@ -25,6 +25,7 @@ from typing import Any, Callable
 from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ai_score import build_ranking_input_diagnostics, build_ranking_job_input
 from fitcv.evidence import build_evidence_projection, select_ranking_evidence
+from fitcv.semantic_snapshot import compile_semantic_policy
 from fitcv.pipeline_stages.common import primary_job_identity_key
 from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
 from fitcv.preference_policy import (
@@ -380,20 +381,30 @@ def execute_ranking_stage(
             profile if profile_for_projection is None else profile_for_projection
         )
         profile_evidence_pool = list(evidence_projection.get("items") or [])
+        semantic_policy = config.get("semantic_policy")
+        if not isinstance(semantic_policy, dict):
+            semantic_policy = compile_semantic_policy(config)
+        retrieval_metadata = dict(state.get("shortlist_diagnostics") or {})
         fresh_scoring_jobs: list[dict[str, Any]] = []
         fresh_ai_score_fingerprints: dict[str, str] = {}
         reused_ai_scores_by_identity: dict[str, dict[str, Any]] = {}
         ranking_inputs_by_identity: dict[str, dict[str, Any]] = {}
         ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
-            selected_evidence = select_ranking_evidence(profile_evidence_pool, shortlisted_job, limit=2)
+            selected_evidence = select_ranking_evidence(
+                profile_evidence_pool,
+                shortlisted_job,
+                limit=2,
+                semantic_policy=semantic_policy,
+            )
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
             ranking_input = build_ranking_job_input(shortlisted_job, ranking_profile, config)
             identity_key = primary_job_identity_key(shortlisted_job)
             if identity_key:
                 ranking_inputs_by_identity[identity_key] = ranking_input
                 ranking_input_diagnostics_by_identity[identity_key] = build_ranking_input_diagnostics(
-                    ranking_input
+                    ranking_input,
+                    retrieval_metadata=retrieval_metadata,
                 )
             top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
             try:
@@ -426,7 +437,10 @@ def execute_ranking_stage(
                     },
                     "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
                     "ai_score_reuse_status": "reused_exact_match",
-                    "ranking_input_diagnostics": build_ranking_input_diagnostics(ranking_input),
+                    "ranking_input_diagnostics": build_ranking_input_diagnostics(
+                        ranking_input,
+                        retrieval_metadata=retrieval_metadata,
+                    ),
                 }
                 if build_reuse_decision_callback is not None:
                     reused_ai_scores_by_identity[identity_key]["reuse_decision"] = (

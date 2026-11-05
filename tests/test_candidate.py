@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from fitcv.candidate import (
+    adapt_candidate_profile_to_v2,
     canonical_candidate_checksum,
     candidate_profile_field_schema,
     converge_candidate_profile_for_runtime,
@@ -130,6 +131,44 @@ def test_runtime_convergence_preserves_legacy_project_technology_as_evidence() -
     assert all(item["id"].startswith("project_technology_") for item in technology)
     assert [item["text"] for item in technology] == ["OpenAI", "Claude Code"]
     assert all(item["source_refs"] for item in technology)
+
+
+def test_legacy_parent_skill_uses_parent_context_without_inheriting_child_refs() -> None:
+    converted = adapt_candidate_profile_to_v2(
+        {
+            "name": "Legacy Candidate",
+            "projects": [
+                {
+                    "id": "project_1",
+                    "name": "Agent Builder",
+                    "skills": ["OpenAI"],
+                    "highlights": ["Built evaluation workflows"],
+                }
+            ],
+            "experiences": [
+                {
+                    "id": "experience_1",
+                    "role": "Engineer",
+                    "company": "Example",
+                    "skills": ["SQL"],
+                    "bullets": [{"text": "Built Python pipelines", "skills": ["Python"]}],
+                }
+            ],
+            "skills": [],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+    )
+
+    project = converted["projects"][0]
+    context = next(item for item in project["evidence"] if item.get("title") == "Project context")
+    experience = converted["experiences"][0]
+    bullet = next(item for item in experience["evidence"] if item.get("kind") == "work_achievement")
+    skills = {item["name"]: item for item in converted["skills"]}
+
+    assert context["source_refs"] == [{"document_id": "doc_1"}]
+    assert skills["OpenAI"]["evidence_refs"] == [context["id"]]
+    assert skills["OpenAI"]["evidence_refs"] != [item["id"] for item in project["evidence"]]
+    assert skills["Python"]["evidence_refs"] == [bullet["id"]]
 
 def test_runtime_convergence_rejects_invalid_v2_references() -> None:
     profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})

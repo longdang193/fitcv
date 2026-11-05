@@ -147,6 +147,31 @@ def test_pipeline_state_persists_shortlist_diagnostics_without_audit_or_backfill
     assert not hasattr(restored, "backfilled_job_urls")
 
 
+def test_pipeline_state_round_trips_ranking_input_diagnostics() -> None:
+    diagnostics = {
+        "job-1": {
+            "contract_version": "ranking_input_v3",
+            "visible_candidate_skills": ["Python"],
+            "bounded_requirement_ids": ["required:0"],
+            "selected_evidence_ids": ["ev-1"],
+            "effective_retrieval_metadata": {"retrieval_strategy": "lexical_v1"},
+        }
+    }
+    state = PipelineState(
+        run_id="run-ranking-diagnostics",
+        ranking_input_diagnostics_by_identity=diagnostics,
+    )
+
+    payload = state.as_state_dict()
+    restored = PipelineState.from_checkpoint_payload(
+        run_id=state.run_id,
+        checkpoint_payload=payload,
+    )
+
+    assert payload["ranking_input_diagnostics_by_identity"] == diagnostics
+    assert restored.ranking_input_diagnostics_by_identity == diagnostics
+
+
 def test_pipeline_state_adapts_legacy_ranking_rows_at_checkpoint_boundary() -> None:
     restored = PipelineState.from_checkpoint_payload(
         run_id="run-legacy",
