@@ -833,11 +833,25 @@ def _build_export_results(
     passed_job_urls = {extract_job_url(job) for job in passed_jobs if extract_job_url(job)}
     debug_by_identity = _index_rows_by_identity(cv_generation_debug_records)
     debug_by_url = _unique_rows_by_url(cv_generation_debug_records)
+    blocked_by_reranker_debug_by_url = _unique_rows_by_url(
+        [
+            record
+            for record in cv_generation_debug_records
+            if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+        ]
+    )
+    skipped_fit_gate_debug_by_url = _unique_rows_by_url(
+        [
+            record
+            for record in cv_generation_debug_records
+            if str(record.get("status") or "") == "skipped_fit_gate"
+        ]
+    )
     skipped_fit_gate_identity_keys = {
         identity_key
         for record in cv_generation_debug_records
         if str(record.get("status") or "") == "skipped_fit_gate"
-        for identity_key in _identity_keys_for(record)
+        for identity_key in job_identity_index_keys(_identity_seed(record))
     }
     blocked_by_reranker_identity_keys = {
         identity_key
@@ -851,7 +865,6 @@ def _build_export_results(
         if job.get("input_index") is not None
     }
 
-    reject_reasons_by_identity: dict[str, list[str]] = {}
     rule_filter_marks_by_identity: dict[str, list[dict[str, Any]]] = {}
     for job in passed_jobs:
         marks = list(job.get("marks") or [])
@@ -859,19 +872,15 @@ def _build_export_results(
             rule_filter_marks_by_identity[identity_key] = marks
     rejected_before_enrichment_identity_keys: set[str] = set()
     rejected_after_enrichment_identity_keys: set[str] = set()
+    rejected_before_enrichment_by_identity = _index_rows_by_identity(pre_filter_rejected)
+    rejected_after_enrichment_by_identity = _index_rows_by_identity(candidate_filter_rejected)
     rejected_before_enrichment_by_url = _unique_rows_by_url(pre_filter_rejected)
     rejected_after_enrichment_by_url = _unique_rows_by_url(candidate_filter_rejected)
     for rejected in pre_filter_rejected:
-        reject_reasons = list(rejected.get("reasons") or [])
         for identity_key in job_identity_index_keys(_identity_seed(rejected)):
-            reject_reasons_by_identity[identity_key] = reject_reasons
             rejected_before_enrichment_identity_keys.add(identity_key)
     for rejected in candidate_filter_rejected:
-        reject_reasons = list(rejected.get("reasons") or [])
-        marks = list(rejected.get("marks") or [])
         for identity_key in job_identity_index_keys(_identity_seed(rejected)):
-            reject_reasons_by_identity[identity_key] = reject_reasons
-            rule_filter_marks_by_identity[identity_key] = marks
             rejected_after_enrichment_identity_keys.add(identity_key)
 
     def _status_for(raw_job: dict[str, Any]) -> str:
@@ -890,9 +899,19 @@ def _build_export_results(
         )
         if scoring_row is not None and normalize_score_state(scoring_row)["score_status"] != SCORE_STATUS_VALID:
             return "ranking_unavailable"
-        if _matches(blocked_by_reranker_identity_keys, raw_job, debug_by_url):
+        if _matches(
+            blocked_by_reranker_identity_keys,
+            raw_job,
+            blocked_by_reranker_debug_by_url,
+            reject_conflicting_stable_identity=True,
+        ):
             return PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER
-        if _matches(skipped_fit_gate_identity_keys, raw_job, debug_by_url):
+        if _matches(
+            skipped_fit_gate_identity_keys,
+            raw_job,
+            skipped_fit_gate_debug_by_url,
+            reject_conflicting_stable_identity=True,
+        ):
             return "ranked_skipped_fit_gate"
         if _lookup(
             ranked_by_identity,
@@ -1024,22 +1043,30 @@ def _build_export_results(
                 "created_at": cv_row.get("generated_at"),
             }
         pipeline_status = _status_for(seeded_raw_job)
-        reject_reasons = next(
-            (
-                reject_reasons_by_identity[identity_key]
-                for identity_key in job_identity_index_keys(seeded_raw_job)
-                if identity_key in reject_reasons_by_identity
-            ),
-            [],
+        rejection_row = _lookup(
+            rejected_before_enrichment_by_identity,
+            seeded_raw_job,
+            rejected_before_enrichment_by_url,
+            reject_conflicting_stable_identity=True,
         )
-        rule_filter_marks = next(
-            (
-                rule_filter_marks_by_identity[identity_key]
-                for identity_key in job_identity_index_keys(seeded_raw_job)
-                if identity_key in rule_filter_marks_by_identity
-            ),
-            [],
-        )
+        if rejection_row is None:
+            rejection_row = _lookup(
+                rejected_after_enrichment_by_identity,
+                seeded_raw_job,
+                rejected_after_enrichment_by_url,
+                reject_conflicting_stable_identity=True,
+            )
+        reject_reasons = list((rejection_row or {}).get("reasons") or [])
+        rule_filter_marks = list((rejection_row or {}).get("marks") or [])
+        if not rule_filter_marks:
+            rule_filter_marks = next(
+                (
+                    rule_filter_marks_by_identity[identity_key]
+                    for identity_key in job_identity_index_keys(seeded_raw_job)
+                    if identity_key in rule_filter_marks_by_identity
+                ),
+                [],
+            )
         if deduplicated_job is not None:
             pipeline_status = "deduplicated_before_enrichment"
             reject_reasons = [
@@ -1078,10 +1105,20 @@ def _build_export_results(
             if score_source.get("baseline_fit") is not None
             else None
         )
-        debug_row = _lookup(debug_by_identity, seeded_raw_job, debug_by_url)
+        debug_row = _lookup(
+            debug_by_identity,
+            seeded_raw_job,
+            debug_by_url,
+            reject_conflicting_stable_identity=True,
+        )
         if debug_row is not None:
             cv_status = str(debug_row.get("status") or "not_attempted")
-        elif _lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) is not None:
+        elif _lookup(
+            ranked_by_identity,
+            seeded_raw_job,
+            ranked_by_url,
+            reject_conflicting_stable_identity=True,
+        ) is not None:
             cv_status = "not_attempted"
         else:
             cv_status = "not_applicable"
