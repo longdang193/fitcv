@@ -10825,7 +10825,7 @@ def _write_normalized_run(conn: sqlite3.Connection, run: PipelineRun, *, insert:
             else max(0, int(run.total_jobs or 0) - int(run.passed_filter or 0))
         ),
         int(run.cvs_generated or 0), int(run.progress_completed or 0),
-        int(run.progress_total or run.total_jobs or 0), run.settings_used_json, _settings_revision(run), run.warning_json,
+        int(run.progress_total or len(PROTOTYPE_STAGES)), run.settings_used_json, _settings_revision(run), run.warning_json,
         run.error_stage, run.error_message, int(bool(run.partial_completion)),
         _pipeline_run_to_json(run), run.run_id,
     )
@@ -11056,8 +11056,13 @@ def update_run_status(
             return _persistence_result("degraded", "run_not_found")
         updated = mutate(run)
         if status is RunStatus.AWAITING_CONTINUE:
-            terminal_counts = _recomputed_terminal_counts(
-                conn, run_id, _usable_cv_job_ids(conn, run_id)
+            terminal_counts = _terminal_counts_for_run(
+                conn,
+                run_id,
+                _usable_cv_job_ids(conn, run_id),
+                stored_total=run.total_jobs,
+                stored_passed=run.passed_filter,
+                stored_rejected=run.rejected_jobs,
             )
             total_jobs = int(
                 conn.execute("SELECT COUNT(*) FROM run_jobs WHERE run_id=?", (run_id,)).fetchone()[0]
@@ -11067,7 +11072,7 @@ def update_run_status(
                 total_jobs=total_jobs,
                 passed_filter=terminal_counts["passed"],
                 rejected_jobs=terminal_counts["rejected"],
-                progress_total=max(int(updated.progress_total or 0), total_jobs),
+                progress_total=len(PROTOTYPE_STAGES),
             )
         if status in {RunStatus.FAILED, RunStatus.CANCELLED}:
             terminal_job_status = (
@@ -11093,7 +11098,8 @@ def update_run_status(
                     passed_filter=terminal_counts["passed"],
                     rejected_jobs=terminal_counts["rejected"],
                     partial_completion=bool(updated.partial_completion or terminal_counts["passed"] or terminal_counts["rejected"]),
-                    progress_total=max(int(updated.progress_total or 0), total_jobs),
+                    progress_completed=len(PROTOTYPE_STAGES),
+                    progress_total=len(PROTOTYPE_STAGES),
                 )
             conn.execute(
                 """UPDATE run_stage_executions
@@ -11772,8 +11778,18 @@ def _run_history_backfill_run_bundle(
             _run_history_nonnegative_int(run.total_jobs, len(jobs)),
             _run_history_nonnegative_int(run.passed_filter),
             _run_history_nonnegative_int(run.rejected_jobs),
-            _run_history_nonnegative_int(run.progress_completed),
-            _run_history_nonnegative_int(run.progress_total, _run_history_nonnegative_int(run.total_jobs, len(jobs))),
+            (
+                len(PROTOTYPE_STAGES)
+                if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}
+                else min(
+                    len(PROTOTYPE_STAGES),
+                    sum(
+                        canonical_stage_id(str(stage_id)) is not None
+                        for stage_id in (run.completed_stages or [])
+                    ),
+                )
+            ),
+            len(PROTOTYPE_STAGES),
             _run_history_canonical_json(normalized),
             run.run_id,
         ),
@@ -12285,8 +12301,13 @@ def query_runs(
             (*params, page_size, offset),
         ).fetchall()
         terminal_counts_by_run_id = {
-            str(row["run_id"]): _recomputed_terminal_counts(
-                conn, str(row["run_id"]), _usable_cv_job_ids(conn, str(row["run_id"]))
+            str(row["run_id"]): _terminal_counts_for_run(
+                conn,
+                str(row["run_id"]),
+                _usable_cv_job_ids(conn, str(row["run_id"])),
+                stored_total=row["total_jobs"],
+                stored_passed=row["passed_jobs"],
+                stored_rejected=row["rejected_jobs"],
             )
             for row in rows
         }
@@ -12299,6 +12320,20 @@ def query_runs(
                     (str(row["run_id"]),),
                 ).fetchone()[0]
                 or 0
+            )
+            for row in rows
+        }
+        progress_total_by_run_id = {
+            str(row["run_id"]): (
+                len(PROTOTYPE_STAGES)
+                if int(
+                    conn.execute(
+                        "SELECT COUNT(*) FROM run_stage_executions WHERE run_id=?",
+                        (str(row["run_id"]),),
+                    ).fetchone()[0]
+                    or 0
+                )
+                else int(row["progress_total"])
             )
             for row in rows
         }
@@ -12332,7 +12367,9 @@ def query_runs(
                 "completed": progress_completed_by_run_id.get(
                     run.run_id, int(row["progress_completed"])
                 ),
-                "total": int(row["progress_total"]),
+                "total": progress_total_by_run_id.get(
+                    run.run_id, int(row["progress_total"])
+                ),
             },
             "warnings": _json_dict(row["warning_json"]),
             "errors": {"code": row["error_code"], "message": row["error_message"]},
@@ -12837,7 +12874,8 @@ def request_run_cancel(
                 passed_filter=terminal_counts["passed"],
                 rejected_jobs=terminal_counts["rejected"],
                 partial_completion=partial_completion,
-                progress_total=max(int(run.progress_total or 0), total_jobs),
+                progress_completed=len(PROTOTYPE_STAGES),
+                progress_total=len(PROTOTYPE_STAGES),
                 status_detail="partial_completion" if partial_completion else RunStatus.CANCELLED.value,
             )
         _write_normalized_run(conn, updated, insert=False)
@@ -13330,6 +13368,42 @@ def _recomputed_terminal_counts(
     return counts
 
 
+def _terminal_counts_for_run(
+    conn: sqlite3.Connection,
+    run_id: str,
+    usable_cv_job_ids: set[str],
+    *,
+    stored_total: int,
+    stored_passed: int,
+    stored_rejected: int,
+) -> dict[str, int]:
+    job_count = int(
+        conn.execute("SELECT COUNT(*) FROM run_jobs WHERE run_id=?", (run_id,)).fetchone()[0]
+        or 0
+    )
+    evidence_count = int(
+        conn.execute(
+            """SELECT COUNT(DISTINCT j.run_job_id)
+               FROM run_jobs j
+               JOIN run_job_stage_results r
+                 ON r.run_job_id=j.run_job_id AND j.current_stage_id=r.stage_id
+               WHERE j.run_id=?""",
+            (run_id,),
+        ).fetchone()[0]
+        or 0
+    )
+    if evidence_count == job_count:
+        return _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
+    total = max(0, int(stored_total or 0))
+    passed = max(0, int(stored_passed or 0))
+    rejected = max(0, int(stored_rejected or 0))
+    return {
+        "passed": passed,
+        "rejected": rejected,
+        "skipped": max(0, total - passed - rejected),
+    }
+
+
 def _materialize_terminal_job_results(
     conn: sqlite3.Connection,
     run_id: str,
@@ -13443,7 +13517,19 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
             (run_id,),
         ).fetchall()
         usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
-        terminal_counts = _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
+        terminal_counts = _terminal_counts_for_run(
+            conn,
+            run_id,
+            usable_cv_job_ids,
+            stored_total=run_row["total_jobs"],
+            stored_passed=run_row["passed_jobs"],
+            stored_rejected=run_row["rejected_jobs"],
+        )
+        warning_counts = (
+            _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
+            if result_rows
+            else terminal_counts
+        )
 
     run = _normalized_run_from_row(run_row)
     if run is None:
@@ -13504,12 +13590,12 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         "rejected": int(run_row["rejected_jobs"]),
         "skipped": int(run_row["total_jobs"]) - int(run_row["passed_jobs"]) - int(run_row["rejected_jobs"]),
     }
-    if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and stored_counts != terminal_counts:
+    if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and stored_counts != warning_counts:
         integrity_warnings.append(
             {
                 "code": "run_count_mismatch",
                 "stored": stored_counts,
-                "recomputed": terminal_counts,
+                "recomputed": warning_counts,
             }
         )
     input_payload = dict(input_row) if input_row is not None else None
@@ -13543,7 +13629,7 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         },
         "progress": {
             "completed": recomputed_progress_completed if stage_rows else int(run_row["progress_completed"]),
-            "total": int(run_row["progress_total"]),
+            "total": len(PROTOTYPE_STAGES) if stage_rows else int(run_row["progress_total"]),
         },
         "warnings": _json_dict(run_row["warning_json"]),
         "errors": {
@@ -15523,7 +15609,9 @@ def persist_pipeline_snapshot(
         conn.row_factory = sqlite3.Row
         _ensure_control_plane_schema(conn)
         run_row = conn.execute(
-            "SELECT run_id FROM pipeline_runs WHERE run_id=?", (run_id,)
+            """SELECT run_id, total_jobs, passed_jobs, rejected_jobs
+               FROM pipeline_runs WHERE run_id=?""",
+            (run_id,),
         ).fetchone()
         if run_row is None:
             raise ValueError("run_not_found")
@@ -15696,7 +15784,14 @@ def persist_pipeline_snapshot(
                 )
 
             usable_cv_job_ids = _usable_cv_job_ids(conn, run_id)
-            terminal_counts = _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
+            terminal_counts = _terminal_counts_for_run(
+                conn,
+                run_id,
+                usable_cv_job_ids,
+                stored_total=run_row["total_jobs"],
+                stored_passed=run_row["passed_jobs"],
+                stored_rejected=run_row["rejected_jobs"],
+            )
 
             terminal = run_status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}
             if terminal:

@@ -6308,6 +6308,24 @@ def test_fresh_cancel_reconciles_counts_display_and_replay() -> None:
     assert replayed["integrity_warnings"] == []
 
 
+def test_cancel_before_snapshot_uses_stage_count_progress_units() -> None:
+    run_id = "run-cancel-progress-units"
+    _create_normalized_run_with_jobs(
+        run_id, [{"title": "Analyst", "job_url": "https://example.com/1"}]
+    )
+
+    assert sqlite_store.request_run_cancel(
+        run_id, "admin", RunStatus.CANCELLING.value
+    ) is True
+
+    run = sqlite_store.get_run(run_id)
+    detail = sqlite_store.get_run_detail(run_id)
+    assert run is not None
+    assert detail is not None
+    assert run.progress_total == 6
+    assert detail["progress"] == {"completed": 6, "total": 6}
+
+
 def test_worker_cancel_snapshot_reconciles_terminal_counts() -> None:
     run_id = "run-worker-cancel-reconcile"
     _create_normalized_run_with_jobs(

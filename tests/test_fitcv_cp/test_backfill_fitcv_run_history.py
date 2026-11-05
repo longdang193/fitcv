@@ -178,6 +178,20 @@ def test_backfill_preserves_legacy_rows_and_reconciles_all_dispositions(migratio
         assert conn.execute("SELECT COUNT(*) FROM run_stage_executions WHERE run_id='legacy-incomplete'").fetchone()[0] == 6
         assert conn.execute("SELECT COUNT(*) FROM run_stage_executions WHERE run_id='legacy-malformed'").fetchone()[0] == 6
         assert conn.execute("SELECT COUNT(*) FROM run_jobs WHERE run_id='legacy-complete'").fetchone()[0] == 2
+        detail = sqlite_store.get_run_detail("legacy-complete")
+        listing = sqlite_store.query_runs(page=1, page_size=10)
+        listed = next(item for item in listing["items"] if item["run_id"] == "legacy-complete")
+        assert detail is not None
+        assert detail["counts"] == {
+            "total": 2,
+            "passed": 1,
+            "rejected": 1,
+            "skipped": 0,
+            "cvs_generated": 0,
+        }
+        assert listed["counts"] == detail["counts"]
+        assert detail["progress"] == {"completed": 6, "total": 6}
+        assert listed["progress"] == {"completed": 6, "total": 6}
         compatibility = json.loads(conn.execute("SELECT compatibility_json FROM pipeline_runs WHERE run_id='legacy-malformed'").fetchone()[0])
         assert compatibility["legacy_run"]["raw_run_json"] == "{malformed-run-json"
         payload = json.loads(conn.execute("SELECT payload_json FROM process_events WHERE event_id='event-malformed'").fetchone()[0])
