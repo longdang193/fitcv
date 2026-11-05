@@ -3145,6 +3145,7 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     ranking_input = build_ranking_job_input(
         job,
         {**profile, "_projected_evidence_pool": []},
+        config,
     )
     ai_score_fingerprint = build_ai_score_input_fingerprint(
         job,
@@ -6631,6 +6632,11 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
             "preference_runtime_contract_fingerprint": "runtime-fp",
             "preference_policy_resolution_status": "active",
             "shortlist_origin": "vector_search",
+            "ranking_input_diagnostics": {
+                "candidate_skill_count": 2,
+                "selected_evidence_ids": ["ev-1"],
+                "omitted_counts": {"evidence": 1},
+            },
         }
     ]
     artifacts = _build_stage_transition_artifacts(
@@ -6650,6 +6656,13 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
         candidate_query_components={},
         ai_scores=ranking_inputs,
         ranking_inputs=ranking_inputs,
+        ranking_input_diagnostics_by_identity={
+            "https://example.com/1": {
+                "candidate_skill_count": 2,
+                "selected_evidence_ids": ["ev-1"],
+                "omitted_counts": {"evidence": 1},
+            }
+        },
         ranked=ranking_inputs,
         final_top_n=10,
         cv_generation_debug_records=[],
@@ -6682,6 +6695,8 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
     assert decision_summary["contributing_features"] == ["holistic_ai_fit"]
     assert ranking_block["inputs_sample"][0]["normalized_factors"]["must_have_match"]["value"] == pytest.approx(1.0)
     assert ranking_block["inputs_sample"][0]["normalized_factors"]["declared_preference_fit"]["value"] == pytest.approx(1.0)
+    assert ranking_block["inputs_sample"][0]["ranking_input_diagnostics"]["selected_evidence_ids"] == ["ev-1"]
+    assert ranking_block["scorer_input_diagnostics"]["https://example.com/1"]["selected_evidence_ids"] == ["ev-1"]
     assert ranking_block["outputs_sample"][0]["personalized_rank"] == 1
     assert ranking_block["outputs_sample"][0]["personalized_rank_score"] == pytest.approx(0.86)
     assert ranking_block["outputs_sample"][0]["personalized_display_score"] == pytest.approx(0.86)

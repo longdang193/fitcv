@@ -354,7 +354,7 @@ def test_default_candidate_query_embedding_reuses_after_first_generation(
 
     with patch("fitcv.vector_search.generate_embedding_with_metadata") as generate:
         generate.return_value = {
-            "embedding": [0.55, 0.66],
+            "embedding": [0.55, 0.66] + [0.0] * 254,
             "backend_id": "sqlite_deterministic_local",
             "contract_fingerprint": "deterministic-contract",
         }
@@ -370,6 +370,34 @@ def test_default_candidate_query_embedding_reuses_after_first_generation(
     assert second["candidate_query_reuse_status"] == "reused_cached_query_embedding"
     assert generate.call_count == 1
     assert row_count == 1
+
+
+def test_invalid_cached_candidate_vector_is_regenerated(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {"target_role": "Data Analyst", "domains": ["banking"]},
+    }
+    valid_vector = [0.55, 0.66] + [0.0] * 254
+    with patch("fitcv.vector_search.generate_embedding_with_metadata") as generate:
+        generate.return_value = {
+            "embedding": valid_vector,
+            "backend_id": "sqlite_deterministic_local",
+            "contract_fingerprint": "deterministic-contract",
+        }
+        resolve_candidate_query_embedding(profile, {})
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("UPDATE candidate_query_embeddings SET embedding_json = ?", (json.dumps([1.0, 2.0]),))
+            conn.commit()
+        result = resolve_candidate_query_embedding(profile, {})
+
+    assert result["candidate_query_reuse_status"] == "fresh_query_embedding"
+    assert generate.call_count == 2
 
 
 def test_fallback_candidate_query_is_not_reused_after_backend_recovery(
@@ -421,6 +449,26 @@ def test_dedupe_shortlist_rows_keeps_best_rank_per_job_url() -> None:
         {"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1},
         {"job_url": "https://example.com/2", "vector_similarity": 0.7, "vector_rank": 3},
     ]
+
+
+def test_lexical_retrieval_uses_late_project_technology_inventory() -> None:
+    profile = {
+        "preferences": {"target_role": "Data Analyst"},
+        "projects": [
+            {"name": f"Project {index}", "tech_stack": [f"Tool {index}"]}
+            for index in range(9)
+        ] + [{"name": "Late Project", "tech_stack": ["LateTool"]}],
+    }
+    result = run_vector_search(
+        profile,
+        ["job-1"],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
+        top_n=1,
+        structured_jobs=[{"job_url": "job-1", "title": "Data Analyst", "tech_stack": ["LateTool"]}],
+        requested_strategy="lexical_v1",
+    )
+
+    assert result["production_rows"][0]["retrieval_components"]["technology_overlap"] == 1.0
 
 
 # ── integration tests ─────────────────────────────────────────────────────────

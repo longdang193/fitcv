@@ -1452,20 +1452,62 @@ def select_ranking_evidence(
     """Select bounded, deterministic, job-relevant evidence from projected pool."""
     if limit <= 0 or not evidence_pool:
         return []
-    terms = [
-        *bounded_term_values(job.get("required_skills_canonical") or job.get("required_skills")),
-        *bounded_term_values(job.get("preferred_skills_canonical") or job.get("preferred_skills")),
-        *bounded_term_values(job.get("responsibilities")),
-        *bounded_term_values(job.get("tech_stack_canonical") or job.get("tech_stack")),
-        str(job.get("title") or ""),
-        str(job.get("job_family") or ""),
-        str(job.get("domain") or ""),
-    ]
-    ranked = sorted(
-        ({**item, "score": score_evidence_item(item, terms)} for item in evidence_pool),
+    scored = []
+    for index, item in enumerate(evidence_pool):
+        channel_score = score_evidence_item_by_channel(item, job)
+        compatibility_score = score_evidence_item(
+            item,
+            [
+                *channel_score["coverage"]["required"],
+                *channel_score["coverage"]["technology"],
+                *channel_score["coverage"]["responsibilities"],
+                *channel_score["coverage"]["context"],
+            ],
+        )
+        scored.append(
+            {
+                **item,
+                "score": float(channel_score["score"]) + float(compatibility_score) * 0.1,
+                "channel_coverage": channel_score["coverage"],
+                "_selection_index": index,
+            }
+        )
+    first = min(
+        scored,
         key=lambda item: (-float(item.get("score") or 0.0), str(item.get("evidence_id") or "")),
     )
-    return ranked[:limit]
+    selected = [first]
+    remaining = [item for item in scored if item is not first]
+    while remaining and len(selected) < limit:
+        covered = {
+            (channel, term)
+            for item in selected
+            for channel, terms in (item.get("channel_coverage") or {}).items()
+            for term in terms
+        }
+        best = max(
+            remaining,
+            key=lambda item: (
+                sum(
+                    {"required": 5.0, "technology": 4.0, "responsibilities": 3.0, "preferred": 2.0, "context": 1.0}[channel]
+                    for channel, terms in (item.get("channel_coverage") or {}).items()
+                    for term in terms
+                    if (channel, term) not in covered
+                )
+                - 2.0
+                * _jaccard_tokens(
+                    _evidence_search_text(selected[0]),
+                    _evidence_search_text(item),
+                )
+                + float(item.get("score") or 0.0) * 0.01,
+                str(item.get("evidence_id") or ""),
+            ),
+        )
+        selected.append(best)
+        remaining.remove(best)
+    for item in selected:
+        item.pop("_selection_index", None)
+    return selected
 
 
 def build_profile_evidence_pool(profile: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1639,6 +1681,131 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
         SKILL_OVERLAP_WEIGHT * skill_ratio
         + BUSINESS_VALUE_WEIGHT * biz_ratio
     )
+
+
+def _ranking_requirement_channels(job: dict[str, Any]) -> dict[str, list[str]]:
+    return {
+        "required": bounded_term_values(
+            job.get("required_skills_canonical") or job.get("required_skills")
+        ),
+        "preferred": bounded_term_values(
+            job.get("preferred_skills_canonical") or job.get("preferred_skills")
+        ),
+        "technology": bounded_term_values(
+            job.get("tech_stack_canonical") or job.get("tech_stack")
+        ),
+        "responsibilities": bounded_term_values(job.get("responsibilities")),
+        "context": [
+            value
+            for value in (
+                str(job.get("title") or ""),
+                str(job.get("job_family") or ""),
+                str(job.get("domain") or ""),
+            )
+            if value.strip()
+        ],
+    }
+
+
+def _evidence_search_text(item: dict[str, Any]) -> str:
+    return _normalize_text(
+        " ".join(
+            str(value or "")
+            for value in (
+                item.get("title"),
+                item.get("parent_title"),
+                item.get("organization"),
+                item.get("role"),
+                item.get("scoring_context"),
+                item.get("text"),
+                *list(item.get("skills") or []),
+                *list(item.get("tech_stack") or []),
+            )
+        )
+    )
+
+
+def _jaccard_tokens(left: str, right: str) -> float:
+    left_tokens = _tokenize(left)
+    right_tokens = _tokenize(right)
+    union = left_tokens | right_tokens
+    return len(left_tokens & right_tokens) / len(union) if union else 0.0
+
+
+def _term_is_present(text: str, term: str) -> bool:
+    def searchable(value: str) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+#]+", " ", str(value or "").lower())).strip()
+
+    searchable_text = searchable(text)
+    searchable_term = searchable(term)
+    if not searchable_term:
+        return False
+    if re.search(
+        rf"(?<![a-z0-9]){re.escape(searchable_term)}(?![a-z0-9])",
+        searchable_text,
+    ):
+        return True
+    term_tokens = searchable_term.split()
+    text_tokens = set(searchable_text.split())
+    if len(term_tokens) < 2:
+        return False
+    return sum(token in text_tokens for token in term_tokens) >= max(2, math.ceil(len(term_tokens) * 0.66))
+
+
+def score_evidence_item_by_channel(
+    item: dict[str, Any],
+    job: dict[str, Any],
+) -> dict[str, Any]:
+    """Return deterministic weighted requirement-channel coverage."""
+    text = _evidence_search_text(item)
+    channels = _ranking_requirement_channels(job)
+    weights = {
+        "required": 5.0,
+        "technology": 4.0,
+        "responsibilities": 3.0,
+        "preferred": 2.0,
+        "context": 1.0,
+    }
+    coverage = {
+        channel: [term for term in terms if _term_is_present(text, term)]
+        for channel, terms in channels.items()
+    }
+    score = sum(weights[channel] for channel, terms in coverage.items() if terms)
+    return {"coverage": coverage, "score": score, "text": text}
+
+
+def build_evidence_excerpt(
+    item: dict[str, Any],
+    job: dict[str, Any],
+    *,
+    limit: int = 400,
+) -> str:
+    """Keep requirement-bearing source sentences visible within the text cap."""
+    raw_text = str(item.get("text") or item.get("scoring_context") or "").strip()
+    if not raw_text or len(raw_text) <= limit:
+        return raw_text
+    terms = [
+        term
+        for values in _ranking_requirement_channels(job).values()
+        for term in values
+        if str(term).strip()
+    ]
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", raw_text) if part.strip()]
+    ranked = sorted(
+        enumerate(sentences),
+        key=lambda pair: (
+            -sum(_term_is_present(_normalize_text(pair[1]), term) for term in terms),
+            pair[0],
+        ),
+    )
+    selected: list[str] = []
+    for _, sentence in ranked:
+        candidate = " ".join([*selected, sentence]).strip()
+        if len(candidate) <= limit:
+            selected.append(sentence)
+    if not selected:
+        return raw_text[:limit]
+    return " ".join(selected)
 
 
 def _collect_experience_entries(profile: dict[str, Any]) -> list[dict[str, Any]]:

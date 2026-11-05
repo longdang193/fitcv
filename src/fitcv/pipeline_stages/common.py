@@ -313,6 +313,7 @@ def ranking_row_sample(row: Mapping[str, Any]) -> dict[str, Any] | None:
             "preference_policy_resolution_status"
         ),
         "ranking_contract_fingerprint": row.get("ranking_contract_fingerprint"),
+        "ranking_input_diagnostics": row.get("ranking_input_diagnostics"),
         "shortlist_origin": row.get("shortlist_origin"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "")}

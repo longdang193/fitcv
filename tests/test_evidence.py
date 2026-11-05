@@ -31,6 +31,7 @@ from fitcv.evidence import (
     retrieve_evidence,
     retrieve_evidence_bundle,
     score_evidence_item,
+    score_evidence_item_by_channel,
     select_ranking_evidence,
 )
 from fitcv.ranking import compute_title_relevance
@@ -2592,6 +2593,20 @@ def test_ranking_selector_uses_job_context_when_skills_are_missing() -> None:
     selected = select_ranking_evidence(pool, job, limit=1)
 
     assert selected[0]["evidence_id"] == "relevant"
+
+
+def test_ranking_channel_matching_does_not_use_substrings_or_single_token_overlap() -> None:
+    job = {"required_skills": ["R"], "tech_stack": ["Power BI", "C++"]}
+    item = {
+        "title": "Unrelated",
+        "text": "Generated reports for power transmission using C#",
+        "scoring_context": "Generated reports for power transmission using C#",
+    }
+
+    coverage = score_evidence_item_by_channel(item, job)["coverage"]
+
+    assert coverage["required"] == []
+    assert coverage["technology"] == []
 
 
 def test_profile_evidence_pool_projects_once_per_revision(monkeypatch: pytest.MonkeyPatch) -> None:
