@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_rankable_skills, flatten_skills, infer_role_family
+from fitcv.config import MIXED_FALLBACK_RETRIEVAL_STRATEGY
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
 from fitcv.embeddings import (
     build_embedding_backend_metadata,
@@ -1202,7 +1203,7 @@ def run_vector_search(
             "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
             "requested_strategy": requested_strategy,
             "effective_strategy": (
-                "vector_cosine_v1_with_lexical_fallback"
+                MIXED_FALLBACK_RETRIEVAL_STRATEGY
                 if fallback_reason and production_rows and ranked_rows
                 else LEXICAL_RETRIEVAL_STRATEGY
                 if fallback_reason

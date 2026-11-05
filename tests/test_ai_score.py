@@ -357,6 +357,43 @@ def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() ->
     assert "mandatory:education:1" in result["contract_metadata"]["requirement_ids"]
 
 
+def test_build_ranking_request_preserves_long_mandatory_clause_before_budgeting() -> None:
+    requirement = "Bachelor's degree in computer science with German C1 is mandatory for this role."
+    quote = requirement + " " + ("Additional context. " * 8)
+    job = {
+        "mandatory_clauses": [{
+            "clause_id": "qualification-1",
+            "clause_type": "qualification",
+            "value": requirement,
+            "normalized_value": requirement.casefold(),
+            "required": True,
+            "source_span": {"start": 0, "end": len(quote), "quote": quote},
+        }],
+    }
+    ranking_input = build_ranking_job_input(job, {"skills": []})
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+
+    request = build_ranking_request(
+        job,
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=route,
+    )
+
+    requirements = json.loads(ranking_input["job_requirements"])
+    assert requirements["mandatory_clauses"][0]["value"] == requirement
+    assert requirements["mandatory_clauses"][0]["source_span"]["quote"] == quote
+    assert requirement in request["request"].prompt
+    assert quote in request["request"].prompt
+    assert request["visibility_manifest"]["mandatory_core_complete"] is True
+
+
 def test_build_ranking_job_input_preserves_mandatory_skills_before_request_budgeting() -> None:
     from fitcv.ai_score import build_ranking_job_input
 

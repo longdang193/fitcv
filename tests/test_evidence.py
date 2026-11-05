@@ -2743,6 +2743,18 @@ def test_ranking_channel_matching_does_not_combine_separate_sentences() -> None:
     assert coverage["responsibilities"] == []
 
 
+@pytest.mark.parametrize("term", ["Node.js", "Vue.js", "Next.js"])
+def test_ranking_channel_matching_preserves_dotted_technology_names(term: str) -> None:
+    item = {
+        "text": f"Built services with {term}.",
+        "scoring_context": f"Built services with {term}.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": [term]})["coverage"]
+
+    assert coverage["required"] == [term]
+
+
 def test_ranking_channel_matching_keeps_positive_occurrence_after_unrelated_negation() -> None:
     item = {
         "title": "Pipelines",

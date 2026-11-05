@@ -1232,10 +1232,28 @@ def _attach_mandatory_clause_spans(
         for span in list(record.get("source_spans") or []):
             span_record = dict(span)
             text = str(span_record.get("text") or record.get("value") or "").strip()
-            start = lowered.find(text.lower()) if text else -1
-            if start >= 0:
-                span_record["start"] = start
-                span_record["end"] = start + len(text)
+            supplied_start = span_record.get("start")
+            supplied_end = span_record.get("end")
+            try:
+                supplied_start = int(supplied_start) if supplied_start is not None else None
+                supplied_end = int(supplied_end) if supplied_end is not None else None
+            except (TypeError, ValueError):
+                supplied_start, supplied_end = None, None
+            supplied_matches = (
+                text
+                and supplied_start is not None
+                and supplied_end is not None
+                and 0 <= supplied_start <= supplied_end <= len(source)
+                and source[supplied_start:supplied_end].strip().casefold() == text.casefold()
+            )
+            if supplied_matches:
+                span_record["start"] = supplied_start
+                span_record["end"] = supplied_end
+            else:
+                start = lowered.find(text.lower()) if text else -1
+                if start >= 0:
+                    span_record["start"] = start
+                    span_record["end"] = start + len(text)
             spans.append(span_record)
         record["source_spans"] = spans
         attached.append(record)

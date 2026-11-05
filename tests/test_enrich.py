@@ -505,6 +505,31 @@ def test_merge_scraped_and_enriched_preserves_mandatory_clause_provenance() -> N
     ]
 
 
+def test_merge_scraped_and_enriched_preserves_valid_nonfirst_mandatory_clause_offsets() -> None:
+    description = "German B2 is mandatory. Context. German B2 is mandatory."
+    start = description.rfind("German B2 is mandatory.")
+    end = start + len("German B2 is mandatory.")
+    merged = merge_scraped_and_enriched(
+        {"job_url": "url1", "description": description},
+        {
+            "mandatory_clauses": [{
+                "clause_id": "language-clause-2",
+                "value": "German B2",
+                "source_spans": [{
+                    "source_field": "description",
+                    "text": "German B2 is mandatory.",
+                    "start": start,
+                    "end": end,
+                }],
+            }]
+        },
+    )
+
+    span = merged["mandatory_clauses"][0]["source_spans"][0]
+    assert span["start"] == start
+    assert span["end"] == end
+
+
 
 def _rate_limit_error():
     from fitcv.enrich import EnrichRuntimeError

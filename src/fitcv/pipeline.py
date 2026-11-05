@@ -88,7 +88,8 @@ from fitcv.config import (
     load_config,
     resolve_retrieval_strategy,
     resolve_model_routing_part,
-    SUPPORTED_RETRIEVAL_STRATEGIES,
+    CHECKPOINT_RETRIEVAL_STRATEGIES,
+    MIXED_FALLBACK_RETRIEVAL_STRATEGY,
 )
 from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
@@ -1656,16 +1657,30 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_checkpoint_retrieval_strategy(state: dict[str, Any]) -> str:
-    checkpoint_strategy = str(state.get("shortlist_diagnostics", {}).get("retrieval_strategy") or "").strip()
+    diagnostics = state.get("shortlist_diagnostics") or {}
+    checkpoint_strategy = str(diagnostics.get("retrieval_strategy") or "").strip()
+    effective_strategy = str(diagnostics.get("effective_strategy") or "").strip()
     row_strategies = {
         str(row.get("retrieval_strategy") or "").strip()
         for key in ("raw_shortlist", "shortlist")
         for row in (state.get(key) or [])
         if isinstance(row, dict) and str(row.get("retrieval_strategy") or "").strip()
     }
+    mixed_fallback = (
+        effective_strategy == MIXED_FALLBACK_RETRIEVAL_STRATEGY
+        and row_strategies <= {"vector_cosine_v1", "lexical_v1"}
+    )
     checkpoint_strategies = row_strategies | ({checkpoint_strategy} if checkpoint_strategy else set())
-    if len(checkpoint_strategies) > 1 or any(strategy not in SUPPORTED_RETRIEVAL_STRATEGIES for strategy in checkpoint_strategies):
+    if (
+        not mixed_fallback
+        and (
+            len(checkpoint_strategies) > 1
+            or any(strategy not in CHECKPOINT_RETRIEVAL_STRATEGIES for strategy in checkpoint_strategies)
+        )
+    ):
         raise ValueError("incompatible shortlist retrieval strategy in checkpoint")
+    if mixed_fallback:
+        return effective_strategy
     return checkpoint_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
 
 

@@ -1873,7 +1873,7 @@ def _term_is_present(text: str, term: str) -> bool:
         return re.sub(r"[ \t\f\v]+", " ", re.sub(allowed, " ", str(value or "").lower())).strip()
 
     searchable_text = searchable(text, preserve_boundaries=True)
-    searchable_term = searchable(term)
+    searchable_term = searchable(term, preserve_boundaries=True)
     if not searchable_term:
         return False
     if re.search(

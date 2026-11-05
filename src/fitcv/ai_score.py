@@ -749,17 +749,22 @@ def build_ranking_job_input(
                 normalized = _canonical_skill(value, policy)
                 source_span = None
                 required = True
-            display = _bounded_text(value, RANKING_TERM_MAX_CHARS)
-            normalized_text = _bounded_text(normalized, RANKING_TERM_MAX_CHARS)
+            display = str(value or "").strip()
+            normalized_text = str(normalized or "").strip()
             if not display or not normalized_text:
                 return
             bounded_span = source_span
             if isinstance(source_span, dict):
                 bounded_span = {
-                    str(key): _bounded_text(item, RANKING_TERM_MAX_CHARS)
+                    str(key): item
                     for key, item in source_span.items()
                     if item not in (None, "")
                 }
+            elif isinstance(source_span, list):
+                bounded_span = [
+                    dict(item) if isinstance(item, dict) else item
+                    for item in source_span
+                ]
             clause_id = str(raw.get("clause_id") or "") if isinstance(raw, dict) else ""
             if not clause_id:
                 clause_id = f"{str(current_type).strip().lower()}:{_stable_json_fingerprint({'type': current_type, 'value': normalized_text})[:12]}"

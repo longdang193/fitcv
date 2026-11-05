@@ -21,12 +21,16 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from fitcv.ranking_contract import adapt_legacy_ranking_row, resolve_fit_label_for_row
-from fitcv.config import SUPPORTED_RETRIEVAL_STRATEGIES
+from fitcv.config import (
+    CHECKPOINT_RETRIEVAL_STRATEGIES,
+    MIXED_FALLBACK_RETRIEVAL_STRATEGY,
+)
 
 
 def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
     diagnostics = payload.get("shortlist_diagnostics")
     diagnostic_strategy = str(diagnostics.get("retrieval_strategy") or "").strip() if isinstance(diagnostics, dict) else ""
+    effective_strategy = str(diagnostics.get("effective_strategy") or "").strip() if isinstance(diagnostics, dict) else ""
     rows = [
         row
         for key in ("raw_shortlist", "shortlist")
@@ -44,7 +48,11 @@ def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
         if str(row.get("retrieval_strategy") or "").strip()
     }
     expected_strategy = diagnostic_strategy or (next(iter(row_strategies)) if len(row_strategies) == 1 else "")
-    if vector_rows and len(row_strategies) > 1:
+    mixed_fallback = (
+        effective_strategy == MIXED_FALLBACK_RETRIEVAL_STRATEGY
+        and row_strategies <= {"vector_cosine_v1", "lexical_v1"}
+    )
+    if vector_rows and len(row_strategies) > 1 and not mixed_fallback:
         raise ValueError(
             "incompatible shortlist retrieval strategy in checkpoint: "
             "vector-derived rows have mismatched retrieval_strategy values"
@@ -54,12 +62,17 @@ def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
             "incompatible shortlist retrieval strategy in checkpoint: "
             "legacy vector-derived checkpoint missing retrieval_strategy"
         )
-    if expected_strategy and expected_strategy not in SUPPORTED_RETRIEVAL_STRATEGIES:
+    if effective_strategy and effective_strategy not in CHECKPOINT_RETRIEVAL_STRATEGIES:
+        raise ValueError(
+            "incompatible shortlist retrieval strategy in checkpoint: "
+            f"unsupported retrieval_strategy {effective_strategy!r}"
+        )
+    if expected_strategy and expected_strategy not in CHECKPOINT_RETRIEVAL_STRATEGIES:
         raise ValueError(
             "incompatible shortlist retrieval strategy in checkpoint: "
             f"unsupported retrieval_strategy {expected_strategy!r}"
         )
-    if diagnostic_strategy and any(strategy != diagnostic_strategy for strategy in row_strategies):
+    if diagnostic_strategy and any(strategy != diagnostic_strategy for strategy in row_strategies) and not mixed_fallback:
         raise ValueError(
             "incompatible shortlist retrieval strategy in checkpoint: "
             "vector-derived row retrieval_strategy does not match shortlist diagnostics"
