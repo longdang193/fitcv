@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 
 from fitcv import agentic_cv_generation as generation_module
 from fitcv.pipeline import _is_persistable_cv_generation_result, run_pipeline
+from fitcv.pipeline_stages.common import primary_job_identity_key
 from fitcv.agentic_cv_generation import (
     _LIVE_TRACE_DEBUG_ENV_KEYS,
     _backfill_required_sections_from_profile,
@@ -851,7 +852,10 @@ def test_execute_ranking_stage_preserves_empty_evidence_ranking_input() -> None:
         )
 
     assert captured["fingerprint_ranking_input"]["candidate_evidence"] == []
-    assert captured["scoring_ranking_inputs"][job["job_url"]]["candidate_evidence"] == []
+    assert (
+        captured["scoring_ranking_inputs"][primary_job_identity_key(job)]["candidate_evidence"]
+        == []
+    )
 
 def _minimal_runtime_evidence(
     *,

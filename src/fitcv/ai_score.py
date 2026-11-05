@@ -138,7 +138,11 @@ def build_ranking_request(
     source = ranking_input or {}
     jd_summary = source.get("job_requirements") or build_job_summary_text(job)
     candidate_text = source.get("candidate_summary") or candidate_summary
-    evidence = source.get("candidate_evidence") or top_evidence[:2]
+    evidence = (
+        list(source.get("candidate_evidence") or [])
+        if "candidate_evidence" in source
+        else top_evidence[:2]
+    )
 
     def evidence_text(item: Any) -> str:
         if not isinstance(item, dict):
@@ -531,7 +535,10 @@ def run_ai_scoring(
                     {},
                 )
             )
-        top_evidence = list(ranking_input.get("candidate_evidence") or job.get("top_evidence", []) or [])[:2]
+        if "candidate_evidence" in ranking_input:
+            top_evidence = list(ranking_input.get("candidate_evidence") or [])[:2]
+        else:
+            top_evidence = list(job.get("top_evidence", []) or [])[:2]
         scoring_candidate_summary = str(ranking_input.get("candidate_summary") or candidate_summary)
         try:
             request_record = build_ranking_request(job, scoring_candidate_summary, top_evidence, config, ranking_input=ranking_input, resolved_route=resolved_route)

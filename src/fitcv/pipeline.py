@@ -705,6 +705,22 @@ def _build_export_results(
         for item in items:
             seeded = _identity_seed(item)
             payload = transform(seeded) if transform is not None else seeded
+            if transform is not None:
+                payload = {
+                    **payload,
+                    **{
+                        key: seeded[key]
+                        for key in (
+                            "run_job_id",
+                            "raw_job_fingerprint",
+                            "source_job_url",
+                            "job_url",
+                            "url",
+                            "jobUrl",
+                        )
+                        if seeded.get(key) is not None and key not in payload
+                    },
+                }
             for identity_key in job_identity_keys(seeded):
                 if identity_key.startswith("url:"):
                     candidates.setdefault(identity_key, []).append(payload)
@@ -717,45 +733,86 @@ def _build_export_results(
     def _identity_keys_for(row: dict[str, Any]) -> list[str]:
         return job_identity_keys(_identity_seed(row))
 
+    raw_url_occurrence_counts: dict[str, int] = {}
+    for raw_job in raw_jobs:
+        for identity_key in _identity_keys_for(raw_job):
+            if identity_key.startswith("url:"):
+                raw_url_occurrence_counts[identity_key] = raw_url_occurrence_counts.get(identity_key, 0) + 1
+
+    def _legacy_url_fallback(
+        row: dict[str, Any],
+        url_fallback: dict[str, dict[str, Any]] | None,
+        *,
+        reject_conflicting_stable_identity: bool = False,
+    ) -> dict[str, Any] | None:
+        if url_fallback is None:
+            return None
+        seeded = _identity_seed(row)
+        for identity_key in job_identity_keys(seeded):
+            if (
+                identity_key.startswith("url:")
+                and raw_url_occurrence_counts.get(identity_key) == 1
+            ):
+                candidate = url_fallback.get(identity_key)
+                if candidate is None:
+                    continue
+                if reject_conflicting_stable_identity and _stable_identity_conflicts(seeded, candidate):
+                    continue
+                return candidate
+        return None
+
+    def _stable_identity_conflicts(
+        left: dict[str, Any],
+        right: dict[str, Any],
+    ) -> bool:
+        left_stable_keys = {
+            key
+            for key in job_identity_keys(_identity_seed(left))
+            if key.startswith(("run:", "fp:"))
+        }
+        right_stable_keys = {
+            key
+            for key in job_identity_keys(_identity_seed(right))
+            if key.startswith(("run:", "fp:"))
+        }
+        if not left_stable_keys or not right_stable_keys:
+            return False
+        return left_stable_keys.isdisjoint(right_stable_keys)
+
     def _lookup(
         indexed: dict[str, dict[str, Any]],
         row: dict[str, Any],
         url_fallback: dict[str, dict[str, Any]] | None = None,
+        *,
+        reject_conflicting_stable_identity: bool = False,
     ) -> dict[str, Any] | None:
         seeded = _identity_seed(row)
         for identity_key in job_identity_index_keys(seeded):
             match = indexed.get(identity_key)
             if match is not None:
                 return match
-        if url_fallback is not None and not any(
-            key.startswith(("run:", "fp:")) for key in job_identity_keys(seeded)
-        ):
-            for identity_key in job_identity_keys(seeded):
-                if identity_key.startswith("url:"):
-                    return url_fallback.get(identity_key)
-        return None
+        return _legacy_url_fallback(
+            seeded,
+            url_fallback,
+            reject_conflicting_stable_identity=reject_conflicting_stable_identity,
+        )
 
     def _matches(
         identity_index: set[str],
         row: dict[str, Any],
         url_fallback: dict[str, dict[str, Any]] | None = None,
+        *,
+        reject_conflicting_stable_identity: bool = False,
     ) -> bool:
         seeded = _identity_seed(row)
         return any(
             identity_key in identity_index
             for identity_key in job_identity_index_keys(seeded)
-        ) or (
-            url_fallback is not None
-            and not any(
-                key.startswith(("run:", "fp:"))
-                for key in job_identity_keys(seeded)
-            )
-            and any(
-                identity_key in url_fallback
-                for identity_key in job_identity_keys(seeded)
-                if identity_key.startswith("url:")
-            )
-        )
+        ) or _legacy_url_fallback(
+            seeded,
+            url_fallback,
+            reject_conflicting_stable_identity=reject_conflicting_stable_identity,
+        ) is not None
 
     enriched_by_identity = _index_rows_by_identity(enriched)
     enriched_by_url = _unique_rows_by_url(enriched)
@@ -776,17 +833,31 @@ def _build_export_results(
     passed_job_urls = {extract_job_url(job) for job in passed_jobs if extract_job_url(job)}
     debug_by_identity = _index_rows_by_identity(cv_generation_debug_records)
     debug_by_url = _unique_rows_by_url(cv_generation_debug_records)
+    blocked_by_reranker_debug_by_url = _unique_rows_by_url(
+        [
+            record
+            for record in cv_generation_debug_records
+            if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+        ]
+    )
+    skipped_fit_gate_debug_by_url = _unique_rows_by_url(
+        [
+            record
+            for record in cv_generation_debug_records
+            if str(record.get("status") or "") == "skipped_fit_gate"
+        ]
+    )
     skipped_fit_gate_identity_keys = {
         identity_key
         for record in cv_generation_debug_records
         if str(record.get("status") or "") == "skipped_fit_gate"
-        for identity_key in _identity_keys_for(record)
+        for identity_key in job_identity_index_keys(_identity_seed(record))
     }
     blocked_by_reranker_identity_keys = {
         identity_key
         for record in cv_generation_debug_records
         if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
-        for identity_key in _identity_keys_for(record)
+        for identity_key in job_identity_index_keys(_identity_seed(record))
     }
     deduplicated_by_input_index = {
         int(job.get("input_index", -1)): job
@@ -794,48 +865,90 @@ def _build_export_results(
         if job.get("input_index") is not None
     }
 
-    reject_reasons_by_identity: dict[str, list[str]] = {}
     rule_filter_marks_by_identity: dict[str, list[dict[str, Any]]] = {}
     for job in passed_jobs:
         marks = list(job.get("marks") or [])
-        for identity_key in _identity_keys_for(job):
+        for identity_key in job_identity_index_keys(_identity_seed(job)):
             rule_filter_marks_by_identity[identity_key] = marks
     rejected_before_enrichment_identity_keys: set[str] = set()
     rejected_after_enrichment_identity_keys: set[str] = set()
+    rejected_before_enrichment_by_identity = _index_rows_by_identity(pre_filter_rejected)
+    rejected_after_enrichment_by_identity = _index_rows_by_identity(candidate_filter_rejected)
+    rejected_before_enrichment_by_url = _unique_rows_by_url(pre_filter_rejected)
+    rejected_after_enrichment_by_url = _unique_rows_by_url(candidate_filter_rejected)
     for rejected in pre_filter_rejected:
-        reject_reasons = list(rejected.get("reasons") or [])
-        for identity_key in _identity_keys_for(rejected):
-            reject_reasons_by_identity[identity_key] = reject_reasons
+        for identity_key in job_identity_index_keys(_identity_seed(rejected)):
             rejected_before_enrichment_identity_keys.add(identity_key)
     for rejected in candidate_filter_rejected:
-        reject_reasons = list(rejected.get("reasons") or [])
-        marks = list(rejected.get("marks") or [])
-        for identity_key in _identity_keys_for(rejected):
-            reject_reasons_by_identity[identity_key] = reject_reasons
-            rule_filter_marks_by_identity[identity_key] = marks
+        for identity_key in job_identity_index_keys(_identity_seed(rejected)):
             rejected_after_enrichment_identity_keys.add(identity_key)
 
     def _status_for(raw_job: dict[str, Any]) -> str:
-        if _lookup(cv_by_identity, raw_job, cv_by_url) is not None:
+        if _lookup(
+            cv_by_identity,
+            raw_job,
+            cv_by_url,
+            reject_conflicting_stable_identity=True,
+        ) is not None:
             return "ranked_with_cv"
-        scoring_row = _lookup(scoring_by_identity, raw_job, scoring_by_url)
+        scoring_row = _lookup(
+            scoring_by_identity,
+            raw_job,
+            scoring_by_url,
+            reject_conflicting_stable_identity=True,
+        )
         if scoring_row is not None and normalize_score_state(scoring_row)["score_status"] != SCORE_STATUS_VALID:
             return "ranking_unavailable"
-        if _matches(blocked_by_reranker_identity_keys, raw_job, debug_by_url):
+        if _matches(
+            blocked_by_reranker_identity_keys,
+            raw_job,
+            blocked_by_reranker_debug_by_url,
+            reject_conflicting_stable_identity=True,
+        ):
             return PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER
-        if _matches(skipped_fit_gate_identity_keys, raw_job, debug_by_url):
+        if _matches(
+            skipped_fit_gate_identity_keys,
+            raw_job,
+            skipped_fit_gate_debug_by_url,
+            reject_conflicting_stable_identity=True,
+        ):
             return "ranked_skipped_fit_gate"
-        if _lookup(ranked_by_identity, raw_job, ranked_by_url) is not None:
+        if _lookup(
+            ranked_by_identity,
+            raw_job,
+            ranked_by_url,
+            reject_conflicting_stable_identity=True,
+        ) is not None:
             return "ranked_no_cv"
-        if _matches(rejected_before_enrichment_identity_keys, raw_job):
+        if _matches(
+            rejected_before_enrichment_identity_keys,
+            raw_job,
+            rejected_before_enrichment_by_url,
+            reject_conflicting_stable_identity=True,
+        ):
             return "rejected_before_enrichment"
-        if _matches(rejected_after_enrichment_identity_keys, raw_job):
+        if _matches(
+            rejected_after_enrichment_identity_keys,
+            raw_job,
+            rejected_after_enrichment_by_url,
+            reject_conflicting_stable_identity=True,
+        ):
             return "rejected_after_enrichment"
         if scoring_row is not None:
             return "scored_not_ranked"
-        if _lookup(scoring_shortlist_by_identity, raw_job, scoring_shortlist_by_url) is not None:
+        if _lookup(
+            scoring_shortlist_by_identity,
+            raw_job,
+            scoring_shortlist_by_url,
+            reject_conflicting_stable_identity=True,
+        ) is not None:
             return "shortlisted_not_scored"
-        if _lookup(passed_by_identity, raw_job, passed_by_url) is not None:
+        if _lookup(
+            passed_by_identity,
+            raw_job,
+            passed_by_url,
+            reject_conflicting_stable_identity=True,
+        ) is not None:
             return "not_shortlisted"
         return "unknown_pipeline_state"
 
@@ -870,11 +983,40 @@ def _build_export_results(
         enriched_job = _lookup(enriched_by_identity, seeded_raw_job, enriched_by_url)
         deduplicated_job = deduplicated_by_input_index.get(input_index)
         score_source = {
-            **(_lookup(scoring_shortlist_by_identity, seeded_raw_job, scoring_shortlist_by_url) or {}),
-            **(_lookup(scoring_by_identity, seeded_raw_job, scoring_by_url) or {}),
-            **(_lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) or {}),
+            **(
+                _lookup(
+                    scoring_shortlist_by_identity,
+                    seeded_raw_job,
+                    scoring_shortlist_by_url,
+                    reject_conflicting_stable_identity=True,
+                )
+                or {}
+            ),
+            **(
+                _lookup(
+                    scoring_by_identity,
+                    seeded_raw_job,
+                    scoring_by_url,
+                    reject_conflicting_stable_identity=True,
+                )
+                or {}
+            ),
+            **(
+                _lookup(
+                    ranked_by_identity,
+                    seeded_raw_job,
+                    ranked_by_url,
+                    reject_conflicting_stable_identity=True,
+                )
+                or {}
+            ),
         }
-        cv_row = _lookup(cv_by_identity, seeded_raw_job, cv_by_url)
+        cv_row = _lookup(
+            cv_by_identity,
+            seeded_raw_job,
+            cv_by_url,
+            reject_conflicting_stable_identity=True,
+        )
         analysis_row = _lookup(analysis_by_identity, seeded_raw_job, analysis_by_url)
         cv_payload = None
         if cv_row is not None:
@@ -901,22 +1043,30 @@ def _build_export_results(
                 "created_at": cv_row.get("generated_at"),
             }
         pipeline_status = _status_for(seeded_raw_job)
-        reject_reasons = next(
-            (
-                reject_reasons_by_identity[identity_key]
-                for identity_key in _identity_keys_for(seeded_raw_job)
-                if identity_key in reject_reasons_by_identity
-            ),
-            [],
+        rejection_row = _lookup(
+            rejected_before_enrichment_by_identity,
+            seeded_raw_job,
+            rejected_before_enrichment_by_url,
+            reject_conflicting_stable_identity=True,
         )
-        rule_filter_marks = next(
-            (
-                rule_filter_marks_by_identity[identity_key]
-                for identity_key in _identity_keys_for(seeded_raw_job)
-                if identity_key in rule_filter_marks_by_identity
-            ),
-            [],
-        )
+        if rejection_row is None:
+            rejection_row = _lookup(
+                rejected_after_enrichment_by_identity,
+                seeded_raw_job,
+                rejected_after_enrichment_by_url,
+                reject_conflicting_stable_identity=True,
+            )
+        reject_reasons = list((rejection_row or {}).get("reasons") or [])
+        rule_filter_marks = list((rejection_row or {}).get("marks") or [])
+        if not rule_filter_marks:
+            rule_filter_marks = next(
+                (
+                    rule_filter_marks_by_identity[identity_key]
+                    for identity_key in job_identity_index_keys(seeded_raw_job)
+                    if identity_key in rule_filter_marks_by_identity
+                ),
+                [],
+            )
         if deduplicated_job is not None:
             pipeline_status = "deduplicated_before_enrichment"
             reject_reasons = [
@@ -930,7 +1080,12 @@ def _build_export_results(
             seeded_raw_job,
             scoring_shortlist_by_url,
         )
-        matched_passed_job = _lookup(passed_by_identity, seeded_raw_job, passed_by_url)
+        matched_passed_job = _lookup(
+            passed_by_identity,
+            seeded_raw_job,
+            passed_by_url,
+            reject_conflicting_stable_identity=True,
+        )
         matched_passed_job_url = extract_job_url(matched_passed_job or {})
         if matched_passed_job is not None and matched_passed_job_url:
             shortlist_status = _shortlist_status_for_export_row(
@@ -950,10 +1105,20 @@ def _build_export_results(
             if score_source.get("baseline_fit") is not None
             else None
         )
-        debug_row = _lookup(debug_by_identity, seeded_raw_job, debug_by_url)
+        debug_row = _lookup(
+            debug_by_identity,
+            seeded_raw_job,
+            debug_by_url,
+            reject_conflicting_stable_identity=True,
+        )
         if debug_row is not None:
             cv_status = str(debug_row.get("status") or "not_attempted")
-        elif _lookup(ranked_by_identity, seeded_raw_job, ranked_by_url) is not None:
+        elif _lookup(
+            ranked_by_identity,
+            seeded_raw_job,
+            ranked_by_url,
+            reject_conflicting_stable_identity=True,
+        ) is not None:
             cv_status = "not_attempted"
         else:
             cv_status = "not_applicable"
@@ -974,13 +1139,11 @@ def _build_export_results(
                 ranking_fit_source=ranking_fit_source,
                 cv_status=cv_status,
             )
-        truth_fields = (
-            _deterministic_truth_fields(debug_row.get("status"))
-            if isinstance(debug_row, dict)
-            else _deterministic_truth_fields(analysis_row.get("status"))
-            if isinstance(analysis_row, dict)
-            else _deterministic_truth_fields(None)
-        )
+        truth_source = debug_row if isinstance(debug_row, dict) else analysis_row if isinstance(analysis_row, dict) else cv_row
+        truth_status = truth_source.get("status") if isinstance(truth_source, dict) else None
+        if not str(truth_status or "").strip() and isinstance(cv_row, dict) and cv_row.get("cv_version_id"):
+            truth_status = "accepted"
+        truth_fields = _deterministic_truth_fields(truth_status)
         score_projection = project_legacy_ranking_aliases(
             {
                 "baseline_fit": score_source.get("baseline_fit"),
@@ -4514,6 +4677,8 @@ def run_pipeline(
             )
             accepted_debug_record["cv_version_id"] = artifact_version_id
             accepted_debug_record["accepted_at"] = str(state.get("generation_finished_at_iso") or "") or None
+            accepted_debug_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
+            accepted_debug_record["raw_job_fingerprint"] = str(job.get("raw_job_fingerprint") or "").strip() or None
             cv_generation_debug_records.append(accepted_debug_record)
             _emit_cv_generation_item_observation(
                 run_id=run_id,
@@ -4579,6 +4744,8 @@ def run_pipeline(
                 cv_prompt_template_path=cv_prompt_template_path_value,
             )
             failure_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
+            failure_debug_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
+            failure_debug_record["raw_job_fingerprint"] = str(job.get("raw_job_fingerprint") or "").strip() or None
             _emit_cv_generation_result_event(
                 state=state,
                 status=failure_status,
@@ -4784,6 +4951,8 @@ def run_pipeline(
             pipeline_store.store_cv_version(version, config)
             results.append({
                 "job_url": str(job.get("job_url") or ""),
+                "run_id": run_id,
+                "run_job_id": str(job.get("run_job_id") or "").strip() or None,
                 "fit": fit,
                 "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
                 "cv_version_id": version["version_id"],

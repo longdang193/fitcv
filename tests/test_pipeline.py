@@ -592,6 +592,212 @@ def test_build_export_results_reconciles_raw_url_only_rows_to_stable_downstream_
     assert rows[0]["scores"]["baseline_fit"] == pytest.approx(0.82)
 
 
+def test_build_export_results_does_not_cross_hydrate_duplicate_stable_url_occurrences() -> None:
+    shared_url = "https://jobs.example.com/shared"
+    first_job = {"run_job_id": "run-job-1", "job_url": shared_url, "title": "First role"}
+    second_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    first_cv = {
+        **first_job,
+        "cv_version_id": "cv-1",
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
+        "vector_similarity": 0.65,
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[first_job, second_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[first_cv],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[first_cv],
+        cv_analysis_results=[],
+        cv_results=[first_cv],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    rows_by_run_job_id = {row["run_job_id"]: row for row in rows}
+    assert rows_by_run_job_id["run-job-1"]["pipeline_status"] == "ranked_with_cv"
+    assert rows_by_run_job_id["run-job-1"]["cv"]["version_id"] == "cv-1"
+    assert rows_by_run_job_id["run-job-2"]["pipeline_status"] == "unknown_pipeline_state"
+    assert rows_by_run_job_id["run-job-2"].get("cv_version_id") is None
+
+
+def test_build_export_results_rejects_conflicting_stable_identity_url_cv_fallback() -> None:
+    shared_url = "https://jobs.example.com/shared"
+    raw_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    conflicting_cv = {
+        "run_job_id": "run-job-1",
+        "job_url": shared_url,
+        "cv_version_id": "cv-1",
+        "baseline_fit": 0.82,
+        "baseline_fit_label": "strong",
+        "baseline_rank": 1,
+        "holistic_ai_fit": 0.71,
+        "vector_similarity": 0.65,
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[raw_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[conflicting_cv],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[conflicting_cv],
+        cv_analysis_results=[],
+        cv_results=[conflicting_cv],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == "unknown_pipeline_state"
+    assert rows[0].get("cv") is None
+
+
+def test_build_export_results_rejects_conflicting_stable_identity_url_rejection_fallback() -> None:
+    shared_url = "https://jobs.example.com/shared"
+    raw_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    conflicting_rejection = {
+        "run_job_id": "run-job-1",
+        "job_url": shared_url,
+        "reasons": ["missing_required_skill"],
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[raw_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[conflicting_rejection],
+        candidate_filter_rejected=[],
+        passed_jobs=[],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == "unknown_pipeline_state"
+    assert rows[0]["reject_reasons"] == []
+
+
+def test_build_export_results_rejects_conflicting_debug_status_url_fallback() -> None:
+    shared_url = "https://jobs.example.com/shared"
+    raw_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    conflicting_debug = {
+        "run_job_id": "run-job-1",
+        "job_url": shared_url,
+        "status": "blocked_by_reranker_fit",
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[raw_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[conflicting_debug],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == "unknown_pipeline_state"
+
+
+def test_build_export_results_preserves_matching_generation_failure_debug_status() -> None:
+    shared_url = "https://jobs.example.com/shared"
+    raw_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    matching_debug = {
+        **raw_job,
+        "status": "generation_failed",
+        "decision_chain": {
+            "cv_generation": {"status": "generation_failed", "attempted": True},
+        },
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[raw_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[],
+        candidate_filter_rejected=[],
+        passed_jobs=[],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[raw_job],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[matching_debug],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == "ranked_no_cv"
+    assert rows[0]["deterministic_outcome"] == "rejected"
+    assert rows[0]["decision_chain"]["cv_generation"]["status"] == "generation_failed"
+
+
+@pytest.mark.parametrize(
+    ("rejection_stage", "expected_status"),
+    [
+        ("before", "rejected_before_enrichment"),
+        ("after", "rejected_after_enrichment"),
+    ],
+)
+def test_build_export_results_preserves_legacy_url_rejection_details(
+    rejection_stage: str,
+    expected_status: str,
+) -> None:
+    shared_url = "https://jobs.example.com/shared"
+    raw_job = {"run_job_id": "run-job-2", "job_url": shared_url, "title": "Second role"}
+    rejection = {
+        "job_url": shared_url,
+        "reasons": ["missing_required_skill"],
+        "marks": [{"code": "must_have_skill_missing"}],
+    }
+
+    rows = _build_export_results(
+        raw_jobs=[raw_job],
+        enriched=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected=[rejection] if rejection_stage == "before" else [],
+        candidate_filter_rejected=[rejection] if rejection_stage == "after" else [],
+        passed_jobs=[],
+        raw_shortlist=[],
+        shortlist_for_scoring=[],
+        ranking_inputs=[],
+        ranked=[],
+        cv_analysis_results=[],
+        cv_results=[],
+        cv_generation_debug_records=[],
+        vector_search_top_n=10,
+    )
+
+    assert rows[0]["pipeline_status"] == expected_status
+    assert rows[0]["reject_reasons"] == ["missing_required_skill"]
+    assert rows[0]["rule_filter_marks"] == [{"code": "must_have_skill_missing"}]
+
+
 def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     job = {
         "job_url": "https://example.com/ready",
@@ -8461,6 +8667,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     mock_store_ver: MagicMock,
 ) -> None:
     from fitcv.pipeline import run_pipeline
+    from fitcv.enrich import build_raw_job_fingerprint
 
     ranked_with_cv = {
         **_minimal_job("https://example.com/1"),
@@ -8482,6 +8689,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "preference_runtime_contract_fingerprint": "runtime-fp",
         "preference_policy_resolution_status": "active",
     }
+    ranked_with_cv["raw_job_fingerprint"] = build_raw_job_fingerprint(ranked_with_cv)["fingerprint"]
     ranked_no_cv = {
         **_minimal_job("https://example.com/2"),
         "title": "Ranked No CV",
@@ -8502,6 +8710,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "preference_runtime_contract_fingerprint": "runtime-fp",
         "preference_policy_resolution_status": "active",
     }
+    ranked_no_cv["raw_job_fingerprint"] = build_raw_job_fingerprint(ranked_no_cv)["fingerprint"]
     not_shortlisted = {
         **_minimal_job("https://example.com/3"),
         "title": "Not Shortlisted",
