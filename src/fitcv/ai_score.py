@@ -174,7 +174,87 @@ def build_ranking_request(
 
     source = ranking_input or {}
     jd_summary = _bounded_text(source.get("job_requirements") or build_job_summary_text(job), 4_000)
-    candidate_text = _bounded_text(source.get("candidate_summary") or candidate_summary, 2_500)
+
+    def bound_candidate_summary(value: Any) -> tuple[str, bool]:
+        raw = str(value or "")
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            bounded = _bounded_text(raw, 2_500)
+            return bounded, bounded != raw
+        if not isinstance(payload, dict):
+            bounded = _bounded_text(raw, 2_500)
+            return bounded, bounded != raw
+        ordered_keys = (
+            "skills",
+            "languages",
+            "employment",
+            "education",
+            "certifications",
+            "years_experience",
+            "target_role",
+        )
+        bounded_payload = {
+            key: payload[key]
+            for key in ordered_keys
+            if key in payload
+        }
+        for key in ("skills", "languages", "employment", "education", "certifications"):
+            values = bounded_payload.get(key)
+            if not isinstance(values, list):
+                continue
+            bounded_payload[key] = [
+                {
+                    field: _bounded_text(field_value, 120)
+                    for field, field_value in value.items()
+                    if _bounded_text(field_value, 120)
+                }
+                if isinstance(value, dict)
+                else _bounded_text(value, 120)
+                for value in values
+                if isinstance(value, (dict, str, int, float))
+            ]
+
+        def serialize() -> str:
+            return json.dumps(bounded_payload, ensure_ascii=False, sort_keys=True)
+
+        changed = serialize() != raw
+        while len(serialize()) > 2_500:
+            removed = False
+            for key in ("certifications", "education", "employment", "languages"):
+                values = bounded_payload.get(key)
+                if isinstance(values, list) and len(values) > 1:
+                    values.pop()
+                    removed = True
+                    break
+            if removed:
+                changed = True
+                continue
+            for key in ("certifications", "education", "employment", "languages"):
+                values = bounded_payload.get(key)
+                if isinstance(values, list):
+                    shortened = False
+                    for value in values:
+                        if not isinstance(value, dict):
+                            continue
+                        for field, field_value in list(value.items()):
+                            text = str(field_value or "")
+                            if len(text) > 48:
+                                value[field] = text[:48]
+                                shortened = True
+                                break
+                        if shortened:
+                            break
+                    if shortened:
+                        changed = True
+                        break
+            else:
+                break
+        return serialize(), changed
+
+    candidate_text, candidate_summary_truncated = bound_candidate_summary(
+        source.get("candidate_summary") or candidate_summary
+    )
     evidence = (
         list(source.get("candidate_evidence") or [])[:RANKING_MAX_EVIDENCE]
         if "candidate_evidence" in source
@@ -201,24 +281,27 @@ def build_ranking_request(
         "response_mode": "json_object",
         "input_contract_version": RANKING_INPUT_CONTRACT_VERSION,
     }
-    serialized_without_prompt = len(json.dumps(base_request_payload, ensure_ascii=False))
-    prompt_budget = RANKING_REQUEST_MAX_CHARS - serialized_without_prompt - 2
-    if prompt_budget < 1:
+    def serialized_request_size(prompt_value: str) -> int:
+        return len(json.dumps({**base_request_payload, "prompt": prompt_value}, ensure_ascii=False))
+
+    if serialized_request_size("") > RANKING_REQUEST_MAX_CHARS:
         raise ValueError("ranking request mandatory contract exceeds 12000 characters")
     truncation_steps: list[str] = []
+    if candidate_summary_truncated:
+        truncation_steps.append("candidate_facts:field_aware_bound")
 
     def render_prompt(current_jd: str, current_candidate: str, current_evidence: list[str]) -> str:
         return build_scoring_prompt(current_jd, current_candidate, current_evidence, config=config)
 
     prompt = render_prompt(jd_summary, candidate_text, [evidence_text(item) for item in evidence])
-    if len(prompt) > prompt_budget:
+    if serialized_request_size(prompt) > RANKING_REQUEST_MAX_CHARS:
         for evidence_count in range(len(evidence) - 1, -1, -1):
             candidate_prompt = render_prompt(
                 jd_summary,
                 candidate_text,
                 [evidence_text(item) for item in evidence[:evidence_count]],
             )
-            if len(candidate_prompt) <= prompt_budget:
+            if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
                 prompt = candidate_prompt
                 truncation_steps.append(f"candidate_evidence:{len(evidence)}->{evidence_count}")
                 break
@@ -229,7 +312,7 @@ def build_ranking_request(
                     candidate_text[:candidate_limit],
                     [],
                 )
-                if len(candidate_prompt) <= prompt_budget:
+                if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
                     prompt = candidate_prompt
                     truncation_steps.append(f"candidate_facts:{len(candidate_text)}->{candidate_limit}")
                     break
@@ -240,12 +323,19 @@ def build_ranking_request(
                         "",
                         [],
                     )
-                    if len(candidate_prompt) <= prompt_budget:
+                    if serialized_request_size(candidate_prompt) <= RANKING_REQUEST_MAX_CHARS:
                         prompt = candidate_prompt
                         truncation_steps.append(f"job_requirements:{len(jd_summary)}->{jd_limit}")
                         break
                 else:
-                    prompt = prompt[:prompt_budget]
+                    low, high = 0, len(prompt)
+                    while low < high:
+                        midpoint = (low + high + 1) // 2
+                        if serialized_request_size(prompt[:midpoint]) <= RANKING_REQUEST_MAX_CHARS:
+                            low = midpoint
+                        else:
+                            high = midpoint - 1
+                    prompt = prompt[:low]
                     truncation_steps.append("mandatory_prompt_tail")
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {
@@ -401,18 +491,25 @@ def build_ranking_job_input(
         required_values,
         limit=max(8, len(required_values)),
     )
-    all_candidate_skills = [str(value).strip() for value in flatten_rankable_skills(profile) if str(value).strip()]
+    all_candidate_skills: list[str] = []
+    candidate_skill_keys_seen: set[str] = set()
+    for value in flatten_rankable_skills(profile):
+        display = str(value).strip()
+        canonical = _canonical_skill(display, policy)
+        if not display or not canonical or canonical in candidate_skill_keys_seen:
+            continue
+        candidate_skill_keys_seen.add(canonical)
+        all_candidate_skills.append(display)
     technology_requirements, technology_canonical = canonical_values(
         job.get("tech_stack_canonical") or job.get("tech_stack")
     )
     preferred_skills, preferred_canonical = canonical_values(
         job.get("preferred_skills_canonical") or job.get("preferred_skills")
     )
-    priority_keys = {
-        value: bucket
-        for bucket, values in enumerate((required_canonical, technology_canonical, preferred_canonical))
-        for value in values
-    }
+    priority_keys: dict[str, int] = {}
+    for bucket, values in enumerate((required_canonical, technology_canonical, preferred_canonical)):
+        for value in values:
+            priority_keys.setdefault(value, bucket)
     prioritized_candidate_skills = sorted(
         all_candidate_skills,
         key=lambda skill: (priority_keys.get(_canonical_skill(skill, policy), 3), all_candidate_skills.index(skill)),

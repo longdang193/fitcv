@@ -269,6 +269,23 @@ def test_v1_yaml_adapts_current_dates_parent_refs_and_evidence_ids() -> None:
     assert validate_candidate_profile_v2(profile) == []
 
 
+def test_v1_yaml_preserves_all_repeated_bullet_skill_references() -> None:
+    payload = yaml.safe_load(_minimal_v1_yaml())
+    payload["experiences"][0]["bullets"] = [
+        {"text": "Built SQL report one", "skills": ["SQL"]},
+        {"text": "Built SQL report two", "skills": ["SQL"]},
+    ]
+    result = ingest_candidate_source(
+        "candidate.yaml",
+        "application/yaml",
+        yaml.safe_dump(payload).encode(),
+    )
+
+    assert result.profile is not None
+    sql_refs = result.profile["skills"][0]["evidence_refs"]
+    assert len(sql_refs) == 2
+
+
 def test_yaml_rejects_dangling_evidence_refs() -> None:
     payload = yaml.safe_load(_minimal_v2_yaml())
     payload["skills"][0]["evidence_refs"] = ["ev_missing"]

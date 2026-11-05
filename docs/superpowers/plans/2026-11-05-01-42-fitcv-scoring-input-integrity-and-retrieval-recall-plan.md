@@ -554,11 +554,30 @@ bounded projection, and plan verification records match executed commands.
 
 ## Verification Record
 
-- Focused affected-suite superseding command passed: `404 passed, 4 skipped`.
-- Full regression command `python -m pytest -q` passed: `3529 passed, 10 skipped`.
+- Focused affected-suite superseding command passed: `425 passed, 4 skipped`.
+- Full regression command `python -m pytest -q` passed: `3534 passed, 10 skipped`.
 - `python -m compileall -q src/fitcv tests` passed.
 - `git diff --check` passed.
 - The declared `tests/test_pipeline_stage_artifacts.py` target does not exist;
   stage-artifact coverage is implemented and verified in `tests/test_pipeline.py`.
 - Review-only `.tmp/` artifacts remain untracked and were not modified or added
   to the implementation change.
+
+## Final Review Corrections
+
+The PR review identified six justified edge cases and the implementation now
+covers each one without changing the scorer weights, thresholds, shortlist
+size, or eight-skill/two-evidence budgets:
+
+- Candidate summaries use field-aware trimming that retains skills and
+  languages, and request-size enforcement measures the escaped serialized
+  payload rather than only the rendered prompt.
+- Requirement coverage uses token boundaries and controlled multi-token
+  overlap, preventing substring matches such as `R`/`reports`, `Power BI`/power
+  transmission, and `C++`/`C#`.
+- Required priority is monotonic across required, technology, and preferred
+  channels, and candidate aliases are deduplicated by the configured semantic
+  policy before the eight-skill limit.
+- Repeated legacy bullet skills retain every attributable bullet evidence ID.
+- Regression tests cover all four behaviors above plus the bounded serialized
+  request and repeated-bullet attribution cases.

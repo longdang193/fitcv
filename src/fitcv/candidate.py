@@ -344,13 +344,14 @@ def _adapt_legacy_parent(
 ) -> tuple[dict[str, Any], list[str], dict[str, dict[str, list[str]]]]:
     normalized = copy.deepcopy(item)
     parent_skill_names = [str(value or "").strip() for value in item.get("skills") or []]
-    bullet_skill_names = {
-        str(skill or "").strip(): index
-        for index, bullet in enumerate(item.get("bullets") or [])
-        if isinstance(bullet, dict)
-        for skill in bullet.get("skills") or []
-        if str(skill or "").strip()
-    }
+    bullet_skill_names: dict[str, list[int]] = {}
+    for index, bullet in enumerate(item.get("bullets") or []):
+        if not isinstance(bullet, dict):
+            continue
+        for skill in bullet.get("skills") or []:
+            name = str(skill or "").strip()
+            if name:
+                bullet_skill_names.setdefault(name, []).append(index)
     legacy_project_technology = (
         list(normalized.get("tech_stack") or []) if section == "projects" else []
     )
@@ -526,11 +527,17 @@ def _adapt_legacy_parent(
         if name:
             claim_refs["skills"].setdefault(name, [])
             claim_refs["skills"][name] = list(dict.fromkeys([*claim_refs["skills"][name], *parent_refs]))
-    for name, bullet_index in bullet_skill_names.items():
-        evidence_id = bullet_evidence_ids.get(bullet_index)
-        if evidence_id:
+    for name, bullet_indices in bullet_skill_names.items():
+        evidence_ids = [
+            bullet_evidence_ids[bullet_index]
+            for bullet_index in bullet_indices
+            if bullet_index in bullet_evidence_ids
+        ]
+        if evidence_ids:
             claim_refs["skills"].setdefault(name, [])
-            claim_refs["skills"][name] = list(dict.fromkeys([*claim_refs["skills"][name], evidence_id]))
+            claim_refs["skills"][name] = list(
+                dict.fromkeys([*claim_refs["skills"][name], *evidence_ids])
+            )
     return normalized, all_evidence_ids, claim_refs
 
 

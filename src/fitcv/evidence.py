@@ -1733,12 +1733,23 @@ def _jaccard_tokens(left: str, right: str) -> float:
 
 
 def _term_is_present(text: str, term: str) -> bool:
-    normalized_term = _normalize_text(term)
-    if not normalized_term:
+    def searchable(value: str) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+#]+", " ", str(value or "").lower())).strip()
+
+    searchable_text = searchable(text)
+    searchable_term = searchable(term)
+    if not searchable_term:
         return False
-    if normalized_term in text:
+    if re.search(
+        rf"(?<![a-z0-9]){re.escape(searchable_term)}(?![a-z0-9])",
+        searchable_text,
+    ):
         return True
-    return bool(_tokenize(normalized_term) & _tokenize(text))
+    term_tokens = searchable_term.split()
+    text_tokens = set(searchable_text.split())
+    if len(term_tokens) < 2:
+        return False
+    return sum(token in text_tokens for token in term_tokens) >= max(2, math.ceil(len(term_tokens) * 0.66))
 
 
 def score_evidence_item_by_channel(
