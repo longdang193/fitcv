@@ -12311,28 +12311,36 @@ def query_runs(
             )
             for row in rows
         }
-        progress_completed_by_run_id = {
+        stage_row_count_by_run_id = {
             str(row["run_id"]): int(
                 conn.execute(
-                    """SELECT COUNT(*) FROM run_stage_executions
-                       WHERE run_id=? AND status IN
-                       ('succeeded','warning','partial','failed','cancelled','skipped')""",
+                    "SELECT COUNT(*) FROM run_stage_executions WHERE run_id=?",
                     (str(row["run_id"]),),
                 ).fetchone()[0]
                 or 0
             )
             for row in rows
         }
-        progress_total_by_run_id = {
+        progress_completed_by_run_id = {
             str(row["run_id"]): (
-                len(PROTOTYPE_STAGES)
-                if int(
+                int(
                     conn.execute(
-                        "SELECT COUNT(*) FROM run_stage_executions WHERE run_id=?",
+                        """SELECT COUNT(*) FROM run_stage_executions
+                           WHERE run_id=? AND status IN
+                           ('succeeded','warning','partial','failed','cancelled','skipped')""",
                         (str(row["run_id"]),),
                     ).fetchone()[0]
                     or 0
                 )
+                if stage_row_count_by_run_id[str(row["run_id"])]
+                else int(row["progress_completed"])
+            )
+            for row in rows
+        }
+        progress_total_by_run_id = {
+            str(row["run_id"]): (
+                len(PROTOTYPE_STAGES)
+                if stage_row_count_by_run_id[str(row["run_id"])]
                 else int(row["progress_total"])
             )
             for row in rows
@@ -13392,7 +13400,7 @@ def _terminal_counts_for_run(
         ).fetchone()[0]
         or 0
     )
-    if evidence_count == job_count:
+    if job_count > 0 and evidence_count == job_count:
         return _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
     total = max(0, int(stored_total or 0))
     passed = max(0, int(stored_passed or 0))

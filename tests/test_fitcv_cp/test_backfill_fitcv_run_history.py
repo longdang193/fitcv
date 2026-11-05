@@ -207,6 +207,33 @@ def test_backfill_preserves_legacy_rows_and_reconciles_all_dispositions(migratio
         assert conn.execute("SELECT run_id, run_json, created_at FROM local_pipeline_runs ORDER BY run_id").fetchall() == before
 
 
+def test_backfill_preserves_aggregate_only_run_counts(migration_db: Path) -> None:
+    payload = _run_payload("legacy-aggregate-only")
+    payload.update({"total_jobs": 10, "passed_filter": 7, "rejected_jobs": 3})
+    with sqlite3.connect(migration_db) as conn:
+        conn.execute(
+            "INSERT INTO local_pipeline_runs(run_id, run_json, created_at) VALUES (?, ?, ?)",
+            ("legacy-aggregate-only", json.dumps(payload), "2026-09-05T10:00:00+00:00"),
+        )
+        conn.commit()
+
+    sqlite_store.backfill_legacy_run_history(migration_db, batch_size=100)
+
+    detail = sqlite_store.get_run_detail("legacy-aggregate-only")
+    listing = sqlite_store.query_runs(page=1, page_size=20)
+    listed = next(item for item in listing["items"] if item["run_id"] == "legacy-aggregate-only")
+    expected_counts = {
+        "total": 10,
+        "passed": 7,
+        "rejected": 3,
+        "skipped": 0,
+        "cvs_generated": 0,
+    }
+    assert detail is not None
+    assert detail["counts"] == expected_counts
+    assert listed["counts"] == expected_counts
+
+
 def test_backfill_changed_source_fingerprint_conflicts_without_overwrite(migration_db: Path) -> None:
     sqlite_store.backfill_legacy_run_history(migration_db, batch_size=100)
     with sqlite3.connect(migration_db) as conn:

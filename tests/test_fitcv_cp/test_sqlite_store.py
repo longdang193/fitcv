@@ -6326,6 +6326,25 @@ def test_cancel_before_snapshot_uses_stage_count_progress_units() -> None:
     assert detail["progress"] == {"completed": 6, "total": 6}
 
 
+def test_query_runs_preserves_stored_progress_without_stage_rows() -> None:
+    run = _make_run("run-progress-without-stage-rows")
+    run.status = RunStatus.SUCCEEDED
+    run.total_jobs = 10
+    run.passed_filter = 7
+    run.rejected_jobs = 3
+    run.progress_completed = 6
+    run.progress_total = 6
+    sqlite_store.insert_run(run)
+
+    detail = sqlite_store.get_run_detail(run.run_id)
+    listing = sqlite_store.query_runs(page=1, page_size=10)
+    listed = next(item for item in listing["items"] if item["run_id"] == run.run_id)
+
+    assert detail is not None
+    assert detail["progress"] == {"completed": 6, "total": 6}
+    assert listed["progress"] == detail["progress"]
+
+
 def test_worker_cancel_snapshot_reconciles_terminal_counts() -> None:
     run_id = "run-worker-cancel-reconcile"
     _create_normalized_run_with_jobs(
