@@ -373,6 +373,28 @@ def build_ranking_request(
     candidate_text, candidate_summary_truncated, candidate_visibility, candidate_variants = bound_candidate_summary(
         source.get("candidate_summary") or candidate_summary
     )
+    mandatory_omissions = {
+        str(key): int(value or 0)
+        for key, value in dict((source.get("contract_metadata") or {}).get("mandatory_omissions") or {}).items()
+    }
+    if any(value > 0 for value in mandatory_omissions.values()):
+        visibility_manifest = {
+            "job": {**job_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("job_")]},
+            "candidate": {**candidate_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("candidate_")]},
+            "evidence": {
+                "raw_count": len(list(source.get("candidate_evidence") or top_evidence or [])),
+                "selected_count": len(list(source.get("candidate_evidence") or top_evidence or [])),
+                "rendered_count": 0,
+                "model_visible_count": 0,
+                "omitted_count": 0,
+            },
+            "mandatory_omissions": mandatory_omissions,
+            "mandatory_core_complete": False,
+        }
+        raise RankingInputBudgetExceeded(
+            "mandatory ranking facts were omitted before request bounding",
+            visibility_manifest=visibility_manifest,
+        )
     evidence = (
         list(source.get("candidate_evidence") or [])[:RANKING_MAX_EVIDENCE]
         if "candidate_evidence" in source
@@ -387,6 +409,7 @@ def build_ranking_request(
             _bounded_text(item.get("kind") or item.get("evidence_type"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("source_section"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("title"), RANKING_TERM_MAX_CHARS),
+            _bounded_text(item.get("parent_id"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("parent_title"), RANKING_TERM_MAX_CHARS),
             _bounded_text(item.get("organization"), RANKING_TERM_MAX_CHARS),
             ", ".join(_bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS)),
@@ -394,6 +417,7 @@ def build_ranking_request(
             _bounded_text(item.get("scoring_context"), RANKING_EVIDENCE_TEXT_MAX_CHARS),
             _bounded_text(item.get("text"), RANKING_EVIDENCE_TEXT_MAX_CHARS),
             ", ".join(_bounded_values(item.get("source_refs"), limit=4)),
+            _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         ]
         return " | ".join(value for value in fields if value)
 
@@ -505,6 +529,8 @@ def build_ranking_request(
                 ],
                 "omitted_count": max(0, len(evidence) - len(selected_evidence)),
             },
+            "mandatory_omissions": mandatory_omissions,
+            "mandatory_core_complete": not any(value > 0 for value in mandatory_omissions.values()),
         },
         "fingerprint": _stable_json_fingerprint({"request": request_payload, "route": route_payload}),
     }
@@ -593,6 +619,11 @@ def build_ranking_input_diagnostics(
             if key in backend_metadata
         },
         "omitted_counts": dict(metadata.get("omitted_counts") or {}),
+        "mandatory_omissions": dict(metadata.get("mandatory_omissions") or {}),
+        "mandatory_core_complete": not any(
+            int(value or 0) > 0
+            for value in dict(metadata.get("mandatory_omissions") or {}).values()
+        ),
         "request_char_count": serialized_request,
         "request_max_chars": RANKING_REQUEST_MAX_CHARS,
         "request_within_budget": serialized_request is None or serialized_request <= RANKING_REQUEST_MAX_CHARS,
@@ -688,7 +719,9 @@ def build_ranking_job_input(
             build_evidence_excerpt(item, job, semantic_policy=policy),
             RANKING_EVIDENCE_TEXT_MAX_CHARS,
         ),
+        "support_state": _bounded_text(item.get("support_state"), RANKING_TERM_MAX_CHARS),
         "source_refs": _bounded_values(item.get("source_refs"), limit=4),
+        "source_ref": _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
     } for item in projected_evidence[:RANKING_MAX_EVIDENCE] if isinstance(item, dict)]
     required_values = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
@@ -705,9 +738,12 @@ def build_ranking_job_input(
             continue
         candidate_skill_keys_seen.add(canonical)
         all_candidate_skills.append(display)
-    technology_requirements, technology_canonical = canonical_values(
-        job.get("tech_stack_canonical") or job.get("tech_stack")
+    technology_values = list(job.get("tech_stack_canonical") or job.get("tech_stack") or [])
+    all_technology_requirements, technology_canonical = canonical_values(
+        technology_values,
+        limit=max(8, len(technology_values)),
     )
+    technology_requirements = all_technology_requirements[:RANKING_MAX_SKILLS]
     preferred_skills, preferred_canonical = canonical_values(
         job.get("preferred_skills_canonical") or job.get("preferred_skills")
     )
@@ -724,21 +760,42 @@ def build_ranking_job_input(
     candidate_skill_keys = {_canonical_skill(skill, policy) for skill in all_candidate_skills}
     matched_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical in candidate_skill_keys]
     missing_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical not in candidate_skill_keys]
-    languages = [
+    all_candidate_languages = [
         {"name": _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS), "level": _bounded_text(item.get("level"), RANKING_TERM_MAX_CHARS)}
-        for item in list(profile.get("languages") or [])[:8]
+        for item in list(profile.get("languages") or [])
         if isinstance(item, dict) and _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS)
     ]
-    employment = [
+    languages = all_candidate_languages[:8]
+    all_candidate_employment = [
         {
             "role": _bounded_text(item.get("role"), RANKING_TERM_MAX_CHARS),
             "company": _bounded_text(item.get("company") or item.get("organization"), RANKING_TERM_MAX_CHARS),
             "start": _bounded_text(item.get("start"), 32),
             "end": _bounded_text(item.get("end"), 32),
         }
-        for item in list(profile.get("experiences") or [])[:8]
+        for item in list(profile.get("experiences") or [])
         if isinstance(item, dict)
     ]
+    employment = all_candidate_employment[:8]
+    mandatory_skill_keys = set(required_canonical) | set(technology_canonical)
+    visible_candidate_skill_keys = {
+        _canonical_skill(skill, policy)
+        for skill in candidate_skills
+    }
+    job_language_values = list(job.get("language_requirements") or job.get("languages") or [])
+    mandatory_candidate_skill_keys = {
+        _canonical_skill(skill, policy)
+        for skill in all_candidate_skills
+        if _canonical_skill(skill, policy) in mandatory_skill_keys
+    }
+    mandatory_omissions = {
+        "job_required_skills": max(0, len(all_required_skills) - len(required_skills)),
+        "job_technology_requirements": max(0, len(all_technology_requirements) - len(technology_requirements)),
+        "job_language_requirements": max(0, len(job_language_values) - min(8, len(job_language_values))),
+        "candidate_required_skills": len(mandatory_candidate_skill_keys - visible_candidate_skill_keys),
+        "candidate_languages": max(0, len(all_candidate_languages) - 8),
+        "candidate_employment": max(0, len(all_candidate_employment) - 8),
+    }
     education = [
         {key: _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS) for key in ("degree", "field", "institution", "start", "end") if _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)}
         for item in list(profile.get("education") or [])[:4]
@@ -806,6 +863,7 @@ def build_ranking_job_input(
             "candidate_skills": max(0, len(all_candidate_skills) - len(candidate_skills)),
             "evidence": max(0, len(projected_evidence) - len(evidence)),
         },
+        "mandatory_omissions": mandatory_omissions,
         "requirement_ids": [
             *[f"required:{index}" for index in range(len(required_skills))],
             *[f"technology:{index}" for index in range(len(technology_requirements))],

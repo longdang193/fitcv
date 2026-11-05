@@ -969,14 +969,20 @@ def run_vector_search(
         production_rows = [*production_rows, *fallback_rows]
         fallback_diagnostics = dict(lexical_result.get("diagnostics") or {})
         fallback_urls = {str(row.get("job_url") or "") for row in fallback_rows}
-        audit_candidates = [
-            *audit_candidates,
-            *[
-                row
-                for row in lexical_result.get("production_rows") or []
-                if str(row.get("job_url") or "") not in admitted_urls and str(row.get("job_url") or "") not in fallback_urls
-            ],
-        ]
+        seen_audit_urls = {
+            str(row.get("job_url") or "")
+            for row in [*production_rows, *audit_candidates]
+            if str(row.get("job_url") or "")
+        }
+        for row in [
+            *(lexical_result.get("production_rows") or []),
+            *(lexical_result.get("audit_rows") or []),
+        ]:
+            job_url = str(row.get("job_url") or "")
+            if not job_url or job_url in seen_audit_urls:
+                continue
+            audit_candidates.append(row)
+            seen_audit_urls.add(job_url)
     candidate_query_signature = str(candidate_query.get("candidate_query_signature") or "")
     audit_ranked = [
         {

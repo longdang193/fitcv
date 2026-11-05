@@ -665,6 +665,34 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   are recorded; completion status remains governed by
   `skill-verification-before-completion`.
 
+## Final Review Corrections
+
+The first PR review found five source-confirmed gaps. These corrections are
+now part of the executable scope and must be included in the final verification:
+
+- Reject ranking requests when the mandatory scorer core would omit required
+  skills, technology requirements, candidate matches, languages, or employment
+  facts; persist the omission manifest and make the scoring path return an
+  explicit unscored `input_budget_exceeded` result without a provider call.
+- Keep sentence boundaries in evidence matching and treat a term as supported
+  when any occurrence is positive; unrelated negated occurrences must not hide
+  positive evidence.
+- Preserve both lexical fallback production rows and lexical fallback audit
+  rows, deduplicated by job URL, so fallback does not erase audit visibility.
+- Preserve residual source-block document IDs, locators, and block IDs through
+  evidence projection and include source provenance in scorer-visible evidence.
+- Carry evidence `support_state` from requirement annotation through selection,
+  ranking-input projection, and final scorer rendering.
+
+Required regression coverage:
+
+- `tests/test_ai_score.py` proves mandatory omissions stop scoring before the
+  provider boundary.
+- `tests/test_evidence.py` proves sentence-local negation, residual provenance,
+  support-state propagation, and scorer-visible provenance.
+- `tests/test_vector_search.py` proves lexical audit rows survive all-missing
+  vector fallback.
+
 ## Verification
 
 Final artifact-level proof consists of:
@@ -682,9 +710,12 @@ Final artifact-level proof consists of:
 
 ## Execution Evidence
 
-- Focused cross-stage suite: `523 passed, 2 skipped in 9.14s`.
+- Focused cross-stage suite: `529 passed, 2 skipped in 11.84s`.
 - Compilation: `python -m compileall -q src/fitcv src/fitcv_cp tests` passed.
-- Full suite: `3555 passed, 8 skipped in 289.97s (0:04:49)`.
+- Full suite: `3561 passed, 8 skipped in 307.34s (0:05:07)`.
+- Final-review regression slice: `6 passed` for mandatory scorer admission,
+  sentence-local negation, residual provenance, support-state propagation, and
+  lexical audit-row preservation.
 - Boundary regression: 5 targeted scorer, manifest, failure-visibility, and
   recall tests passed.
 - Fixed recall fixture at `@50`: vector-only `0.5`, lexical-only `1.0`, merged
@@ -694,7 +725,8 @@ Final artifact-level proof consists of:
 - Shared planning validators report no errors for this plan; their repository-wide
   runs remain nonzero only because of pre-existing errors in unrelated historical
   plans and specifications.
-- Publication: `no publication required`; no commit or push performed.
+- Publication: follow-up corrections are committed and pushed before the final
+  independent PR review.
 
 ## Completion Criteria
 

@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+import fitcv.ai_score as ai_score_module
 from fitcv import evidence as evidence_module
 from fitcv.candidate import canonical_candidate_checksum
 from fitcv.config import apply_runtime_synonym_overlay
@@ -2708,6 +2709,83 @@ def test_ranking_channel_matching_does_not_use_substrings_or_single_token_overla
 
     assert coverage["required"] == []
     assert coverage["technology"] == []
+
+
+def test_ranking_channel_matching_keeps_positive_occurrence_after_unrelated_negation() -> None:
+    item = {
+        "title": "Pipelines",
+        "text": "No Python experience was required for the old role. Built Python data pipelines in production.",
+        "scoring_context": "No Python experience was required for the old role. Built Python data pipelines in production.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]
+
+    assert coverage["required"] == ["Python"]
+
+
+def test_ranking_channel_matching_rejects_only_negated_occurrences() -> None:
+    item = {
+        "title": "Pipelines",
+        "text": "No Python experience was required for the role.",
+        "scoring_context": "No Python experience was required for the role.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]
+
+    assert coverage["required"] == []
+
+
+def test_residual_evidence_preserves_document_locator_provenance() -> None:
+    profile = {
+        "schema_version": "candidate-profile.v2",
+        "name": "Alex Morgan",
+        "source_documents": [
+            {
+                "id": "doc_cv",
+                "origin": "uploaded",
+                "residual_source_blocks": [
+                    {
+                        "block_id": "block_7",
+                        "document_id": "doc_cv",
+                        "locator": {"page": 3, "paragraph": 2},
+                        "text": "Built a reconciliation workflow.",
+                    }
+                ],
+                "sha256": "a" * 64,
+            }
+        ],
+        "experiences": [],
+        "education": [],
+        "projects": [],
+        "achievements": [],
+        "certifications": [],
+        "volunteering": [],
+        "languages": [],
+        "skills": [],
+        "role_families": [],
+        "domain_tags": [],
+        "responsibility_themes": [],
+    }
+
+    residual = next(item for item in project_candidate_evidence(profile) if item["kind"] == "source_residual")
+
+    assert residual["source_refs"] == [{
+        "document_id": "doc_cv",
+        "locator": {"page": 3, "paragraph": 2},
+        "source_block_id": "block_7",
+    }]
+
+
+def test_support_state_survives_selection_and_scorer_projection() -> None:
+    profile = _cached_evidence_profile(_cached_evidence_item("ev-python", ["Python"], "Built Python pipelines."))
+    job = {"job_url": "https://example.com/python", "required_skills": ["Python"]}
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=1)
+    selected = bundle["selected_evidence"][0]
+    ranking_input = ai_score_module.build_ranking_job_input(job, {"_projected_evidence_pool": [selected]})
+
+    assert selected["support_state"] == "supported"
+    assert ranking_input["candidate_evidence"][0]["support_state"] == "supported"
 
 
 def test_ranking_channel_matching_uses_the_compiled_semantic_policy() -> None:

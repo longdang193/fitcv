@@ -1496,7 +1496,17 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                     "domain_tags": [],
                     "responsibility_themes": [],
                     "skills": [],
-                    "source_refs": [],
+                    "source_refs": [
+                        {
+                            "document_id": str(
+                                block.get("document_id")
+                                or source_document.get("id")
+                                or ""
+                            ),
+                            "locator": copy.deepcopy(block.get("locator") or {}),
+                            "source_block_id": block_id,
+                        }
+                    ],
                     "scoring_context": _normalize_optional_text(block.get("text")),
                     "evidence_type": "candidate_source_residual",
                     "name": _normalize_optional_text(block.get("text")),
@@ -1825,9 +1835,11 @@ def _ranking_requirement_channels(
 
 
 def _evidence_search_text(item: dict[str, Any]) -> str:
-    return _normalize_text(
+    return re.sub(
+        r"\s+",
+        " ",
         " ".join(
-            str(value or "")
+            _normalize_optional_text(value)
             for value in (
                 item.get("title"),
                 item.get("parent_title"),
@@ -1838,8 +1850,8 @@ def _evidence_search_text(item: dict[str, Any]) -> str:
                 *list(item.get("skills") or []),
                 *list(item.get("tech_stack") or []),
             )
-        )
-    )
+        ),
+    ).strip()
 
 
 def _jaccard_tokens(left: str, right: str) -> float:
@@ -2586,22 +2598,28 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
 def _is_negated_term(text: str, term: str) -> bool:
     normalized = _normalize_optional_text(text).casefold()
     aliases = _QUALIFIER_CONTEXT_ALIASES.get(term, (term,))
-    match = next(
-        (
-            candidate
-            for alias in aliases
-            for candidate in [re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized)]
-            if candidate
-        ),
-        None,
-    )
-    if not match:
+    matches = [
+        match
+        for alias in aliases
+        for match in re.finditer(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized, re.IGNORECASE)
+    ]
+    if not matches:
         return False
-    prefix = normalized[max(0, match.start() - 48):match.start()]
-    return any(
-        re.search(rf"(?<!\w){re.escape(negation)}(?!\w)", prefix)
-        for negation in _QUALIFIER_NEGATION_TERMS
-    )
+
+    def negated_at(match: re.Match[str]) -> bool:
+        sentence_start = max(
+            normalized.rfind(".", 0, match.start()),
+            normalized.rfind("!", 0, match.start()),
+            normalized.rfind("?", 0, match.start()),
+            normalized.rfind("\n", 0, match.start()),
+        ) + 1
+        prefix = normalized[max(sentence_start, match.start() - 48):match.start()]
+        return any(
+            re.search(rf"(?<!\w){re.escape(negation)}(?!\w)", prefix, re.IGNORECASE)
+            for negation in _QUALIFIER_NEGATION_TERMS
+        )
+
+    return all(negated_at(match) for match in matches)
 
 
 def _term_present(text: str, term: str) -> bool:
@@ -3142,6 +3160,14 @@ def _annotate_requirement_support(
             *list(item.get("responsibility_requirement_ids") or []),
         ]))
         item["requirement_assessments"] = assessments
+        statuses = [str(value.get("qualifier_status") or "unverified") for value in assessments.values()]
+        item["support_state"] = (
+            "supported"
+            if "supported" in statuses
+            else "contradicted"
+            if "contradicted" in statuses
+            else "unverified"
+        )
     return items
 
 
@@ -3214,6 +3240,8 @@ def _annotate_responsibility_support(
             *list(item.get("supported_requirement_ids") or []),
             *responsibility_ids,
         ]))
+        if responsibility_ids and str(item.get("support_state") or "unverified") == "unverified":
+            item["support_state"] = "supported"
     return support
 
 

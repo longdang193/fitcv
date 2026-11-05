@@ -19,6 +19,7 @@ from fitcv.ai_score import (
     build_ranking_request,
     build_scoring_prompt,
     parse_score_response,
+    run_ai_scoring,
 )
 
 
@@ -449,6 +450,36 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     assert diagnostics["candidate_skill_count"] == 8
     assert diagnostics["request_within_budget"] is True
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+
+
+def test_ranking_input_budget_exceeded_for_omitted_decisive_facts_without_provider_call() -> None:
+    required_skills = [f"Required Skill {index}" for index in range(1, 10)]
+    job = {"job_url": "https://example.com/over-budget", "required_skills": required_skills}
+    profile = {"skills": [{"name": skill} for skill in required_skills]}
+    ranking_input = build_ranking_job_input(job, profile)
+
+    assert ranking_input["contract_metadata"]["mandatory_omissions"]["job_required_skills"] == 1
+    assert ranking_input["contract_metadata"]["mandatory_omissions"]["candidate_required_skills"] == 1
+
+    provider_calls = 0
+
+    def fail_if_called(*_args: object, **_kwargs: object) -> None:
+        nonlocal provider_calls
+        provider_calls += 1
+        raise AssertionError("provider must not be called")
+
+    with patch.object(ai_score_module, "score_job", side_effect=fail_if_called):
+        result = run_ai_scoring(
+            [{**job, "ranking_input": ranking_input}],
+            "candidate",
+            {},
+            top_n=1,
+        )
+
+    assert provider_calls == 0
+    assert result[0]["failure_code"] == "input_budget_exceeded"
+    assert result[0]["score_status"] == "unscored"
+    assert result[0]["ranking_input_diagnostics"]["visibility_manifest"]["mandatory_core_complete"] is False
 
 
 def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflow() -> None:

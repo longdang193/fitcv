@@ -980,6 +980,39 @@ def test_run_vector_search_falls_back_when_candidate_embedding_unavailable(
     assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
 
 
+def test_run_vector_search_fallback_preserves_lexical_audit_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([]),
+    )
+    lexical_result = {
+        "production_rows": [
+            {"job_url": "https://example.com/lexical-production", "vector_rank": 1},
+        ],
+        "audit_rows": [
+            {"job_url": "https://example.com/lexical-audit", "vector_rank": 2},
+        ],
+        "diagnostics": {"scored_jobs_total": 2},
+    }
+    monkeypatch.setattr("fitcv.vector_search._lexical_search_result", lambda *_args, **_kwargs: lexical_result)
+    jobs = [
+        {"job_url": "https://example.com/lexical-production", "title": "Data Engineer"},
+        {"job_url": "https://example.com/lexical-audit", "title": "Data Engineer"},
+    ]
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        [job["job_url"] for job in jobs],
+        {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 1}},
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == ["https://example.com/lexical-production"]
+    assert [row["job_url"] for row in result["audit_rows"]] == ["https://example.com/lexical-audit"]
+
+
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
