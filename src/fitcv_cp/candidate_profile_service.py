@@ -119,8 +119,21 @@ _BASELINE_RESPONSE_SCHEMA = {
                 },
             },
         },
+        "source_block_dispositions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "source_block_id": {"type": "string"},
+                    "disposition": {"type": "string", "enum": ["represented", "unresolved", "ignored"]},
+                    "reason": {"type": "string"},
+                },
+                "required": ["source_block_id", "disposition", "reason"],
+            },
+        },
     },
-    "required": ["proposals", "collections"],
+    "required": ["proposals", "collections", "source_block_dispositions"],
 }
 _DERIVED_RESPONSE_SCHEMA = {
     "type": "object",
@@ -176,6 +189,8 @@ class CandidateProfileStageResult:
     llm_called: bool
     baseline_fingerprint: str | None = None
     derived_seed: dict[str, Any] | None = None
+    source_block_dispositions: tuple[dict[str, Any], ...] = ()
+    residual_source_blocks: tuple[dict[str, Any], ...] = ()
 
 
 def _fingerprint(value: Any) -> str:
@@ -307,7 +322,12 @@ def _block_refs(block_ids: list[str], blocks: dict[str, dict[str, Any]]) -> list
     return refs
 
 
-def _validate_baseline_payload(value: Any, block_ids: set[str]) -> LlmValidationResult:
+def _validate_baseline_payload(
+    value: Any,
+    block_ids: set[str],
+    *,
+    require_source_block_dispositions: bool = False,
+) -> LlmValidationResult:
     errors: list[str] = []
     if not isinstance(value, dict):
         return _validation(["response must be a mapping"])
@@ -315,6 +335,27 @@ def _validate_baseline_payload(value: Any, block_ids: set[str]) -> LlmValidation
     collections = value.get("collections")
     if not isinstance(proposals, list) or not isinstance(collections, list):
         return _validation(["proposals and collections must be lists"])
+    dispositions = value.get("source_block_dispositions")
+    if dispositions is None and not require_source_block_dispositions:
+        dispositions = []
+    if not isinstance(dispositions, list):
+        errors.append("source_block_dispositions must be a list")
+        dispositions = []
+    disposition_ids: set[str] = set()
+    for disposition in dispositions:
+        if not isinstance(disposition, dict):
+            errors.append("source block disposition must be a mapping")
+            continue
+        source_block_id = str(disposition.get("source_block_id") or "")
+        status = str(disposition.get("disposition") or "")
+        reason = str(disposition.get("reason") or "").strip()
+        if source_block_id not in block_ids or source_block_id in disposition_ids:
+            errors.append("source block disposition requires a unique valid source_block_id")
+        if status not in {"represented", "unresolved", "ignored"} or not reason:
+            errors.append("source block disposition requires disposition and reason")
+        disposition_ids.add(source_block_id)
+    if require_source_block_dispositions and disposition_ids != set(block_ids):
+        errors.append("source block dispositions must conserve every input source block")
     allowed_scalar_paths = {"/name", "/headline", "/summary", *{f"/contact/{field}" for field in ("email", "phone", "location", "linkedin", "github", "website")}}
     for proposal in proposals:
         if not isinstance(proposal, dict) or proposal.get("path") not in allowed_scalar_paths:
@@ -405,6 +446,37 @@ def _hydrate_baseline_source_block_ids(
                 for block_id in matches(field)
             ]
             collection["source_block_ids"] = list(dict.fromkeys(evidence_refs or field_refs))
+    dispositions = value.setdefault("source_block_dispositions", [])
+    if not isinstance(dispositions, list):
+        dispositions = []
+        value["source_block_dispositions"] = dispositions
+    disposition_ids = {
+        str(item.get("source_block_id") or "")
+        for item in dispositions
+        if isinstance(item, dict)
+    }
+    referenced_ids = {
+        str(source_block_id)
+        for proposal in value.get("proposals") or []
+        if isinstance(proposal, dict)
+        for source_block_id in proposal.get("source_block_ids") or []
+    }
+    for collection in value.get("collections") or []:
+        if not isinstance(collection, dict):
+            continue
+        referenced_ids.update(str(source_block_id) for source_block_id in collection.get("source_block_ids") or [])
+        for evidence in collection.get("evidence") or []:
+            if isinstance(evidence, dict):
+                referenced_ids.update(str(source_block_id) for source_block_id in evidence.get("source_block_ids") or [])
+    for block_id, block in blocks.items():
+        if block_id not in disposition_ids:
+            dispositions.append(
+                {
+                    "source_block_id": block_id,
+                    "disposition": "represented" if block_id in referenced_ids else "unresolved",
+                    "reason": "cited by a baseline mapping" if block_id in referenced_ids else "mapper returned no safe baseline mapping",
+                }
+            )
     return value
 
 
@@ -631,7 +703,18 @@ def build_baseline_review(
         if block["block_id"] not in resolved and block["kind"] != "heading"
     ]
     if not unresolved:
-        return CandidateProfileStageResult(document, annotations, _fingerprint(document), None, False)
+        dispositions = tuple(
+            {
+                "source_block_id": str(block["block_id"]),
+                "disposition": "represented",
+                "reason": "deterministically represented as the candidate name",
+            }
+            for block in ingest.source_blocks
+        )
+        return CandidateProfileStageResult(
+            document, annotations, _fingerprint(document), None, False,
+            source_block_dispositions=dispositions,
+        )
 
     block_lookup = {block["block_id"]: block for block in unresolved}
     request = LlmTaskRequest(
@@ -653,6 +736,7 @@ def build_baseline_review(
             lambda value: _validate_baseline_payload(
                 _hydrate_baseline_source_block_ids(value, block_lookup),
                 set(block_lookup),
+                require_source_block_dispositions=True,
             ),
             llm_runner,
             document,
@@ -673,6 +757,45 @@ def build_baseline_review(
             )
         raise
     value = result.parsed_value
+    referenced_ids = {
+        str(source_block_id)
+        for proposal in value["proposals"]
+        if isinstance(proposal, dict)
+        for source_block_id in proposal.get("source_block_ids") or []
+    }
+    for collection in value["collections"]:
+        if not isinstance(collection, dict):
+            continue
+        referenced_ids.update(str(source_block_id) for source_block_id in collection.get("source_block_ids") or [])
+        for evidence in collection.get("evidence") or []:
+            if isinstance(evidence, dict):
+                referenced_ids.update(str(source_block_id) for source_block_id in evidence.get("source_block_ids") or [])
+    dispositions = [dict(item) for item in value.get("source_block_dispositions") or []]
+    for item in dispositions:
+        if item["disposition"] == "represented" and item["source_block_id"] not in referenced_ids:
+            raise CandidateProfileServiceError(
+                "candidate_profile_llm_output_invalid",
+                f"represented source block is not cited: {item['source_block_id']}",
+                retryable=True,
+                last_valid_document=document,
+            )
+    disposition_by_id = {str(item["source_block_id"]): item for item in dispositions}
+    for block in ingest.source_blocks:
+        block_id = str(block["block_id"])
+        if block_id in disposition_by_id:
+            continue
+        disposition_by_id[block_id] = {
+            "source_block_id": block_id,
+            "disposition": "represented" if block_id in resolved else "ignored",
+            "reason": "deterministic heading" if block_id in resolved else "not supplied by mapper",
+        }
+    residual_source_blocks = tuple(
+        copy.deepcopy(block)
+        for block in ingest.source_blocks
+        if disposition_by_id[str(block["block_id"])] ["disposition"] == "unresolved"
+    )
+    if residual_source_blocks:
+        document["source_documents"][0]["residual_source_blocks"] = list(residual_source_blocks)
     for proposal in value["proposals"]:
         _apply_scalar_proposal(document, proposal, annotations)
     for proposal in value["collections"]:
@@ -683,6 +806,8 @@ def build_baseline_review(
         fingerprint=_fingerprint(document),
         runtime_evidence=project_llm_runtime_evidence(result),
         llm_called=True,
+        source_block_dispositions=tuple(disposition_by_id.values()),
+        residual_source_blocks=residual_source_blocks,
     )
 
 
@@ -1084,6 +1209,8 @@ def _stage_result_payload(result: CandidateProfileStageResult) -> dict[str, Any]
         "fingerprint": result.fingerprint,
         "runtime_evidence": result.runtime_evidence,
         "baseline_fingerprint": result.baseline_fingerprint,
+        "source_block_dispositions": list(result.source_block_dispositions),
+        "residual_source_blocks": list(result.residual_source_blocks),
     }
 
 

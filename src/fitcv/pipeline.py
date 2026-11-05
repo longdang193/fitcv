@@ -1785,6 +1785,7 @@ def _build_stage_progress_summary(
     shortlist = list(state.get("shortlist") or [])
     shortlist_audit_rows = list(state.get("_shortlist_audit_rows") or [])
     shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
+    shortlist_admission_manifest = dict(state.get("shortlist_admission_manifest") or {})
     ai_scores = list(state.get("ai_scores") or [])
     enrich_llm_runtime_observations = list(state.get("enrich_llm_runtime_observations") or [])
     ranking_llm_runtime_observations = list(state.get("ranking_llm_runtime_observations") or [])
@@ -1792,6 +1793,7 @@ def _build_stage_progress_summary(
     ranking_input_diagnostics_by_identity = dict(
         state.get("ranking_input_diagnostics_by_identity") or {}
     )
+    ranking_admission_manifest = dict(state.get("ranking_admission_manifest") or {})
     ranked = list(state.get("ranked") or [])
     cv_analysis_results = list(state.get("cv_analysis_results") or [])
     cv_generation_debug_records = list(state.get("cv_generation_debug_records") or [])
@@ -1818,6 +1820,7 @@ def _build_stage_progress_summary(
         shortlist=shortlist,
         shortlist_audit_rows=shortlist_audit_rows,
         shortlist_diagnostics=shortlist_diagnostics,
+        shortlist_admission_manifest=shortlist_admission_manifest,
         vector_top_n=vector_top_n_value,
         candidate_summary=candidate_summary_value,
         candidate_query_components=candidate_query_components_value,
@@ -1825,6 +1828,7 @@ def _build_stage_progress_summary(
         ai_scores=ai_scores,
         ranking_inputs=ranking_inputs,
         ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
+        ranking_admission_manifest=ranking_admission_manifest,
         ranked=ranked,
         cv_analysis_results=cv_analysis_results,
         enrich_llm_runtime_observations=enrich_llm_runtime_observations,
@@ -3031,6 +3035,8 @@ def _build_stage_transition_artifacts(
     profile: dict[str, Any],
     config: dict[str, Any],
     candidate_query_debug: dict[str, Any] | None = None,
+    shortlist_admission_manifest: dict[str, Any] | None = None,
+    ranking_admission_manifest: dict[str, Any] | None = None,
     enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
     ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
@@ -3305,6 +3311,7 @@ def _build_stage_transition_artifacts(
                 shortlist=shortlist,
                 audit_rows=shortlist_audit_rows,
                 shortlist_diagnostics=shortlist_diagnostics,
+                shortlist_admission_manifest=shortlist_admission_manifest,
                 shortlist_embedding_reuse_counts=shortlist_embedding_reuse_counts,
                 shortlist_candidate_query_components=shortlist_candidate_query_components,
                 shortlist_candidate_query_debug=shortlist_candidate_query_debug,
@@ -3325,6 +3332,7 @@ def _build_stage_transition_artifacts(
                 ai_scores=ai_scores,
                 ranking_inputs=ranking_inputs,
                 ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
+                ranking_admission_manifest=ranking_admission_manifest,
                 ranked=ranked,
                 ranked_urls=ranked_urls,
                 final_top_n=final_top_n,
@@ -5382,6 +5390,7 @@ def run_pipeline(
             shortlist=shortlist,
             shortlist_audit_rows=shortlist_audit_rows,
             shortlist_diagnostics=shortlist_diagnostics,
+            shortlist_admission_manifest=dict(state.get("shortlist_admission_manifest") or {}),
             vector_top_n=vector_top_n,
             candidate_summary=candidate_summary,
             candidate_query_components=candidate_query_components,
@@ -5389,6 +5398,7 @@ def run_pipeline(
             ai_scores=ai_scores,
             ranking_inputs=ranking_inputs,
             ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
+            ranking_admission_manifest=dict(state.get("ranking_admission_manifest") or {}),
             ranked=ranked,
             cv_analysis_results=cv_analysis_results,
             enrich_llm_runtime_observations=enrich_llm_runtime_observations,

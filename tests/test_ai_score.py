@@ -1304,6 +1304,9 @@ def test_ranking_stage_persists_selected_evidence_and_scorer_diagnostics(monkeyp
     assert identity in captured["ranking_inputs"]
     assert captured["ranking_inputs"][identity]["candidate_evidence"]
     assert state["ranking_input_diagnostics_by_identity"][identity]["selected_evidence_ids"]
+    assert state["ranking_admission_manifest"]["counts"]["ai_score_selected"] == 1
+    assert state["ranking_admission_manifest"]["rows"][0]["score_execution"] == "fresh"
+    assert state["ranking_admission_manifest"]["rows"][0]["request_fingerprint"] == "fp"
 
 
 def test_route_resolution_failure_maps_to_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:

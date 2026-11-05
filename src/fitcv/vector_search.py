@@ -284,9 +284,20 @@ def _technology_overlap(job_technology: list[Any], candidate_technology: list[An
 
 
 def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
+    inventory = _profile_technology_inventory(profile)
+    counts: dict[str, int] = {}
+    first_seen: dict[str, int] = {}
+    for index, value in enumerate(inventory):
+        key = value.casefold()
+        counts[key] = counts.get(key, 0) + 1
+        first_seen.setdefault(key, index)
+    ranked = sorted(
+        inventory,
+        key=lambda value: (-counts[value.casefold()], first_seen[value.casefold()], value.casefold()),
+    )
     return [
         value[:CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS]
-        for value in _profile_technology_inventory(profile)[:CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT]
+        for value in ranked[:CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT]
     ]
 
 
@@ -919,17 +930,6 @@ def run_vector_search(
         fallback_reason = "incompatible_embedding_contract"
     elif eligible_job_urls and not scored:
         fallback_reason = "no_compatible_vectors"
-    if fallback_reason and structured_jobs is not None:
-        return _lexical_search_result(
-            profile,
-            eligible_job_urls,
-            config,
-            effective_top_n,
-            structured_jobs,
-            requested_strategy=requested_strategy,
-            fallback_reason=fallback_reason,
-            embedding_backend_id=embedding_backend_id,
-        )
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
     ranked_rows = [
         {
@@ -942,6 +942,41 @@ def run_vector_search(
     ]
     production_rows = ranked_rows[:effective_top_n]
     audit_candidates = ranked_rows[effective_top_n:]
+    fallback_rows: list[dict[str, Any]] = []
+    fallback_diagnostics: dict[str, Any] = {}
+    if fallback_reason and structured_jobs is not None:
+        lexical_result = _lexical_search_result(
+            profile,
+            eligible_job_urls,
+            config,
+            effective_top_n,
+            structured_jobs,
+            requested_strategy=requested_strategy,
+            fallback_reason=fallback_reason,
+            embedding_backend_id=embedding_backend_id,
+        )
+        admitted_urls = {str(row.get("job_url") or "") for row in production_rows}
+        fallback_rows = [
+            {
+                **row,
+                "shortlist_origin": "lexical_fallback",
+                "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+                "fallback_source_rank": row.get("vector_rank"),
+            }
+            for row in lexical_result.get("production_rows") or []
+            if str(row.get("job_url") or "") not in admitted_urls
+        ][: max(0, effective_top_n - len(production_rows))]
+        production_rows = [*production_rows, *fallback_rows]
+        fallback_diagnostics = dict(lexical_result.get("diagnostics") or {})
+        fallback_urls = {str(row.get("job_url") or "") for row in fallback_rows}
+        audit_candidates = [
+            *audit_candidates,
+            *[
+                row
+                for row in lexical_result.get("production_rows") or []
+                if str(row.get("job_url") or "") not in admitted_urls and str(row.get("job_url") or "") not in fallback_urls
+            ],
+        ]
     candidate_query_signature = str(candidate_query.get("candidate_query_signature") or "")
     audit_ranked = [
         {
@@ -980,9 +1015,15 @@ def run_vector_search(
         "diagnostics": {
             "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
             "requested_strategy": requested_strategy,
-            "effective_strategy": VECTOR_RETRIEVAL_STRATEGY,
-            "fallback_used": False,
-            "fallback_reason": None,
+            "effective_strategy": (
+                "vector_cosine_v1_with_lexical_fallback"
+                if fallback_reason and production_rows and ranked_rows
+                else LEXICAL_RETRIEVAL_STRATEGY
+                if fallback_reason
+                else VECTOR_RETRIEVAL_STRATEGY
+            ),
+            "fallback_used": fallback_reason is not None,
+            "fallback_reason": fallback_reason,
             "backend_id": embedding_metadata["backend_id"],
             "embedding_backend_id": embedding_backend_id,
             "requested_embedding_backend_id": embedding_metadata["backend_id"],
@@ -994,6 +1035,11 @@ def run_vector_search(
             "contract_fingerprint": expected_contract,
             "eligible_jobs_total": eligible_total,
             "scored_jobs_total": len(ranked_rows),
+            "fallback_candidate_total": int(
+                fallback_diagnostics.get("scored_jobs_total") or len(fallback_rows)
+            ),
+            "fallback_admitted_total": len(fallback_rows),
+            "vector_admitted_total": min(len(ranked_rows), effective_top_n),
             "missing_job_embedding_total": len(missing_urls),
             "invalid_job_embedding_total": len(invalid_urls),
             "candidate_embedding_available": candidate_embedding is not None,

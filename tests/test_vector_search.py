@@ -1014,6 +1014,133 @@ def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     assert result["diagnostics"]["effective_strategy"] == "lexical_v1"
 
 
+def test_run_vector_search_keeps_valid_vectors_and_fills_remaining_slots_lexically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/vector", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    jobs = [
+        {
+            "job_url": "https://example.com/vector",
+            "title": "Data Engineer",
+            "required_skills_canonical": ["python"],
+        },
+        {
+            "job_url": "https://example.com/fallback",
+            "title": "Data Engineer",
+            "required_skills_canonical": ["python"],
+        },
+        {
+            "job_url": "https://example.com/other",
+            "title": "Unrelated Role",
+            "required_skills_canonical": ["java"],
+        },
+    ]
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}], "preferences": {"target_role": "Data Engineer"}},
+        [job["job_url"] for job in jobs],
+        {
+            "pipeline": {"vector_search_top_n": 2, "shortlist_audit_sample_n": 0},
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 1.0,
+                    "role_family": 1.0,
+                    "work_mode": 1.0,
+                }
+            },
+        },
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == [
+        "https://example.com/vector",
+        "https://example.com/fallback",
+    ]
+    assert result["production_rows"][0]["shortlist_origin"] == "vector_search"
+    assert result["production_rows"][1]["shortlist_origin"] == "lexical_fallback"
+    assert result["diagnostics"]["effective_strategy"] == "vector_cosine_v1_with_lexical_fallback"
+    assert result["diagnostics"]["fallback_admitted_total"] == 1
+    assert result["diagnostics"]["vector_admitted_total"] == 1
+
+
+def test_fixed_recall_fixture_reports_vector_lexical_and_merged_recall_at_50(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/vector", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    jobs = [
+        {
+            "job_url": "https://example.com/vector",
+            "title": "Data Engineer",
+            "required_skills_canonical": ["python"],
+        },
+        {
+            "job_url": "https://example.com/fallback",
+            "title": "Data Engineer",
+            "required_skills_canonical": ["python"],
+        },
+        {
+            "job_url": "https://example.com/unrelated",
+            "title": "Unrelated Role",
+            "required_skills_canonical": ["java"],
+        },
+    ]
+    relevant_urls = {jobs[0]["job_url"], jobs[1]["job_url"]}
+    common_config = {
+        "pipeline": {"vector_search_top_n": 50, "shortlist_audit_sample_n": 0},
+        "ranking_policy": {
+            "declared_preference_component_weights": {
+                "domain": 1.0,
+                "role_family": 1.0,
+                "work_mode": 1.0,
+            }
+        },
+    }
+    profile = {"skills": [{"name": "Python"}], "preferences": {"target_role": "Data Engineer"}}
+    urls = [job["job_url"] for job in jobs]
+    vector_only = run_vector_search(profile, urls, common_config, top_n=50)
+    lexical_only = run_vector_search(
+        profile,
+        urls,
+        common_config,
+        top_n=50,
+        structured_jobs=jobs,
+        requested_strategy="lexical_v1",
+    )
+    merged = run_vector_search(profile, urls, common_config, top_n=50, structured_jobs=jobs)
+
+    def recall(result: dict) -> float:
+        returned = {str(row.get("job_url") or "") for row in result["production_rows"]}
+        return len(returned & relevant_urls) / len(relevant_urls)
+
+    assert recall(vector_only) == 0.5
+    assert recall(lexical_only) == 1.0
+    assert recall(merged) == 1.0
+
+
 def test_run_vector_search_falls_back_for_stale_embedding_contract(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

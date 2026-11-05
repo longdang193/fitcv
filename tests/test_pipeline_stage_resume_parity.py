@@ -172,6 +172,23 @@ def test_pipeline_state_round_trips_ranking_input_diagnostics() -> None:
     assert restored.ranking_input_diagnostics_by_identity == diagnostics
 
 
+def test_pipeline_state_round_trips_admission_manifests() -> None:
+    state = PipelineState(
+        run_id="run-manifests",
+        shortlist_admission_manifest={"rows": [{"job_url": "u", "shortlist_status": "shortlist_admitted"}]},
+        ranking_admission_manifest={"rows": [{"job_url": "u", "score_execution": "reused"}]},
+    )
+
+    payload = state.as_state_dict()
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-manifests",
+        checkpoint_payload=payload,
+    )
+
+    assert restored.shortlist_admission_manifest == state.shortlist_admission_manifest
+    assert restored.ranking_admission_manifest == state.ranking_admission_manifest
+
+
 def test_pipeline_state_adapts_legacy_ranking_rows_at_checkpoint_boundary() -> None:
     restored = PipelineState.from_checkpoint_payload(
         run_id="run-legacy",
@@ -290,6 +307,13 @@ def test_shortlist_stage_consumes_vector_envelope_without_persisting_audit() -> 
     assert stored == [[{**state["shortlist"][0]}]]
     assert state["raw_shortlist"] == [production_row]
     assert state["shortlist_diagnostics"] == diagnostics
+    assert state["shortlist_admission_manifest"]["counts"] == {
+        "eligible": 2,
+        "raw_retrieved": 1,
+        "audited": 1,
+        "admitted": 1,
+        "not_returned": 1,
+    }
     assert state["_shortlist_audit_rows"] == [audit_row]
     assert all(row["job_url"] != audit_row["job_url"] for row in stored[0])
     assert captured_request["urls"] == [production_row["job_url"], audit_row["job_url"]]

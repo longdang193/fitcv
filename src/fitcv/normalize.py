@@ -47,16 +47,33 @@ def deduplicate_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _job_identity(job: dict[str, Any]) -> tuple[str, str]:
-    provider = str(job.get("source_provider") or "").strip().lower()
-    source_job_id = str(job.get("source_job_id") or "").strip()
+    provider = normalize_whitespace(str(job.get("source_provider") or "")).lower()
+    source_job_id = normalize_whitespace(str(job.get("source_job_id") or ""))
     if provider and source_job_id:
         return (f"source:{provider}", source_job_id)
-    return ("url", _job_url(job))
+    url = _job_url(job)
+    if url:
+        return ("url", url)
+    identity_fields = {
+        "provider": provider,
+        "source_job_id": source_job_id,
+        "company_id": normalize_whitespace(str(job.get("company_id") or "")),
+        "title": normalize_whitespace(str(job.get("title") or job.get("job_title") or "")).casefold(),
+        "description": normalize_whitespace(str(job.get("description") or "")),
+        "location": normalize_whitespace(str(job.get("location") or "")).casefold(),
+        "source_location": _material_variant_fields(job),
+        "employment": _employment_variant_fields(job),
+        "application": _application_variant_fields(job),
+    }
+    return (
+        "content",
+        hashlib.sha256(repr(identity_fields).encode("utf-8")).hexdigest(),
+    )
 
 
 def _job_url(job: dict[str, Any]) -> str:
     """Canonical URL key for exact dedupe."""
-    return str(job.get("job_url", ""))
+    return normalize_whitespace(str(job.get("job_url") or ""))
 
 
 # ── near-duplicate deduplication ─────────────────────────────────────────────
@@ -85,9 +102,47 @@ def deduplicate_near_duplicates(jobs: list[dict[str, Any]]) -> list[dict[str, An
 def _near_duplicate_key(job: dict[str, Any]) -> tuple[str, str, str]:
     """Canonical near-dedupe key used across dedupe flows."""
     return (
-        str(job.get("company_id", "")),
-        str(job.get("title", "")),
-        _description_hash(str(job.get("description", ""))),
+        normalize_whitespace(str(job.get("company_id") or "")).casefold(),
+        normalize_whitespace(str(job.get("title") or job.get("job_title") or "")).casefold(),
+        _description_hash(
+            "\0".join(
+                [
+                    normalize_whitespace(str(job.get("description") or "")),
+                    repr(_material_variant_fields(job)),
+                    repr(_employment_variant_fields(job)),
+                    repr(_application_variant_fields(job)),
+                ]
+            )
+        ),
+    )
+
+
+def _material_variant_fields(job: dict[str, Any]) -> tuple[str, ...]:
+    source_location = job.get("source_location")
+    if isinstance(source_location, dict):
+        location_values = tuple(
+            normalize_whitespace(str(source_location.get(key) or "")).casefold()
+            for key in ("raw_text", "city_raw", "region_raw", "country_raw", "provider")
+        )
+    else:
+        location_values = ()
+    return (
+        normalize_whitespace(str(job.get("location") or "")).casefold(),
+        *location_values,
+    )
+
+
+def _employment_variant_fields(job: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        normalize_whitespace(str(job.get(key) or "")).casefold()
+        for key in ("contract_type", "employment_type", "job_type", "work_type", "experience_level")
+    )
+
+
+def _application_variant_fields(job: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        normalize_whitespace(str(job.get(key) or ""))
+        for key in ("apply_url", "apply_type")
     )
 
 
@@ -105,17 +160,17 @@ def normalize_batch_with_exclusions(
 
     exact_kept_indices: set[int] = set()
     excluded: list[dict[str, Any]] = []
-    seen_urls: set[str] = set()
+    seen_identities: set[tuple[str, str]] = set()
     for input_index, job in enumerate(normalized):
-        url = _job_url(job)
-        if url in seen_urls:
+        identity = _job_identity(job)
+        if identity in seen_identities:
             excluded.append({
                 **job,
                 "input_index": input_index,
-                "dedupe_reason": "duplicate_job_url",
+                "dedupe_reason": "duplicate_job_identity",
             })
             continue
-        seen_urls.add(url)
+        seen_identities.add(identity)
         exact_kept_indices.add(input_index)
 
     final_kept: list[dict[str, Any]] = []

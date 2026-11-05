@@ -1474,6 +1474,40 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                         "company": organization,
                     }
                 )
+    for source_document in canonical.get("source_documents") or []:
+        for block in source_document.get("residual_source_blocks") or []:
+            if not isinstance(block, dict) or not str(block.get("text") or "").strip():
+                continue
+            block_id = str(block.get("block_id") or "")
+            residual_item = {
+                    "schema_version": EVIDENCE_PROJECTION_SCHEMA_VERSION,
+                    "evidence_id": _stable_json_fingerprint({"residual": block_id, "text": block.get("text")})[:24],
+                    "kind": "source_residual",
+                    "title": None,
+                    "text": _normalize_optional_text(block.get("text")),
+                    "source_section": "source_residual",
+                    "parent_id": str(source_document.get("id") or ""),
+                    "parent_title": None,
+                    "organization": None,
+                    "location": None,
+                    "start": None,
+                    "end": None,
+                    "role_family": None,
+                    "domain_tags": [],
+                    "responsibility_themes": [],
+                    "skills": [],
+                    "source_refs": [],
+                    "scoring_context": _normalize_optional_text(block.get("text")),
+                    "evidence_type": "candidate_source_residual",
+                    "name": _normalize_optional_text(block.get("text")),
+                    "business_value": _normalize_optional_text(block.get("text")),
+                    "score": 0.0,
+                    "source_ref": f"source_documents/{source_document.get('id')}/residual/{block_id}",
+                    "role": None,
+                    "company": None,
+                }
+            residual_item["support_fragments"] = []
+            projected.append(residual_item)
     return projected
 
 
@@ -1526,7 +1560,12 @@ def select_ranking_evidence(
         )
     first = min(
         scored,
-        key=lambda item: (-float(item.get("score") or 0.0), str(item.get("evidence_id") or "")),
+        key=lambda item: (
+            -len(list((item.get("channel_coverage") or {}).get("required") or [])),
+            -len(list((item.get("channel_coverage") or {}).get("technology") or [])),
+            -float(item.get("score") or 0.0),
+            str(item.get("evidence_id") or ""),
+        ),
     )
     selected = [first]
     remaining = [item for item in scored if item is not first]
@@ -1558,6 +1597,7 @@ def select_ranking_evidence(
         selected.append(best)
         remaining.remove(best)
     for item in selected:
+        item["support_state"] = str(item.get("support_state") or "unverified")
         item.pop("_selection_index", None)
     return selected
 
@@ -1757,17 +1797,21 @@ def _ranking_requirement_channels(
     job: dict[str, Any],
     semantic_policy: dict[str, Any] | None = None,
 ) -> dict[str, list[str]]:
+    def exhaustive(values: Any) -> list[str]:
+        raw_values = list(values or [])
+        return bounded_term_values(raw_values, limit=max(len(raw_values), 8))
+
     return {
-        "required": bounded_term_values(
+        "required": exhaustive(
             job.get("required_skills_canonical") or job.get("required_skills")
         ),
-        "preferred": bounded_term_values(
+        "preferred": exhaustive(
             job.get("preferred_skills_canonical") or job.get("preferred_skills")
         ),
-        "technology": bounded_term_values(
+        "technology": exhaustive(
             job.get("tech_stack_canonical") or job.get("tech_stack")
         ),
-        "responsibilities": bounded_term_values(job.get("responsibilities")),
+        "responsibilities": exhaustive(job.get("responsibilities")),
         "context": [
             value
             for value in (
@@ -1847,13 +1891,19 @@ def score_evidence_item_by_channel(
             for term in terms
             if any(
                 _term_is_present(text, variant)
+                and not _is_negated_term(text, variant)
                 for variant in _semantic_term_variants(term, semantic_policy)
             )
         ]
         for channel, terms in channels.items()
     }
     score = sum(weights[channel] for channel, terms in coverage.items() if terms)
-    return {"coverage": coverage, "score": score, "text": text}
+    return {
+        "coverage": coverage,
+        "score": score,
+        "text": text,
+        "support_state": "supported" if any(coverage.values()) else "unverified",
+    }
 
 
 def build_evidence_excerpt(
@@ -1874,6 +1924,33 @@ def build_evidence_excerpt(
         if str(term).strip()
     ]
     sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", raw_text) if part.strip()]
+    normalized_terms = [str(term).strip() for term in terms if str(term).strip()]
+
+    def fit_sentence(sentence: str) -> str:
+        if len(sentence) <= limit:
+            return sentence
+        ranked_terms = sorted(
+            normalized_terms,
+            key=lambda term: (
+                -max(
+                    (sentence.casefold().find(variant.casefold()) for variant in _semantic_term_variants(term, semantic_policy)),
+                    default=-1,
+                ),
+                len(term),
+            ),
+        )
+        match_start = -1
+        for term in ranked_terms:
+            for variant in _semantic_term_variants(term, semantic_policy):
+                match_start = sentence.casefold().find(variant.casefold())
+                if match_start >= 0:
+                    break
+            if match_start >= 0:
+                break
+        if match_start < 0:
+            return sentence[:limit]
+        window_start = max(0, min(match_start - 120, len(sentence) - limit))
+        return sentence[window_start:window_start + limit].strip()
     ranked = sorted(
         enumerate(sentences),
         key=lambda pair: (
@@ -1889,11 +1966,12 @@ def build_evidence_excerpt(
     )
     selected: list[str] = []
     for _, sentence in ranked:
-        candidate = " ".join([*selected, sentence]).strip()
+        candidate_sentence = fit_sentence(sentence)
+        candidate = " ".join([*selected, candidate_sentence]).strip()
         if len(candidate) <= limit:
-            selected.append(sentence)
+            selected.append(candidate_sentence)
     if not selected:
-        return raw_text[:limit]
+        return fit_sentence(raw_text)
     return " ".join(selected)
 
 
