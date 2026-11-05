@@ -58,6 +58,27 @@ def _ranking_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _stage_counts(
+    source_rows: list[dict[str, Any]],
+    retrieved_ids: list[str],
+    ranked_ids: set[str],
+    scored_ids: set[str],
+) -> dict[str, int]:
+    """Return one bounded transition count map for the calibration cohort."""
+    source_count = len(source_rows)
+    return {
+        "raw": source_count,
+        "normalized": source_count,
+        "enriched": source_count,
+        "rule_filtered": source_count,
+        "retrieved": len(retrieved_ids),
+        "admitted": len(retrieved_ids),
+        "selected": len(ranked_ids),
+        "scored": len(scored_ids),
+        "ranked": len(ranked_ids),
+    }
+
+
 def _apply_calibration_scores(
     profiles: dict[str, dict[str, Any]],
     artifact_path: Path,
@@ -109,16 +130,23 @@ def diagnose_calibration_loss(fixture_path: Path) -> dict[str, Any]:
             calibration_pool,
             requested_strategy=VECTOR_RETRIEVAL_STRATEGY,
         )
+        diagnostic_backend = str(
+            pool.get("diagnostic_embedding_backend") or SENTENCE_TRANSFORMERS_BACKEND
+        )
         request["config"].update(
             {
-                "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+                "embedding_backend": diagnostic_backend,
                 "shortlist_embedding_model": DEFAULT_SENTENCE_TRANSFORMERS_MODEL,
                 "embedding_model_revision": DEFAULT_SENTENCE_TRANSFORMERS_REVISION,
-                "embedding_dimension": 384,
+                "embedding_dimension": 384 if diagnostic_backend == SENTENCE_TRANSFORMERS_BACKEND else 256,
                 "embedding_failure_policy": "raise",
             }
         )
-        embed_and_store_jobs(request["structured_jobs"], request["config"])
+        vector_jobs = [
+            job for job in request["structured_jobs"]
+            if job.get("vector_available", True) is not False
+        ]
+        embed_and_store_jobs(vector_jobs, request["config"])
         retrieval = run_vector_search(
             request["profile"],
             request["job_urls"],
@@ -132,7 +160,8 @@ def diagnose_calibration_loss(fixture_path: Path) -> dict[str, Any]:
         for item in retrieval["production_rows"]:
             candidate_id = source_ids.get(str(item["job_url"]))
             if candidate_id:
-                retrieved_rows.append({"candidate_id": candidate_id, "retrieval_rank": int(item["vector_rank"])})
+                retrieval_rank = item.get("vector_rank") or item.get("lexical_rank") or len(retrieved_rows) + 1
+                retrieved_rows.append({"candidate_id": candidate_id, "retrieval_rank": int(retrieval_rank)})
         retrieved_ids = [row["candidate_id"] for row in retrieved_rows]
         source_by_id = {str(row["candidate_id"]): row for row in calibration_rows}
         shortlist = [source_by_id[candidate_id] for candidate_id in retrieved_ids]
@@ -171,6 +200,11 @@ def diagnose_calibration_loss(fixture_path: Path) -> dict[str, Any]:
         )
         rrf_top = rrf_ranked[:ranking_top_n]
         relevant = {str(row["candidate_id"]) for row in calibration_rows if int(row.get("relevance_grade") or 0) >= 2}
+        scored_ids = {
+            str(row["candidate_id"])
+            for row in calibration_rows
+            if row.get("baseline_fit") is not None and row.get("ai_score") is not None
+        }
         profile_reports.append(
             {
                 "profile_id": profile_id,
@@ -189,6 +223,8 @@ def diagnose_calibration_loss(fixture_path: Path) -> dict[str, Any]:
                     "changed_order": [str(row["candidate_id"]) for row in rrf_top]
                     != [str(row["candidate_id"]) for row in ranked],
                 },
+                "stage_counts": _stage_counts(calibration_rows, retrieved_ids, final_ids, scored_ids),
+                "stage_count_basis": "calibration_fixture_rows_are_post_normalization_enrichment_and_rule_filtering",
             }
         )
     return {
@@ -201,6 +237,10 @@ def diagnose_calibration_loss(fixture_path: Path) -> dict[str, Any]:
         "scope": "calibration_only",
         "held_out_rows_read": 0,
         "production_change": False,
+        "stage_transition_order": [
+            "raw", "normalized", "enriched", "rule_filtered", "retrieved",
+            "admitted", "selected", "scored", "ranked",
+        ],
         "profiles": profile_reports,
     }
 

@@ -61,6 +61,47 @@ def test_pipeline_checkpoint_accepts_canonical_vector_strategy() -> None:
     ) == "vector_cosine_v1"
 
 
+def test_pipeline_checkpoint_accepts_canonical_hybrid_strategy() -> None:
+    state = PipelineState.from_checkpoint_payload(
+        run_id="run-1",
+        checkpoint_payload={
+            "schema_version": 1,
+            "shortlist_diagnostics": {"retrieval_strategy": "hybrid_rrf_v1"},
+            "shortlist": [
+                {
+                    "job_url": "x",
+                    "vector_rank": 1,
+                    "lexical_rank": 1,
+                    "retrieval_strategy": "hybrid_rrf_v1",
+                }
+            ],
+        },
+    )
+
+    assert state.shortlist[0]["retrieval_strategy"] == "hybrid_rrf_v1"
+
+
+def test_pipeline_checkpoint_accepts_mixed_vector_fallback_strategy() -> None:
+    payload = {
+        "shortlist_diagnostics": {
+            "retrieval_strategy": "vector_cosine_v1",
+            "effective_strategy": "vector_cosine_v1_with_lexical_fallback",
+        },
+        "raw_shortlist": [
+            {"job_url": "vector", "vector_rank": 1, "retrieval_strategy": "vector_cosine_v1"},
+            {"job_url": "lexical", "vector_rank": 2, "retrieval_strategy": "lexical_v1"},
+        ],
+        "shortlist": [
+            {"job_url": "vector", "vector_rank": 1, "retrieval_strategy": "vector_cosine_v1"},
+            {"job_url": "lexical", "vector_rank": 2, "retrieval_strategy": "lexical_v1"},
+        ],
+    }
+
+    assert _validate_checkpoint_retrieval_strategy(payload) == "vector_cosine_v1_with_lexical_fallback"
+    state = PipelineState.from_checkpoint_payload(run_id="run-1", checkpoint_payload=payload)
+    assert len(state.shortlist) == 2
+
+
 def test_pipeline_state_rejects_vector_rows_with_mismatched_strategies() -> None:
     with pytest.raises(ValueError, match="mismatched retrieval_strategy"):
         PipelineState.from_checkpoint_payload(

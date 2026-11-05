@@ -1868,11 +1868,12 @@ def _jaccard_tokens(left: str, right: str) -> float:
 
 
 def _term_is_present(text: str, term: str) -> bool:
-    def searchable(value: str) -> str:
-        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+#]+", " ", str(value or "").lower())).strip()
+    def searchable(value: str, *, preserve_boundaries: bool = False) -> str:
+        allowed = r"[^a-z0-9+#.!?;\r\n]+" if preserve_boundaries else r"[^a-z0-9+#]+"
+        return re.sub(r"[ \t\f\v]+", " ", re.sub(allowed, " ", str(value or "").lower())).strip()
 
-    searchable_text = searchable(text)
-    searchable_term = searchable(term)
+    searchable_text = searchable(text, preserve_boundaries=True)
+    searchable_term = searchable(term, preserve_boundaries=True)
     if not searchable_term:
         return False
     if re.search(
@@ -1880,11 +1881,34 @@ def _term_is_present(text: str, term: str) -> bool:
         searchable_text,
     ):
         return True
-    term_tokens = searchable_term.split()
-    text_tokens = set(searchable_text.split())
+    def normalize_token(token: str) -> str:
+        irregular = {
+            "built": "build",
+            "led": "lead",
+            "ran": "run",
+        }
+        if token in irregular:
+            return irregular[token]
+        if len(token) > 5 and token.endswith("ing"):
+            return token[:-3]
+        if len(token) > 4 and token.endswith("ed"):
+            return token[:-2]
+        if len(token) > 4 and token.endswith("s"):
+            return token[:-1]
+        return token
+
+    term_tokens = [normalize_token(token) for token in searchable_term.split()]
     if len(term_tokens) < 2:
         return False
-    return sum(token in text_tokens for token in term_tokens) >= max(2, math.ceil(len(term_tokens) * 0.66))
+    for segment in re.split(r"[\r\n.!?;]+", searchable_text):
+        text_tokens = [normalize_token(token) for token in segment.split()]
+        term_index = 0
+        for text_token in text_tokens:
+            if text_token == term_tokens[term_index]:
+                term_index += 1
+                if term_index == len(term_tokens):
+                    return True
+    return False
 
 
 def score_evidence_item_by_channel(

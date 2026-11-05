@@ -99,6 +99,28 @@ _DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     "force_review_when_any_required_missing_for_fits": ["stretch"],
 }
 SUPPORTED_PROVIDER_IDS = frozenset({"openai", "openai_compatible", "9router"})
+SUPPORTED_RETRIEVAL_STRATEGIES = frozenset({
+    "vector_cosine_v1",
+    "lexical_v1",
+    "hybrid_rrf_v1",
+})
+MIXED_FALLBACK_RETRIEVAL_STRATEGY = "vector_cosine_v1_with_lexical_fallback"
+CHECKPOINT_RETRIEVAL_STRATEGIES = SUPPORTED_RETRIEVAL_STRATEGIES | {
+    MIXED_FALLBACK_RETRIEVAL_STRATEGY,
+}
+DEFAULT_RETRIEVAL_STRATEGY = "vector_cosine_v1"
+
+
+def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:
+    """Return the validated retrieval strategy owned by pipeline config."""
+    pipeline_cfg = (config or {}).get("pipeline") or {}
+    strategy = str(pipeline_cfg.get("retrieval_strategy") or DEFAULT_RETRIEVAL_STRATEGY).strip()
+    if strategy not in SUPPORTED_RETRIEVAL_STRATEGIES:
+        raise ValueError(
+            "pipeline.retrieval_strategy must be one of "
+            f"{sorted(SUPPORTED_RETRIEVAL_STRATEGIES)}, got: {strategy!r}"
+        )
+    return strategy
 SUPPORTED_PROVIDER_TYPES = frozenset({"openai", "openai_compatible"})
 SUPPORTED_AUTH_MODES = frozenset({"required", "optional", "none"})
 SUPPORTED_WIRE_APIS = frozenset({"responses", "chat_completions"})
@@ -1368,9 +1390,9 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
 
-    retired_shortlist_keys = sorted(
-        key for key in ("shortlist_lexical", "retrieval_strategy") if key in cfg
-    )
+    if "retrieval_strategy" in cfg:
+        raise ValueError("retrieval_strategy must be owned by pipeline.retrieval_strategy")
+    retired_shortlist_keys = sorted(key for key in ("shortlist_lexical",) if key in cfg)
     if retired_shortlist_keys:
         raise ValueError(
             "Retired shortlist config keys are not supported: "
@@ -1380,6 +1402,15 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     if pipeline_cfg is not None and not isinstance(pipeline_cfg, dict):
         raise ValueError("pipeline must be a mapping")
     if isinstance(pipeline_cfg, dict):
+        if "retrieval_strategy" not in pipeline_cfg:
+            pipeline_cfg["retrieval_strategy"] = DEFAULT_RETRIEVAL_STRATEGY
+        retrieval_strategy = str(pipeline_cfg["retrieval_strategy"] or "").strip()
+        if retrieval_strategy not in SUPPORTED_RETRIEVAL_STRATEGIES:
+            raise ValueError(
+                "pipeline.retrieval_strategy must be one of "
+                f"{sorted(SUPPORTED_RETRIEVAL_STRATEGIES)}, got: {retrieval_strategy!r}"
+            )
+        pipeline_cfg["retrieval_strategy"] = retrieval_strategy
         shortlist_audit_sample_n = pipeline_cfg.setdefault("shortlist_audit_sample_n", 5)
         if isinstance(shortlist_audit_sample_n, bool) or not isinstance(shortlist_audit_sample_n, int):
             raise ValueError("pipeline.shortlist_audit_sample_n must be an integer")

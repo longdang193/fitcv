@@ -17,6 +17,13 @@ FIELD DEFINITIONS:
   Only emit concrete technical skills, tools, technologies, methods, frameworks, platforms, libraries, or technical competencies.
   Do not collapse specific concepts into broad umbrella canonicals. For example, do not map prompt engineering or vector databases to genai.
   One raw phrase may produce multiple entities when it clearly contains multiple distinct skills.
+- qualifications, education, certifications, and employment_constraints: emit only
+  mandatory facts explicitly stated in the description; keep them separate from
+  technical skills.
+- mandatory_clauses: emit one record for every mandatory fact, including required
+  skills, qualifications, education, certifications, language requirements, and
+  employment constraints. Copy a short exact source_text quote; never invent a
+  fact or quote.
 
 Return ONLY a valid JSON object matching this schema. No markdown, no explanation.
 Every schema key must be present in the response.

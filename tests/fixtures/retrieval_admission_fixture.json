@@ -1,0 +1,209 @@
+{
+  "schema_version": "retrieval_admission_v1",
+  "fixture_role": "diagnostic",
+  "description": "Deterministic shortlist admission cases: cross-functional relevance, missing-vector fallback metadata, weak vector hit, and grounded negatives.",
+  "budget_invariants": {
+    "vector_search_top_n": 50,
+    "ai_score_top_n": 50,
+    "scorer_request_limit_chars": 12000
+  },
+  "profiles": {
+    "data_platform": {
+      "profile": {
+        "preferences": {
+          "target_role": "Data Engineer",
+          "role_families": [
+            "data_engineering"
+          ],
+          "domains": [
+            "banking"
+          ]
+        },
+        "skills": [
+          {
+            "name": "Python"
+          },
+          {
+            "name": "SQL"
+          },
+          {
+            "name": "Kafka"
+          }
+        ],
+        "experiences": [
+          {
+            "id": "exp-1",
+            "role": "Data Engineer",
+            "company": "Example Bank",
+            "bullets": [
+              {
+                "text": "Built Python and SQL data pipelines for banking analytics.",
+                "skills": [
+                  "Python",
+                  "SQL"
+                ]
+              }
+            ]
+          }
+        ],
+        "projects": [
+          {
+            "id": "proj-1",
+            "name": "Streaming Risk Platform",
+            "skills": [
+              "Kafka",
+              "Python"
+            ],
+            "business_value": "Processed banking risk events in real time.",
+            "highlights": [
+              "Delivered resilient event pipelines."
+            ]
+          }
+        ]
+      },
+      "diagnostic_embedding_backend": "sqlite_deterministic_local",
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 12,
+      "candidates": [
+        {
+          "candidate_id": "cross-functional-relevant",
+          "source_group_id": "admission-cross-functional",
+          "split": "calibration",
+          "reviewed": true,
+          "relevance_grade": 3,
+          "baseline_fit": 0.92,
+          "ai_score": 0.91,
+          "label": "relevant",
+          "description": "cross_functional_relevance",
+          "job": {
+            "job_url": "fixture://cross-functional-relevant",
+            "title": "Data Platform Engineer",
+            "description": "Build Python and SQL pipelines for banking risk analytics; partner with platform teams.",
+            "job_family": "data_engineering",
+            "domain": "banking",
+            "required_skills_canonical": [
+              "python",
+              "sql"
+            ],
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "missing-vector-relevant",
+          "source_group_id": "admission-missing-vector",
+          "split": "calibration",
+          "reviewed": true,
+          "relevance_grade": 3,
+          "baseline_fit": 0.88,
+          "ai_score": 0.87,
+          "label": "relevant",
+          "description": "relevant_missing_vector",
+          "vector_available": false,
+          "job": {
+            "job_url": "fixture://missing-vector-relevant",
+            "title": "Kafka Data Engineer",
+            "description": "Operate Kafka and Python streaming pipelines for regulated banking workloads.",
+            "job_family": "data_engineering",
+            "domain": "banking",
+            "required_skills_canonical": [
+              "kafka",
+              "python"
+            ],
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "weak-vector-hit",
+          "source_group_id": "admission-weak-vector",
+          "split": "calibration",
+          "reviewed": true,
+          "relevance_grade": 1,
+          "baseline_fit": 0.34,
+          "ai_score": 0.32,
+          "label": "borderline",
+          "description": "weak_vector_hit",
+          "job": {
+            "job_url": "fixture://weak-vector-hit",
+            "title": "Frontend Engineer",
+            "description": "Build browser interfaces with JavaScript and CSS.",
+            "job_family": "frontend",
+            "domain": "web",
+            "required_skills_canonical": [
+              "javascript"
+            ],
+            "location_type": "remote"
+          }
+        },
+        {
+          "candidate_id": "grounded-negative-domain",
+          "source_group_id": "admission-negative-domain",
+          "split": "calibration",
+          "reviewed": true,
+          "relevance_grade": 0,
+          "baseline_fit": 0.12,
+          "ai_score": 0.1,
+          "label": "irrelevant",
+          "description": "negative_domain_control",
+          "job": {
+            "job_url": "fixture://negative-domain",
+            "title": "Financial Controller",
+            "description": "Prepare accounting close and tax reports; no software engineering work.",
+            "job_family": "finance",
+            "domain": "accounting",
+            "required_skills_canonical": [
+              "accounting"
+            ],
+            "location_type": "onsite"
+          }
+        },
+        {
+          "candidate_id": "grounded-negative-seniority",
+          "source_group_id": "admission-negative-seniority",
+          "split": "held_out",
+          "reviewed": true,
+          "relevance_grade": 0,
+          "baseline_fit": 0.08,
+          "ai_score": 0.07,
+          "label": "irrelevant",
+          "description": "negative_seniority_control",
+          "job": {
+            "job_url": "fixture://negative-seniority",
+            "title": "Junior Data Intern",
+            "description": "Learn basic spreadsheet reporting under supervision.",
+            "job_family": "data_analysis",
+            "domain": "banking",
+            "required_skills_canonical": [
+              "spreadsheets"
+            ],
+            "location_type": "onsite"
+          }
+        },
+        {
+          "candidate_id": "relevant-lexical-only",
+          "source_group_id": "admission-lexical-only",
+          "split": "held_out",
+          "reviewed": true,
+          "relevance_grade": 2,
+          "baseline_fit": 0.71,
+          "ai_score": 0.7,
+          "label": "relevant",
+          "description": "lexical_only_relevant",
+          "vector_available": false,
+          "job": {
+            "job_url": "fixture://lexical-only-relevant",
+            "title": "SQL Analytics Engineer",
+            "description": "Use SQL and Python to support banking reporting and data quality.",
+            "job_family": "analytics",
+            "domain": "banking",
+            "required_skills_canonical": [
+              "sql",
+              "python"
+            ],
+            "location_type": "remote"
+          }
+        }
+      ]
+    }
+  }
+}

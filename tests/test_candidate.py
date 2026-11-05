@@ -170,6 +170,25 @@ def test_legacy_parent_skill_uses_parent_context_without_inheriting_child_refs()
     assert skills["OpenAI"]["evidence_refs"] != [item["id"] for item in project["evidence"]]
     assert skills["Python"]["evidence_refs"] == [bullet["id"]]
 
+def test_legacy_bullet_skill_upgrades_existing_claimed_only_skill_to_supported() -> None:
+    converted = adapt_candidate_profile_to_v2(
+        {
+            "experiences": [
+                {
+                    "id": "experience_1",
+                    "role": "Analyst",
+                    "bullets": [{"text": "Built SQL reports", "skills": ["SQL"]}],
+                }
+            ],
+            "skills": [{"name": "SQL"}],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+    )
+
+    skill = next(item for item in converted["skills"] if item["name"] == "SQL")
+    assert skill["support_status"] == "supported"
+    assert skill["evidence_refs"]
+
 def test_runtime_convergence_rejects_invalid_v2_references() -> None:
     profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
     profile["skills"][0]["evidence_refs"] = ["missing_evidence"]

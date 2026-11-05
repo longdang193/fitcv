@@ -540,7 +540,11 @@ def _adapt_legacy_parent(
         "domain_tags": {},
         "responsibility_themes": {},
     }
-    parent_refs = parent_evidence_ids
+    parent_refs = [
+        entry["id"]
+        for entry in evidence
+        if section == "projects" and str(entry.get("title") or "") == "Project context"
+    ]
     for name in parent_skill_names:
         if name:
             claim_refs["skills"].setdefault(name, [])
@@ -605,8 +609,9 @@ def adapt_candidate_profile_to_v2(
                 claim = copy.deepcopy(value)
                 claim.setdefault("origin", "user")
                 claim.setdefault("confidence", 1.0)
-                claim.setdefault("support_status", "supported")
                 claim["evidence_refs"] = list(dict.fromkeys(claim.get("evidence_refs") or []))
+                if not claim.get("support_status"):
+                    claim["support_status"] = "supported" if claim["evidence_refs"] else "claimed_only"
                 claims.append(claim)
             normalized[section] = claims
         normalized.setdefault("search_preferences", {})
@@ -695,7 +700,7 @@ def adapt_candidate_profile_to_v2(
                 "id": claim.get("id") or _stable_candidate_id("skill", index, claim.get("name")),
                 "origin": claim.get("origin") or "user",
                 "confidence": claim.get("confidence", 1.0),
-                "support_status": claim.get("support_status") or "supported",
+                "support_status": claim.get("support_status") or ("supported" if refs else "claimed_only"),
                 "evidence_refs": list(dict.fromkeys(refs)),
             }
         )
@@ -705,6 +710,8 @@ def adapt_candidate_profile_to_v2(
         existing = existing_skills.get(name.casefold())
         if existing is not None:
             existing["evidence_refs"] = list(dict.fromkeys([*existing["evidence_refs"], *sorted(refs)]))
+            if refs and existing.get("support_status") == "claimed_only":
+                existing["support_status"] = "supported"
             continue
         skills.append(
             {
@@ -1484,7 +1491,7 @@ def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
             value = value.get("name")
         text = str(value or "").strip()
         status = str(support_status or "supported").strip().casefold()
-        if not text or status in {"unsupported", "unverified", "rejected"}:
+        if not text or status in {"unsupported", "unverified", "rejected", "claimed_only"}:
             return
         key = text.casefold()
         if key in seen:

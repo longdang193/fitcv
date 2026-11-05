@@ -20,7 +20,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.99,
           "ai_score": 0.99,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-01"
         },
         {
           "candidate_id": "backend-candidate-02",
@@ -31,7 +32,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.98,
           "ai_score": 0.98,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-02"
         },
         {
           "candidate_id": "backend-candidate-03",
@@ -42,7 +44,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.97,
           "ai_score": 0.97,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-03"
         },
         {
           "candidate_id": "backend-candidate-04",
@@ -53,7 +56,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.96,
           "ai_score": 0.96,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-04"
         },
         {
           "candidate_id": "backend-candidate-05",
@@ -64,7 +68,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.95,
           "ai_score": 0.95,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-05"
         },
         {
           "candidate_id": "backend-candidate-06",
@@ -75,7 +80,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.94,
           "ai_score": 0.94,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-06"
         },
         {
           "candidate_id": "backend-candidate-07",
@@ -86,7 +92,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.93,
           "ai_score": 0.93,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-07"
         },
         {
           "candidate_id": "backend-candidate-08",
@@ -97,7 +104,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.92,
           "ai_score": 0.92,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-08"
         },
         {
           "candidate_id": "backend-candidate-09",
@@ -108,7 +116,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.91,
           "ai_score": 0.91,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-09"
         },
         {
           "candidate_id": "backend-candidate-10",
@@ -119,7 +128,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.9,
           "ai_score": 0.9,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-10"
         },
         {
           "candidate_id": "backend-candidate-11",
@@ -130,7 +140,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.89,
           "ai_score": 0.89,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-11"
         },
         {
           "candidate_id": "backend-candidate-12",
@@ -141,7 +152,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.88,
           "ai_score": 0.88,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-12"
         },
         {
           "candidate_id": "backend-candidate-13",
@@ -152,7 +164,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.0,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-13"
         },
         {
           "candidate_id": "backend-candidate-14",
@@ -163,7 +176,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.11,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-14"
         },
         {
           "candidate_id": "backend-candidate-15",
@@ -174,7 +188,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.1,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-15"
         },
         {
           "candidate_id": "backend-candidate-16",
@@ -185,7 +200,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.09,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-16"
         },
         {
           "candidate_id": "backend-candidate-17",
@@ -196,7 +212,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.08,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-17"
         },
         {
           "candidate_id": "backend-candidate-18",
@@ -207,7 +224,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.07,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "backend:backend-candidate-18"
         },
         {
           "candidate_id": "backend-candidate-19",
@@ -218,7 +236,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-19"
         },
         {
           "candidate_id": "backend-candidate-20",
@@ -229,7 +248,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-20"
         },
         {
           "candidate_id": "backend-candidate-21",
@@ -240,7 +260,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-21"
         },
         {
           "candidate_id": "backend-candidate-22",
@@ -251,7 +272,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-22"
         },
         {
           "candidate_id": "backend-candidate-23",
@@ -262,7 +284,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-23"
         },
         {
           "candidate_id": "backend-candidate-24",
@@ -273,7 +296,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-24"
         },
         {
           "candidate_id": "backend-candidate-25",
@@ -284,7 +308,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-25"
         },
         {
           "candidate_id": "backend-candidate-26",
@@ -295,7 +320,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-26"
         },
         {
           "candidate_id": "backend-candidate-27",
@@ -306,7 +332,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-27"
         },
         {
           "candidate_id": "backend-candidate-28",
@@ -317,7 +344,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-28"
         },
         {
           "candidate_id": "backend-candidate-29",
@@ -328,7 +356,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-29"
         },
         {
           "candidate_id": "backend-candidate-30",
@@ -339,7 +368,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-30"
         },
         {
           "candidate_id": "backend-candidate-31",
@@ -350,7 +380,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-31"
         },
         {
           "candidate_id": "backend-candidate-32",
@@ -361,7 +392,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-32"
         },
         {
           "candidate_id": "backend-candidate-33",
@@ -372,7 +404,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-33"
         },
         {
           "candidate_id": "backend-candidate-34",
@@ -383,7 +416,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-34"
         },
         {
           "candidate_id": "backend-candidate-35",
@@ -394,7 +428,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-35"
         },
         {
           "candidate_id": "backend-candidate-36",
@@ -405,7 +440,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-36"
         },
         {
           "candidate_id": "backend-candidate-37",
@@ -416,7 +452,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-37"
         },
         {
           "candidate_id": "backend-candidate-38",
@@ -427,7 +464,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-38"
         },
         {
           "candidate_id": "backend-candidate-39",
@@ -438,7 +476,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-39"
         },
         {
           "candidate_id": "backend-candidate-40",
@@ -449,7 +488,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-40"
         },
         {
           "candidate_id": "backend-candidate-41",
@@ -460,7 +500,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-41"
         },
         {
           "candidate_id": "backend-candidate-42",
@@ -471,7 +512,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-42"
         },
         {
           "candidate_id": "backend-candidate-43",
@@ -482,7 +524,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-43"
         },
         {
           "candidate_id": "backend-candidate-44",
@@ -493,7 +536,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-44"
         },
         {
           "candidate_id": "backend-candidate-45",
@@ -504,7 +548,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-45"
         },
         {
           "candidate_id": "backend-candidate-46",
@@ -515,7 +560,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-46"
         },
         {
           "candidate_id": "backend-candidate-47",
@@ -526,7 +572,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-47"
         },
         {
           "candidate_id": "backend-candidate-48",
@@ -537,7 +584,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-48"
         },
         {
           "candidate_id": "backend-candidate-49",
@@ -548,7 +596,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-49"
         },
         {
           "candidate_id": "backend-candidate-50",
@@ -559,7 +608,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-50"
         },
         {
           "candidate_id": "backend-candidate-51",
@@ -570,7 +620,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-51"
         },
         {
           "candidate_id": "backend-candidate-52",
@@ -581,7 +632,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-52"
         },
         {
           "candidate_id": "backend-candidate-53",
@@ -592,7 +644,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-53"
         },
         {
           "candidate_id": "backend-candidate-54",
@@ -603,7 +656,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-54"
         },
         {
           "candidate_id": "backend-candidate-55",
@@ -614,7 +668,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-55"
         },
         {
           "candidate_id": "backend-candidate-56",
@@ -625,7 +680,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-56"
         },
         {
           "candidate_id": "backend-candidate-57",
@@ -636,7 +692,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-57"
         },
         {
           "candidate_id": "backend-candidate-58",
@@ -647,7 +704,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-58"
         },
         {
           "candidate_id": "backend-candidate-59",
@@ -658,7 +716,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-59"
         },
         {
           "candidate_id": "backend-candidate-60",
@@ -669,9 +728,13 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "backend:backend-candidate-60"
         }
-      ]
+      ],
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 12
     },
     "frontend": {
       "profile_id": "frontend",
@@ -685,7 +748,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.99,
           "ai_score": 0.99,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-01"
         },
         {
           "candidate_id": "frontend-candidate-02",
@@ -696,7 +760,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.98,
           "ai_score": 0.98,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-02"
         },
         {
           "candidate_id": "frontend-candidate-03",
@@ -707,7 +772,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.97,
           "ai_score": 0.97,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-03"
         },
         {
           "candidate_id": "frontend-candidate-04",
@@ -718,7 +784,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.96,
           "ai_score": 0.96,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-04"
         },
         {
           "candidate_id": "frontend-candidate-05",
@@ -729,7 +796,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.95,
           "ai_score": 0.95,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-05"
         },
         {
           "candidate_id": "frontend-candidate-06",
@@ -740,7 +808,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.94,
           "ai_score": 0.94,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-06"
         },
         {
           "candidate_id": "frontend-candidate-07",
@@ -751,7 +820,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.93,
           "ai_score": 0.93,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-07"
         },
         {
           "candidate_id": "frontend-candidate-08",
@@ -762,7 +832,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.92,
           "ai_score": 0.92,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-08"
         },
         {
           "candidate_id": "frontend-candidate-09",
@@ -773,7 +844,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.91,
           "ai_score": 0.91,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-09"
         },
         {
           "candidate_id": "frontend-candidate-10",
@@ -784,7 +856,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.9,
           "ai_score": 0.9,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-10"
         },
         {
           "candidate_id": "frontend-candidate-11",
@@ -795,7 +868,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.89,
           "ai_score": 0.89,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-11"
         },
         {
           "candidate_id": "frontend-candidate-12",
@@ -806,7 +880,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.88,
           "ai_score": 0.88,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-12"
         },
         {
           "candidate_id": "frontend-candidate-13",
@@ -817,7 +892,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.0,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-13"
         },
         {
           "candidate_id": "frontend-candidate-14",
@@ -828,7 +904,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.11,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-14"
         },
         {
           "candidate_id": "frontend-candidate-15",
@@ -839,7 +916,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.1,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-15"
         },
         {
           "candidate_id": "frontend-candidate-16",
@@ -850,7 +928,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.09,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-16"
         },
         {
           "candidate_id": "frontend-candidate-17",
@@ -861,7 +940,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.08,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-17"
         },
         {
           "candidate_id": "frontend-candidate-18",
@@ -872,7 +952,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.07,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "frontend:frontend-candidate-18"
         },
         {
           "candidate_id": "frontend-candidate-19",
@@ -883,7 +964,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-19"
         },
         {
           "candidate_id": "frontend-candidate-20",
@@ -894,7 +976,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-20"
         },
         {
           "candidate_id": "frontend-candidate-21",
@@ -905,7 +988,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-21"
         },
         {
           "candidate_id": "frontend-candidate-22",
@@ -916,7 +1000,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-22"
         },
         {
           "candidate_id": "frontend-candidate-23",
@@ -927,7 +1012,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-23"
         },
         {
           "candidate_id": "frontend-candidate-24",
@@ -938,7 +1024,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-24"
         },
         {
           "candidate_id": "frontend-candidate-25",
@@ -949,7 +1036,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-25"
         },
         {
           "candidate_id": "frontend-candidate-26",
@@ -960,7 +1048,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-26"
         },
         {
           "candidate_id": "frontend-candidate-27",
@@ -971,7 +1060,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-27"
         },
         {
           "candidate_id": "frontend-candidate-28",
@@ -982,7 +1072,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-28"
         },
         {
           "candidate_id": "frontend-candidate-29",
@@ -993,7 +1084,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-29"
         },
         {
           "candidate_id": "frontend-candidate-30",
@@ -1004,7 +1096,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-30"
         },
         {
           "candidate_id": "frontend-candidate-31",
@@ -1015,7 +1108,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-31"
         },
         {
           "candidate_id": "frontend-candidate-32",
@@ -1026,7 +1120,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-32"
         },
         {
           "candidate_id": "frontend-candidate-33",
@@ -1037,7 +1132,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-33"
         },
         {
           "candidate_id": "frontend-candidate-34",
@@ -1048,7 +1144,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-34"
         },
         {
           "candidate_id": "frontend-candidate-35",
@@ -1059,7 +1156,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-35"
         },
         {
           "candidate_id": "frontend-candidate-36",
@@ -1070,7 +1168,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-36"
         },
         {
           "candidate_id": "frontend-candidate-37",
@@ -1081,7 +1180,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-37"
         },
         {
           "candidate_id": "frontend-candidate-38",
@@ -1092,7 +1192,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-38"
         },
         {
           "candidate_id": "frontend-candidate-39",
@@ -1103,7 +1204,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-39"
         },
         {
           "candidate_id": "frontend-candidate-40",
@@ -1114,7 +1216,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-40"
         },
         {
           "candidate_id": "frontend-candidate-41",
@@ -1125,7 +1228,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-41"
         },
         {
           "candidate_id": "frontend-candidate-42",
@@ -1136,7 +1240,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-42"
         },
         {
           "candidate_id": "frontend-candidate-43",
@@ -1147,7 +1252,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-43"
         },
         {
           "candidate_id": "frontend-candidate-44",
@@ -1158,7 +1264,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-44"
         },
         {
           "candidate_id": "frontend-candidate-45",
@@ -1169,7 +1276,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-45"
         },
         {
           "candidate_id": "frontend-candidate-46",
@@ -1180,7 +1288,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-46"
         },
         {
           "candidate_id": "frontend-candidate-47",
@@ -1191,7 +1300,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-47"
         },
         {
           "candidate_id": "frontend-candidate-48",
@@ -1202,7 +1312,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-48"
         },
         {
           "candidate_id": "frontend-candidate-49",
@@ -1213,7 +1324,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-49"
         },
         {
           "candidate_id": "frontend-candidate-50",
@@ -1224,7 +1336,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-50"
         },
         {
           "candidate_id": "frontend-candidate-51",
@@ -1235,7 +1348,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-51"
         },
         {
           "candidate_id": "frontend-candidate-52",
@@ -1246,7 +1360,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-52"
         },
         {
           "candidate_id": "frontend-candidate-53",
@@ -1257,7 +1372,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-53"
         },
         {
           "candidate_id": "frontend-candidate-54",
@@ -1268,7 +1384,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-54"
         },
         {
           "candidate_id": "frontend-candidate-55",
@@ -1279,7 +1396,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-55"
         },
         {
           "candidate_id": "frontend-candidate-56",
@@ -1290,7 +1408,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-56"
         },
         {
           "candidate_id": "frontend-candidate-57",
@@ -1301,7 +1420,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-57"
         },
         {
           "candidate_id": "frontend-candidate-58",
@@ -1312,7 +1432,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-58"
         },
         {
           "candidate_id": "frontend-candidate-59",
@@ -1323,7 +1444,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-59"
         },
         {
           "candidate_id": "frontend-candidate-60",
@@ -1334,9 +1456,13 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "frontend:frontend-candidate-60"
         }
-      ]
+      ],
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 12
     },
     "data": {
       "profile_id": "data",
@@ -1350,7 +1476,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.99,
           "ai_score": 0.99,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-01"
         },
         {
           "candidate_id": "data-candidate-02",
@@ -1361,7 +1488,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.98,
           "ai_score": 0.98,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-02"
         },
         {
           "candidate_id": "data-candidate-03",
@@ -1372,7 +1500,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.97,
           "ai_score": 0.97,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-03"
         },
         {
           "candidate_id": "data-candidate-04",
@@ -1383,7 +1512,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.96,
           "ai_score": 0.96,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-04"
         },
         {
           "candidate_id": "data-candidate-05",
@@ -1394,7 +1524,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.95,
           "ai_score": 0.95,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-05"
         },
         {
           "candidate_id": "data-candidate-06",
@@ -1405,7 +1536,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.94,
           "ai_score": 0.94,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-06"
         },
         {
           "candidate_id": "data-candidate-07",
@@ -1416,7 +1548,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.93,
           "ai_score": 0.93,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-07"
         },
         {
           "candidate_id": "data-candidate-08",
@@ -1427,7 +1560,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.92,
           "ai_score": 0.92,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-08"
         },
         {
           "candidate_id": "data-candidate-09",
@@ -1438,7 +1572,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.91,
           "ai_score": 0.91,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-09"
         },
         {
           "candidate_id": "data-candidate-10",
@@ -1449,7 +1584,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.9,
           "ai_score": 0.9,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-10"
         },
         {
           "candidate_id": "data-candidate-11",
@@ -1460,7 +1596,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.89,
           "ai_score": 0.89,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-11"
         },
         {
           "candidate_id": "data-candidate-12",
@@ -1471,7 +1608,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.88,
           "ai_score": 0.88,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-12"
         },
         {
           "candidate_id": "data-candidate-13",
@@ -1482,7 +1620,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.0,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-13"
         },
         {
           "candidate_id": "data-candidate-14",
@@ -1493,7 +1632,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.11,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-14"
         },
         {
           "candidate_id": "data-candidate-15",
@@ -1504,7 +1644,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.1,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-15"
         },
         {
           "candidate_id": "data-candidate-16",
@@ -1515,7 +1656,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.09,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-16"
         },
         {
           "candidate_id": "data-candidate-17",
@@ -1526,7 +1668,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.08,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-17"
         },
         {
           "candidate_id": "data-candidate-18",
@@ -1537,7 +1680,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.07,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "data:data-candidate-18"
         },
         {
           "candidate_id": "data-candidate-19",
@@ -1548,7 +1692,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-19"
         },
         {
           "candidate_id": "data-candidate-20",
@@ -1559,7 +1704,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-20"
         },
         {
           "candidate_id": "data-candidate-21",
@@ -1570,7 +1716,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-21"
         },
         {
           "candidate_id": "data-candidate-22",
@@ -1581,7 +1728,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-22"
         },
         {
           "candidate_id": "data-candidate-23",
@@ -1592,7 +1740,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-23"
         },
         {
           "candidate_id": "data-candidate-24",
@@ -1603,7 +1752,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-24"
         },
         {
           "candidate_id": "data-candidate-25",
@@ -1614,7 +1764,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-25"
         },
         {
           "candidate_id": "data-candidate-26",
@@ -1625,7 +1776,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-26"
         },
         {
           "candidate_id": "data-candidate-27",
@@ -1636,7 +1788,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-27"
         },
         {
           "candidate_id": "data-candidate-28",
@@ -1647,7 +1800,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-28"
         },
         {
           "candidate_id": "data-candidate-29",
@@ -1658,7 +1812,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-29"
         },
         {
           "candidate_id": "data-candidate-30",
@@ -1669,7 +1824,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-30"
         },
         {
           "candidate_id": "data-candidate-31",
@@ -1680,7 +1836,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-31"
         },
         {
           "candidate_id": "data-candidate-32",
@@ -1691,7 +1848,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-32"
         },
         {
           "candidate_id": "data-candidate-33",
@@ -1702,7 +1860,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-33"
         },
         {
           "candidate_id": "data-candidate-34",
@@ -1713,7 +1872,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-34"
         },
         {
           "candidate_id": "data-candidate-35",
@@ -1724,7 +1884,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-35"
         },
         {
           "candidate_id": "data-candidate-36",
@@ -1735,7 +1896,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-36"
         },
         {
           "candidate_id": "data-candidate-37",
@@ -1746,7 +1908,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-37"
         },
         {
           "candidate_id": "data-candidate-38",
@@ -1757,7 +1920,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-38"
         },
         {
           "candidate_id": "data-candidate-39",
@@ -1768,7 +1932,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-39"
         },
         {
           "candidate_id": "data-candidate-40",
@@ -1779,7 +1944,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-40"
         },
         {
           "candidate_id": "data-candidate-41",
@@ -1790,7 +1956,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-41"
         },
         {
           "candidate_id": "data-candidate-42",
@@ -1801,7 +1968,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-42"
         },
         {
           "candidate_id": "data-candidate-43",
@@ -1812,7 +1980,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-43"
         },
         {
           "candidate_id": "data-candidate-44",
@@ -1823,7 +1992,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-44"
         },
         {
           "candidate_id": "data-candidate-45",
@@ -1834,7 +2004,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-45"
         },
         {
           "candidate_id": "data-candidate-46",
@@ -1845,7 +2016,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-46"
         },
         {
           "candidate_id": "data-candidate-47",
@@ -1856,7 +2028,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-47"
         },
         {
           "candidate_id": "data-candidate-48",
@@ -1867,7 +2040,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-48"
         },
         {
           "candidate_id": "data-candidate-49",
@@ -1878,7 +2052,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-49"
         },
         {
           "candidate_id": "data-candidate-50",
@@ -1889,7 +2064,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-50"
         },
         {
           "candidate_id": "data-candidate-51",
@@ -1900,7 +2076,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-51"
         },
         {
           "candidate_id": "data-candidate-52",
@@ -1911,7 +2088,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-52"
         },
         {
           "candidate_id": "data-candidate-53",
@@ -1922,7 +2100,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-53"
         },
         {
           "candidate_id": "data-candidate-54",
@@ -1933,7 +2112,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-54"
         },
         {
           "candidate_id": "data-candidate-55",
@@ -1944,7 +2124,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-55"
         },
         {
           "candidate_id": "data-candidate-56",
@@ -1955,7 +2136,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-56"
         },
         {
           "candidate_id": "data-candidate-57",
@@ -1966,7 +2148,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-57"
         },
         {
           "candidate_id": "data-candidate-58",
@@ -1977,7 +2160,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-58"
         },
         {
           "candidate_id": "data-candidate-59",
@@ -1988,7 +2172,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-59"
         },
         {
           "candidate_id": "data-candidate-60",
@@ -1999,9 +2184,13 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "data:data-candidate-60"
         }
-      ]
+      ],
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 12
     },
     "product": {
       "profile_id": "product",
@@ -2015,7 +2204,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.99,
           "ai_score": 0.99,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-01"
         },
         {
           "candidate_id": "product-candidate-02",
@@ -2026,7 +2216,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.98,
           "ai_score": 0.98,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-02"
         },
         {
           "candidate_id": "product-candidate-03",
@@ -2037,7 +2228,8 @@
           "relevance_grade": 3,
           "baseline_fit": 0.97,
           "ai_score": 0.97,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-03"
         },
         {
           "candidate_id": "product-candidate-04",
@@ -2048,7 +2240,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.96,
           "ai_score": 0.96,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-04"
         },
         {
           "candidate_id": "product-candidate-05",
@@ -2059,7 +2252,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.95,
           "ai_score": 0.95,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-05"
         },
         {
           "candidate_id": "product-candidate-06",
@@ -2070,7 +2264,8 @@
           "relevance_grade": 2,
           "baseline_fit": 0.94,
           "ai_score": 0.94,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-06"
         },
         {
           "candidate_id": "product-candidate-07",
@@ -2081,7 +2276,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.93,
           "ai_score": 0.93,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-07"
         },
         {
           "candidate_id": "product-candidate-08",
@@ -2092,7 +2288,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.92,
           "ai_score": 0.92,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-08"
         },
         {
           "candidate_id": "product-candidate-09",
@@ -2103,7 +2300,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.91,
           "ai_score": 0.91,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-09"
         },
         {
           "candidate_id": "product-candidate-10",
@@ -2114,7 +2312,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.9,
           "ai_score": 0.9,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-10"
         },
         {
           "candidate_id": "product-candidate-11",
@@ -2125,7 +2324,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.89,
           "ai_score": 0.89,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-11"
         },
         {
           "candidate_id": "product-candidate-12",
@@ -2136,7 +2336,8 @@
           "relevance_grade": 1,
           "baseline_fit": 0.88,
           "ai_score": 0.88,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-12"
         },
         {
           "candidate_id": "product-candidate-13",
@@ -2147,7 +2348,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.0,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-13"
         },
         {
           "candidate_id": "product-candidate-14",
@@ -2158,7 +2360,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.11,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-14"
         },
         {
           "candidate_id": "product-candidate-15",
@@ -2169,7 +2372,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.1,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-15"
         },
         {
           "candidate_id": "product-candidate-16",
@@ -2180,7 +2384,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.09,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-16"
         },
         {
           "candidate_id": "product-candidate-17",
@@ -2191,7 +2396,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.08,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-17"
         },
         {
           "candidate_id": "product-candidate-18",
@@ -2202,7 +2408,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": 0.07,
-          "ai_score_status": "valid"
+          "ai_score_status": "valid",
+          "source_group_id": "product:product-candidate-18"
         },
         {
           "candidate_id": "product-candidate-19",
@@ -2213,7 +2420,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-19"
         },
         {
           "candidate_id": "product-candidate-20",
@@ -2224,7 +2432,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-20"
         },
         {
           "candidate_id": "product-candidate-21",
@@ -2235,7 +2444,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-21"
         },
         {
           "candidate_id": "product-candidate-22",
@@ -2246,7 +2456,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-22"
         },
         {
           "candidate_id": "product-candidate-23",
@@ -2257,7 +2468,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-23"
         },
         {
           "candidate_id": "product-candidate-24",
@@ -2268,7 +2480,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-24"
         },
         {
           "candidate_id": "product-candidate-25",
@@ -2279,7 +2492,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-25"
         },
         {
           "candidate_id": "product-candidate-26",
@@ -2290,7 +2504,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-26"
         },
         {
           "candidate_id": "product-candidate-27",
@@ -2301,7 +2516,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-27"
         },
         {
           "candidate_id": "product-candidate-28",
@@ -2312,7 +2528,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-28"
         },
         {
           "candidate_id": "product-candidate-29",
@@ -2323,7 +2540,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-29"
         },
         {
           "candidate_id": "product-candidate-30",
@@ -2334,7 +2552,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-30"
         },
         {
           "candidate_id": "product-candidate-31",
@@ -2345,7 +2564,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-31"
         },
         {
           "candidate_id": "product-candidate-32",
@@ -2356,7 +2576,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-32"
         },
         {
           "candidate_id": "product-candidate-33",
@@ -2367,7 +2588,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-33"
         },
         {
           "candidate_id": "product-candidate-34",
@@ -2378,7 +2600,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-34"
         },
         {
           "candidate_id": "product-candidate-35",
@@ -2389,7 +2612,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-35"
         },
         {
           "candidate_id": "product-candidate-36",
@@ -2400,7 +2624,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-36"
         },
         {
           "candidate_id": "product-candidate-37",
@@ -2411,7 +2636,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-37"
         },
         {
           "candidate_id": "product-candidate-38",
@@ -2422,7 +2648,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-38"
         },
         {
           "candidate_id": "product-candidate-39",
@@ -2433,7 +2660,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-39"
         },
         {
           "candidate_id": "product-candidate-40",
@@ -2444,7 +2672,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-40"
         },
         {
           "candidate_id": "product-candidate-41",
@@ -2455,7 +2684,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-41"
         },
         {
           "candidate_id": "product-candidate-42",
@@ -2466,7 +2696,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-42"
         },
         {
           "candidate_id": "product-candidate-43",
@@ -2477,7 +2708,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-43"
         },
         {
           "candidate_id": "product-candidate-44",
@@ -2488,7 +2720,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-44"
         },
         {
           "candidate_id": "product-candidate-45",
@@ -2499,7 +2732,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-45"
         },
         {
           "candidate_id": "product-candidate-46",
@@ -2510,7 +2744,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-46"
         },
         {
           "candidate_id": "product-candidate-47",
@@ -2521,7 +2756,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-47"
         },
         {
           "candidate_id": "product-candidate-48",
@@ -2532,7 +2768,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-48"
         },
         {
           "candidate_id": "product-candidate-49",
@@ -2543,7 +2780,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-49"
         },
         {
           "candidate_id": "product-candidate-50",
@@ -2554,7 +2792,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-50"
         },
         {
           "candidate_id": "product-candidate-51",
@@ -2565,7 +2804,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-51"
         },
         {
           "candidate_id": "product-candidate-52",
@@ -2576,7 +2816,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-52"
         },
         {
           "candidate_id": "product-candidate-53",
@@ -2587,7 +2828,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-53"
         },
         {
           "candidate_id": "product-candidate-54",
@@ -2598,7 +2840,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-54"
         },
         {
           "candidate_id": "product-candidate-55",
@@ -2609,7 +2852,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-55"
         },
         {
           "candidate_id": "product-candidate-56",
@@ -2620,7 +2864,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-56"
         },
         {
           "candidate_id": "product-candidate-57",
@@ -2631,7 +2876,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-57"
         },
         {
           "candidate_id": "product-candidate-58",
@@ -2642,7 +2888,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-58"
         },
         {
           "candidate_id": "product-candidate-59",
@@ -2653,7 +2900,8 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-59"
         },
         {
           "candidate_id": "product-candidate-60",
@@ -2664,9 +2912,13 @@
           "relevance_grade": 0,
           "baseline_fit": 0.0,
           "ai_score": null,
-          "ai_score_status": "unscored"
+          "ai_score_status": "unscored",
+          "source_group_id": "product:product-candidate-60"
         }
-      ]
+      ],
+      "retrieval_top_n": 50,
+      "ranking_top_n": 12,
+      "ndcg_top_n": 12
     }
   }
 }

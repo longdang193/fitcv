@@ -729,6 +729,66 @@ def build_ranking_job_input(
                 break
         return display, canonical
 
+    def mandatory_clause_records(
+        values: Any,
+        fallback_values: tuple[tuple[str, Any], ...] = (),
+    ) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        seen: set[str] = set()
+
+        def add_record(raw: Any, clause_type: str | None = None) -> None:
+            if isinstance(raw, dict):
+                value = raw.get("value") or raw.get("text") or raw.get("requirement") or raw.get("name")
+                current_type = raw.get("clause_type") or raw.get("type") or clause_type or "mandatory"
+                normalized = raw.get("normalized_value") or _canonical_skill(value, policy)
+                source_span = raw.get("source_span") or raw.get("source_spans")
+                required = bool(raw.get("required", True))
+            else:
+                value = raw
+                current_type = clause_type or "mandatory"
+                normalized = _canonical_skill(value, policy)
+                source_span = None
+                required = True
+            display = str(value or "").strip()
+            normalized_text = str(normalized or "").strip()
+            if not display or not normalized_text:
+                return
+            bounded_span = source_span
+            if isinstance(source_span, dict):
+                bounded_span = {
+                    str(key): item
+                    for key, item in source_span.items()
+                    if item not in (None, "")
+                }
+            elif isinstance(source_span, list):
+                bounded_span = [
+                    dict(item) if isinstance(item, dict) else item
+                    for item in source_span
+                ]
+            clause_id = str(raw.get("clause_id") or "") if isinstance(raw, dict) else ""
+            if not clause_id:
+                clause_id = f"{str(current_type).strip().lower()}:{_stable_json_fingerprint({'type': current_type, 'value': normalized_text})[:12]}"
+            if clause_id in seen:
+                return
+            seen.add(clause_id)
+            record = {
+                "clause_id": clause_id,
+                "clause_type": str(current_type).strip() or "mandatory",
+                "value": display,
+                "normalized_value": normalized_text,
+                "required": required,
+            }
+            if bounded_span:
+                record["source_span"] = bounded_span
+            records.append(record)
+
+        for value in list(values or []):
+            add_record(value)
+        for clause_type, values_for_type in fallback_values:
+            for value in list(values_for_type or []):
+                add_record(value, clause_type)
+        return records
+
     projected_evidence = profile.get("_projected_evidence_pool")
     if not isinstance(projected_evidence, list):
         from fitcv.evidence import project_candidate_evidence
@@ -776,7 +836,7 @@ def build_ranking_job_input(
         limit=max(8, len(technology_values)),
         preserve_full=True,
     )
-    technology_requirements = all_technology_requirements[:RANKING_MAX_SKILLS]
+    technology_requirements = all_technology_requirements
     preferred_skills, preferred_canonical = canonical_values(
         job.get("preferred_skills_canonical") or job.get("preferred_skills")
     )
@@ -788,8 +848,8 @@ def build_ranking_job_input(
         all_candidate_skills,
         key=lambda skill: (priority_keys.get(_canonical_skill(skill, policy), 3), all_candidate_skills.index(skill)),
     )
-    required_skills = all_required_skills[:RANKING_MAX_SKILLS]
-    candidate_skills = prioritized_candidate_skills[:RANKING_MAX_SKILLS]
+    required_skills = all_required_skills
+    candidate_skills = prioritized_candidate_skills
     candidate_skill_keys = {_canonical_skill(skill, policy) for skill in all_candidate_skills}
     matched_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical in candidate_skill_keys]
     missing_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical not in candidate_skill_keys]
@@ -798,7 +858,7 @@ def build_ranking_job_input(
         for item in list(profile.get("languages") or [])
         if isinstance(item, dict) and _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS)
     ]
-    languages = all_candidate_languages[:8]
+    languages = all_candidate_languages
     all_candidate_employment = [
         {
             "role": _bounded_text(item.get("role"), RANKING_TERM_MAX_CHARS),
@@ -809,7 +869,7 @@ def build_ranking_job_input(
         for item in list(profile.get("experiences") or [])
         if isinstance(item, dict)
     ]
-    employment = all_candidate_employment[:8]
+    employment = all_candidate_employment
     mandatory_skill_keys = set(required_canonical) | set(technology_canonical)
     visible_candidate_skill_keys = {
         _canonical_skill(skill, policy)
@@ -821,13 +881,24 @@ def build_ranking_job_input(
         for skill in all_candidate_skills
         if _canonical_skill(skill, policy) in mandatory_skill_keys
     }
+    job_mandatory_clauses = mandatory_clause_records(
+        job.get("mandatory_clauses"),
+        (
+            ("qualification", job.get("qualifications")),
+            ("education", job.get("education_requirements") or job.get("education")),
+            ("certification", job.get("certification_requirements") or job.get("certifications")),
+            ("language", job_language_values),
+            ("employment_constraint", job.get("employment_constraints")),
+        ),
+    )
     mandatory_omissions = {
-        "job_required_skills": max(0, len(all_required_skills) - len(required_skills)),
-        "job_technology_requirements": max(0, len(all_technology_requirements) - len(technology_requirements)),
-        "job_language_requirements": max(0, len(job_language_values) - min(8, len(job_language_values))),
-        "candidate_required_skills": len(mandatory_candidate_skill_keys - visible_candidate_skill_keys),
-        "candidate_languages": max(0, len(all_candidate_languages) - 8),
-        "candidate_employment": max(0, len(all_candidate_employment) - 8),
+        "job_required_skills": 0,
+        "job_technology_requirements": 0,
+        "job_language_requirements": 0,
+        "job_mandatory_clauses": 0,
+        "candidate_required_skills": 0,
+        "candidate_languages": 0,
+        "candidate_employment": 0,
     }
     education = [
         {key: _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS) for key in ("degree", "field", "institution", "start", "end") if _bounded_text(item.get(key), RANKING_TERM_MAX_CHARS)}
@@ -842,6 +913,11 @@ def build_ranking_job_input(
     requirements = {
         "title": str(job.get("title") or "")[:160],
         "required_skills": required_skills,
+        "qualifications": bounded(job.get("qualifications"), limit=16),
+        "education_requirements": bounded(job.get("education_requirements") or job.get("education"), limit=16),
+        "certification_requirements": bounded(job.get("certification_requirements") or job.get("certifications"), limit=16),
+        "employment_constraints": bounded(job.get("employment_constraints"), limit=16),
+        "mandatory_clauses": job_mandatory_clauses,
         "preferred_skills": preferred_skills,
         "seniority": str(job.get("seniority") or ""),
         "job_family": str(job.get("job_family") or ""),
@@ -871,6 +947,7 @@ def build_ranking_job_input(
         "employment": employment,
         "education": education,
         "certifications": certifications,
+        "mandatory_clauses": mandatory_clause_records(profile.get("mandatory_clauses")),
     }
     contract_metadata = {
         "version": RANKING_INPUT_CONTRACT_VERSION,
@@ -887,6 +964,8 @@ def build_ranking_job_input(
                     "location", "actual_location", "location_type", "years_experience_min",
                     "years_experience_max", "seniority", "job_family", "domain",
                     "responsibilities",
+                    "qualifications", "education_requirements", "certification_requirements",
+                    "certifications", "employment_constraints", "mandatory_clauses",
                 )
                 if key in job
             }),
@@ -906,6 +985,7 @@ def build_ranking_job_input(
             *[f"technology:{index}" for index in range(len(technology_requirements))],
             *[f"preferred:{index}" for index in range(len(preferred_skills))],
             *[f"responsibility:{index}" for index in range(len(requirements["responsibilities"]))],
+            *[f"mandatory:{record['clause_id']}" for record in job_mandatory_clauses],
         ],
     }
     return {

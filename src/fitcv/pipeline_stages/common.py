@@ -150,6 +150,14 @@ def normalize_shortlist_row(shortlist_row: Mapping[str, Any]) -> dict[str, Any]:
     if shortlist_row.get("retrieval_score") is not None:
         normalized["retrieval_score"] = shortlist_row["retrieval_score"]
     for key in (
+        "lexical_rank",
+        "lexical_score",
+        "hybrid_rrf_score",
+        "fusion_contract_fingerprint",
+    ):
+        if shortlist_row.get(key) is not None:
+            normalized[key] = shortlist_row[key]
+    for key in (
         "normalized_embedding",
         "embedding_vector_fingerprint",
         "embedding_contract_fingerprint",

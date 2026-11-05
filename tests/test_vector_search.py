@@ -8,6 +8,7 @@ from unittest.mock import patch
 from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
 from fitcv.embeddings import build_embedding_contract_fingerprint
 from fitcv.vector_search import (
+    _hybrid_search_result,
     _dedupe_shortlist_rows,
     _technology_overlap,
     build_candidate_query_components,
@@ -110,6 +111,30 @@ def test_build_candidate_query_components_include_role_family_and_domain_hints()
     assert components["recent_roles"] == ["Business Intelligence Analyst", "Data Scientist"]
     assert components["role_family_hints"] == ["analytics", "data_science"]
     assert components["domain_hints"] == ["banking", "retail_banking", "fraud_detection", "fintech"]
+
+
+def test_build_candidate_query_components_preserve_all_declared_role_families_and_project_evidence() -> None:
+    profile = {
+        "preferences": {
+            "role_families": ["analytics", "data_engineering", "ml_engineering", "platform"],
+        },
+        "projects": [{
+            "name": "Fraud Detection Platform",
+            "business_value": "Reduced false positives for risk operations",
+            "highlights": ["Built streaming feature pipeline"],
+        }],
+    }
+
+    components = build_candidate_query_components(profile)
+    text = build_candidate_query_text(profile)
+
+    assert components["role_families"] == ["analytics", "data_engineering", "ml_engineering", "platform"]
+    assert components["project_evidence_hints"] == [
+        "Fraud Detection Platform",
+        "Reduced false positives for risk operations",
+        "Built streaming feature pipeline",
+    ]
+    assert "Built streaming feature pipeline" in text
 
 
 def test_build_candidate_query_components_bound_skill_count() -> None:
@@ -688,6 +713,81 @@ def test_run_vector_search_selects_the_current_job_input_signature(
     assert result["production_rows"][0]["normalized_embedding"] == [1.0, 0.0]
 
 
+def test_run_vector_search_uses_older_compatible_embedding_when_newer_row_is_incompatible(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    config = {
+        "embedding_backend": "sentence_transformers",
+        "embedding_dimension": 2,
+        "pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 0},
+        "ranking_policy": {
+            "declared_preference_component_weights": {
+                "domain": 0.5,
+                "role_family": 0.3,
+                "work_mode": 0.2,
+            }
+        },
+    }
+    contract = build_embedding_contract_fingerprint(config)["fingerprint"]
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE job_embeddings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              job_url TEXT NOT NULL,
+              chunk_type TEXT NOT NULL,
+              chunk_text TEXT NOT NULL,
+              embedding_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              embedding_input_signature TEXT,
+              embedding_contract_fingerprint TEXT
+            )
+            """
+        )
+        conn.executemany(
+            """
+            INSERT INTO job_embeddings(
+              job_url, chunk_type, chunk_text, embedding_json, created_at,
+              embedding_input_signature, embedding_contract_fingerprint
+            ) VALUES (?, 'job_summary', '', ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "https://example.com/reused",
+                    json.dumps([1.0, 0.0]),
+                    "2026-01-01T00:00:00Z",
+                    "signature-a",
+                    contract,
+                ),
+                (
+                    "https://example.com/reused",
+                    json.dumps([0.0, 1.0]),
+                    "2026-02-01T00:00:00Z",
+                    "signature-a",
+                    "incompatible",
+                ),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+
+    result = run_vector_search(
+        {},
+        ["https://example.com/reused"],
+        config,
+        structured_jobs=[
+            {"job_url": "https://example.com/reused", "embedding_input_signature": "signature-a"}
+        ],
+    )
+
+    assert result["production_rows"][0]["normalized_embedding"] == [1.0, 0.0]
+
+
 def test_run_vector_search_uses_latest_id_for_same_timestamp_duplicate(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1011,6 +1111,39 @@ def test_run_vector_search_fallback_preserves_lexical_audit_rows(
 
     assert [row["job_url"] for row in result["production_rows"]] == ["https://example.com/lexical-production"]
     assert [row["job_url"] for row in result["audit_rows"]] == ["https://example.com/lexical-audit"]
+
+
+def test_hybrid_fusion_uses_only_fixed_depth_production_channels() -> None:
+    vector_result = {
+        "production_rows": [
+            {"job_url": "https://example.com/vector-1", "vector_rank": 1},
+            {"job_url": "https://example.com/vector-2", "vector_rank": 2},
+        ],
+        "audit_rows": [{"job_url": "https://example.com/vector-audit", "vector_rank": 3}],
+        "diagnostics": {},
+    }
+    lexical_result = {
+        "production_rows": [
+            {"job_url": "https://example.com/lexical-1", "lexical_rank": 1},
+            {"job_url": "https://example.com/lexical-2", "lexical_rank": 2},
+        ],
+        "audit_rows": [{"job_url": "https://example.com/lexical-audit", "lexical_rank": 3}],
+        "diagnostics": {},
+    }
+
+    result = _hybrid_search_result(
+        vector_result=vector_result,
+        lexical_result=lexical_result,
+        eligible_job_urls=[row["job_url"] for row in vector_result["production_rows"]],
+        top_n=4,
+    )
+
+    returned_urls = {
+        row["job_url"] for row in result["production_rows"] + result["audit_rows"]
+    }
+    assert "https://example.com/vector-audit" not in returned_urls
+    assert result["diagnostics"]["vector_candidate_total"] == 2
+    assert result["diagnostics"]["lexical_candidate_total"] == 2
 
 
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(

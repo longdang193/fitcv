@@ -2711,6 +2711,50 @@ def test_ranking_channel_matching_does_not_use_substrings_or_single_token_overla
     assert coverage["technology"] == []
 
 
+def test_ranking_channel_matching_rejects_partial_or_unordered_multi_token_terms() -> None:
+    job = {"required_skills": ["machine learning platform"]}
+    partial = {
+        "text": "Built a machine learning pipeline.",
+        "scoring_context": "Built a machine learning pipeline.",
+    }
+    unordered = {
+        "text": "Built a platform for machine learning.",
+        "scoring_context": "Built a platform for machine learning.",
+    }
+    exact = {
+        "text": "Built a machine learning platform.",
+        "scoring_context": "Built a machine learning platform.",
+    }
+
+    assert score_evidence_item_by_channel(partial, job)["coverage"]["required"] == []
+    assert score_evidence_item_by_channel(unordered, job)["coverage"]["required"] == []
+    assert score_evidence_item_by_channel(exact, job)["coverage"]["required"] == ["machine learning platform"]
+
+
+def test_ranking_channel_matching_does_not_combine_separate_sentences() -> None:
+    job = {"responsibilities": ["Build agents"]}
+    item = {
+        "text": "Built dashboards. Agents were out of scope.",
+        "scoring_context": "Built dashboards. Agents were out of scope.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, job)["coverage"]
+
+    assert coverage["responsibilities"] == []
+
+
+@pytest.mark.parametrize("term", ["Node.js", "Vue.js", "Next.js"])
+def test_ranking_channel_matching_preserves_dotted_technology_names(term: str) -> None:
+    item = {
+        "text": f"Built services with {term}.",
+        "scoring_context": f"Built services with {term}.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": [term]})["coverage"]
+
+    assert coverage["required"] == [term]
+
+
 def test_ranking_channel_matching_keeps_positive_occurrence_after_unrelated_negation() -> None:
     item = {
         "title": "Pipelines",

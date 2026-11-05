@@ -319,8 +319,14 @@ def resolve_run_preference_policy(
     existing_payload: dict[str, Any] | None = None,
     resolver: Callable[[PreferenceRuntimeContract], ResolvedPreferencePolicy] | None = None,
 ) -> ResolvedPreferencePolicy:
-    if ranking_rows and str(ranking_rows[0].get("retrieval_strategy") or "").strip() == "lexical_v1":
-        first = ranking_rows[0]
+    embedding_incompatible = any(
+        str(row.get("retrieval_strategy") or "").strip() == "lexical_v1"
+        or not isinstance(row.get("normalized_embedding"), list)
+        or not row.get("normalized_embedding")
+        for row in ranking_rows
+    )
+    if ranking_rows and embedding_incompatible:
+        first = next((row for row in ranking_rows if isinstance(row, dict)), ranking_rows[0])
         policy = config["decision_learning_policy"]["inverse_optimization"]
         preference_optimization = config.get("preference_optimization")
         preference_settings = (

@@ -17,6 +17,7 @@ from scripts import benchmark_ranking
 from scripts.benchmark_ranking import _split_metric_rows
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ranking_gold.json"
+ADMISSION_FIXTURE = Path(__file__).parent / "fixtures" / "retrieval_admission_fixture.json"
 PROFILE_NAMES = {"backend", "frontend", "data", "product"}
 REVIEWED_CASES = {
     "direct_match",
@@ -73,6 +74,47 @@ def test_fixture_shape_and_reviewed_cases() -> None:
         assert {row["relevance_grade"] for row in rows} == {0, 1, 2, 3}
         assert {row["description"] for row in rows} >= REVIEWED_CASES
         assert all(row["reviewed"] is True for row in rows)
+
+
+def test_retrieval_admission_fixture_preserves_budget_and_stage_counts(tmp_path: Path, monkeypatch: Any) -> None:
+    from scripts import diagnose_ranking_loss
+
+    data = json.loads(ADMISSION_FIXTURE.read_text(encoding="utf-8"))
+    assert data["budget_invariants"] == {
+        "vector_search_top_n": 50,
+        "ai_score_top_n": 50,
+        "scorer_request_limit_chars": 12000,
+    }
+    pool = data["profiles"]["data_platform"]
+    assert pool["retrieval_top_n"] == 50
+    assert pool["ranking_top_n"] == 12
+    assert pool["ndcg_top_n"] == 12
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "diagnostic.sqlite3"))
+    report = diagnose_ranking_loss.diagnose_calibration_loss(ADMISSION_FIXTURE)
+
+    assert report["schema_version"] == "ranking_loss_diagnostic_v1"
+    assert report["held_out_rows_read"] == 0
+    assert report["stage_transition_order"] == [
+        "raw", "normalized", "enriched", "rule_filtered", "retrieved",
+        "admitted", "selected", "scored", "ranked",
+    ]
+    profile_report = report["profiles"][0]
+    assert profile_report["stage_counts"] == {
+        "raw": 4,
+        "normalized": 4,
+        "enriched": 4,
+        "rule_filtered": 4,
+        "retrieved": 4,
+        "admitted": 4,
+        "selected": 4,
+        "scored": 4,
+        "ranked": 4,
+    }
+    assert profile_report["baseline"] == {
+        "relevant_retrieved": 2,
+        "relevant_in_final_ranking": 2,
+    }
 
 
 def test_recall_at_50() -> None:

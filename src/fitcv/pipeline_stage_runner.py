@@ -23,6 +23,7 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from fitcv.fit_factors import build_candidate_fit_context
+from fitcv.config import resolve_retrieval_strategy
 from fitcv.ai_score import build_ranking_input_diagnostics, build_ranking_job_input
 from fitcv.evidence import build_evidence_projection, select_ranking_evidence
 from fitcv.semantic_snapshot import compile_semantic_policy
@@ -263,14 +264,16 @@ def execute_shortlist_stage(
     raw_shortlist_anomaly_urls: Callable[[list[dict[str, Any]], list[dict[str, Any]]], list[str]],
 ) -> tuple[list[dict[str, Any]], str, dict[str, Any], dict[str, Any]]:
     with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
-        pipeline_store.embed_and_store_jobs(passed_jobs, config)
+        effective_strategy = resolve_retrieval_strategy(config)
+        if effective_strategy != "lexical_v1":
+            pipeline_store.embed_and_store_jobs(passed_jobs, config)
         raw_shortlist_result = run_vector_search(
             profile,
             [str(job.get("job_url") or "") for job in passed_jobs],
             config,
             top_n=vector_top_n,
             structured_jobs=passed_jobs,
-            requested_strategy=VECTOR_RETRIEVAL_STRATEGY,
+            requested_strategy=effective_strategy,
         )
         raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
         audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
@@ -315,6 +318,9 @@ def execute_shortlist_stage(
         shortlist_urls = set(unique_job_urls(shortlist))
         audit_urls = set(unique_job_urls(audit_rows))
         shortlist_admission_rows = []
+        fusion_fingerprint = str(shortlist_diagnostics.get("fusion_fingerprint") or "")
+        effective_strategy = str(shortlist_diagnostics.get("effective_strategy") or "")
+        requested_strategy = str(shortlist_diagnostics.get("requested_strategy") or "")
         for input_index, job in enumerate(passed_jobs):
             job_url = str(job.get("job_url") or "").strip()
             shortlist_row = next(
@@ -341,6 +347,17 @@ def execute_shortlist_stage(
                     ),
                     "shortlist_origin": str((shortlist_row or {}).get("shortlist_origin") or ""),
                     "retrieval_strategy": str((shortlist_row or {}).get("retrieval_strategy") or shortlist_diagnostics.get("effective_strategy") or ""),
+                    "vector_rank": (shortlist_row or {}).get("vector_rank"),
+                    "vector_similarity": (shortlist_row or {}).get("vector_similarity"),
+                    "lexical_rank": (shortlist_row or {}).get("lexical_rank"),
+                    "lexical_score": (shortlist_row or {}).get("lexical_score"),
+                    "requested_strategy": requested_strategy,
+                    "effective_strategy": effective_strategy,
+                    "fusion_fingerprint": fusion_fingerprint,
+                    "admission_reason": "within_fused_cutoff" if job_url in shortlist_urls else None,
+                    "exclusion_reason": (
+                        "after_fused_cutoff" if job_url in raw_shortlist_urls else "not_returned_in_raw_hits"
+                    ) if job_url not in shortlist_urls else None,
                 }
             )
         state["shortlist_admission_manifest"] = {
@@ -359,6 +376,9 @@ def execute_shortlist_stage(
             },
             "rows": shortlist_admission_rows,
         }
+        persist_ledger = getattr(pipeline_store, "store_shortlist_admission_ledger", None)
+        if persist_ledger is not None:
+            persist_ledger(shortlist_admission_rows, shortlist_diagnostics, run_id, config)
         raw_shortlist_anomaly_rows = raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
         if reporter is not None:
             shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"

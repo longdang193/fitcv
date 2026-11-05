@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_rankable_skills, flatten_skills, infer_role_family
+from fitcv.config import MIXED_FALLBACK_RETRIEVAL_STRATEGY
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
 from fitcv.embeddings import (
     build_embedding_backend_metadata,
@@ -49,10 +50,15 @@ DEFAULT_LOCATION_TYPE_HINT_COUNT = 3
 CANDIDATE_QUERY_SCHEMA_VERSION = "shortlist_candidate_query_v2"
 CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT = 8
 CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS = 160
+CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_COUNT = 8
+CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_CHARS = 200
 REUSED_CACHED_QUERY_EMBEDDING_STATUS = "reused_cached_query_embedding"
 FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
 VECTOR_RETRIEVAL_STRATEGY = "vector_cosine_v1"
 LEXICAL_RETRIEVAL_STRATEGY = "lexical_v1"
+HYBRID_RETRIEVAL_STRATEGY = "hybrid_rrf_v1"
+HYBRID_RRF_K = 60
+HYBRID_CHANNEL_WEIGHT = 1.0
 VECTOR_DIAGNOSTIC_SAMPLE_LIMIT = 20
 
 logger = logging.getLogger(__name__)
@@ -335,9 +341,10 @@ def build_candidate_query_components(
 
     role_families: list[str] = []
     seen_role_families: set[str] = set()
+    max_role_families = int((config or {}).get("vector_max_role_families", 12))
     for role_family in prefs.get("role_families", []) or []:
         _append_unique_text(role_families, str(role_family), seen_role_families)
-        if len(role_families) >= DEFAULT_ROLE_FAMILY_HINT_COUNT:
+        if len(role_families) >= max_role_families:
             break
     if len(role_families) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
         inferred_target_family = infer_role_family(target_role, config=config)
@@ -387,6 +394,20 @@ def build_candidate_query_components(
             break
 
     technology_hints = _bounded_profile_technology_hints(profile)
+    project_evidence_hints: list[str] = []
+    seen_project_evidence: set[str] = set()
+    for project in profile.get("projects", []) or []:
+        if not isinstance(project, dict):
+            continue
+        for value in [project.get("name"), project.get("business_value"), *(project.get("highlights") or [])]:
+            text = str(value or "").strip()
+            if not text:
+                continue
+            _append_unique_text(project_evidence_hints, text[:CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_CHARS], seen_project_evidence)
+            if len(project_evidence_hints) >= CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_COUNT:
+                break
+        if len(project_evidence_hints) >= CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_COUNT:
+            break
 
     return {
         "headline": headline,
@@ -402,6 +423,7 @@ def build_candidate_query_components(
         "location_type_hints": location_types,
         "technology_hints": technology_hints,
         "project_technology_hints": technology_hints,
+        "project_evidence_hints": project_evidence_hints,
     }
 
 
@@ -441,6 +463,11 @@ def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[s
             for value in list(components.get("technology_hints") or components.get("project_technology_hints") or [])
             if _normalize_query_scalar(value)
         ],
+        "project_evidence_hints": [
+            _normalize_query_scalar(value)
+            for value in list(components.get("project_evidence_hints") or [])
+            if _normalize_query_scalar(value)
+        ],
     }
     payload = {
         key: value
@@ -467,7 +494,9 @@ def build_candidate_query_embedding_contract_fingerprint(
             configured_model="hash-v1" if embedding_backend == "sqlite_deterministic_local" else None,
             backend=embedding_backend,
         )["fingerprint"],
-        "retrieval_strategy": str(config.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY),
+        "retrieval_strategy": str(
+            (config.get("pipeline") or {}).get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY
+        ),
         "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
     }
     fingerprint = build_contract_fingerprint(payload)
@@ -495,6 +524,7 @@ def build_candidate_query_text(
         f"Domains: {_join(list(components.get('domains') or []))}",
         f"Location Types: {_join(list(components.get('location_types') or []))}",
         f"Project Technology: {_join(list(components.get('technology_hints') or []))}",
+        f"Project Evidence: {_join(list(components.get('project_evidence_hints') or []))}",
     ]
     return "\n".join(lines)
 
@@ -748,6 +778,122 @@ def _unavailable_search_result(
     }
 
 
+def _hybrid_search_result(
+    *,
+    vector_result: dict[str, Any],
+    lexical_result: dict[str, Any],
+    eligible_job_urls: list[str],
+    top_n: int,
+) -> dict[str, Any]:
+    """Fuse bounded vector and lexical channels without mixing score scales."""
+    vector_rows = list(vector_result.get("production_rows") or [])
+    lexical_rows = list(lexical_result.get("production_rows") or [])
+    by_url: dict[str, dict[str, Any]] = {}
+    for rank, row in enumerate(vector_rows, start=1):
+        url = str(row.get("job_url") or "").strip()
+        if not url:
+            continue
+        target = by_url.setdefault(url, {**row})
+        target["vector_rank"] = min(int(target.get("vector_rank") or rank), rank)
+        target["vector_similarity"] = row.get("vector_similarity")
+    for rank, row in enumerate(lexical_rows, start=1):
+        url = str(row.get("job_url") or "").strip()
+        if not url:
+            continue
+        target = by_url.setdefault(url, {**row})
+        if "vector_rank" not in target or target.get("shortlist_origin") in {"lexical_search", "audit"}:
+            target["vector_rank"] = None
+            target["vector_similarity"] = None
+        target["lexical_rank"] = min(int(target.get("lexical_rank") or rank), rank)
+        target["lexical_score"] = row.get("retrieval_score")
+
+    _, fusion_fingerprint = hash_payload(
+        {
+            "contract": HYBRID_RETRIEVAL_STRATEGY,
+            "vector_depth": 50,
+            "lexical_depth": 50,
+            "rrf_k": HYBRID_RRF_K,
+            "channel_weights": {"vector": HYBRID_CHANNEL_WEIGHT, "lexical": HYBRID_CHANNEL_WEIGHT},
+            "dedupe": "normalized_job_url",
+            "missing_channel": "zero",
+            "tie_break": "normalized_job_url",
+        }
+    )
+    fused: list[dict[str, Any]] = []
+    for url, row in by_url.items():
+        vector_rank = row.get("vector_rank")
+        lexical_rank = row.get("lexical_rank")
+        fusion_score = 0.0
+        if vector_rank:
+            fusion_score += HYBRID_CHANNEL_WEIGHT / (HYBRID_RRF_K + int(vector_rank))
+        if lexical_rank:
+            fusion_score += HYBRID_CHANNEL_WEIGHT / (HYBRID_RRF_K + int(lexical_rank))
+        fused.append(
+            {
+                **row,
+                "job_url": url,
+                "vector_rank": int(vector_rank) if vector_rank else None,
+                "lexical_rank": int(lexical_rank) if lexical_rank else None,
+                "hybrid_rrf_score": fusion_score,
+                "retrieval_strategy": HYBRID_RETRIEVAL_STRATEGY,
+                "fusion_contract_fingerprint": fusion_fingerprint,
+                "shortlist_origin": "hybrid_rrf",
+            }
+        )
+    fused.sort(key=lambda row: (-float(row["hybrid_rrf_score"]), str(row["job_url"])))
+    production_rows = fused[:top_n]
+    audit_sample_n = int((lexical_result.get("diagnostics") or {}).get("shortlist_audit_sample_n") or 0)
+    audit_rows = [{**row, "shortlist_origin": "audit"} for row in fused[top_n : top_n + audit_sample_n]]
+    vector_diagnostics = dict(vector_result.get("diagnostics") or {})
+    lexical_diagnostics = dict(lexical_result.get("diagnostics") or {})
+    candidate_query = dict(vector_result.get("candidate_query") or lexical_result.get("candidate_query") or {})
+    candidate_query["candidate_query_contract_fingerprint"] = build_contract_fingerprint(
+        {
+            "retrieval_strategy": HYBRID_RETRIEVAL_STRATEGY,
+            "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
+            "fusion_fingerprint": fusion_fingerprint,
+        }
+    )
+    return {
+        "production_rows": production_rows,
+        "audit_rows": audit_rows,
+        "diagnostics": {
+            "retrieval_strategy": HYBRID_RETRIEVAL_STRATEGY,
+            "requested_strategy": HYBRID_RETRIEVAL_STRATEGY,
+            "effective_strategy": HYBRID_RETRIEVAL_STRATEGY,
+            "fallback_used": False,
+            "fallback_reason": None,
+            "fusion_contract": {
+                "version": HYBRID_RETRIEVAL_STRATEGY,
+                "vector_depth": 50,
+                "lexical_depth": 50,
+                "rrf_k": HYBRID_RRF_K,
+                "channel_weights": {"vector": HYBRID_CHANNEL_WEIGHT, "lexical": HYBRID_CHANNEL_WEIGHT},
+                "dedupe": "normalized_job_url",
+                "missing_channel": "zero",
+                "tie_break": "normalized_job_url",
+            },
+            "fusion_fingerprint": fusion_fingerprint,
+            "eligible_jobs_total": len(eligible_job_urls),
+            "vector_candidate_total": len(vector_rows),
+            "lexical_candidate_total": len(lexical_rows),
+            "scored_jobs_total": len(fused),
+            "production_shortlist_total": len(production_rows),
+            "production_cutoff_rank": len(production_rows),
+            "embedding_generation_skipped": bool(vector_diagnostics.get("embedding_generation_skipped")),
+            "vector_diagnostics": vector_diagnostics,
+            "lexical_diagnostics": lexical_diagnostics,
+            "result_counts": {
+                "eligible": len(eligible_job_urls),
+                "scored": len(fused),
+                "production": len(production_rows),
+                "audit": len(audit_rows),
+            },
+        },
+        "candidate_query": candidate_query,
+    }
+
+
 def run_vector_search(
     profile: dict[str, Any],
     passed_job_urls: list[str],
@@ -756,12 +902,47 @@ def run_vector_search(
     *,
     structured_jobs: list[dict[str, Any]] | None = None,
     requested_strategy: str = VECTOR_RETRIEVAL_STRATEGY,
+    _allow_lexical_fallback: bool = True,
 ) -> dict[str, Any]:
     """Retrieve passed jobs with lexical signals or compatible vectors."""
     eligible_job_urls = sorted({str(job_url).strip() for job_url in passed_job_urls if str(job_url).strip()})
     if not eligible_job_urls:
         return _empty_vector_search_result()
     requested_strategy = str(requested_strategy or VECTOR_RETRIEVAL_STRATEGY).strip()
+    effective_top_n = int(
+        top_n if top_n is not None else (config.get("pipeline") or {}).get("vector_search_top_n", 50)
+    )
+    if requested_strategy == HYBRID_RETRIEVAL_STRATEGY:
+        if structured_jobs is None:
+            return _unavailable_search_result(
+                eligible_job_urls,
+                requested_strategy=requested_strategy,
+                reason="fallback_data_unavailable",
+                config=config,
+            )
+        vector_result = run_vector_search(
+            profile,
+            eligible_job_urls,
+            config,
+            top_n=50,
+            structured_jobs=structured_jobs,
+            requested_strategy=VECTOR_RETRIEVAL_STRATEGY,
+            _allow_lexical_fallback=False,
+        )
+        lexical_result = _lexical_search_result(
+            profile,
+            eligible_job_urls,
+            config,
+            50,
+            structured_jobs,
+            requested_strategy=requested_strategy,
+        )
+        return _hybrid_search_result(
+            vector_result=vector_result,
+            lexical_result=lexical_result,
+            eligible_job_urls=eligible_job_urls,
+            top_n=effective_top_n,
+        )
     if requested_strategy == LEXICAL_RETRIEVAL_STRATEGY:
         if structured_jobs is None:
             return _unavailable_search_result(
@@ -778,10 +959,8 @@ def run_vector_search(
             structured_jobs,
             requested_strategy=requested_strategy,
         )
-    effective_top_n = (
-        top_n
-        if top_n is not None
-        else int((config.get("pipeline") or {}).get("vector_search_top_n") or config.get("vector_top_n", 50))
+    effective_top_n = top_n if top_n is not None else int(
+        (config.get("pipeline") or {}).get("vector_search_top_n") or config.get("vector_top_n", 50)
     )
     audit_sample_n = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
     candidate_query_record = resolve_candidate_query_embedding(profile, config)
@@ -811,6 +990,7 @@ def run_vector_search(
         if key != "embedding"
     }
     placeholders = ",".join(["?"] * len(eligible_job_urls))
+    expected_contract = str(build_embedding_contract_fingerprint(config)["fingerprint"])
     current_signatures = {
         str(job.get("job_url") or ""): str(job.get("embedding_input_signature") or "")
         for job in list(structured_jobs or [])
@@ -822,11 +1002,12 @@ def run_vector_search(
             str(row[1]) for row in conn.execute("PRAGMA table_info(job_embeddings)").fetchall()
         }
         embedding_table_available = bool(embedding_columns)
-        contract_select = (
+        contract_expression = (
             "embedding_contract_fingerprint"
             if "embedding_contract_fingerprint" in embedding_columns
-            else "'' AS embedding_contract_fingerprint"
+            else "''"
         )
+        contract_select = f"{contract_expression} AS embedding_contract_fingerprint"
         signature_expression = (
             "embedding_input_signature"
             if "embedding_input_signature" in embedding_columns
@@ -842,7 +1023,7 @@ def run_vector_search(
             {contract_select},
             {signature_select},
             ROW_NUMBER() OVER (
-              PARTITION BY job_url, COALESCE({signature_expression}, '')
+              PARTITION BY job_url, COALESCE({signature_expression}, ''), COALESCE({contract_expression}, '')
               ORDER BY created_at DESC, id DESC
             ) AS row_number,
             COUNT(*) OVER (PARTITION BY job_url) AS embedding_row_count
@@ -863,12 +1044,17 @@ def run_vector_search(
             embedding_table_available = False
 
     latest_by_url: dict[str, tuple[str, str, str, int, str, int]] = {}
+    incompatible_contract_urls: list[str] = []
     for job_url, embedding_json, contract_fingerprint, input_signature, row_count, created_at, embedding_id in rows:
         normalized_url = str(job_url)
         signature = str(input_signature or "")
         current_signature = current_signatures.get(normalized_url, "")
         if current_signature and signature != current_signature:
             continue
+        if embedding_table_available and "embedding_contract_fingerprint" in embedding_columns:
+            if str(contract_fingerprint or "") != expected_contract:
+                incompatible_contract_urls.append(normalized_url)
+                continue
         candidate = (
             str(embedding_json),
             str(contract_fingerprint or ""),
@@ -882,18 +1068,13 @@ def run_vector_search(
             latest_by_url[normalized_url] = candidate
     missing_urls = sorted(set(eligible_job_urls) - set(latest_by_url))
     invalid_urls: list[str] = []
-    incompatible_contract_urls: list[str] = []
     duplicate_urls = sorted(job_url for job_url, (_, _, _, count, _, _) in latest_by_url.items() if count > 1)
-    expected_contract = str(build_embedding_contract_fingerprint(config)["fingerprint"])
     scored: list[dict[str, Any]] = []
     for job_url in eligible_job_urls:
         latest = latest_by_url.get(job_url)
         if latest is None:
             continue
         embedding_json, embedding_contract_fingerprint, _, _, _, _ = latest
-        if embedding_table_available and "embedding_contract_fingerprint" in embedding_columns and embedding_contract_fingerprint != expected_contract:
-            incompatible_contract_urls.append(job_url)
-            continue
         try:
             raw_job_embedding = json.loads(str(embedding_json))
         except (TypeError, ValueError, json.JSONDecodeError):
@@ -922,12 +1103,12 @@ def run_vector_search(
     fallback_reason = None
     if candidate_embedding is None:
         fallback_reason = "candidate_embedding_unavailable"
+    elif incompatible_contract_urls:
+        fallback_reason = "incompatible_embedding_contract"
     elif missing_urls:
         fallback_reason = "missing_job_embeddings"
     elif invalid_urls:
         fallback_reason = "invalid_job_embeddings"
-    elif incompatible_contract_urls:
-        fallback_reason = "incompatible_embedding_contract"
     elif eligible_job_urls and not scored:
         fallback_reason = "no_compatible_vectors"
     scored.sort(key=lambda item: (-float(item["vector_similarity"]), str(item["job_url"])))
@@ -944,7 +1125,7 @@ def run_vector_search(
     audit_candidates = ranked_rows[effective_top_n:]
     fallback_rows: list[dict[str, Any]] = []
     fallback_diagnostics: dict[str, Any] = {}
-    if fallback_reason and structured_jobs is not None:
+    if _allow_lexical_fallback and fallback_reason and structured_jobs is not None:
         lexical_result = _lexical_search_result(
             profile,
             eligible_job_urls,
@@ -1022,7 +1203,7 @@ def run_vector_search(
             "retrieval_strategy": VECTOR_RETRIEVAL_STRATEGY,
             "requested_strategy": requested_strategy,
             "effective_strategy": (
-                "vector_cosine_v1_with_lexical_fallback"
+                MIXED_FALLBACK_RETRIEVAL_STRATEGY
                 if fallback_reason and production_rows and ranked_rows
                 else LEXICAL_RETRIEVAL_STRATEGY
                 if fallback_reason
