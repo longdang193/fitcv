@@ -18,6 +18,7 @@ from unittest.mock import patch
 import pytest
 
 from fitcv.embeddings import (
+    DETERMINISTIC_EMBEDDING_MODEL,
     EMBEDDING_FAILURE_POLICY_RAISE,
     FRESH_EMBEDDING_STATUS,
     REUSED_CACHED_EMBEDDING_STATUS,
@@ -179,8 +180,11 @@ class TestBuildJobSummarySignatureRecord:
 
 class TestBuildEmbeddingContractFingerprint:
     def test_contract_changes_when_embedding_model_changes(self) -> None:
-        first = build_embedding_contract_fingerprint({})
-        second = build_embedding_contract_fingerprint({"shortlist_embedding_model": "text-embedding-004"})
+        base_config = {"embedding_backend": SENTENCE_TRANSFORMERS_BACKEND}
+        first = build_embedding_contract_fingerprint(base_config)
+        second = build_embedding_contract_fingerprint(
+            {**base_config, "shortlist_embedding_model": "text-embedding-004"}
+        )
 
         assert first["fingerprint"] != second["fingerprint"]
 
@@ -189,7 +193,7 @@ class TestBuildEmbeddingContractFingerprint:
 
         assert metadata == {
             "backend_id": "sqlite_deterministic_local",
-            "configured_model": "text-embedding-005",
+            "configured_model": DETERMINISTIC_EMBEDDING_MODEL,
             "dimension": SQLITE_EMBED_DIM,
             "model_revision": None,
             "preprocessing_version": "normalize_whitespace_v1",
@@ -319,6 +323,79 @@ def test_fallback_job_embedding_is_not_reused_after_backend_recovery(
 
     assert first_job["embedding_contract_fingerprint"] != second_job["embedding_contract_fingerprint"]
     assert second_job["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
+
+
+def test_deterministic_job_embedding_is_reused_on_unchanged_rerun(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    job = {"job_url": "https://example.com/job-1", "title": "Data Engineer", "required_skills": ["SQL"]}
+
+    first_job = dict(job)
+    second_job = dict(job)
+    assert embed_and_store_jobs([first_job], {}) == 1
+    assert embed_and_store_jobs([second_job], {}) == 0
+    assert first_job["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
+    assert second_job["embedding_reuse_status"] == REUSED_CACHED_EMBEDDING_STATUS
+
+
+def test_embedding_batch_stops_retrying_failed_backend_after_first_row(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    config = {
+        "embedding_backend": SENTENCE_TRANSFORMERS_BACKEND,
+        "shortlist_embedding_model": "model",
+        "embedding_model_revision": "revision-1",
+        "embedding_dimension": 3,
+    }
+    load_calls = 0
+
+    def unavailable(_model: str, _revision: str | None) -> object:
+        nonlocal load_calls
+        load_calls += 1
+        raise RuntimeError("backend unavailable")
+
+    monkeypatch.setattr("fitcv.embeddings._load_sentence_transformer_model", unavailable)
+    jobs = [
+        {"job_url": "https://example.com/job-1", "title": "Data Engineer", "required_skills": ["SQL"]},
+        {"job_url": "https://example.com/job-2", "title": "Data Analyst", "required_skills": ["Python"]},
+    ]
+
+    assert embed_and_store_jobs(jobs, config) == 2
+    assert load_calls == 1
+    assert all(job["embedding_contract_fingerprint"] != build_embedding_contract_fingerprint(config)["fingerprint"] for job in jobs)
+
+
+def test_embedding_cache_lookup_chunks_large_batches(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv.sqlite3"))
+    config = {"embedding_backend": "sqlite_deterministic_local"}
+    jobs = [
+        {"job_url": f"https://example.com/job-{index}", "title": "Data Engineer", "required_skills": ["SQL"]}
+        for index in range(8200)
+    ]
+    monkeypatch.setattr(
+        "fitcv.embeddings.generate_embedding_with_metadata",
+        lambda *_args, **_kwargs: {
+            "embedding": [0.0],
+            "backend_id": "sqlite_deterministic_local",
+            "contract_fingerprint": "test-contract",
+        },
+    )
+
+    assert embed_and_store_jobs(jobs, config) == 8200
+    assert all(job["embedding_reuse_status"] == "fresh_embedding" for job in jobs)
 
 
 

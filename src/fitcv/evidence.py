@@ -57,7 +57,13 @@ from fitcv.contracts import (
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
 )
-from fitcv.embeddings import build_embedding_backend_metadata, build_embedding_contract_fingerprint, generate_embedding
+from fitcv.embeddings import (
+    SENTENCE_TRANSFORMERS_BACKEND,
+    build_embedding_backend_metadata,
+    build_embedding_contract_fingerprint,
+    generate_embedding_with_metadata,
+    get_embedding_backend,
+)
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 from fitcv.rule_filter import canonicalize_skill
 
@@ -999,6 +1005,9 @@ def build_cv_analysis_input_fingerprint(
 def _semantic_runtime_state() -> dict[str, Any]:
     return {
         "embedding_cache": {},
+        "semantic_backend_id": None,
+        "semantic_backend_metadata": {},
+        "semantic_backend_failed": False,
         "candidate_embedding_fresh_count": 0,
         "candidate_embedding_reused_count": 0,
         "job_embedding_fresh_count": 0,
@@ -1061,6 +1070,10 @@ def _embed_text_cached(
     normalized_text = " ".join(str(text).split()).strip()
     if not normalized_text:
         return []
+    if get_embedding_backend(config) != SENTENCE_TRANSFORMERS_BACKEND:
+        return []
+    if runtime_state.get("semantic_backend_failed"):
+        return []
     contract_fingerprint = build_embedding_contract_fingerprint(
         config,
         configured_model=model_name,
@@ -1068,7 +1081,13 @@ def _embed_text_cached(
     cache_key = f"{cache_namespace}:{contract_fingerprint}:{normalized_text.casefold()}"
     embedding_cache = runtime_state["embedding_cache"]
     cached = embedding_cache.get(cache_key)
-    if cached is not None:
+    if isinstance(cached, dict):
+        cached_backend_id = str(cached.get("backend_id") or "")
+        cached_vector = cached.get("embedding")
+    else:
+        cached_backend_id = ""
+        cached_vector = None
+    if cached_backend_id == SENTENCE_TRANSFORMERS_BACKEND and isinstance(cached_vector, list):
         if cache_namespace == "candidate":
             runtime_state["candidate_embedding_reused_count"] = int(
                 runtime_state.get("candidate_embedding_reused_count") or 0
@@ -1077,23 +1096,51 @@ def _embed_text_cached(
             runtime_state["job_embedding_reused_count"] = int(
                 runtime_state.get("job_embedding_reused_count") or 0
             ) + 1
-        return list(cached)
+        return list(cached_vector)
     if cache_namespace == "candidate":
         with _CANDIDATE_EMBEDDING_CACHE_LOCK:
             cached = _CANDIDATE_EMBEDDING_CACHE.get(cache_key)
             if cached is not None:
                 _CANDIDATE_EMBEDDING_CACHE.move_to_end(cache_key)
-        if cached is not None:
-            embedding_cache[cache_key] = list(cached)
+        if isinstance(cached, dict) and str(cached.get("backend_id") or "") == SENTENCE_TRANSFORMERS_BACKEND:
+            cached_vector = cached.get("embedding")
+            if not isinstance(cached_vector, list):
+                cached_vector = None
+        else:
+            cached_vector = None
+        if cached_vector is not None:
+            embedding_cache[cache_key] = dict(cached)
             runtime_state["candidate_embedding_reused_count"] = int(
                 runtime_state.get("candidate_embedding_reused_count") or 0
             ) + 1
-            return list(cached)
-    vector = list(generate_embedding(normalized_text, config, model_name=model_name))
-    embedding_cache[cache_key] = vector
+            return list(cached_vector)
+    embedding_result = generate_embedding_with_metadata(normalized_text, config, model_name=model_name)
+    actual_backend_id = str(embedding_result.get("backend_id") or "")
+    runtime_state["semantic_backend_id"] = actual_backend_id
+    runtime_state["semantic_backend_metadata"] = {
+        key: embedding_result.get(key)
+        for key in (
+            "backend_id",
+            "configured_model",
+            "dimension",
+            "model_revision",
+            "preprocessing_version",
+            "contract_fingerprint",
+        )
+    }
+    if actual_backend_id != SENTENCE_TRANSFORMERS_BACKEND:
+        runtime_state["semantic_backend_failed"] = True
+        return []
+    vector = list(embedding_result["embedding"])
+    cache_record = {
+        "embedding": vector,
+        "backend_id": actual_backend_id,
+        "contract_fingerprint": str(embedding_result.get("contract_fingerprint") or ""),
+    }
+    embedding_cache[cache_key] = cache_record
     if cache_namespace == "candidate":
         with _CANDIDATE_EMBEDDING_CACHE_LOCK:
-            _CANDIDATE_EMBEDDING_CACHE[cache_key] = list(vector)
+            _CANDIDATE_EMBEDDING_CACHE[cache_key] = dict(cache_record)
             _CANDIDATE_EMBEDDING_CACHE.move_to_end(cache_key)
             while len(_CANDIDATE_EMBEDDING_CACHE) > _CANDIDATE_EMBEDDING_CACHE_MAX:
                 _CANDIDATE_EMBEDDING_CACHE.popitem(last=False)
@@ -1448,13 +1495,18 @@ def select_ranking_evidence(
     job: dict[str, Any],
     *,
     limit: int = 2,
+    semantic_policy: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Select bounded, deterministic, job-relevant evidence from projected pool."""
     if limit <= 0 or not evidence_pool:
         return []
     scored = []
     for index, item in enumerate(evidence_pool):
-        channel_score = score_evidence_item_by_channel(item, job)
+        channel_score = score_evidence_item_by_channel(
+            item,
+            job,
+            semantic_policy=semantic_policy,
+        )
         compatibility_score = score_evidence_item(
             item,
             [
@@ -1683,7 +1735,28 @@ def score_evidence_item(item: dict[str, Any], jd_skills: list[str]) -> float:
     )
 
 
-def _ranking_requirement_channels(job: dict[str, Any]) -> dict[str, list[str]]:
+def _semantic_term_variants(term: str, semantic_policy: dict[str, Any] | None) -> list[str]:
+    normalized = str(term or "").strip()
+    if not normalized:
+        return []
+    variants = [normalized]
+    if not isinstance(semantic_policy, dict):
+        return variants
+    maps = semantic_policy.get("maps")
+    skill_map = maps.get("skill") if isinstance(maps, dict) else None
+    if not isinstance(skill_map, dict):
+        return variants
+    canonical = str(skill_map.get(normalized.casefold()) or normalized.casefold())
+    for alias, mapped in skill_map.items():
+        if str(mapped).casefold() == canonical and str(alias).strip():
+            variants.append(str(alias))
+    return list(dict.fromkeys(variants))
+
+
+def _ranking_requirement_channels(
+    job: dict[str, Any],
+    semantic_policy: dict[str, Any] | None = None,
+) -> dict[str, list[str]]:
     return {
         "required": bounded_term_values(
             job.get("required_skills_canonical") or job.get("required_skills")
@@ -1755,10 +1828,12 @@ def _term_is_present(text: str, term: str) -> bool:
 def score_evidence_item_by_channel(
     item: dict[str, Any],
     job: dict[str, Any],
+    *,
+    semantic_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return deterministic weighted requirement-channel coverage."""
     text = _evidence_search_text(item)
-    channels = _ranking_requirement_channels(job)
+    channels = _ranking_requirement_channels(job, semantic_policy)
     weights = {
         "required": 5.0,
         "technology": 4.0,
@@ -1767,7 +1842,14 @@ def score_evidence_item_by_channel(
         "context": 1.0,
     }
     coverage = {
-        channel: [term for term in terms if _term_is_present(text, term)]
+        channel: [
+            term
+            for term in terms
+            if any(
+                _term_is_present(text, variant)
+                for variant in _semantic_term_variants(term, semantic_policy)
+            )
+        ]
         for channel, terms in channels.items()
     }
     score = sum(weights[channel] for channel, terms in coverage.items() if terms)
@@ -1779,6 +1861,7 @@ def build_evidence_excerpt(
     job: dict[str, Any],
     *,
     limit: int = 400,
+    semantic_policy: dict[str, Any] | None = None,
 ) -> str:
     """Keep requirement-bearing source sentences visible within the text cap."""
     raw_text = str(item.get("text") or item.get("scoring_context") or "").strip()
@@ -1786,7 +1869,7 @@ def build_evidence_excerpt(
         return raw_text
     terms = [
         term
-        for values in _ranking_requirement_channels(job).values()
+        for values in _ranking_requirement_channels(job, semantic_policy).values()
         for term in values
         if str(term).strip()
     ]
@@ -1794,7 +1877,13 @@ def build_evidence_excerpt(
     ranked = sorted(
         enumerate(sentences),
         key=lambda pair: (
-            -sum(_term_is_present(_normalize_text(pair[1]), term) for term in terms),
+            -sum(
+                any(
+                    _term_is_present(_normalize_text(pair[1]), variant)
+                    for variant in _semantic_term_variants(term, semantic_policy)
+                )
+                for term in terms
+            ),
             pair[0],
         ),
     )
@@ -2200,6 +2289,9 @@ def _score_channel_components(
             model_name=str(semantic_settings["model"]),
             runtime_state=runtime_state,
         )
+        if runtime_state.get("semantic_backend_failed"):
+            semantic_settings["enabled"] = False
+            lexical_weight, semantic_weight = (1.0, 0.0)
     return _score_components(
         lexical_score,
         semantic_score,
@@ -3551,19 +3643,30 @@ def retrieve_evidence_bundle(
     canonical_items = copy.deepcopy(base_items)
     selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
+    semantic_requested = bool(semantic_settings["enabled"])
+    semantic_disabled_reason = None
+    if semantic_requested and get_embedding_backend(config or {}) != SENTENCE_TRANSFORMERS_BACKEND:
+        semantic_settings["enabled"] = False
+        semantic_disabled_reason = "non_semantic_embedding_backend"
     runtime_state = _semantic_runtime_state()
-    channel_pools = {
-        channel: _select_channel_candidates(
-            items=base_items,
-            channel=channel,
-            job_context=coerced_job_context,
-            pool_size=int(semantic_settings["channel_pool_size"]),
-            config=config,
-            semantic_settings=semantic_settings,
-            runtime_state=runtime_state,
-        )
-        for channel in RETRIEVAL_CHANNELS
-    }
+    def _build_channel_pools() -> dict[str, list[dict[str, Any]]]:
+        return {
+            channel: _select_channel_candidates(
+                items=base_items,
+                channel=channel,
+                job_context=coerced_job_context,
+                pool_size=int(semantic_settings["channel_pool_size"]),
+                config=config,
+                semantic_settings=semantic_settings,
+                runtime_state=runtime_state,
+            )
+            for channel in RETRIEVAL_CHANNELS
+        }
+
+    channel_pools = _build_channel_pools()
+    if runtime_state.get("semantic_backend_failed"):
+        semantic_settings["enabled"] = False
+        channel_pools = _build_channel_pools()
     if resolve_experience_evidence_mode(config) == "loose":
         loose_candidates = [
             {
@@ -3644,21 +3747,27 @@ def retrieve_evidence_bundle(
     }
     semantic_alignment = {
         "enabled": bool(semantic_settings["enabled"]),
+        "requested_enabled": semantic_requested,
+        "disabled_reason": semantic_disabled_reason
+        or ("embedding_backend_unavailable" if runtime_state.get("semantic_backend_failed") else None),
         "semantic_methods": _semantic_methods(bool(semantic_settings["enabled"])),
         "reuse_state": _semantic_reuse_state(runtime_state),
         "embedding_counts": _semantic_embedding_counts(runtime_state),
-        "embedding_backend": (
-            build_embedding_backend_metadata(
-                config or {},
-                configured_model=str(semantic_settings["model"]),
+        "embedding_backend": dict(
+            runtime_state.get("semantic_backend_metadata")
+            or (
+                build_embedding_backend_metadata(
+                    config or {},
+                    configured_model=str(semantic_settings["model"]),
+                )
+                if semantic_requested
+                else {
+                    "backend_id": "disabled",
+                    "configured_model": str(semantic_settings["model"]),
+                    "dimension": None,
+                    "contract_fingerprint": None,
+                }
             )
-            if bool(semantic_settings["enabled"])
-            else {
-                "backend_id": "disabled",
-                "configured_model": str(semantic_settings["model"]),
-                "dimension": None,
-                "contract_fingerprint": None,
-            }
         ),
     }
     for item in selected_evidence:

@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: proposed
+status: active
 template_id: implementation-plan
 name: fitcv-retrieval-ranking-stability-and-score-integrity
 targets:
@@ -13,6 +13,7 @@ targets:
   - src/fitcv/vector_search.py
   - src/fitcv/ranking.py
   - src/fitcv/pipeline_stage_runner.py
+  - src/fitcv/pipeline_stage_context.py
   - src/fitcv/pipeline.py
   - src/fitcv/pipeline_stage_artifacts.py
   - src/fitcv/pipeline_stages/common.py
@@ -24,6 +25,8 @@ targets:
   - tests/test_ranking.py
   - tests/test_ranking_contract.py
   - tests/test_pipeline.py
+  - tests/test_pipeline_stage_resume_parity.py
+  - tests/test_ranking_evaluation.py
   - scripts/benchmark_ranking.py
 ---
 
@@ -237,14 +240,14 @@ unbounded prompt.
 - Stop for: any proposal to increase request budgets, alter score weights, alter score thresholds, or change shortlist/mode semantics.
 
 **Steps:**
-- [ ] Step 1: Define the versioned mandatory scoring core and optional field order; apply the configured semantic/synonym resolver used by structured ranking to required, technology, preferred, and candidate skill equivalence while retaining the eight displayed slots.
-- [ ] Step 2: Define the 12,000-character boundary as the final serialized request and rendered prompt contract, reserve space for the scoring template/output instructions, cap every scalar and list field before serialization, and define deterministic field-removal precedence plus explicit overflow failure.
-- [ ] Step 3: Normalize every caller through the structured ranking-input contract, or mark the legacy direct `build_ranking_request()` path as unsupported when it cannot supply canonical candidate facts; include semantic-policy/version metadata in the contract fingerprint.
-- [ ] Step 4: Replace prefix and raw character slicing with field-aware reductions that preserve valid candidate JSON, complete scoring instructions, and source-linked evidence; keep serialized JSON escaping in the size calculation and emit bounded diagnostics naming removed optional fields without copying the prompt.
-- [ ] Step 5: Add regressions for synonym aliases, 12 required skills, duplicate/case variants, oversized escaped fields, oversized custom prompt text, direct-call behavior, and a legal maximum-size input; assert mandatory fields survive, JSON sections remain parseable, and `mandatory_prompt_tail` is never emitted.
+- [x] Step 1: Define the versioned mandatory scoring core and optional field order; apply the configured semantic/synonym resolver used by structured ranking to required, technology, preferred, and candidate skill equivalence while retaining the eight displayed slots.
+- [x] Step 2: Define the 12,000-character boundary as the final serialized request and rendered prompt contract, reserve space for the scoring template/output instructions, cap every scalar and list field before serialization, and define deterministic field-removal precedence plus explicit overflow failure.
+- [x] Step 3: Normalize every caller through the structured ranking-input contract, or mark the legacy direct `build_ranking_request()` path as unsupported when it cannot supply canonical candidate facts; include semantic-policy/version metadata in the contract fingerprint.
+- [x] Step 4: Replace prefix and raw character slicing with field-aware reductions that preserve valid candidate JSON, complete scoring instructions, and source-linked evidence; keep serialized JSON escaping in the size calculation and emit bounded diagnostics naming removed optional fields without copying the prompt.
+- [x] Step 5: Add regressions for synonym aliases, 12 required skills, duplicate/case variants, oversized escaped fields, oversized custom prompt text, direct-call behavior, and a legal maximum-size input; assert mandatory fields survive, JSON sections remain parseable, and `mandatory_prompt_tail` is never emitted.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_ai_score.py --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_ai_score.py --disable-warnings --maxfail=1`
 - Expected: all scorer-input tests pass; mandatory-core assertions prove the final serialized request is within 12,000 characters or returns the explicit bounded contract failure.
 
 **Exit Criteria:**
@@ -274,6 +277,7 @@ unbounded prompt.
 
 **Files And Symbols:**
 - Inspect: `src/fitcv/evidence.py:select_ranking_evidence`, `src/fitcv/evidence.py:project_candidate_evidence`, `src/fitcv/evidence.py:build_evidence_excerpt`
+- Inspect: `src/fitcv/evidence.py:score_evidence_item_by_channel`, `src/fitcv/evidence.py:_ranking_requirement_channels`, `src/fitcv/evidence.py:_term_is_present`
 - Inspect: `src/fitcv/candidate.py:_adapt_legacy_parent`, `src/fitcv/candidate.py:adapt_candidate_profile_to_v2`, `src/fitcv/candidate.py:flatten_rankable_skills`
 - Inspect: `src/fitcv/vector_search.py:build_candidate_query_components`, `src/fitcv/vector_search.py:_lexical_search_result`, `src/fitcv/pipeline.py:build_ranking_features`
 - Modify: `src/fitcv/evidence.py:select_ranking_evidence`, `src/fitcv/evidence.py:project_candidate_evidence`, `src/fitcv/candidate.py:adapt_candidate_profile_to_v2`, `src/fitcv/candidate.py:flatten_rankable_skills`, `src/fitcv/ai_score.py:build_ranking_job_input`, and the named shortlist/ranking callers
@@ -288,15 +292,16 @@ unbounded prompt.
 - Stop for: any increase to the two-evidence budget, removal of source references, or promotion of unsupported claims.
 
 **Steps:**
-- [ ] Step 1: Define deterministic slot selection as a lexicographic priority: uncovered mandatory requirements, uncovered required technologies, distinct total requirement coverage, source quality, then stable evidence ID; select slot two by marginal gain over slot one and reject near-duplicates unless no uncovered requirement exists.
-- [ ] Step 2: Assemble the excerpt from the bounded source span with stable sentence ordering: prefer spans covering more mandatory terms, then technology terms, then dates/scope/provenance; tie-break by source position and evidence ID, and compute the excerpt once.
-- [ ] Step 3: Serialize `kind`, `source_section`, parent/source identity, relevant dates, source references, skills, and one excerpt in the bounded evidence record. Preserve the two-item budget and all valid attributable repeated bullet references.
-- [ ] Step 4: Fix attribution in `adapt_candidate_profile_to_v2()` where parent and bullet skills are merged: attach bullet claims only to their own evidence, represent parent-only support as project context, and do not rely on `_adapt_legacy_parent()` alone.
-- [ ] Step 5: Wire `flatten_rankable_skills()` through `build_ranking_job_input`, `build_candidate_query_components`, `_lexical_search_result`, and `build_ranking_features`; document non-ranking callers that intentionally retain the broader inventory.
-- [ ] Step 6: Add mixed-project SQL/Python regressions, synonym-aware complementary multi-requirement fixtures, provenance-in-final-prompt assertions, duplicate-variant tests, and a test proving the excerpt is not duplicated under separate `text` and `scoring_context` fields.
+- [x] Step 1: Define deterministic slot selection as a lexicographic priority: uncovered mandatory requirements, uncovered required technologies, distinct total requirement coverage, source quality, then stable evidence ID; select slot two by marginal gain over slot one and reject near-duplicates unless no uncovered requirement exists.
+- [x] Step 2: Assemble the excerpt from the bounded source span with stable sentence ordering: prefer spans covering more mandatory terms, then technology terms, then dates/scope/provenance; tie-break by source position and evidence ID, and compute the excerpt once.
+- [x] Step 3: Serialize `kind`, `source_section`, parent/source identity, relevant dates, source references, skills, and one excerpt in the bounded evidence record. Preserve the two-item budget and all valid attributable repeated bullet references.
+- [x] Step 4: Fix attribution in `adapt_candidate_profile_to_v2()` where parent and bullet skills are merged: create exactly one source-backed parent-context evidence record using an existing legal evidence shape/kind, point parent-only skills only to that record, attach bullet claims only to their own evidence, and do not rely on `_adapt_legacy_parent()` alone. Add validation and a regression proving parent-only skills have zero child-highlight refs and no dangling refs.
+- [x] Step 5: Wire `flatten_rankable_skills()` through `build_ranking_job_input`, `build_candidate_query_components`, `_lexical_search_result`, and `build_ranking_features`; document non-ranking callers that intentionally retain the broader inventory.
+- [x] Step 6: Pass the same compiled semantic policy through `execute_ranking_stage()` into requirement-channel scoring, evidence selection, and excerpt prioritization; keep responsibilities/context lexical and bounded.
+- [x] Step 7: Add mixed-project SQL/Python regressions, synonym-aware fixtures that assert equivalent evidence coverage and selected IDs, provenance-in-final-prompt assertions, duplicate-variant tests, and a test proving the excerpt is not duplicated under separate `text` and `scoring_context` fields.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_evidence.py tests/test_candidate.py tests/test_ai_score.py --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_evidence.py tests/test_candidate.py tests/test_ai_score.py --disable-warnings --maxfail=1`
 - Expected: unrelated child evidence has no inherited skill, complementary evidence is selected, provenance markers appear in the serialized prompt, and repeated attributable bullets retain all valid references.
 
 **Exit Criteria:**
@@ -341,15 +346,15 @@ unbounded prompt.
 - Stop for: destructive deletion of historical embeddings, a new vector-store dependency, or an embedding dimension/model change without a versioned contract and migration decision.
 
 **Steps:**
-- [ ] Step 1: Select the current job embedding by URL, input signature, effective backend, model/revision, dimension, and contract fingerprint before applying newest-row ordering.
-- [ ] Step 2: Preserve stale-row diagnostics separately from the usable-vector query so stale-only cases still fall back with an explicit reason.
-- [ ] Step 3: Extend `CandidateQueryEmbeddingRecord` and `_build_candidate_query_embedding_record()` to carry the complete effective metadata returned by generation—backend, model, revision, dimension, preprocessing, fallback state, and contract fingerprint—through lexical fallback diagnostics instead of reconstructing configured defaults.
-- [ ] Step 4: Make `_embed_text_cached()` consume backend metadata and include actual backend, dimension, model, revision, and contract in candidate/job cache identity; never cache deterministic fallback as semantic.
-- [ ] Step 5: Gate `_semantic_similarity()` on a supported semantic backend and route unsupported backends to documented lexical-only behavior.
-- [ ] Step 6: Add A → B → A, stale-only, contract-change, fallback-then-recovery, dimension-mismatch, effective-metadata propagation, and deterministic-backend semantic-alignment regressions.
+- [x] Step 1: Select the current job embedding by URL, input signature, effective backend, model/revision, dimension, and contract fingerprint before applying newest-row ordering.
+- [x] Step 2: Preserve stale-row diagnostics separately from the usable-vector query so stale-only cases still fall back with an explicit reason.
+- [x] Step 3: Extend `CandidateQueryEmbeddingRecord` and `_build_candidate_query_embedding_record()` to carry the complete effective metadata returned by generation—backend, model, revision, dimension, preprocessing, fallback state, and contract fingerprint—through lexical fallback diagnostics instead of reconstructing configured defaults.
+- [x] Step 4: Make `_embed_text_cached()` consume backend metadata and include actual backend, dimension, model, revision, and contract in candidate/job cache identity; never cache deterministic fallback as semantic.
+- [x] Step 5: Gate `_semantic_similarity()` on a supported semantic backend and route unsupported backends to documented lexical-only behavior.
+- [x] Step 6: Add A → B → A, stale-only, contract-change, fallback-then-recovery, dimension-mismatch, effective-metadata propagation, and deterministic-backend semantic-alignment regressions.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_evidence.py tests/test_pipeline.py --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_evidence.py tests/test_pipeline.py --disable-warnings --maxfail=1`
 - Expected: A → B → A selects A, stale-only rows fall back, fallback vectors are not reused as semantic vectors, and valid semantic backends retain semantic behavior.
 
 **Exit Criteria:**
@@ -393,14 +398,14 @@ unbounded prompt.
 - Stop for: changing personalized weights, baseline score formula, score thresholds, shortlist size, or mode semantics.
 
 **Steps:**
-- [ ] Step 1: Resolve `retrieval_strategy` once at the shortlist boundary and pass the effective value to embedding generation, query construction, retrieval, and diagnostics.
-- [ ] Step 2: Ensure explicit lexical mode never generates or consumes semantic vectors and reports `embedding_generation_skipped` truthfully.
-- [ ] Step 3: When lexical rows lack embeddings, set an explicit baseline-only preference resolution with zero residual instead of raising; retain normal personalization for vector-backed rows.
-- [ ] Step 4: Match job technologies against candidate technology evidence using token boundaries and controlled multi-token matching; preserve false-positive protections for `R`, `C`, `C++`, `C#`, `Power BI`, and unrelated prose.
-- [ ] Step 5: Add tests for explicit lexical configuration with cached vectors, non-zero preferences plus lexical fallback, technology prose, and vector-backed personalization.
+- [x] Step 1: Resolve `retrieval_strategy` once at the shortlist boundary and pass the effective value to embedding generation, query construction, retrieval, and diagnostics.
+- [x] Step 2: Ensure explicit lexical mode never generates or consumes semantic vectors and reports `embedding_generation_skipped` truthfully.
+- [x] Step 3: When lexical rows lack embeddings, set an explicit baseline-only preference resolution with zero residual instead of raising; retain normal personalization for vector-backed rows.
+- [x] Step 4: Match job technologies against candidate technology evidence using token boundaries and controlled multi-token matching; preserve false-positive protections for `R`, `C`, `C++`, `C#`, `Power BI`, and unrelated prose.
+- [x] Step 5: Add tests for explicit lexical configuration with cached vectors, non-zero preferences plus lexical fallback, technology prose, and vector-backed personalization.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_ranking.py tests/test_pipeline.py --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q tests/test_vector_search.py tests/test_ranking.py tests/test_pipeline.py --disable-warnings --maxfail=1`
 - Expected: explicit lexical configuration remains lexical, lexical fallback completes with zero residual, vector-backed rows personalize, and technology matching improves without substring false positives.
 
 **Exit Criteria:**
@@ -433,33 +438,36 @@ unbounded prompt.
 - Inspect: `src/fitcv/vector_search.py:_lexical_search_result`, `src/fitcv/vector_search.py:resolve_candidate_query_embedding`
 - Inspect: `src/fitcv/evidence.py:build_evidence_projection` diagnostic trace construction
 - Inspect: `src/fitcv/ai_score.py:build_ranking_job_input`
-- Inspect: `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`, `src/fitcv/pipeline_stage_artifacts.py:build_ranking_stage_block`, `src/fitcv/pipeline_stages/common.py:ranking_row_sample`
+- Inspect: `src/fitcv/ai_score.py:build_ranking_input_diagnostics`, `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`, `src/fitcv/pipeline_stage_artifacts.py:build_ranking_stage_block`, `src/fitcv/pipeline_stages/common.py:ranking_row_sample`
+- Inspect: `src/fitcv/pipeline_stage_context.py:PipelineState`, `src/fitcv/pipeline_stage_context.py:payload_keys`, `src/fitcv/pipeline_stage_context.py:as_state_dict`
 - Modify: only repeated-work paths proven by the baseline measurements; extend `scripts/benchmark_ranking.py` when an existing benchmark surface is insufficient
-- Modify: the ranking-stage handoff needed to persist the bounded scorer-input diagnostic projection; extend `scripts/benchmark_ranking.py` only when an existing benchmark surface is insufficient
-- Verify: `scripts/benchmark_ranking.py`, `tests/test_vector_search.py`, `tests/test_evidence.py`, `tests/test_ai_score.py`, `tests/test_pipeline.py`
+- Modify: `src/fitcv/ai_score.py:build_ranking_input_diagnostics`, `src/fitcv/pipeline_stage_context.py:PipelineState`, `payload_keys`, `as_state_dict`, checkpoint restoration, `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`, `src/fitcv/pipeline_stage_artifacts.py:build_ranking_stage_block`, and `src/fitcv/pipeline_stages/common.py:ranking_row_sample` for the bounded scorer-input diagnostic handoff
+- Verify: `scripts/benchmark_ranking.py`, `tests/test_embeddings.py`, `tests/test_vector_search.py`, `tests/test_evidence.py`, `tests/test_ai_score.py`, `tests/test_pipeline.py`, `tests/test_pipeline_stage_resume_parity.py`, `tests/test_ranking_evaluation.py`
 
 **Dependencies:**
 - Tasks 1–4 must be green so performance comparisons are not measuring incorrect behavior.
-- Baseline command: `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm incumbent --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-before.json`.
+- Baseline commands: run separate same-arm pairs for vector and lexical retrieval, using identical fixture, environment, warmups, and iterations; never compare `incumbent` against `lexical` as an optimization proof.
 
 **Authority:**
 - Preauthorized local actions: add deterministic benchmark cases, optimize named repeated-work paths, and run before/after measurements with fixed fixtures.
 - Stop for: any optimization that changes ranking order, score artifacts, exact aggregate diagnostics, or cache contract semantics; record it as deferred instead.
 
 **Steps:**
-- [ ] Step 1: Capture baseline p50/p95 latency, cache reuse, fallback count, retrieval ordering, and ranking metrics with the existing benchmark fixture.
-- [ ] Step 2: Avoid unused candidate/job embedding work on lexical paths and replace full historical embedding-key scans with current-batch contract queries while preserving conflict-safe writes.
-- [ ] Step 3: Probe sentence-transformer backend health once per batch after the first failure; use deterministic generation for remaining rows and retry the configured backend on the next invocation.
-- [ ] Step 4: Hoist candidate technology inventory and normalized sets outside the eligible-job loop; reuse candidate query components and precomputed skill positions.
-- [ ] Step 5: Bound detailed requirement/evidence pair samples while preserving exact counts and explicit truncation metadata.
-- [ ] Step 6: Attach the bounded scorer-input diagnostic projection—visible skill names, requirement IDs, evidence IDs, input fingerprint, backend/retrieval metadata, and truncation status—to the ranking-stage handoff, pipeline state, ranking rows, and persisted artifact; keep raw descriptions and full prompts out of diagnostics.
-- [ ] Step 7: Run the same benchmark command with `--arm lexical` and, where applicable, a new optimized arm; compare ordering and artifacts before accepting latency/resource changes.
+- [ ] Step 1: Capture baseline p50/p95 latency, cache reuse, fallback count, retrieval ordering, and ranking metrics with the existing benchmark fixture. **Deferred:** both benchmark arms returned `status: not_run` with `reason: invalid_evaluation_input` because the fixture violates existing evaluation constraints (`ndcg_top_n_must_not_exceed_ranking_top_n` and repeated `missing_source_group_id`).
+- [x] Step 2: Avoid unused candidate/job embedding work on lexical paths and replace full historical embedding-key scans with current-batch contract queries while preserving conflict-safe writes.
+- [x] Step 3: Probe sentence-transformer backend health once per batch after the first failure; use deterministic generation for remaining rows and retry the configured backend on the next invocation.
+- [x] Step 4: Hoist candidate technology inventory and normalized sets outside the eligible-job loop; reuse candidate query components and precomputed skill positions.
+- [x] Step 5: Bound detailed requirement/evidence pair samples while preserving exact counts and explicit truncation metadata.
+- [x] Step 6: Add `build_ranking_input_diagnostics()` and carry its bounded projection—visible skill names, requirement IDs, evidence IDs, input fingerprint, backend/retrieval metadata, and truncation status—through `PipelineState`, `payload_keys()`, `as_state_dict()`, checkpoint restoration, ranking rows, and `build_ranking_stage_block()`; keep raw descriptions and full prompts out of diagnostics.
+- [x] Step 7: Add a checkpoint round-trip regression proving the exact diagnostic projection survives resume and feeds the persisted ranking-stage artifact.
+- [ ] Step 8: Extend the existing benchmark with bounded SQLite-operation and diagnostic-trace-size counters, then run same-arm before/after pairs: `incumbent` before vs optimized incumbent after, and `lexical` before vs optimized lexical after. **Blocked:** the current fixture cannot produce valid evaluation output, so latency, cache, ordering-equivalence, SQLite, and trace-size claims remain unvalidated.
 
 **Verification:**
-- [ ] `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm incumbent --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-before.json`
-- [ ] `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm lexical --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-after.json`
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_evidence.py tests/test_ai_score.py --disable-warnings --maxfail=1`
-- Expected: before/after use identical fixture, environment, warmups, and iterations; ordering and score artifacts are identical; benchmark JSON reports latency, cache, fallback, and retrieval metrics; detailed trace samples are bounded while counts remain equal.
+- [ ] `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm incumbent --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-incumbent-before.json` — deferred; fixture rejected before measurement.
+- [ ] `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm lexical --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-lexical-before.json` — deferred; fixture rejected before measurement.
+- [ ] Repeat both commands against the optimized implementation with `-after` outputs and compare only within the same arm — blocked by the same fixture validation errors.
+- [x] `python -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_ranking_evaluation.py --disable-warnings --maxfail=1`
+- Expected: same-arm before/after ordering and score artifacts are identical; benchmark JSON reports latency, cache, fallback, retrieval, bounded SQLite-operation, and diagnostic-trace-size metrics; detailed samples are bounded while exact aggregate counts remain equal; checkpoint round-trip preserves scorer-input diagnostics.
 
 **Exit Criteria:**
 - Every accepted optimization has measured evidence and preserves correctness; unmeasured or behavior-changing ideas are explicitly deferred.
@@ -488,7 +496,8 @@ unbounded prompt.
 
 **Files And Symbols:**
 - Inspect: `src/fitcv/pipeline_stage_runner.py:execute_shortlist_stage`, `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`, `src/fitcv/pipeline.py` shortlist/ranking orchestration
-- Verify: `tests/test_ai_score.py`, `tests/test_candidate.py`, `tests/test_evidence.py`, `tests/test_vector_search.py`, `tests/test_ranking.py`, `tests/test_pipeline.py`
+- Inspect: `src/fitcv/pipeline_stage_context.py:PipelineState`, `src/fitcv/pipeline_stage_artifacts.py:build_ranking_stage_block`
+- Verify: `tests/test_embeddings.py`, `tests/test_ai_score.py`, `tests/test_candidate.py`, `tests/test_evidence.py`, `tests/test_vector_search.py`, `tests/test_ranking.py`, `tests/test_pipeline.py`, `tests/test_pipeline_stage_resume_parity.py`, `tests/test_ranking_evaluation.py`
 - Update only if execution discovers a documented deviation: this plan file's verification record and task states
 
 **Dependencies:**
@@ -499,18 +508,18 @@ unbounded prompt.
 - Stop for: any unrelated failure, missing external credential, or required behavior not covered by the approved scope; record the exact blocker instead of changing unrelated code.
 
 **Steps:**
-- [ ] Step 1: Run the focused affected suite and inspect the final serialized request, evidence IDs, effective retrieval strategy, backend metadata, preference resolution, and ranking artifacts for one synthetic profile/job matrix.
-- [ ] Step 2: Add or run one cross-stage integration regression in `tests/test_pipeline.py` proving that the same synthetic job survives shortlist retrieval, receives the selected bounded evidence in `execute_ranking_stage()`, reaches `build_ranking_request()`, and persists the scorer-input diagnostic projection in the ranking-stage artifact.
-- [ ] Step 3: Run the full non-render suite and compile checks; compare failures with the pre-change baseline.
-- [ ] Step 4: Run `git diff --check` and inspect `git status --short`; preserve the task-owned `.tmp/` review artifacts and unrelated user changes.
-- [ ] Step 5: Reconcile every task's verification result, deviation, and deferred optimization in this plan before requesting final completion verification.
+- [x] Step 1: Run the focused affected suite and inspect the final serialized request, evidence IDs, effective retrieval strategy, backend metadata, preference resolution, and ranking artifacts for one synthetic profile/job matrix.
+- [x] Step 2: Add or run one cross-stage integration regression in `tests/test_pipeline.py` proving that the same synthetic job survives shortlist retrieval, receives the selected bounded evidence in `execute_ranking_stage()`, reaches `build_ranking_request()`, and persists the scorer-input diagnostic projection in the ranking-stage artifact.
+- [x] Step 3: Run the full non-render suite and compile checks; compare failures with the pre-change baseline.
+- [x] Step 4: Run `git diff --check` and inspect `git status --short`; preserve the task-owned `.tmp/` review artifacts and unrelated user changes.
+- [x] Step 5: Reconcile every task's verification result, deviation, and deferred optimization in this plan before requesting final completion verification.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_vector_search.py tests/test_candidate.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_ranking.py tests/test_ranking_contract.py --disable-warnings --maxfail=1`
-- [ ] `python -m pytest -q -m "not render_acceptance"`
-- [ ] `python -m compileall -q src/fitcv tests`
-- [ ] `git diff --check`
-- [ ] `git status --short`
+- [x] `python -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_candidate.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_ranking.py tests/test_ranking_contract.py tests/test_ranking_evaluation.py --disable-warnings --maxfail=1`
+- [x] `python -m pytest -q -m "not render_acceptance"`
+- [x] `python -m compileall -q src/fitcv tests`
+- [x] `git diff --check`
+- [x] `git status --short`
 - Expected: focused and full suites pass or have individually documented pre-existing failures; compilation and diff checks pass; the cross-stage regression proves the same bounded request, evidence selection, backend metadata, and persisted diagnostic contract used by the tests.
 
 **Exit Criteria:**
@@ -520,16 +529,35 @@ unbounded prompt.
 
 Final artifact-level verification, after Tasks 1–6:
 
-- `python -m pytest -q tests/test_vector_search.py tests/test_candidate.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_ranking.py tests/test_ranking_contract.py --disable-warnings --maxfail=1`
+- `python -m pytest -q tests/test_embeddings.py tests/test_vector_search.py tests/test_candidate.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_ranking.py tests/test_ranking_contract.py tests/test_ranking_evaluation.py --disable-warnings --maxfail=1`
 - `python -m pytest -q -m "not render_acceptance"`
 - `python -m compileall -q src/fitcv tests`
-- `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm incumbent --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-final.json`
+- `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm incumbent --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-incumbent-final.json`
+- `python scripts/benchmark_ranking.py --fixture tests/fixtures/ranking_gold.json --arm lexical --warmup-iterations 1 --measured-iterations 5 --output .tmp/ranking-lexical-final.json`
 - `git diff --check`
 - `git status --short`
 
 The final verification report must state the exact focused-test counts, full-suite
 result, benchmark p50/p95 and cache metrics, ordering-equivalence result, any
 pre-existing failures, and any deferred optimization with its reason.
+
+## Execution Verification And Deviations
+
+- Focused affected suite: `512 passed, 4 skipped` after review regressions for punctuation-sensitive technology matching, newest-per-URL retrieval without a supplied signature, mid-batch semantic fallback recomputation, chunked SQLite cache lookup, and deterministic-cache reuse.
+- Full non-render suite: `3537 passed, 10 skipped, 6 deselected`.
+- Compilation: `python -m compileall -q src/fitcv tests` passed.
+- Diff/status checks: `git diff --check` passed; `git status --short` contains only
+  the expected source, test, plan, and task-owned untracked `.tmp/` artifacts.
+- Cross-stage proof: the regression confirms that selected bounded evidence reaches
+  scorer input and that ranking diagnostics persist through the stage artifact and
+  checkpoint path.
+- Benchmark deviation: both executed benchmark commands returned
+  `status: not_run` and `reason: invalid_evaluation_input`; no p50/p95 latency,
+  cache-reuse, ordering-equivalence, SQLite-activity, or trace-size claim is made.
+  The fixture must be corrected in a separate task before Task 5 benchmark
+  acceptance can be completed.
+- Scope boundary: unrelated frontend, packaging, and legacy pipeline failures were
+  not changed by this plan and remain outside its acceptance criteria.
 
 ## Completion Criteria
 

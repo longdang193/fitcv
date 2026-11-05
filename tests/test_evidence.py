@@ -27,6 +27,7 @@ from fitcv.config import apply_runtime_synonym_overlay
 from fitcv.evidence import (
     build_required_skill_descriptors,
     build_profile_evidence_pool,
+    build_evidence_excerpt,
     project_candidate_evidence,
     retrieve_evidence,
     retrieve_evidence_bundle,
@@ -280,9 +281,25 @@ def test_semantic_alignment_reports_actual_embedding_backend() -> None:
 
     backend = bundle["semantic_alignment"]["embedding_backend"]
     assert backend["backend_id"] == "sqlite_deterministic_local"
-    assert backend["configured_model"] == "text-embedding-005"
+    assert backend["configured_model"] == "hash-v1"
     assert backend["dimension"] > 0
     assert backend["contract_fingerprint"]
+
+
+def test_semantic_alignment_disables_hash_backend_instead_of_scoring_hash_vectors() -> None:
+    profile = _cached_evidence_profile(_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"))
+    bundle = retrieve_evidence_bundle(
+        profile,
+        {"required_skills": ["SQL"]},
+        1,
+        config={"cv_analysis": {"semantic_alignment": {"enabled": True}}},
+    )
+
+    assert bundle["semantic_alignment"]["requested_enabled"] is True
+    assert bundle["semantic_alignment"]["enabled"] is False
+    assert bundle["semantic_alignment"]["disabled_reason"] == "non_semantic_embedding_backend"
+    assert bundle["semantic_alignment"]["embedding_backend"]["backend_id"] == "sqlite_deterministic_local"
+    assert bundle["selected_evidence"][0]["channel_subscores"]["required_skill_support"]["semantic"] == 0.0
 
 
 def test_disabled_semantic_alignment_reports_no_embedding_backend() -> None:
@@ -1629,6 +1646,7 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
         ],
     }
     config = {
+        "embedding_backend": "sentence_transformers",
         "cv_analysis": {
             "semantic_alignment": {
                 "enabled": True,
@@ -1653,12 +1671,20 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
         "built executive reporting that guided loan portfolio decisions power bi sql analytics specialist finance co": [0.8, 0.9, 0.0],
     }
 
-    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
+    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> dict[str, object]:
         del runtime_config, model_name
         normalized = " ".join(str(text).lower().split())
-        return vector_by_text.get(normalized, [0.0, 0.0, 1.0])
+        return {
+            "embedding": vector_by_text.get(normalized, [0.0, 0.0, 1.0]),
+            "backend_id": "sentence_transformers",
+            "configured_model": "text-embedding-005",
+            "dimension": 3,
+            "model_revision": None,
+            "preprocessing_version": "test",
+            "contract_fingerprint": "test-sentence-transformers",
+        }
 
-    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+    monkeypatch.setattr(evidence_module, "generate_embedding_with_metadata", fake_generate_embedding)
 
     bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
 
@@ -1682,6 +1708,51 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
     assert isinstance(bundle["unselected_top_candidates"], list)
 
 
+def test_semantic_backend_failure_recomputes_all_channel_pools_as_lexical(monkeypatch) -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-one", ["SQL"], "Built SQL reporting pipelines"),
+        _cached_evidence_item("ev-two", ["SQL"], "Built SQL analytics dashboards"),
+    )
+    config = {
+        "embedding_backend": "sentence_transformers",
+        "cv_analysis": {
+            "semantic_alignment": {
+                "enabled": True,
+                "required_skill_lexical_weight": 0.70,
+                "required_skill_semantic_weight": 0.30,
+                "channel_pool_size": 2,
+            }
+        },
+    }
+    calls = 0
+    required_skill_pools: list[list[dict]] = []
+
+    def fail_after_first_semantic_call(*_args, runtime_state, **_kwargs) -> float:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            runtime_state["semantic_backend_failed"] = True
+        return 0.0
+
+    original_select_channel_candidates = evidence_module._select_channel_candidates
+
+    def record_channel_pool(**kwargs):
+        result = original_select_channel_candidates(**kwargs)
+        if kwargs["channel"] == evidence_module.REQUIRED_SKILL_SUPPORT_CHANNEL:
+            required_skill_pools.append(result)
+        return result
+
+    monkeypatch.setattr(evidence_module, "_semantic_similarity", fail_after_first_semantic_call)
+    monkeypatch.setattr(evidence_module, "_select_channel_candidates", record_channel_pool)
+
+    bundle = retrieve_evidence_bundle(profile, {"required_skills": ["SQL"]}, top_k=2, config=config)
+
+    assert len(required_skill_pools) == 2
+    assert len(required_skill_pools[-1]) == 2
+    assert all(item["channel_subscore"]["combined"] == 1.0 for item in required_skill_pools[-1])
+    assert bundle["semantic_alignment"]["enabled"] is False
+
+
 def test_candidate_embedding_cache_reuses_across_runtime_calls(monkeypatch) -> None:
     evidence_module._CANDIDATE_EMBEDDING_CACHE.clear()
     calls = 0
@@ -1690,22 +1761,30 @@ def test_candidate_embedding_cache_reuses_across_runtime_calls(monkeypatch) -> N
         nonlocal calls
         del text, runtime_config, model_name
         calls += 1
-        return [1.0]
+        return {
+            "embedding": [1.0],
+            "backend_id": "sentence_transformers",
+            "configured_model": "text-embedding-005",
+            "dimension": 1,
+            "model_revision": None,
+            "preprocessing_version": "test",
+            "contract_fingerprint": "test-sentence-transformers",
+        }
 
-    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+    monkeypatch.setattr(evidence_module, "generate_embedding_with_metadata", fake_generate_embedding)
     first_state = evidence_module._semantic_runtime_state()
     second_state = evidence_module._semantic_runtime_state()
 
     evidence_module._embed_text_cached(
         "Candidate text",
-        config={},
+        config={"embedding_backend": "sentence_transformers"},
         model_name="text-embedding-005",
         runtime_state=first_state,
         cache_namespace="candidate",
     )
     evidence_module._embed_text_cached(
         "Candidate text",
-        config={},
+        config={"embedding_backend": "sentence_transformers"},
         model_name="text-embedding-005",
         runtime_state=second_state,
         cache_namespace="candidate",
@@ -1740,6 +1819,7 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_required_skill_sup
         "responsibilities": [],
     }
     config = {
+        "embedding_backend": "sentence_transformers",
         "cv_analysis": {
             "semantic_alignment": {
                 "enabled": True,
@@ -1757,16 +1837,26 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_required_skill_sup
         }
     }
 
-    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
+    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> dict[str, object]:
         del runtime_config, model_name
         normalized = " ".join(str(text).lower().split())
         if normalized == "data modeling":
-            return [1.0, 0.0, 0.0]
-        if "schema design" in normalized and "warehouse schema redesign" in normalized:
-            return [1.0, 0.0, 0.0]
-        return [0.0, 0.0, 1.0]
+            vector = [1.0, 0.0, 0.0]
+        elif "schema design" in normalized and "warehouse schema redesign" in normalized:
+            vector = [1.0, 0.0, 0.0]
+        else:
+            vector = [0.0, 0.0, 1.0]
+        return {
+            "embedding": vector,
+            "backend_id": "sentence_transformers",
+            "configured_model": "text-embedding-005",
+            "dimension": 3,
+            "model_revision": None,
+            "preprocessing_version": "test",
+            "contract_fingerprint": "test-sentence-transformers",
+        }
 
-    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+    monkeypatch.setattr(evidence_module, "generate_embedding_with_metadata", fake_generate_embedding)
 
     bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
 
@@ -1802,6 +1892,7 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_role_alignment(mon
         "responsibilities": [],
     }
     config = {
+        "embedding_backend": "sentence_transformers",
         "cv_analysis": {
             "semantic_alignment": {
                 "enabled": True,
@@ -1819,16 +1910,26 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_role_alignment(mon
         }
     }
 
-    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
+    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> dict[str, object]:
         del runtime_config, model_name
         normalized = " ".join(str(text).lower().split())
         if normalized == "business intelligence strategist":
-            return [0.0, 1.0, 0.0]
-        if "decision support lead" in normalized and "guided reporting strategy" in normalized:
-            return [0.0, 1.0, 0.0]
-        return [0.0, 0.0, 1.0]
+            vector = [0.0, 1.0, 0.0]
+        elif "decision support lead" in normalized and "guided reporting strategy" in normalized:
+            vector = [0.0, 1.0, 0.0]
+        else:
+            vector = [0.0, 0.0, 1.0]
+        return {
+            "embedding": vector,
+            "backend_id": "sentence_transformers",
+            "configured_model": "text-embedding-005",
+            "dimension": 3,
+            "model_revision": None,
+            "preprocessing_version": "test",
+            "contract_fingerprint": "test-sentence-transformers",
+        }
 
-    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+    monkeypatch.setattr(evidence_module, "generate_embedding_with_metadata", fake_generate_embedding)
     monkeypatch.setattr(evidence_module, "infer_role_family", lambda _text: None)
 
     bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
@@ -2607,6 +2708,33 @@ def test_ranking_channel_matching_does_not_use_substrings_or_single_token_overla
 
     assert coverage["required"] == []
     assert coverage["technology"] == []
+
+
+def test_ranking_channel_matching_uses_the_compiled_semantic_policy() -> None:
+    policy = {
+        "schema_version": "semantic_policy_v2",
+        "resolver_contract_version": "semantic_resolver_v2",
+        "maps": {"skill": {"py": "python"}, "domain": {}, "role_family": {}},
+    }
+    item = {
+        "evidence_id": "py",
+        "text": "Implemented py data pipelines.",
+        "scoring_context": "Implemented py data pipelines.",
+        "skills": [],
+    }
+    job = {"required_skills": ["python"]}
+
+    scored = score_evidence_item_by_channel(item, job, semantic_policy=policy)
+    selected = select_ranking_evidence([item], job, semantic_policy=policy)
+
+    assert scored["coverage"]["required"] == ["python"]
+    assert selected[0]["evidence_id"] == "py"
+    assert "py data pipelines" in build_evidence_excerpt(
+        {**item, "text": "Unrelated sentence. Implemented py data pipelines."},
+        job,
+        semantic_policy=policy,
+        limit=40,
+    )
 
 
 def test_profile_evidence_pool_projects_once_per_revision(monkeypatch: pytest.MonkeyPatch) -> None:

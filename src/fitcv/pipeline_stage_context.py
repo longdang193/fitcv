@@ -79,6 +79,7 @@ class PipelineState:
     ai_scores: list[dict[str, Any]] = field(default_factory=list)
     ranking_llm_runtime_observations: list[dict[str, Any]] = field(default_factory=list)
     resolved_preference_policy: dict[str, Any] = field(default_factory=dict)
+    ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = field(default_factory=dict)
     ranking_inputs: list[dict[str, Any]] = field(default_factory=list)
     ranked: list[dict[str, Any]] = field(default_factory=list)
     cv_analysis_results: list[dict[str, Any]] = field(default_factory=list)
@@ -127,6 +128,7 @@ class PipelineState:
                 "candidate_query_debug",
                 "shortlist_diagnostics",
                 "resolved_preference_policy",
+                "ranking_input_diagnostics_by_identity",
             }:
                 if isinstance(value, dict):
                     setattr(state, key, dict(value))
@@ -180,6 +182,7 @@ class PipelineState:
             "ai_scores",
             "ranking_llm_runtime_observations",
             "resolved_preference_policy",
+            "ranking_input_diagnostics_by_identity",
             "ranking_inputs",
             "ranked",
             "cv_analysis_results",
@@ -206,6 +209,10 @@ class PipelineState:
             "ai_scores": list(self.ai_scores),
             "ranking_llm_runtime_observations": list(self.ranking_llm_runtime_observations),
             "resolved_preference_policy": dict(self.resolved_preference_policy),
+            "ranking_input_diagnostics_by_identity": {
+                str(identity): dict(diagnostics)
+                for identity, diagnostics in self.ranking_input_diagnostics_by_identity.items()
+            },
             "ranking_inputs": list(self.ranking_inputs),
             "ranked": list(self.ranked),
             "cv_analysis_results": list(self.cv_analysis_results),

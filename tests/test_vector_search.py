@@ -6,8 +6,10 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch
 from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
+from fitcv.embeddings import build_embedding_contract_fingerprint
 from fitcv.vector_search import (
     _dedupe_shortlist_rows,
+    _technology_overlap,
     build_candidate_query_components,
     build_candidate_query_embedding_contract_fingerprint,
     build_candidate_query_signature_record,
@@ -303,9 +305,10 @@ def test_build_candidate_query_signature_record_is_stable_for_same_effective_com
 
 
 def test_build_candidate_query_embedding_contract_fingerprint_changes_with_model() -> None:
-    first = build_candidate_query_embedding_contract_fingerprint({})
+    base_config = {"embedding_backend": "sentence_transformers"}
+    first = build_candidate_query_embedding_contract_fingerprint(base_config)
     second = build_candidate_query_embedding_contract_fingerprint(
-        {"shortlist_embedding_model": "text-embedding-004"}
+        {**base_config, "shortlist_embedding_model": "text-embedding-004"}
     )
 
     assert first["fingerprint"] != second["fingerprint"]
@@ -471,6 +474,54 @@ def test_lexical_retrieval_uses_late_project_technology_inventory() -> None:
     assert result["production_rows"][0]["retrieval_components"]["technology_overlap"] == 1.0
 
 
+def test_technology_overlap_preserves_punctuation_that_distinguishes_languages() -> None:
+    assert _technology_overlap(["C++"], ["C++"]) == 1.0
+    assert _technology_overlap(["C#"], ["C#"]) == 1.0
+    assert _technology_overlap(["C++"], ["C#"]) == 0.0
+    assert _technology_overlap(["C#"], ["C++"]) == 0.0
+
+
+def test_run_vector_search_without_signature_uses_newest_embedding_per_url(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE job_embeddings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              job_url TEXT NOT NULL,
+              chunk_type TEXT NOT NULL,
+              chunk_text TEXT NOT NULL,
+              embedding_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              embedding_input_signature TEXT
+            )
+            """
+        )
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at, embedding_input_signature) VALUES (?, 'job_summary', '', ?, ?, ?)",
+            [
+                ("https://example.com/reused", json.dumps([0.0, 1.0]), "2026-01-02T00:00:00Z", "signature-new"),
+                ("https://example.com/reused", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z", "signature-old"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([0.0, 1.0]),
+    )
+
+    result = run_vector_search(
+        {},
+        ["https://example.com/reused"],
+        {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 0}},
+    )
+
+    assert result["production_rows"][0]["normalized_embedding"] == [0.0, 1.0]
+
+
 # ── integration tests ─────────────────────────────────────────────────────────
 
 @pytest.mark.integration
@@ -579,6 +630,62 @@ def test_run_vector_search_uses_total_order_and_bounded_audit(
     assert result["diagnostics"]["audit_candidate_total"] == 2
     assert result["diagnostics"]["audit_sample_total"] == 2
     assert result["diagnostics"]["audit_sample_fingerprint"]
+
+
+def test_run_vector_search_selects_the_current_job_input_signature(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    config = {
+        "embedding_backend": "sentence_transformers",
+        "embedding_dimension": 2,
+        "pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 0},
+    }
+    contract = build_embedding_contract_fingerprint(config)["fingerprint"]
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE job_embeddings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              job_url TEXT NOT NULL,
+              chunk_type TEXT NOT NULL,
+              chunk_text TEXT NOT NULL,
+              embedding_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              embedding_input_signature TEXT,
+              embedding_contract_fingerprint TEXT
+            )
+            """
+        )
+        conn.executemany(
+            """
+            INSERT INTO job_embeddings(
+              job_url, chunk_type, chunk_text, embedding_json, created_at,
+              embedding_input_signature, embedding_contract_fingerprint
+            ) VALUES (?, 'job_summary', '', ?, ?, ?, ?)
+            """,
+            [
+                ("https://example.com/reused", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z", "signature-a", contract),
+                ("https://example.com/reused", json.dumps([0.0, 1.0]), "2026-02-01T00:00:00Z", "signature-b", contract),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+
+    result = run_vector_search(
+        {},
+        ["https://example.com/reused"],
+        config,
+        structured_jobs=[
+            {"job_url": "https://example.com/reused", "embedding_input_signature": "signature-a"}
+        ],
+    )
+
+    assert result["production_rows"][0]["normalized_embedding"] == [1.0, 0.0]
 
 
 def test_run_vector_search_uses_latest_id_for_same_timestamp_duplicate(
@@ -778,6 +885,13 @@ def test_run_vector_search_deterministic_backend_uses_technology_overlap() -> No
     assert result["production_rows"][0]["job_url"] == "https://example.com/match"
     assert result["production_rows"][0]["retrieval_components"]["technology_overlap"] == 1.0
     assert result["diagnostics"]["fallback_reason"] == "non_semantic_embedding_backend"
+
+
+def test_lexical_technology_overlap_matches_contained_terms_without_substring_false_positive() -> None:
+    from fitcv.vector_search import _technology_overlap
+
+    assert _technology_overlap(["OpenAI-compatible APIs"], ["OpenAI"]) == 1.0
+    assert _technology_overlap(["SQL"], ["NoSQL"]) == 0.0
 
 
 def test_run_vector_search_reads_technology_from_loaded_canonical_project_evidence() -> None:

@@ -51,6 +51,7 @@ DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilin
 DEFAULT_SENTENCE_TRANSFORMERS_REVISION = "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
 DEFAULT_EMBEDDING_PREPROCESSING_VERSION = "normalize_whitespace_v1"
 SENTENCE_TRANSFORMERS_DEFAULT_DIM = 384
+EMBEDDING_CACHE_LOOKUP_CHUNK_SIZE = 500
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,11 @@ def build_embedding_contract_fingerprint(
     backend: str | None = None,
 ) -> dict[str, Any]:
     selected_backend = backend or get_embedding_backend(config)
-    model_name = str(configured_model or get_shortlist_embedding_model(config))
+    model_name = (
+        DETERMINISTIC_EMBEDDING_MODEL
+        if selected_backend != SENTENCE_TRANSFORMERS_BACKEND
+        else str(configured_model or get_shortlist_embedding_model(config))
+    )
     payload = {
         "contract_version": EMBEDDING_CONTRACT_VERSION,
         "embedding_backend": selected_backend,
@@ -443,11 +448,7 @@ def generate_embedding_with_metadata(
 ) -> dict[str, Any]:
     backend = get_embedding_backend(config)
     if backend != SENTENCE_TRANSFORMERS_BACKEND:
-        vector = _deterministic_local_embedding(text)
-        return {
-            "embedding": vector,
-            **build_embedding_backend_metadata(config, backend=backend),
-        }
+        return _deterministic_embedding_result(text, config, backend=backend)
     selected_model = str(model_name or get_shortlist_embedding_model(config))
     revision = get_embedding_model_revision(config, selected_model)
     try:
@@ -471,15 +472,24 @@ def generate_embedding_with_metadata(
                 f"sentence-transformers embedding backend unavailable: {selected_model}@{revision or 'default'}"
             ) from exc
         logger.warning("sentence-transformers backend unavailable; using deterministic fallback", exc_info=True)
-        vector = _deterministic_local_embedding(text)
-        return {
-            "embedding": vector,
-            **build_embedding_backend_metadata(
-                config,
-                configured_model=DETERMINISTIC_EMBEDDING_MODEL,
-                backend="sqlite_deterministic_local",
-            ),
-        }
+        return _deterministic_embedding_result(text, config, backend="sqlite_deterministic_local")
+
+
+def _deterministic_embedding_result(
+    text: str,
+    config: dict[str, Any],
+    *,
+    backend: str = "sqlite_deterministic_local",
+) -> dict[str, Any]:
+    vector = _deterministic_local_embedding(text)
+    return {
+        "embedding": vector,
+        **build_embedding_backend_metadata(
+            config,
+            configured_model=DETERMINISTIC_EMBEDDING_MODEL,
+            backend=backend,
+        ),
+    }
 
 
 
@@ -547,25 +557,47 @@ def embed_and_store_jobs(
     embedding_contract = build_embedding_contract_fingerprint(config)
     rows: list[dict[str, Any]] = []
     contract_fingerprint = embedding_contract["fingerprint"]
-    with sqlite_connection(sqlite_path(), timeout=30) as conn:
-        configure_sqlite_connection(conn)
-        _ensure_sqlite_embedding_tables(conn)
-        existing = {
-            (str(row[0]), str(row[1]), str(row[2]), str(row[3]))
-            for row in conn.execute(
-                "SELECT job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint FROM job_embeddings"
-            )
-        }
+    configured_backend = get_embedding_backend(config)
+    backend_failed = False
+    prepared_jobs: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
     for job in structured_jobs:
         signature_record = build_job_summary_signature_record(job)
         job["embedding_input_signature"] = signature_record["signature"]
         job["embedding_contract_fingerprint"] = contract_fingerprint
-        chunk = build_job_summary_chunk(job)[0]
+        prepared_jobs.append((job, signature_record, build_job_summary_chunk(job)[0]))
+    current_keys = [
+        (str(job.get("job_url") or ""), chunk["chunk_type"], signature_record["signature"], contract_fingerprint)
+        for job, signature_record, chunk in prepared_jobs
+    ]
+    with sqlite_connection(sqlite_path(), timeout=30) as conn:
+        configure_sqlite_connection(conn)
+        _ensure_sqlite_embedding_tables(conn)
+        existing: set[tuple[str, str, str, str]] = set()
+        for start in range(0, len(current_keys), EMBEDDING_CACHE_LOOKUP_CHUNK_SIZE):
+            key_chunk = current_keys[start : start + EMBEDDING_CACHE_LOOKUP_CHUNK_SIZE]
+            existing.update(
+                (str(row[0]), str(row[1]), str(row[2]), str(row[3]))
+                for row in conn.execute(
+                    "SELECT job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint "
+                    "FROM job_embeddings WHERE (job_url, chunk_type, embedding_input_signature, embedding_contract_fingerprint) "
+                    f"IN ({','.join(['(?, ?, ?, ?)'] * len(key_chunk))})",
+                    [value for key in key_chunk for value in key],
+                )
+            )
+    for job, signature_record, chunk in prepared_jobs:
         key = (str(job.get("job_url") or ""), chunk["chunk_type"], signature_record["signature"], contract_fingerprint)
         if key in existing:
             job["embedding_reuse_status"] = REUSED_CACHED_EMBEDDING_STATUS
             continue
-        embedding_result = generate_embedding_with_metadata(chunk["chunk_text"], config)
+        if backend_failed and configured_backend == SENTENCE_TRANSFORMERS_BACKEND:
+            embedding_result = _deterministic_embedding_result(chunk["chunk_text"], config)
+        else:
+            embedding_result = generate_embedding_with_metadata(chunk["chunk_text"], config)
+            if (
+                configured_backend == SENTENCE_TRANSFORMERS_BACKEND
+                and str(embedding_result.get("backend_id") or "") != SENTENCE_TRANSFORMERS_BACKEND
+            ):
+                backend_failed = True
         vector = list(embedding_result["embedding"])
         actual_contract_fingerprint = str(embedding_result["contract_fingerprint"])
         job["embedding_contract_fingerprint"] = actual_contract_fingerprint
@@ -625,8 +657,19 @@ def embed_and_store_candidate(
     now = datetime.now(tz=timezone.utc).isoformat()
     candidate_chunks = build_candidate_chunks(profile)
     rows = []
+    configured_backend = get_embedding_backend(config)
+    backend_failed = False
     for chunk in candidate_chunks:
-        vector = generate_embedding(chunk["chunk_text"], config)
+        if backend_failed and configured_backend == SENTENCE_TRANSFORMERS_BACKEND:
+            embedding_result = _deterministic_embedding_result(chunk["chunk_text"], config)
+        else:
+            embedding_result = generate_embedding_with_metadata(chunk["chunk_text"], config)
+            if (
+                configured_backend == SENTENCE_TRANSFORMERS_BACKEND
+                and str(embedding_result.get("backend_id") or "") != SENTENCE_TRANSFORMERS_BACKEND
+            ):
+                backend_failed = True
+        vector = list(embedding_result["embedding"])
         rows.append(
             (
                 chunk["evidence_id"],
