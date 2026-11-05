@@ -11,6 +11,7 @@ targets:
   - src/fitcv/evidence.py
   - src/fitcv/vector_search.py
   - src/fitcv/normalize.py
+  - src/fitcv/pipeline.py
   - src/fitcv/pipeline_stage_runner.py
   - src/fitcv/pipeline_stage_artifacts.py
   - src/fitcv/pipeline_stages/common.py
@@ -21,9 +22,9 @@ targets:
   - tests/test_evidence.py
   - tests/test_vector_search.py
   - tests/test_normalize.py
+  - tests/test_pipeline_stage_resume_parity.py
   - tests/test_ranking.py
   - tests/test_pipeline.py
-  - tests/test_pipeline_stage_artifacts.py
   - tests/test_fitcv_cp/test_candidate_profile_service.py
 ---
 
@@ -43,7 +44,9 @@ Review basis: `longdang193/fitcv` `main` at
 authenticated context by `GPT-5.6-Sol/High` and `GPT-6/High`. Both reviews
 completed with pinned-SHA evidence and no repository modifications. The
 attached verdict was used as input, but only source-confirmed findings are
-included below.
+included below. A final plan-readiness review by `GPT-5.6-Sol/High` at
+`eb368284492e089ac69d5de0d60ce087352a6e8b` identified nine source-confirmed
+gaps; the corrections below reconcile all nine without rerunning the review.
 
 ## Validated Findings
 
@@ -67,9 +70,10 @@ included below.
 - `src/fitcv_cp/candidate_profile_service.py` validates source references but
   does not require every substantive source block to be represented or
   explicitly dispositioned before downstream projection.
-- `src/fitcv/pipeline_stage_runner.py` always passes the vector strategy even
-  when configuration selects lexical retrieval. Retrieval and `ai_score_top_n`
-  are irreversible admission gates for holistic scoring.
+- `src/fitcv/pipeline.py` and `src/fitcv/pipeline_stage_runner.py` request the
+  fixed vector strategy at the production shortlist boundary, while retired
+  public retrieval-strategy keys are rejected. Retrieval fallback and
+  `ai_score_top_n` are irreversible admission gates for holistic scoring.
 - `src/fitcv/vector_search.py` can switch an entire retrieval run to lexical
   fallback when any required job vector is missing, invalid, or incompatible;
   valid vector results are not preserved as a mixed shortlist.
@@ -205,8 +209,11 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 - Inspect/modify `src/fitcv/ai_score.py:build_ranking_request`.
 - Inspect/modify `src/fitcv/ai_score.py:build_ranking_input_diagnostics`.
 - Inspect/modify `src/fitcv/ai_score.py:build_ai_score_input_fingerprint` and
-  the score-reuse path in `run_ai_scoring`.
-- Verify `tests/test_ai_score.py`.
+- the scorer-input portion of `run_ai_scoring`.
+- Inspect/modify `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`
+  for the ranking-time reuse lookup and visibility-manifest restoration.
+- Verify `tests/test_ai_score.py` and the runner-level reuse path in
+  `tests/test_pipeline.py`.
 
 **Dependencies:**
 - Review baseline at `db1ca88a81aaaea6b7c07eead1c50f312edc90f3`.
@@ -224,13 +231,20 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   and optional fields; keep complete canonical requirement/fact checksums
   outside the serialized prompt.
 - [ ] Step 2: Apply per-field reductions before JSON serialization, preserve
-  valid JSON, and fail with an explicit unsatisfied-budget status when the
-  mandatory core cannot fit.
+  valid JSON, and fail with `score_status=unscored`,
+  `failure_code=input_budget_exceeded`, and `retry_eligible=false` when the
+  mandatory core cannot fit; do not call the model in that case. The mandatory
+  core is explicitly: job identity/target role, explicit required skills and
+  technologies, required language clauses, required experience constraints,
+  mandatory location/work-mode constraints, and candidate supported skills,
+  language levels, experience duration/roles, and attributable evidence IDs.
+  Shed optional preferred/contextual requirements first, then verbose candidate
+  education/certification/employment detail and explanatory text.
 - [ ] Step 3: Record raw, selected, rendered, model-visible, omitted, and
   truncated field metadata in the request record and diagnostics.
 - [ ] Step 4: Include the bounded request plus complete canonical input
-  checksums in the reuse fingerprint; restore the exact visibility record on
-  reuse.
+  checksums in the reuse fingerprint. Define the visibility-record shape here;
+  `execute_ranking_stage` must restore that exact record for reused scores.
 
 **Verification:**
 - [ ] `python -m pytest -q tests/test_ai_score.py -k "ranking_job_input or ranking_request or diagnostics or fingerprint or reuse" --disable-warnings --maxfail=1`
@@ -238,6 +252,8 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   and critical candidate facts are present or scoring fails explicitly;
   diagnostics identify every dropped field; changed complete input invalidates
   reuse.
+- [ ] Assert that an oversized mandatory core makes no provider call and is
+  stored as an input-budget failure rather than a provider failure.
 - [ ] Use the existing scoring stub seam to inspect the exact request passed to
   the scorer for an oversized JD, two evidence items, and late candidate facts.
 - Expected: no raw character-sliced JSON and no normal score from an empty
@@ -281,6 +297,12 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 - Inspect/modify `src/fitcv/enrich.py:_canonical_language_requirements`.
 - Inspect/modify `src/fitcv_cp/candidate_profile_service.py:_validate_baseline_payload`.
 - Inspect/modify `src/fitcv_cp/candidate_profile_service.py:build_baseline_review`.
+- Inspect/modify `src/fitcv_cp/candidate_profile_service.py:_BASELINE_RESPONSE_SCHEMA`
+  and `src/fitcv/prompts/templates/candidate_profile_base_mapping_v1.md` so
+  every source block has an explicit disposition.
+- Define the persisted coverage/residual contract on
+  `src/fitcv_cp/candidate_profile_service.py:CandidateProfileStageResult` and
+  the downstream `src/fitcv/evidence.py:project_candidate_evidence` consumer.
 - Verify `tests/test_enrich.py` and
   `tests/test_fitcv_cp/test_candidate_profile_service.py`.
 
@@ -305,8 +327,10 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   original clause for qualifiers; add a regression for one clause containing
   Python and SQL.
 - [ ] Step 4: Require every substantive source block to be represented,
-  unresolved, or explicitly ignored with a reason; expose unresolved blocks as
-  residual evidence rather than silently omitting them.
+  unresolved, or explicitly ignored with a reason. Add a bounded
+  `source_block_dispositions` map with one disposition per input block; persist
+  unresolved blocks as residual evidence consumed by
+  `project_candidate_evidence`, rather than silently omitting them.
 
 **Verification:**
 - [ ] `python -m pytest -q tests/test_enrich.py tests/test_fitcv_cp/test_candidate_profile_service.py -k "required_skill or language or semantic_snapshot or source_block or baseline or mapping" --disable-warnings --maxfail=1`
@@ -314,6 +338,10 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   source support; B2-required/C1-preferred remains separate; all substantive
   source blocks have a disposition; Python and SQL remain separate atomic
   values.
+- [ ] Assert block-ID conservation across `_BASELINE_RESPONSE_SCHEMA`,
+  `_validate_baseline_payload`, `build_baseline_review`, and the residual
+  evidence projection: every input block is represented exactly once as
+  represented, unresolved, or ignored with a reason.
 - [ ] Assert a malformed or incomplete mapping is rejected or returns an
   explicit unresolved-source diagnostic, not a silently shortened baseline.
 
@@ -394,11 +422,11 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   distinct supported requirement coverage and retain enough context to interpret
   them correctly.
 
-### Task 4: Restore configured retrieval behavior and shortlist recall
+### Task 4: Restore retrieval fallback and shortlist recall
 
 **Purpose:**
-- Ensure configured retrieval strategy, vector fallback, technology coverage,
-  and posting identity determine shortlist membership predictably.
+- Ensure the fixed production retrieval strategy, vector fallback, technology
+  coverage, and posting identity determine shortlist membership predictably.
 
 **Task Function:**
 - Correct retrieval orchestration and normalization while preserving the
@@ -415,19 +443,27 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   and location-variant retention.
 
 **Specification Coverage:**
-- Configured strategy propagation; mixed valid/fallback retrieval; bounded
-  query coverage; exact technology matching; location-safe deduplication;
-  retrieval/admission diagnostics.
+- Production strategy propagation; mixed valid/fallback retrieval; bounded
+  query coverage; existing technology-overlap semantics; location-safe
+  deduplication; retrieval/admission diagnostics.
 
 **Required Skills:**
 - `skill-code-standards`, `skill-test-driven-development`,
   `skill-backend-verification`
 
 **Files And Symbols:**
+- Inspect/modify `src/fitcv/pipeline.py:run_pipeline` at the live shortlist
+  call site.
 - Inspect/modify `src/fitcv/pipeline_stage_runner.py:execute_shortlist_stage`.
+- Verify `tests/test_pipeline_stage_resume_parity.py` for helper/live-path
+  parity.
 - Inspect/modify `src/fitcv/vector_search.py:build_candidate_query_components`.
 - Inspect/modify `src/fitcv/vector_search.py:run_vector_search`.
 - Inspect/modify `src/fitcv/vector_search.py` embedding lookup/fallback helpers.
+- Inspect/modify `src/fitcv/normalize.py:_job_identity`.
+- Inspect/modify `src/fitcv/normalize.py:_near_duplicate_key`.
+- Inspect/modify `src/fitcv/normalize.py:deduplicate_jobs`.
+- Inspect/modify `src/fitcv/normalize.py:deduplicate_near_duplicates`.
 - Inspect/modify `src/fitcv/normalize.py:normalize_batch_with_exclusions`.
 - Verify `tests/test_vector_search.py` and `tests/test_normalize.py`.
 
@@ -442,27 +478,41 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   public retrieval configuration names without an approved contract update.
 
 **Steps:**
-- [ ] Step 1: Resolve `config["retrieval_strategy"]` once and pass the resolved
-  value through `execute_shortlist_stage`; record requested and effective
-  strategy separately.
+- [ ] Step 1: Preserve the current production contract: `run_pipeline` and
+  `execute_shortlist_stage` request `VECTOR_RETRIEVAL_STRATEGY`; lexical
+  retrieval is an internal fallback, not a new public `retrieval_strategy`
+  config key. Record requested, effective, and fallback strategy separately.
+  Do not reintroduce the retired `retrieval_strategy` or `shortlist_lexical`
+  configuration names in this plan.
 - [ ] Step 2: Preserve valid vector rows when only some job vectors are missing,
   invalid, or incompatible; regenerate affected rows through the existing path
-  or merge lexical results under the same production top-N budget.
+  or fill only remaining production slots with lexical fallback rows after
+  identity deduplication. Keep valid vector rows in their existing order; do
+  not numerically compare incomparable `vector_similarity` and lexical
+  `retrieval_score` values. Preserve source-specific ranks/scores and record
+  `shortlist_origin`, overlap removal, and final admission order.
 - [ ] Step 3: Keep candidate query serialization bounded but derive technology
   signals from the stable complete source-grounded inventory, not only the first
-  profile-order entries. Distinguish exact tools from related platforms such as
-  Azure versus Azure Functions.
-- [ ] Step 4: Prevent blank URLs from being one exact identity and preserve
-  location/employment/application variants in grouped near-duplicate records.
+  profile-order entries. Preserve `_technology_overlap` containment and
+  punctuation semantics; do not introduce an Azure-versus-Azure-Functions
+  distinction without a separately approved taxonomy contract.
+- [ ] Step 4: Centralize exact and near-duplicate identity through the shared
+  normalization helpers. Give blank-URL rows a stable provider/source identity,
+  keep genuine same-posting duplicates collapsed, and preserve location,
+  employment, and application variants when they are materially distinct.
 - [ ] Step 5: Record which jobs were eligible, retrieved, audited, admitted to
   AI scoring, and excluded at each boundary.
 
 **Verification:**
 - [ ] `python -m pytest -q tests/test_vector_search.py tests/test_normalize.py tests/test_pipeline.py -k "retrieval or vector or lexical or technology or cache or dedup or location or shortlist" --disable-warnings --maxfail=1`
-- Expected: configured lexical mode invokes lexical retrieval; one bad vector
-  does not discard valid vector rows; exact technology matching does not grant
-  Azure credit for Azure Functions unless the configured taxonomy says so;
-  location variants and blank-URL postings remain distinguishable.
+- Expected: the production vector request remains unchanged; one bad vector
+  does not discard valid vector rows; lexical fallback fills only remaining
+  slots without cross-scale score comparison; existing technology-overlap
+  regressions remain intact; location variants and blank-URL postings remain
+  distinguishable.
+- [ ] Assert helper/live-path retrieval parity and preserve the existing
+  `OpenAI-compatible APIs`/`OpenAI` containment match while rejecting the
+  unrelated `SQL`/`NoSQL` substring match.
 - [ ] Run a fixed paired recall fixture and record shortlist recall@50 for
   vector-only, lexical-only, and merged behavior without changing production
   shortlist size.
@@ -502,11 +552,13 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 **Files And Symbols:**
 - Inspect/modify `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`.
 - Inspect/modify `src/fitcv/pipeline_stage_artifacts.py:build_ranking_stage_block`.
+- Inspect/modify `src/fitcv/pipeline.py:_build_stage_transition_artifacts`
+  and its stage-progress/checkpoint call sites so the artifact receives the
+  complete shortlist/admission set.
 - Inspect/modify `src/fitcv/pipeline_stages/common.py:ranking_row_sample`.
 - Inspect/modify `src/fitcv/ranking.py:rank_jobs` only for preserving explicit
   failure/retry metadata; do not change ranked-score arithmetic.
-- Verify `tests/test_pipeline.py`,
-  `tests/test_pipeline_stage_artifacts.py`, and `tests/test_ranking.py`.
+- Verify `tests/test_pipeline.py` and `tests/test_ranking.py`.
 
 **Dependencies:**
 - Tasks 1–4 define the manifest fields, fingerprints, and admission boundaries.
@@ -526,11 +578,15 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
 - [ ] Step 3: Keep invalid/provider-failed rows explicitly unscored with
   failure code and retry eligibility in stage diagnostics, even when the
   existing ranked list contains only valid scores.
-- [ ] Step 4: Add an additive artifact assertion that a below-cutoff job,
-  invalid-score job, and scored job are distinguishable.
+- [ ] Step 4: Pass one bounded admission manifest from
+  `_build_stage_transition_artifacts` into `build_ranking_stage_block`, with
+  states for shortlist-admitted, AI-score-selected, fresh, reused,
+  failed/invalid, and not-selected-by-AI-cutoff. Add an artifact assertion that
+  a below-cutoff job, invalid-score job, and scored job are distinguishable;
+  do not infer missing jobs from `ai_scores` or `ranking_inputs` alone.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_pipeline.py tests/test_pipeline_stage_artifacts.py tests/test_ranking.py -k "diagnostic or visibility or truncation or reuse or score_status or retry or ranking" --disable-warnings --maxfail=1`
+- [ ] `python -m pytest -q tests/test_pipeline.py tests/test_ranking.py -k "diagnostic or visibility or truncation or reuse or score_status or retry or ranking" --disable-warnings --maxfail=1`
 - Expected: fresh and reused rows carry equivalent visibility manifests;
   omitted evidence is nonzero when the selector shortens the pool; failed
   scoring remains explicit and does not receive a compatibility rank.
@@ -589,7 +645,7 @@ failure/retry diagnostics and are never interpreted as a compatibility score.
   `proposed` unless that verification returns `verified`.
 
 **Verification:**
-- [ ] `python -m pytest -q tests/test_ai_score.py tests/test_enrich.py tests/test_evidence.py tests/test_vector_search.py tests/test_normalize.py tests/test_ranking.py tests/test_pipeline.py tests/test_pipeline_stage_artifacts.py tests/test_fitcv_cp/test_candidate_profile_service.py --disable-warnings --maxfail=1`
+- [ ] `python -m pytest -q tests/test_ai_score.py tests/test_enrich.py tests/test_evidence.py tests/test_vector_search.py tests/test_normalize.py tests/test_ranking.py tests/test_pipeline.py tests/test_fitcv_cp/test_candidate_profile_service.py --disable-warnings --maxfail=1`
 - Expected: focused cross-stage suite passes with no new failures in the
   changed contracts.
 - [ ] `python -m compileall -q src/fitcv src/fitcv_cp tests`
@@ -634,8 +690,9 @@ The plan is ready for completion verification when:
    support state are source-grounded and auditable.
 3. Two evidence items remain bounded but complementary, contextual, and
    provenance-preserving.
-4. Configured retrieval strategy is honored; mixed fallback does not discard
-   valid rows; location and blank-URL identities remain distinct.
+4. The fixed production retrieval strategy is honored; mixed fallback does not
+   discard valid rows or compare incomparable score scales; location and
+   blank-URL identities remain distinct.
 5. Fresh and reused scores expose the same bounded visibility manifest and
    complete canonical input checksums.
 6. Retrieval/admission and scoring failures remain distinguishable from a low
