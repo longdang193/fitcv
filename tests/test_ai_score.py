@@ -23,6 +23,7 @@ from fitcv.ai_score import (
     parse_score_response,
     run_ai_scoring,
 )
+from fitcv.enrich import merge_scraped_and_enriched
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -402,6 +403,31 @@ def test_run_ai_scoring_does_not_invoke_provider_for_degraded_enrichment(monkeyp
     assert provider_calls == []
     assert result[0]["score_status"] == "unscored"
     assert result[0]["failure_code"] == "needs_enrichment"
+
+
+def test_domain_only_enrichment_is_unscored_without_provider_call(monkeypatch) -> None:
+    job = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/domain-only",
+            "title": "Data Engineer",
+            "description": "Build Python data pipelines for production analytics.",
+        },
+        {"domain": "analytics", "job_family": "data_engineering"},
+        {},
+    )
+    calls = []
+
+    def fail_if_called(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("provider must not be called")
+
+    monkeypatch.setattr(ai_score_module, "score_job", fail_if_called)
+    result = run_ai_scoring([job], "candidate", {}, top_n=1)
+
+    assert not calls
+    assert result[0]["score_status"] == "unscored"
+    assert result[0]["failure_code"] == "needs_enrichment"
+    assert result[0]["ranking_input_diagnostics"]["mandatory_omissions"]["job_enrichment_degraded"] == 1
 
 
 def test_build_ranking_request_drops_optional_raw_description_before_budget_failure(monkeypatch) -> None:

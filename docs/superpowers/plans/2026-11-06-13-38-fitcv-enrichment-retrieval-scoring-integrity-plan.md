@@ -178,8 +178,8 @@ scale invariance before any score-weight or cutoff policy change.
 | Task 4 | `completed` | isolated | `Codex` | Task 3 | admission/retrieval recall regressions | retrieval/admission regression coverage passes; `recall@50 = 1.0` |
 | Task 5 | `completed` | isolated | `Codex` | `Task 3, Task 4` | scorer visibility and budget regressions | scorer-integrity suite passes; typed language/provenance retained |
 | Task 6 | `completed` | isolated | `Codex` | Task 3, Task 5 | evidence/query stability regressions | existing evidence/candidate suites pass; no cutoff or weighting change |
-| Task 7 | `completed` | isolated | `Codex` | `Task 4, Task 5, Task 6` | persistence/UI/checkpoint regressions | `762 passed`; ledger migration and category/provenance rendering pass |
-| Task 8 | `completed` | isolated | `Codex` | `Tasks 1–7` | benchmark and final verification | provider-free benchmark pass; focused `1555 passed, 4 skipped`; 3 unrelated frontend/package failures recorded |
+| Task 7 | `completed` | isolated | `Codex` | `Task 4, Task 5, Task 6` | persistence/UI/checkpoint regressions | pipeline/store suite `160 passed`; ledger migration and scorer-rejection provenance pass |
+| Task 8 | `completed` | isolated | `Codex` | `Tasks 1–7` | benchmark and final verification | provider-free benchmark pass; focused enrichment/scoring/ingestion/normalization `242 passed, 2 skipped`; full suite `3647 passed, 10 skipped, 3 pre-existing failures` recorded |
 
 ## Review-Evidence Matrix
 
@@ -647,9 +647,11 @@ converted into behavior changes.
 - Degraded or unknown requirements remain provisional instead of becoming confirmed must-have mismatches. Existing hybrid RRF admission and `50`/`50` cutoffs are unchanged.
 - Scorer requests retain typed language requirements, source checksum/boundary metadata, requirement IDs, evidence IDs, and explicit `needs_enrichment`/`unscored` states when mandatory facts cannot be trusted or fit. `RANKING_REQUEST_MAX_CHARS` remains `12_000`; `holistic_ai_only` remains unchanged.
 - The durable shortlist ledger now migrates and round-trips stable identity, source quality/checksum/boundary, enrichment trust, reuse state, admission metadata, visibility diagnostics, score status, failure code, disposition, and retry eligibility.
+- Direct `run_ai_scoring()` calls now consume job-level `enrichment_degraded` state at the shared ranking-request boundary, preventing provider invocation when mandatory job facts are untrusted and persisting `job_enrichment_degraded` in omission diagnostics.
+- German requirement recovery tolerates blank separator segments and replacement-character bullets, preserving one-skill-per-bullet required skills while excluding preferred tails. Fetch tests now use substantive descriptions, so token-only long filler is correctly classified as `unknown`.
 - The provider-free benchmark command passes with `recall_at_50 = 1.0` and all three zero-tolerance integrity assertions true. Its JSON records cohort IDs, denominator, expected relevant IDs, source-span/checksum data, scorer-visible values, cache counters, admission counters, and score-state counts.
-- Focused implementation regression: `1555 passed, 4 skipped`.
-- Full repository run: `3637 passed, 10 skipped, 3 failed`. The three failures are outside the changed surfaces and share the pre-existing missing `frontend/dist` condition: `tests/test_fitcv_cp/test_frontend_host.py::test_app_spa_entry_and_deep_links`, `tests/test_fitcv_cp/test_frontend_host.py::test_csrf_cookie_issuance_and_unsafe_request_guard`, and `tests/test_fitcv_local_packaging.py::test_pyinstaller_datas_sources_exist`. They are recorded, not treated as implementation success.
+- Focused implementation regression: enrichment/scoring/ingestion/normalization `242 passed, 2 skipped`; pipeline/store `160 passed`; fetch adapters `28 passed`.
+- Full repository run: `3647 passed, 10 skipped, 3 failed`. The three failures are outside the changed surfaces and share the pre-existing missing `frontend/dist` condition: `tests/test_fitcv_cp/test_frontend_host.py::test_app_spa_entry_and_deep_links`, `tests/test_fitcv_cp/test_frontend_host.py::test_csrf_cookie_issuance_and_unsafe_request_guard`, and `tests/test_fitcv_local_packaging.py::test_pyinstaller_datas_sources_exist`. They are recorded, not treated as implementation success.
 - Live Indeed causality remains unvalidated because no captured source/run artifact for `jk=1a32c5dae60fbb71` was supplied; no live retrieval or external-provider change was made.
 
 ## Verification

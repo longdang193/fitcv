@@ -404,8 +404,11 @@ def build_ranking_request(
         str(key): int(value or 0)
         for key, value in dict((source.get("contract_metadata") or {}).get("mandatory_omissions") or {}).items()
     }
+    if job.get("enrichment_degraded"):
+        mandatory_omissions["job_enrichment_degraded"] = 1
     degraded_enrichment = bool(
         (source.get("contract_metadata") or {}).get("degraded_enrichment")
+        or job.get("enrichment_degraded")
     )
     if degraded_enrichment or any(value > 0 for value in mandatory_omissions.values()):
         visibility_manifest = {
@@ -943,9 +946,13 @@ def build_ranking_job_input(
         "candidate_certifications": 0,
         "candidate_mandatory_clauses": 0,
         "job_enrichment_fallback": int(job.get("enrich_reuse_status") == "enrichment_fallback"),
+        "job_enrichment_degraded": int(bool(job.get("enrichment_degraded"))),
     }
     description_quality = str(job.get("description_quality") or "unknown").strip().lower()
-    degraded_enrichment = bool(mandatory_omissions["job_enrichment_fallback"]) or (
+    degraded_enrichment = bool(
+        mandatory_omissions["job_enrichment_fallback"]
+        or mandatory_omissions["job_enrichment_degraded"]
+    ) or (
         "description_quality" in job and description_quality in {
         "missing",
         "partial",
@@ -1454,6 +1461,8 @@ def run_ai_scoring(
                     "prompt_truncated": True,
                     "prompt_truncation_steps": ["mandatory_core_did_not_fit"],
                     "visibility_manifest": exc.visibility_manifest,
+                    "mandatory_omissions": dict(exc.visibility_manifest.get("mandatory_omissions") or {}),
+                    "mandatory_core_complete": bool(exc.visibility_manifest.get("mandatory_core_complete")),
                 }
             )
             return {

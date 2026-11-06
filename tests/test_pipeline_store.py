@@ -254,7 +254,7 @@ def test_shortlist_admission_ledger_persists_scorer_rejection_diagnostics(
         "unscored",
         "needs_enrichment",
         json.dumps(["project-1"], sort_keys=True),
-        json.dumps({"candidate_certifications": 0, "candidate_employment": 0, "candidate_education": 0, "candidate_languages": 0, "candidate_mandatory_clauses": 0, "candidate_required_skills": 0, "job_enrichment_fallback": 1, "job_language_requirements": 0, "job_mandatory_clauses": 0, "job_required_skills": 0, "job_technology_requirements": 0}, sort_keys=True),
+        json.dumps({"candidate_certifications": 0, "candidate_employment": 0, "candidate_education": 0, "candidate_languages": 0, "candidate_mandatory_clauses": 0, "candidate_required_skills": 0, "job_enrichment_degraded": 0, "job_enrichment_fallback": 1, "job_language_requirements": 0, "job_mandatory_clauses": 0, "job_required_skills": 0, "job_technology_requirements": 0}, sort_keys=True),
         0,
         json.dumps([], sort_keys=True),
     )

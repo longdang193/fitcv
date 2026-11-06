@@ -294,19 +294,28 @@ _SPARSE_REQUIRED_SKILLS_THRESHOLD = 3
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
 _MISSING_STRING_COMMA_RE = re.compile(r'"([^"\\]*(?:\\.[^"\\]*)*)"\s+"([^"\\]*(?:\\.[^"\\]*)*)"')
-_DESCRIPTION_SEGMENT_SPLIT_RE = re.compile(r"(?:\r?\n+|[•●▪◦·]+)")
+_DESCRIPTION_SEGMENT_SPLIT_RE = re.compile(r"(?:\r?\n+|[•●▪◦·\uFFFD]+)")
 _DESCRIPTION_LIST_SPLIT_RE = re.compile(r"\s*(?:,|;|\bund\b|\band\b|\boder\b|\bor\b)\s*", re.IGNORECASE)
 _DESCRIPTION_REQUIREMENT_MARKERS: tuple[str, ...] = (
     "experience",
     "erfahrung",
     "kenntnis",
     "knowledge",
+    "anforderung",
+    "voraussetzung",
+    "qualifikation",
+    "profil",
     "required",
     "must have",
     "you have",
     "du hast",
+)
+_DESCRIPTION_PREFERRED_MARKERS: tuple[str, ...] = (
     "ideal",
     "idealerweise",
+    "ideally",
+    "preferred",
+    "nice to have",
 )
 _DESCRIPTION_REQUIREMENT_PREFIX_RE = re.compile(
     r"^(?:"
@@ -701,6 +710,8 @@ def _is_requirement_like_description_segment(segment: str) -> bool:
     lowered = segment.strip().lower()
     if not lowered:
         return False
+    if any(marker in lowered for marker in _DESCRIPTION_PREFERRED_MARKERS):
+        return False
     if any(marker in lowered for marker in _DESCRIPTION_REQUIREMENT_MARKERS):
         return True
     return bool(
@@ -711,11 +722,23 @@ def _is_requirement_like_description_segment(segment: str) -> bool:
     )
 
 
+def _required_segment_without_preferred_tail(segment: str) -> str:
+    match = re.search(
+        r"\b(?:ideal(?:ly|erweise)?|preferred|nice\s+to\s+have)\b",
+        segment,
+        re.IGNORECASE,
+    )
+    if match is None:
+        return segment
+    prefix = segment[: match.start()].rstrip(" -–—:;")
+    return prefix if prefix else ""
+
+
 def _clean_description_skill_candidate(raw_value: str) -> str:
     cleaned = raw_value.strip()
     cleaned = _DESCRIPTION_REQUIREMENT_PREFIX_RE.sub("", cleaned)
     cleaned = _DESCRIPTION_TRAILING_CONTEXT_RE.sub("", cleaned)
-    return cleaned.strip(" -–—:;,.()[]{}")
+    return cleaned.strip(" -–—:;,.()[]{}•●▪◦·\ufffd")
 
 
 def _looks_like_description_skill_candidate(candidate: str) -> bool:
@@ -751,10 +774,28 @@ def _required_skill_candidates_from_description(
         return []
 
     candidates: list[str] = []
+    in_requirement_bullets = False
     for raw_segment in _DESCRIPTION_SEGMENT_SPLIT_RE.split(description):
-        segment = raw_segment.strip()
-        if not _is_requirement_like_description_segment(segment):
+        segment = _required_segment_without_preferred_tail(raw_segment.strip())
+        if not segment and in_requirement_bullets:
             continue
+        if not _is_requirement_like_description_segment(segment):
+            if in_requirement_bullets:
+                segment_candidates = []
+                for raw_part in _DESCRIPTION_LIST_SPLIT_RE.split(segment):
+                    cleaned = _clean_description_skill_candidate(raw_part)
+                    if not _looks_like_description_skill_candidate(cleaned):
+                        continue
+                    canonical = _canonicalize_text_item("required_skills", cleaned, config)
+                    if not _is_allowed_skill_entity(cleaned, canonical):
+                        continue
+                    segment_candidates.append(cleaned)
+                if segment_candidates:
+                    candidates.extend(segment_candidates)
+                    continue
+                in_requirement_bullets = False
+            continue
+        in_requirement_bullets = segment.rstrip().endswith(":")
         segment_body = segment.split(":", 1)[-1].strip()
         segment_candidates: list[str] = []
         for raw_part in _DESCRIPTION_LIST_SPLIT_RE.split(segment_body):
@@ -765,7 +806,7 @@ def _required_skill_candidates_from_description(
             if not _is_allowed_skill_entity(cleaned, canonical):
                 continue
             segment_candidates.append(cleaned)
-        if len(segment_candidates) < 2:
+        if not segment_candidates:
             continue
         candidates.extend(segment_candidates)
     return _dedupe_text_values(candidates)
@@ -1764,19 +1805,26 @@ def _semantic_skill_values(
     enriched: dict[str, Any],
     raw_field: str,
     entity_field: str,
+    config: dict[str, Any],
 ) -> list[str] | None:
     raw_values = enriched.get(raw_field)
+    entities = enriched.get(entity_field)
+    normalized_entities = _normalise_skill_entities(
+        entities if isinstance(entities, list) else None,
+        config=config,
+    )
+    if normalized_entities:
+        entity_canonicals = _canonical_from_entities(normalized_entities)
+        values: list[str] = []
+        for value in _normalize_array_values(raw_values if isinstance(raw_values, list) else []):
+            canonical = _canonicalize_text_item(raw_field, value, config)
+            if canonical in entity_canonicals:
+                values.append(value)
+        values.extend(str(entity["raw_text"]) for entity in normalized_entities)
+        return _dedupe_text_values(values) or None
     if isinstance(raw_values, list):
         return [str(value) for value in raw_values if str(value or "").strip()]
-    entities = enriched.get(entity_field)
-    if not isinstance(entities, list):
-        return None
-    values = [
-        str(entity.get("raw_text"))
-        for entity in entities
-        if isinstance(entity, dict) and str(entity.get("raw_text") or "").strip()
-    ]
-    return values or None
+    return None
 
 def _apply_job_semantic_snapshot(
     merged: dict[str, Any],
@@ -1792,7 +1840,7 @@ def _apply_job_semantic_snapshot(
         ("required_skills", "required_skill_entities"),
         ("preferred_skills", "preferred_skill_entities"),
     ):
-        values = _semantic_skill_values(enriched, raw_field, entity_field)
+        values = _semantic_skill_values(enriched, raw_field, entity_field, config)
         if values is not None:
             raw_fields[raw_field] = values
     for raw_field, snapshot_field in (
@@ -1880,6 +1928,12 @@ def merge_scraped_and_enriched(
         enriched.get("actual_location"),
         source_location,
     )
+    description_quality = str(
+        scraped.get("description_quality")
+        or build_description_quality(
+            scraped.get("description"), scraped.get("description_source")
+        )["description_quality"]
+    ).strip().lower()
     raw_language_requirements = enriched.get("language_requirements")
     language_requirements = (
         raw_language_requirements
@@ -1905,13 +1959,42 @@ def merge_scraped_and_enriched(
         "technology": bool(enriched.get("tech_stack")),
         "mandatory_clauses": bool(mandatory_clauses),
     }
+    structured_requirement_fields = (
+        "required_skills",
+        "preferred_skills",
+        "responsibilities",
+        "tech_stack",
+        "qualifications",
+        "education",
+        "certifications",
+        "employment_constraints",
+        "mandatory_clauses",
+        "language_requirements",
+    )
+    has_structured_requirement_signal = any(
+        bool(enriched.get(field_name)) for field_name in structured_requirement_fields
+    )
+    enrichment_degraded = bool(enriched.get("enrichment_failure")) or (
+        description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        or (
+            description_quality == "full"
+            and not has_structured_requirement_signal
+        )
+    )
+    enrichment_degraded_reason = (
+        "no_structured_requirement_signal"
+        if description_quality == "full" and not has_structured_requirement_signal
+        else "description_quality_degraded"
+        if description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        else None
+    )
     mandatory_clause_provenance = [
         {
             "clause_id": str(item.get("clause_id") or ""),
-            "source_span": item.get("source_span"),
+            "source_spans": list(item.get("source_spans") or []),
         }
         for item in mandatory_clauses
-        if isinstance(item, dict) and item.get("source_span")
+        if isinstance(item, dict) and item.get("source_spans")
     ]
 
     merged: dict[str, Any] = {
@@ -1932,9 +2015,7 @@ def merge_scraped_and_enriched(
         "applications_count": scraped.get("applications_count_int"),
         "published_at":       scraped.get("published_at"),
         "description_cleaned": scraped.get("description", ""),
-        "description_quality": scraped.get("description_quality") or build_description_quality(
-            scraped.get("description"), scraped.get("description_source")
-        )["description_quality"],
+        "description_quality": description_quality,
         "description_source": scraped.get("description_source"),
         "description_complete": bool(scraped.get("description_complete")),
         "description_source_checksum": scraped.get("description_source_checksum") or build_description_quality(
@@ -1987,8 +2068,10 @@ def merge_scraped_and_enriched(
         "enrich_validation_policy_version": ENRICH_VALIDATION_POLICY_VERSION,
         "enrich_reuse_status": enriched.get("enrich_reuse_status"),
         "enrichment_completeness": enrichment_completeness,
+        "enrichment_degraded": enrichment_degraded,
+        "enrichment_degraded_reason": enrichment_degraded_reason,
         "mandatory_clause_provenance": mandatory_clause_provenance,
-        "mandatory_core_complete": all(enrichment_completeness.values()),
+        "mandatory_core_complete": not enrichment_degraded,
     }
     # Seed domain mapping suggestions from scraper sector -> enrich domain when they differ.
     sector_alias = str(scraped.get("sector") or "").strip().lower()
@@ -2103,6 +2186,9 @@ def _cached_structured_row_to_enriched_payload(row: dict[str, Any]) -> dict[str,
         "raw_job_fingerprint": row.get("raw_job_fingerprint"),
         "enrich_contract_fingerprint": row.get("enrich_contract_fingerprint"),
         "enrich_reuse_status": row.get("enrich_reuse_status"),
+        "enrichment_completeness": _parse_json_field(row.get("enrichment_completeness_json")) or {},
+        "enrichment_degraded": bool(row.get("enrichment_degraded")),
+        "enrichment_degraded_reason": row.get("enrichment_degraded_reason"),
     }
 
 
@@ -2146,7 +2232,10 @@ def lookup_reusable_structured_jobs(
                 continue
             if job_url in reusable_rows:
                 continue
-            if str(raw_fingerprint or "") != str(raw_job_fingerprints.get(job_url) or ""):
+            expected_raw_fingerprint = str(raw_job_fingerprints.get(job_url) or "")
+            stored_raw_fingerprint = str(raw_fingerprint or "")
+            legacy_fingerprintless = not stored_raw_fingerprint
+            if stored_raw_fingerprint and stored_raw_fingerprint != expected_raw_fingerprint:
                 continue
             normalized_job = normalized_by_url.get(job_url)
             if normalized_job is None:
@@ -2160,17 +2249,22 @@ def lookup_reusable_structured_jobs(
             if _is_semantically_blank_enrichment_row(cached_payload):
                 continue
             exact_contract_match = str(contract_fingerprint or "") == str(enrich_contract_fingerprint or "")
-            if not exact_contract_match:
+            if not exact_contract_match and not legacy_fingerprintless:
                 cached_model_contract = str(cached_payload.get("enrich_model_contract_fingerprint") or "")
                 if not cached_model_contract or cached_model_contract != expected_model_contract_fingerprint:
                     continue
+            if legacy_fingerprintless or not exact_contract_match:
                 candidate = merge_scraped_and_enriched(normalized_job, cached_payload, config)
                 quality = str(normalized_job.get("description_quality") or "").strip().lower()
                 required_values = list(candidate.get("required_skills") or [])
                 source_spans = list(candidate.get("mandatory_clauses") or [])
                 if quality in {"missing", "partial", "boilerplate_only", "unknown"} and (
                     required_values or source_spans
-                ) and not any(item.get("source_span") for item in source_spans if isinstance(item, dict)):
+                ) and not any(
+                    item.get("source_spans")
+                    for item in source_spans
+                    if isinstance(item, dict)
+                ):
                     continue
                 if _is_semantically_blank_enrichment_row(candidate):
                     continue
@@ -2178,13 +2272,13 @@ def lookup_reusable_structured_jobs(
                 normalized_job,
                 {
                     **cached_payload,
-                    "raw_job_fingerprint": raw_job_fingerprints[job_url],
+                    "raw_job_fingerprint": expected_raw_fingerprint,
                     "enrich_contract_fingerprint": enrich_contract_fingerprint,
                     "enrich_model_contract_fingerprint": expected_model_contract_fingerprint,
                     "enrich_validation_policy_version": ENRICH_VALIDATION_POLICY_VERSION,
                     "enrich_reuse_status": (
                         REUSED_CACHED_ENRICHMENT_STATUS
-                        if exact_contract_match
+                        if exact_contract_match and not legacy_fingerprintless
                         else MIGRATED_CACHED_ENRICHMENT_STATUS
                     ),
                 },

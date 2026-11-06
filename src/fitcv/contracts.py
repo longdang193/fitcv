@@ -195,9 +195,9 @@ def build_description_quality(description: Any, source: Any = "") -> dict[str, A
         elif len(text) < 80:
             quality = "partial"
             signals.append("short_text")
-        elif content_match or len(text) >= 80:
+        elif content_match:
             quality = "full"
-            signals.append("substantive_content" if content_match else "substantive_length")
+            signals.append("substantive_content")
         else:
             quality = "unknown"
             signals.append("no_substantive_signal")

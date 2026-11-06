@@ -12,7 +12,11 @@ import scripts.fetch_jobs as fetcher
 
 
 def _long_description(prefix: str = "job") -> str:
-    return " ".join(f"{prefix}{index}" for index in range(50))
+    substantive = (
+        f"{prefix} role: build Python data pipelines, write SQL queries, "
+        "collaborate with stakeholders, and monitor production services."
+    )
+    return substantive + " " + " ".join(f"{prefix}{index}" for index in range(50))
 
 
 def test_direct_script_entrypoint_can_load_sibling_helper() -> None:

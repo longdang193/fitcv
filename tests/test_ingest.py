@@ -16,6 +16,7 @@ from fitcv.ingest import (
     validate_job_schema,
     validate_linkedin_schema,
 )
+from fitcv.normalize import normalize_job
 
 
 def _canonical_job(**overrides: object) -> dict[str, object]:
@@ -342,6 +343,29 @@ def test_linkedin_normalization_preserves_upstream_description_provenance() -> N
     assert normalized["description_source_checksum"] == upstream["description_source_checksum"]
     assert normalized["description_quality_signals"] == ["upstream_signal"]
     assert normalized["description_boundary"] == upstream["description_boundary"]
+
+
+def test_normalize_job_preserves_linkedin_provenance_after_whitespace_cleanup() -> None:
+    raw_description = "Build  Python data pipelines and own production monitoring."
+    upstream = build_description_quality(raw_description, "linkedin_structured_description")
+    normalized = normalize_job(
+        {
+            "jobUrl": "https://linkedin.com/jobs/view/whitespace",
+            "title": "Data Engineer",
+            "description": raw_description,
+            "sourceDescription": "linkedin_structured_description",
+            "descriptionQuality": "partial",
+            "descriptionSourceChecksum": upstream["description_source_checksum"],
+            "descriptionSourceLength": upstream["description_source_length"],
+            "descriptionQualitySignals": ["upstream_signal"],
+            "descriptionBoundary": upstream["description_boundary"],
+        }
+    )
+
+    assert normalized["description"] == "Build Python data pipelines and own production monitoring."
+    assert normalized["description_quality"] == "partial"
+    assert normalized["description_source_checksum"] == upstream["description_source_checksum"]
+    assert normalized["description_quality_signals"] == ["upstream_signal"]
 
 
 def test_prepare_raw_rows_maps_schema(sample_jobs_path: Path) -> None:

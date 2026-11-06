@@ -24,6 +24,7 @@ from fitcv.ai_score import build_ranking_job_input, build_ranking_request
 from fitcv.contracts import build_description_quality
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.cv_generator import build_generation_prompt
+from fitcv.enrich import merge_scraped_and_enriched
 from fitcv.evidence import (
     _annotate_requirement_support,
     build_required_skill_descriptors,
@@ -34,6 +35,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
 )
 from fitcv.rule_filter import apply_rule_filters
+from fitcv.normalize import normalize_job
 from fitcv.runtime_routing import LlmRouting
 from fitcv.vector_search import LEXICAL_RETRIEVAL_STRATEGY, run_vector_search
 
@@ -1430,10 +1432,35 @@ def run_integrity_benchmark(
         ]
         jobs = []
         for candidate in fixture_candidates:
-            job = dict(candidate.get("job") or {})
-            job["description_source"] = "fixture"
-            job.update(build_description_quality(job.get("description"), "fixture"))
-            jobs.append(job)
+            raw_job = dict(candidate.get("job") or {})
+            normalized_job = normalize_job(raw_job)
+            source_job = dict(candidate.get("job") or {})
+            required_skills = list(source_job.get("required_skills") or [])
+            if not required_skills:
+                required_skills = [
+                    str(value)
+                    for value in list(source_job.get("required_skills_canonical") or [])
+                    if str(value).strip()
+                ]
+            deterministic_enrichment = {
+                "required_skills": required_skills,
+                "preferred_skills": list(source_job.get("preferred_skills") or []),
+                "responsibilities": list(source_job.get("responsibilities") or []),
+                "tech_stack": list(source_job.get("tech_stack") or []),
+                "keywords": list(source_job.get("keywords") or []),
+                "domain": source_job.get("domain"),
+                "job_family": source_job.get("job_family"),
+                "location_type": source_job.get("location_type"),
+                "mandatory_clauses": list(source_job.get("mandatory_clauses") or []),
+                "language_requirements": list(source_job.get("language_requirements") or []),
+            }
+            jobs.append(
+                merge_scraped_and_enriched(
+                    normalized_job,
+                    deterministic_enrichment,
+                    config={},
+                )
+            )
         config = {
             "pipeline": {
                 "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
@@ -1606,10 +1633,24 @@ def run_integrity_benchmark(
             "values": scorer_visible,
         },
         "cache": {
-            "reused": 0,
-            "revalidated": 0,
-            "rejected": 0,
-            "not_applicable": True,
+            "status": "not_run",
+            "reused": None,
+            "revalidated": None,
+            "rejected": None,
+            "reason": "provider_free_benchmark_does_not_open_or_mutate_the_runtime_cache",
+        },
+        "persistence": {
+            "status": "not_run",
+            "reason": "provider_free_benchmark_is_read_only",
+        },
+        "production_path": {
+            "normalized": True,
+            "deterministic_enrichment_projection": True,
+            "rule_filter": True,
+            "retrieval": True,
+            "ranking_input": True,
+            "provider_scoring": False,
+            "hybrid_orchestration": False,
         },
         "admission_counts": {
             "total": len(candidates),

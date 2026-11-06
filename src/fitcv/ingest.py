@@ -398,6 +398,17 @@ def _normalize_linkedin_job(job: dict[str, Any]) -> dict[str, Any]:
     description = str(mapped.get("description") or "")
     source_provider = str(job.get("source") or "linkedin").strip().lower() or "linkedin"
     description_source = str(mapped.get("description_source") or "description").strip() or "description"
+    upstream_provenance = {
+        key: mapped.get(key)
+        for key in (
+            "description_quality",
+            "description_source_checksum",
+            "description_source_length",
+            "description_quality_signals",
+            "description_boundary",
+        )
+        if mapped.get(key) not in (None, "", [])
+    }
     description_quality = build_description_quality(description, description_source)
     upstream_checksum = str(mapped.get("description_source_checksum") or "").strip()
     if upstream_checksum == description_quality["description_source_checksum"]:
@@ -420,6 +431,7 @@ def _normalize_linkedin_job(job: dict[str, Any]) -> dict[str, Any]:
             "description_source": description_source,
             "description_complete": description_quality["description_quality"] == "full",
             **description_quality,
+            **upstream_provenance,
             "raw_json": json.dumps(job, ensure_ascii=False),
         }
     )

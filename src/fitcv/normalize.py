@@ -322,13 +322,20 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
 
     # Whitespace-clean the description (main text field)
     if "description" in result:
-        result["description"] = normalize_whitespace(str(result["description"]))
-        result.update(
-            build_description_quality(
-                result["description"],
-                result.get("description_source"),
+        upstream_provenance = {
+            key: result.get(key)
+            for key in (
+                "description_quality",
+                "description_source_checksum",
+                "description_source_length",
+                "description_quality_signals",
+                "description_boundary",
             )
-        )
+            if result.get(key) not in (None, "", [])
+        }
+        result["description"] = normalize_whitespace(str(result["description"]))
+        result.update(build_description_quality(result["description"], result.get("description_source")))
+        result.update(upstream_provenance)
         result["description_complete"] = result["description_quality"] == "full"
 
     # Parse numeric fields
