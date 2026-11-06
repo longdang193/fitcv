@@ -8,6 +8,7 @@ from unittest.mock import patch
 from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
 from fitcv.embeddings import build_embedding_contract_fingerprint
 from fitcv.vector_search import (
+    _lexical_search_result,
     _hybrid_search_result,
     _dedupe_shortlist_rows,
     _technology_overlap,
@@ -521,6 +522,42 @@ def test_lexical_retrieval_uses_raw_description_when_enrichment_falls_back() -> 
     )
 
     assert result["production_rows"][0]["retrieval_components"]["description_overlap"] == 1.0
+
+
+def test_lexical_neutral_skill_default_does_not_admit_unrelated_job() -> None:
+    profile = {
+        "preferences": {"target_role": "Data Engineer"},
+        "skills": ["SQL"],
+    }
+    job = {"job_url": "job-nurse", "title": "Registered Nurse"}
+    lexical_result = _lexical_search_result(
+        profile,
+        [job["job_url"]],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
+        top_n=1,
+        structured_jobs=[job],
+        requested_strategy="lexical_v1",
+    )
+
+    lexical_row = lexical_result["production_rows"][0]
+    assert lexical_row["retrieval_components"]["skill_overlap"] == 0.5
+    assert lexical_row["retrieval_components"]["required_skill_intersection"] is False
+    assert lexical_row["retrieval_score"] >= 0.2
+
+    fused = _hybrid_search_result(
+        vector_result={
+            "production_rows": [{"job_url": "job-vector", "vector_rank": 1}],
+            "audit_rows": [],
+            "diagnostics": {},
+        },
+        lexical_result=lexical_result,
+        eligible_job_urls=["job-vector", job["job_url"]],
+        top_n=1,
+        channel_depth=2,
+    )
+
+    assert [row["job_url"] for row in fused["production_rows"]] == ["job-vector"]
+    assert fused["diagnostics"]["lexical_only_rescue_count"] == 0
 
 
 def test_technology_overlap_preserves_punctuation_that_distinguishes_languages() -> None:
@@ -1187,7 +1224,15 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
         for index in range(1, 51)
     ]
     lexical_only_url = "https://example.com/lexical-only-winner"
-    lexical_rows.insert(0, {"job_url": lexical_only_url, "lexical_rank": 1})
+    lexical_rows.insert(
+        0,
+        {
+            "job_url": lexical_only_url,
+            "lexical_rank": 1,
+            "retrieval_score": 0.9,
+            "retrieval_components": {"skill_overlap": 1.0, "required_skill_intersection": True},
+        },
+    )
 
     result = _hybrid_search_result(
         vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
@@ -1199,6 +1244,41 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
 
     assert lexical_only_url in {row["job_url"] for row in result["production_rows"]}
     assert result["diagnostics"]["lexical_only_rescue_count"] == 1
+
+
+def test_hybrid_fusion_does_not_rescue_neutral_or_missing_score_rows() -> None:
+    dual_channel_rows = [
+        {"job_url": f"https://example.com/dual-{index}", "vector_rank": index}
+        for index in range(1, 3)
+    ]
+    lexical_rows = [
+        {
+            "job_url": "https://example.com/neutral",
+            "lexical_rank": 1,
+            "retrieval_score": 0.9,
+            "retrieval_components": {
+                "skill_overlap": 0.0,
+                "title_relevance": 0.0,
+                "technology_overlap": 0.0,
+                "description_overlap": 0.0,
+                "match_details": {"domain": "neutral", "role_family": "neutral"},
+            },
+        },
+        {"job_url": "https://example.com/missing-score", "lexical_rank": 2},
+    ]
+
+    result = _hybrid_search_result(
+        vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
+        lexical_result={"production_rows": lexical_rows, "audit_rows": [], "diagnostics": {}},
+        eligible_job_urls=[row["job_url"] for row in dual_channel_rows + lexical_rows],
+        top_n=2,
+        channel_depth=4,
+    )
+
+    production_urls = {row["job_url"] for row in result["production_rows"]}
+    assert "https://example.com/neutral" not in production_urls
+    assert "https://example.com/missing-score" not in production_urls
+    assert result["diagnostics"]["lexical_only_rescue_count"] == 0
 
 
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(

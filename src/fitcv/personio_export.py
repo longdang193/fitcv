@@ -83,9 +83,6 @@ def parse_personio_jobs(
         title = (position.findtext("name") or "").strip()
         if not personio_id.isdigit() or not title:
             continue
-        if normalized_keywords and not any(keyword in title.casefold() for keyword in normalized_keywords):
-            continue
-
         job_url = f"https://{host}/job/{personio_id}"
         description_sections: list[str] = []
         for section in position.findall("./jobDescriptions/jobDescription"):
@@ -98,6 +95,9 @@ def parse_personio_jobs(
         if not description and description_loader is not None:
             description = description_loader(job_url).strip()
         if not description:
+            continue
+        haystack = f"{title}\n{description}".casefold()
+        if normalized_keywords and not any(keyword in haystack for keyword in normalized_keywords):
             continue
 
         locations = list(

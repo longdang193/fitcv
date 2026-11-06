@@ -53,6 +53,7 @@ from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.evidence import bounded_term_values, build_evidence_excerpt, project_candidate_evidence
 from fitcv.candidate import flatten_rankable_skills
+from fitcv.fit_factors import _candidate_level
 from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 from fitcv.prompts import render_prompt
 from fitcv.ranking_contract import (
@@ -861,11 +862,29 @@ def build_ranking_job_input(
     candidate_skill_keys = {_canonical_skill(skill, policy) for skill in all_candidate_skills}
     matched_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical in candidate_skill_keys]
     missing_skills = [skill for skill, canonical in zip(all_required_skills, required_canonical, strict=False) if canonical not in candidate_skill_keys]
-    all_candidate_languages = [
-        {"name": _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS), "level": _bounded_text(item.get("level"), RANKING_TERM_MAX_CHARS)}
-        for item in list(profile.get("languages") or [])
-        if isinstance(item, dict) and _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS)
-    ]
+    all_candidate_languages: list[dict[str, Any]] = []
+    for item in list(profile.get("languages") or []):
+        if not isinstance(item, dict):
+            continue
+        name = _bounded_text(item.get("name"), RANKING_TERM_MAX_CHARS)
+        if not name:
+            continue
+        resolved_level, _ = _candidate_level(item)
+        language = {
+            "name": name,
+            "level": resolved_level
+            if resolved_level != "unknown"
+            else _bounded_text(item.get("level"), RANKING_TERM_MAX_CHARS),
+        }
+        for field_name in ("native", "read", "write", "speak"):
+            if field_name in item and item.get(field_name) not in (None, ""):
+                value = item.get(field_name)
+                if field_name == "native":
+                    if isinstance(value, bool):
+                        language[field_name] = value
+                else:
+                    language[field_name] = _bounded_text(value, RANKING_TERM_MAX_CHARS)
+        all_candidate_languages.append(language)
     languages = all_candidate_languages
     all_candidate_employment = [
         {

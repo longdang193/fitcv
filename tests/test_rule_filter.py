@@ -195,7 +195,7 @@ def test_selected_filter_defaults_match_runtime_contract_constant() -> None:
     ]
     assert isinstance(result["passed_records"], list)
 
-def test_missing_fit_context_rejects_by_default() -> None:
+def test_substantive_requirements_survive_missing_fit_context_by_default() -> None:
     result = apply_rule_filters(
         [
             _job(
@@ -209,16 +209,9 @@ def test_missing_fit_context_rejects_by_default() -> None:
         _prefs(),
     )
 
-    assert result["passed"] == []
-    assert result["rejected"] == [
-        {
-            "job_url": "http://missing-fit-context",
-            "raw_job_fingerprint": None,
-            "source_job_url": "http://missing-fit-context",
-            "reasons": ["missing_fit_context"],
-            "marks": [],
-        }
-    ]
+    assert result["passed"] == ["http://missing-fit-context"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["code"] == "missing_fit_context"
 
 
 def test_enrichment_fallback_with_raw_description_survives_missing_context_filter() -> None:
@@ -271,7 +264,11 @@ def test_unselected_missing_fit_context_emits_mark_not_reject() -> None:
             "marks": [
                 {
                     "code": "missing_fit_context",
-                    "message": "Missing fit context",
+                    "message": "Structured fit context is incomplete; usable job evidence remains available for retrieval.",
+                    "details": {
+                        "admission": "retained_for_retrieval",
+                        "original_reason": "missing_fit_context",
+                    },
                 }
             ],
         }

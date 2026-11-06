@@ -762,6 +762,48 @@ def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflo
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
+def test_final_ranking_request_retains_language_dimensions() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="configuration",
+    )
+    candidate_summary = json.dumps(
+        {
+            "skills": ["SQL"],
+            "languages": [{
+                "name": "German",
+                "level": "B1",
+                "native": False,
+                "read": "B2",
+                "write": "B1",
+                "speak": "B1",
+            }],
+            "employment": [],
+            "education": [{"degree": "MSc", "field": "Data Science", "start": "2024-10", "end": "Present"}],
+            "certifications": [],
+            "years_experience": 2,
+            "target_role": "Data Analyst",
+        },
+        ensure_ascii=False,
+    )
+    request = build_ranking_request(
+        {},
+        candidate_summary,
+        [],
+        {},
+        ranking_input={"job_requirements": "German B1 and analytics", "candidate_summary": candidate_summary},
+        resolved_route=route,
+    )
+
+    prompt = request["request"].prompt
+    assert '"read": "B2"' in prompt
+    assert '"write": "B1"' in prompt
+    assert '"speak": "B1"' in prompt
+    assert '"end": "Present"' in prompt
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+
+
 def test_ranking_request_rejects_unbounded_custom_prompt_overflow(monkeypatch: pytest.MonkeyPatch) -> None:
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",

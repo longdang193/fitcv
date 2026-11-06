@@ -231,10 +231,11 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
 
 def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
     values: list[str] = []
-    seen: set[str] = set()
-    for project in profile.get("projects", []) or []:
-        if not isinstance(project, dict):
-            continue
+    projects = sorted(
+        (project for project in profile.get("projects", []) or [] if isinstance(project, dict)),
+        key=lambda project: str(project.get("name") or "").casefold(),
+    )
+    for project in projects:
         technology_values = list(project.get("tech_stack", []) or [])
         for evidence in project.get("evidence", []) or []:
             if not isinstance(evidence, dict):
@@ -252,7 +253,8 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
             if isinstance(technology, dict):
                 technology = technology.get("name")
             text = str(technology or "").strip()
-            _append_unique_text(values, text, seen)
+            if text:
+                values.append(text)
     return values
 
 
@@ -314,8 +316,8 @@ def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
         counts[key] = counts.get(key, 0) + 1
         first_seen.setdefault(key, index)
     ranked = sorted(
-        inventory,
-        key=lambda value: (-counts[value.casefold()], first_seen[value.casefold()], value.casefold()),
+        {value.casefold(): value for value in inventory}.values(),
+        key=lambda value: (-counts[value.casefold()], value.casefold(), first_seen[value.casefold()]),
     )
     return [
         value[:CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS]
@@ -412,9 +414,11 @@ def build_candidate_query_components(
     technology_hints = _bounded_profile_technology_hints(profile)
     project_evidence_hints: list[str] = []
     seen_project_evidence: set[str] = set()
-    for project in profile.get("projects", []) or []:
-        if not isinstance(project, dict):
-            continue
+    projects = sorted(
+        (project for project in profile.get("projects", []) or [] if isinstance(project, dict)),
+        key=lambda project: str(project.get("name") or "").casefold(),
+    )
+    for project in projects:
         for value in [project.get("name"), project.get("business_value"), *(project.get("highlights") or [])]:
             text = str(value or "").strip()
             if not text:
@@ -680,6 +684,7 @@ def _lexical_search_result(
             continue
         required = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
         skill_score = compute_must_have_match(required, candidate_skills, config)
+        required_skill_intersection = bool(required) and skill_score > 0.0
         title_score = compute_title_relevance(
             str(job.get("title") or job.get("job_title") or "") or None,
             str(prefs.get("target_role") or "") or None,
@@ -708,6 +713,7 @@ def _lexical_search_result(
             "retrieval_score": retrieval_score,
             "retrieval_components": {
                 "skill_overlap": skill_score,
+                "required_skill_intersection": required_skill_intersection,
                 "title_relevance": title_score,
                 "domain": parts["domain"],
                 "role_family": parts["role_family"],
@@ -765,6 +771,8 @@ def _lexical_search_result(
             "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
             "embedding_generation_skipped": True,
             "personalization_unavailable_reason": "embedding_strategy_incompatible",
+            "shortlist_audit_sample_n": audit_sample_n,
+            "lexical_rescue_min_score": 0.2,
         },
         "candidate_query": {
             "text": build_candidate_query_text(profile, config),
@@ -818,6 +826,30 @@ def _hybrid_search_result(
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
     lexical_rows = list(lexical_result.get("production_rows") or [])
+
+    def has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
+        try:
+            score = float(row.get("retrieval_score"))
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(score):
+            return False
+        components = dict(row.get("retrieval_components") or {})
+        if components.get("required_skill_intersection") is True:
+            return True
+        if any(
+            isinstance(components.get(key), (int, float))
+            and math.isfinite(float(components[key]))
+            and float(components[key]) > 0.0
+            for key in ("title_relevance", "technology_overlap", "description_overlap")
+        ):
+            return True
+        match_details = dict(components.get("match_details") or {})
+        return any(
+            str(value).strip().lower() not in {"", "none", "neutral", "unknown"}
+            for value in match_details.values()
+        )
+
     by_url: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(vector_rows, start=1):
         url = str(row.get("job_url") or "").strip()
@@ -829,6 +861,8 @@ def _hybrid_search_result(
     for rank, row in enumerate(lexical_rows, start=1):
         url = str(row.get("job_url") or "").strip()
         if not url:
+            continue
+        if url not in by_url and not has_affirmative_lexical_relevance(row):
             continue
         target = by_url.setdefault(url, {**row})
         if "vector_rank" not in target or target.get("shortlist_origin") in {"lexical_search", "audit"}:
@@ -881,15 +915,30 @@ def _hybrid_search_result(
     ]
     rescued_rows: list[dict[str, Any]] = []
     if production_rows:
-        for lexical_row in lexical_only_rows[:1]:
+        rescue_threshold = float((lexical_result.get("diagnostics") or {}).get("lexical_rescue_min_score") or 0.2)
+        for lexical_row in lexical_only_rows:
+            lexical_score = lexical_row.get("retrieval_score")
+            try:
+                lexical_score_value = float(lexical_score)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(lexical_score_value) or lexical_score_value < rescue_threshold:
+                continue
+            if not has_affirmative_lexical_relevance(lexical_row):
+                continue
             lexical_url = str(lexical_row.get("job_url") or "")
             if not lexical_url or lexical_url in selected_urls:
                 continue
             displaced = production_rows[-1]
-            production_rows[-1] = lexical_row
+            production_rows[-1] = {
+                **lexical_row,
+                "rescue_reason": "affirmative_lexical_relevance",
+                "rescued_displaced_job_url": str(displaced.get("job_url") or ""),
+            }
             selected_urls.remove(str(displaced.get("job_url") or ""))
             selected_urls.add(lexical_url)
-            rescued_rows.append(lexical_row)
+            rescued_rows.append(production_rows[-1])
+            break
     audit_sample_n = int((lexical_result.get("diagnostics") or {}).get("shortlist_audit_sample_n") or 0)
     audit_rows = [
         {**row, "shortlist_origin": "audit"}
@@ -935,6 +984,16 @@ def _hybrid_search_result(
             "production_cutoff_rank": len(production_rows),
             "lexical_only_rescue_count": len(rescued_rows),
             "lexical_only_rescued_urls": [str(row.get("job_url") or "") for row in rescued_rows],
+            "lexical_only_rescue_evidence": [
+                {
+                    "job_url": str(row.get("job_url") or ""),
+                    "lexical_rank": row.get("lexical_rank"),
+                    "lexical_score": row.get("lexical_score"),
+                    "displaced_job_url": row.get("rescued_displaced_job_url"),
+                    "reason": row.get("rescue_reason"),
+                }
+                for row in rescued_rows
+            ],
             "embedding_generation_skipped": bool(vector_diagnostics.get("embedding_generation_skipped")),
             "vector_diagnostics": vector_diagnostics,
             "lexical_diagnostics": lexical_diagnostics,

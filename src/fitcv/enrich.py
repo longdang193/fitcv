@@ -25,6 +25,7 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from numbers import Real
 from typing import Any, Callable, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
@@ -852,6 +853,12 @@ def _is_semantically_blank_enrichment_row(row: dict[str, Any]) -> bool:
         "responsibilities",
         "tech_stack",
         "keywords",
+        "qualifications",
+        "education",
+        "certifications",
+        "employment_constraints",
+        "mandatory_clauses",
+        "language_requirements",
     ):
         value = row.get(field_name)
         if isinstance(value, list) and _normalize_array_values(value):
@@ -859,8 +866,14 @@ def _is_semantically_blank_enrichment_row(row: dict[str, Any]) -> bool:
     for field_name in ("location_type", "seniority", "job_family", "domain"):
         if _normalize_text_item(row.get(field_name)) is not None:
             return False
+    actual_location = row.get("actual_location")
+    if isinstance(actual_location, dict) and any(
+        _normalize_text_item(actual_location.get(field_name)) is not None
+        for field_name in ("raw_text", "city", "region", "country", "remote_scope", "remote_scope_value")
+    ):
+        return False
     for field_name in ("years_experience_min", "years_experience_max"):
-        if isinstance(row.get(field_name), int):
+        if isinstance(row.get(field_name), Real) and not isinstance(row.get(field_name), bool):
             return False
     return True
 
@@ -882,8 +895,8 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
         return _normalize_enum(value, _get_valid_seniority_enrich(config))
 
     if key in ("years_experience_min", "years_experience_max"):
-        if isinstance(value, (int, float)):
-            return int(value)
+        if isinstance(value, Real) and not isinstance(value, bool):
+            return float(value)
         return None
 
     if key in ("job_family", "domain"):
@@ -1125,8 +1138,8 @@ class EnrichmentOutput(_BaseModel):
     seniority: str | None = None
     domain: str | None = None
     job_family: str | None = None
-    years_experience_min: int | None = None
-    years_experience_max: int | None = None
+    years_experience_min: float | None = None
+    years_experience_max: float | None = None
     actual_location: ActualLocationOutput | None = None
     language_requirements: list[LanguageRequirementOutput] = _Field(default_factory=list)
 
@@ -2089,6 +2102,8 @@ def lookup_reusable_structured_jobs(
                 continue
             if not isinstance(cached_payload, dict):
                 continue
+            if _is_semantically_blank_enrichment_row(cached_payload):
+                continue
             merged_row = merge_scraped_and_enriched(
                 normalized_job,
                 {
@@ -2099,8 +2114,6 @@ def lookup_reusable_structured_jobs(
                 },
                 config,
             )
-            if _is_semantically_blank_enrichment_row(merged_row):
-                continue
             reusable_rows[job_url] = merged_row
     return reusable_rows
 
@@ -2455,8 +2468,8 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("domain", "STRING", "NULLABLE"),
     ("tech_stack", "STRING", "REPEATED"),
     ("tech_stack_canonical", "STRING", "REPEATED"),
-    ("years_experience_min", "INT64", "NULLABLE"),
-    ("years_experience_max", "INT64", "NULLABLE"),
+    ("years_experience_min", "FLOAT64", "NULLABLE"),
+    ("years_experience_max", "FLOAT64", "NULLABLE"),
     ("keywords", "STRING", "REPEATED"),
     ("keywords_canonical", "STRING", "REPEATED"),
     ("job_family_raw", "STRING", "NULLABLE"),
@@ -2593,8 +2606,8 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("domain",               "STRING",    "NULLABLE"),
     ("tech_stack",           "STRING",    "REPEATED"),
     ("tech_stack_canonical", "STRING",    "REPEATED"),
-    ("years_experience_min", "INT64",     "NULLABLE"),
-    ("years_experience_max", "INT64",     "NULLABLE"),
+    ("years_experience_min", "FLOAT64",     "NULLABLE"),
+    ("years_experience_max", "FLOAT64",     "NULLABLE"),
     ("keywords",             "STRING",    "REPEATED"),
     ("keywords_canonical",   "STRING",    "REPEATED"),
     ("job_family_raw",       "STRING",    "NULLABLE"),
