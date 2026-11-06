@@ -212,6 +212,30 @@ _NON_SKILL_PHRASE_MARKERS: tuple[str, ...] = (
     "high degree of ownership",
     "soft skill",
 )
+_APPLICATION_ARTIFACT_EXACT: frozenset[str] = frozenset({
+    "anschreiben",
+    "bewerbung",
+    "cv",
+    "lebenslauf",
+    "notenspiegel",
+    "resume",
+    "telefon",
+})
+_APPLICATION_ARTIFACT_PHRASE_MARKERS: tuple[str, ...] = (
+    "application materials",
+    "bewerbungsunterlagen",
+    "cover letter",
+    "current resume",
+    "job application",
+    "telefonnummer",
+)
+_APPLICATION_EMAIL_RE = re.compile(
+    r"\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b",
+    re.IGNORECASE,
+)
+_APPLICATION_PHONE_RE = re.compile(
+    r"(?<![\w/])(?:\+\d{1,3}[\s().-]*)?(?:\d[\s().-]*){7,}\d(?![\w/])"
+)
 
 
 class SkillEntity(TypedDict):
@@ -283,7 +307,7 @@ RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v2"
 ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v2"
 ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
 ENRICH_CONTRACT_VERSION = "enrich_contract_v2"
-ENRICH_VALIDATION_POLICY_VERSION = "enrichment_validation_policy_v2"
+ENRICH_VALIDATION_POLICY_VERSION = "enrichment_validation_policy_v3"
 FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
 REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
 MIGRATED_CACHED_ENRICHMENT_STATUS = "migrated_cached_enrichment"
@@ -438,10 +462,30 @@ def _is_generic_ai_concept_overreach(raw_text: str, canonical: str) -> bool:
     return "genai" not in raw_lower and "generative ai" not in raw_lower
 
 
+def _is_application_artifact(raw_text: str, canonical: str) -> bool:
+    raw_lower = " ".join(raw_text.strip().lower().split())
+    canonical_lower = " ".join(canonical.strip().lower().split())
+    if not raw_lower or not canonical_lower:
+        return False
+    if raw_lower == "cv" or canonical_lower == "cv":
+        if canonical_lower in {"computer vision", "computer-vision"}:
+            return False
+    if raw_lower in _APPLICATION_ARTIFACT_EXACT or canonical_lower in _APPLICATION_ARTIFACT_EXACT:
+        return True
+    if any(marker in raw_lower or marker in canonical_lower for marker in _APPLICATION_ARTIFACT_PHRASE_MARKERS):
+        return True
+    return bool(
+        _APPLICATION_EMAIL_RE.search(raw_lower)
+        or _APPLICATION_PHONE_RE.search(raw_lower)
+    )
+
+
 def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
     raw_lower = raw_text.strip().lower()
     canonical_lower = canonical.strip().lower()
     if not raw_lower or not canonical_lower:
+        return False
+    if _is_application_artifact(raw_text, canonical):
         return False
     if canonical_lower in _LANGUAGE_CANONICALS:
         return False
@@ -452,6 +496,21 @@ def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
     if _is_generic_ai_concept_overreach(raw_text, canonical):
         return False
     return True
+
+
+def _filter_skill_values(
+    raw_values: Any,
+    field_name: str,
+    config: dict | None,
+) -> list[str]:
+    if field_name not in _CANONICAL_SKILL_FIELDS:
+        return _normalize_array_values(raw_values) if isinstance(raw_values, list) else []
+    filtered: list[str] = []
+    for raw_value in _normalize_array_values(raw_values) if isinstance(raw_values, list) else []:
+        canonical = _canonicalize_text_item(field_name, raw_value, config)
+        if _is_allowed_skill_entity(raw_value, canonical):
+            filtered.append(raw_value)
+    return _dedupe_text_values(filtered)
 
 
 def _is_reusable_skill_alias(raw_text: str, canonical: str) -> bool:
@@ -505,24 +564,25 @@ def _build_skill_entities(
     if field_name not in {"required_skills", "preferred_skills"}:
         return []
     normalized_entities = _normalise_skill_entities(raw_entities, config=config)
-    if normalized_entities:
-        return normalized_entities
-    fallback_entities: list[SkillEntity] = []
+    entities = list(normalized_entities)
+    existing_canonicals = {str(entity["canonical"]).casefold() for entity in entities}
     for raw_value in raw_values:
-        normalized_alias = raw_value.strip().lower()
         canonical = _canonicalize_text_item(field_name, raw_value, config)
         if not _is_reusable_skill_alias(raw_value, canonical):
             continue
         if not _is_allowed_skill_entity(raw_value, canonical):
             continue
-        fallback_entities.append(
+        if canonical.casefold() in existing_canonicals:
+            continue
+        entities.append(
             {
                 "raw_text": raw_value,
                 "canonical": canonical,
                 "confidence": 1.0,
             }
         )
-    return fallback_entities
+        existing_canonicals.add(canonical.casefold())
+    return entities
 
 
 def _build_mapping_suggestions(
@@ -1341,11 +1401,11 @@ def _apply_structured_normalization(
     actual_location = _canonical_actual_location(output.actual_location)
     language_requirements = _canonical_language_requirements(output.language_requirements)
     required_skills = _remove_language_requirements_from_skills(
-        _normalize_array_values(output.required_skills),
+        _filter_skill_values(output.required_skills, "required_skills", config),
         language_requirements,
     )
     preferred_skills = _remove_language_requirements_from_skills(
-        _normalize_array_values(output.preferred_skills),
+        _filter_skill_values(output.preferred_skills, "preferred_skills", config),
         language_requirements,
     )
     responsibilities = _normalize_array_values(output.responsibilities)
@@ -1733,6 +1793,8 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     for field in _KNOWN_FIELDS:
         raw_value = raw.get(field)
         parsed[field] = _coerce_field(field, raw_value, config)
+    for field_name in _CANONICAL_SKILL_FIELDS:
+        parsed[field_name] = _filter_skill_values(parsed.get(field_name), field_name, config)
     if isinstance(raw.get("location_type"), str) and raw.get("location_type") and parsed.get("location_type") is None:
         errors.append("coercion_warning:location_type:invalid_enum")
     if isinstance(raw.get("seniority"), str) and raw.get("seniority") and parsed.get("seniority") is None:
@@ -2132,7 +2194,71 @@ def merge_scraped_and_enriched(
                 }
             )
         merged["role_family_mapping_suggestions"] = existing_role
+    for field_name in _CANONICAL_SKILL_FIELDS:
+        merged[field_name] = _filter_skill_values(merged.get(field_name), field_name, config)
+    for raw_field, entity_field, canonical_field in (
+        ("required_skills", "required_skill_entities", "required_skills_canonical"),
+        ("preferred_skills", "preferred_skill_entities", "preferred_skills_canonical"),
+    ):
+        entities = _build_skill_entities(
+            list(merged.get(raw_field) or []),
+            raw_field,
+            config,
+            raw_entities=merged.get(entity_field) if isinstance(merged.get(entity_field), list) else None,
+        )
+        merged[entity_field] = entities
+        merged[canonical_field] = _canonical_from_entities(entities)
+    rebuilt_mapping_suggestions: list[MappingSuggestion] = []
+    seen_mapping_pairs: set[tuple[str, str]] = set()
+    for item in list(enriched.get("mapping_suggestions") or []):
+        if not isinstance(item, dict):
+            continue
+        alias = str(item.get("alias") or "").strip()
+        canonical = str(item.get("canonical") or "").strip().lower()
+        if not alias or not canonical or not _is_allowed_skill_entity(alias, canonical):
+            continue
+        pair = (alias.casefold(), canonical)
+        if pair in seen_mapping_pairs:
+            continue
+        rebuilt_mapping_suggestions.append(dict(item))
+        seen_mapping_pairs.add(pair)
+    for entity in [
+        *(list(merged.get("required_skill_entities") or [])),
+        *(list(merged.get("preferred_skill_entities") or [])),
+    ]:
+        alias = str(entity.get("raw_text") or "").strip()
+        canonical = str(entity.get("canonical") or "").strip().lower()
+        if not _is_reusable_skill_alias(alias, canonical):
+            continue
+        pair = (alias.casefold(), canonical)
+        if pair in seen_mapping_pairs:
+            continue
+        rebuilt_mapping_suggestions.extend(_build_mapping_suggestions(entities=[entity]))
+        seen_mapping_pairs.add(pair)
+    merged["mapping_suggestions"] = rebuilt_mapping_suggestions
     merged = _repair_required_skill_signal(merged, config)
+    merged["enrichment_completeness"] = {
+        "location": bool(merged.get("actual_location")),
+        "languages": bool(merged.get("language_requirements")),
+        "required_skills": bool(merged.get("required_skills")),
+        "technology": bool(merged.get("tech_stack")),
+        "mandatory_clauses": bool(merged.get("mandatory_clauses")),
+    }
+    has_structured_requirement_signal = any(
+        bool(merged.get(field_name)) for field_name in structured_requirement_fields
+    )
+    merged["enrichment_degraded"] = bool(merged.get("enrichment_degraded")) or (
+        description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        or (description_quality == "full" and not has_structured_requirement_signal)
+    )
+    merged["enrichment_degraded_reason"] = (
+        "no_structured_requirement_signal"
+        if description_quality == "full" and not has_structured_requirement_signal
+        else "description_quality_degraded"
+        if description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        else None
+    )
+    merged["mandatory_core_complete"] = not merged["enrichment_degraded"]
     _apply_job_semantic_snapshot(merged, merged, cfg)
     return merged
 
