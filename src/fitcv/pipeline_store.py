@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from fitcv.persistence import sqlite_connection
-from fitcv.pipeline_stages.common import job_identity_index_keys, primary_job_identity_key
+from fitcv.pipeline_stages.common import job_identity_keys, primary_job_identity_key
 from fitcv.shortlist_runtime import configure_sqlite_connection, run_sqlite_io_retry, sqlite_path
 
 
@@ -165,15 +165,21 @@ def update_shortlist_admission_ledger_scores(
     ranking_manifest: dict[str, Any] | None,
     run_id: str,
 ) -> None:
-    manifest_rows: dict[str, dict[str, Any]] = {}
+    manifest_rows: dict[str, dict[str, Any] | None] = {}
     manifest_by_url: dict[str, dict[str, Any] | None] = {}
+
+    def _stable_identity_keys(row: dict[str, Any]) -> list[str]:
+        identity = str(row.get("identity") or "").strip()
+        keys = [identity, *job_identity_keys(row)]
+        return list(dict.fromkeys(key for key in keys if key and not key.startswith("url:")))
+
     for row in list((ranking_manifest or {}).get("rows") or []):
         if not isinstance(row, dict):
             continue
-        identity = str(row.get("identity") or "").strip()
-        identity_keys = [identity, *job_identity_index_keys(row)]
-        for key in identity_keys:
-            if key and key not in manifest_rows:
+        for key in _stable_identity_keys(row):
+            if key in manifest_rows and manifest_rows[key] is not row:
+                manifest_rows[key] = None
+            else:
                 manifest_rows[key] = row
         job_url = str(row.get("job_url") or "").strip()
         if job_url:
@@ -188,15 +194,15 @@ def update_shortlist_admission_ledger_scores(
             _ensure_shortlist_admission_ledger(conn)
             for final_rank, ranked in enumerate(ranked_rows, start=1):
                 ranked_identity = str(ranked.get("identity") or "").strip()
-                identity_keys = [ranked_identity, *job_identity_index_keys(ranked)]
+                identity_keys = _stable_identity_keys(ranked)
                 manifest = next(
-                    (manifest_rows[key] for key in identity_keys if key and key in manifest_rows),
+                    (manifest_rows[key] for key in identity_keys if key in manifest_rows and manifest_rows[key] is not None),
                     None,
                 )
                 if manifest is None:
                     job_url = str(ranked.get("job_url") or "").strip()
                     manifest = manifest_by_url.get(job_url)
-                if manifest is None and not ranked_identity:
+                if manifest is None and (not ranked_identity or ranked_identity.startswith("url:")):
                     continue
                 manifest = manifest or {}
                 identity = str(

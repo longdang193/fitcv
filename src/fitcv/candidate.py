@@ -872,6 +872,8 @@ def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
             for field_name, field_definition in section_definition.get("item", {}).items():
                 if field_definition.get("required") and field_name not in {"source_refs", "evidence"} and not str(item.get(field_name) or "").strip():
                     errors.append(f"{section}/{item.get('id')} requires {field_name}")
+                if field_definition.get("shape") == "boolean" and field_name in item and item.get(field_name) is not None and not isinstance(item.get(field_name), bool):
+                    errors.append(f"{section}/{item.get('id')}.{field_name} must be a boolean")
             required_one_of = section_definition.get("required_one_of") or []
             if required_one_of and not any(str(item.get(field) or "").strip() for field in required_one_of):
                 errors.append(f"{section}/{item.get('id')} requires one of {required_one_of}")

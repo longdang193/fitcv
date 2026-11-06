@@ -684,6 +684,7 @@ def _lexical_search_result(
             continue
         required = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
         skill_score = compute_must_have_match(required, candidate_skills, config)
+        required_skill_intersection = bool(required) and skill_score > 0.0
         title_score = compute_title_relevance(
             str(job.get("title") or job.get("job_title") or "") or None,
             str(prefs.get("target_role") or "") or None,
@@ -712,6 +713,7 @@ def _lexical_search_result(
             "retrieval_score": retrieval_score,
             "retrieval_components": {
                 "skill_overlap": skill_score,
+                "required_skill_intersection": required_skill_intersection,
                 "title_relevance": title_score,
                 "domain": parts["domain"],
                 "role_family": parts["role_family"],
@@ -833,11 +835,13 @@ def _hybrid_search_result(
         if not math.isfinite(score):
             return False
         components = dict(row.get("retrieval_components") or {})
+        if components.get("required_skill_intersection") is True:
+            return True
         if any(
             isinstance(components.get(key), (int, float))
             and math.isfinite(float(components[key]))
             and float(components[key]) > 0.0
-            for key in ("skill_overlap", "title_relevance", "technology_overlap", "description_overlap")
+            for key in ("title_relevance", "technology_overlap", "description_overlap")
         ):
             return True
         match_details = dict(components.get("match_details") or {})

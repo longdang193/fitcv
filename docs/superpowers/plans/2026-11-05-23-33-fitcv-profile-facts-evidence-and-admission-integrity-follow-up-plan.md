@@ -85,6 +85,11 @@ Review basis:
   identified the missing hybrid audit-sample propagation and conditional
   lexical-as-vector fallback path.
 - Completed review artifacts are retained outside the repository.
+- Final PR review at commit 74ce9c019a1eefc8a10f9637fd70ea334c76ef6f
+  identified three remaining P2 gaps: neutral lexical skill defaults could
+  qualify unrelated jobs for rescue, URL-only ranked rows could resolve to the
+  first of two manifest identities sharing a URL, and malformed string values
+  such as `"false"` could be coerced to native language `true`.
 
 ## Implementation Outcomes
 
@@ -594,7 +599,7 @@ Final artifact-level verification after all tasks:
 - Focused suite: `1509 passed, 3 skipped in 132.83s (0:02:12)` after the first PR review fixes.
 - Compile check: `python -m compileall -q src/fitcv src/fitcv_cp tests` passed.
 - Diff check: `git diff --check` passed.
-- Full suite: `3600 passed, 10 skipped, 3 failed in 260.05s (0:04:20)`.
+- Full suite after final-review fixes: `3607 passed, 10 skipped, 3 failed in 260.81s (0:04:20)`.
 - The three failures are environmental and outside the matching-pipeline scope:
   `tests/test_fitcv_cp/test_frontend_host.py::test_app_spa_entry_and_deep_links`
   and `tests/test_fitcv_cp/test_frontend_host.py::test_csrf_cookie_issuance_and_unsafe_request_guard`
@@ -607,6 +612,13 @@ Final artifact-level verification after all tasks:
   run/fingerprint identity resolution for colliding URLs, end-to-end language
   dimension projection, bounded Workday detail fetches, and affirmative lexical
   rescue gating with neutral/missing-score negative tests.
+- Final PR review findings were fixed without changing the final shortlist or
+  scorer limits: lexical rows now carry an explicit required-skill intersection
+  flag and neutral `compute_must_have_match()` defaults cannot qualify rescue;
+  ledger updates resolve stable identities separately from unique URL fallback
+  and skip ambiguous URL-only rows; candidate validation rejects non-boolean
+  language `native` values and ranking projection serializes only real booleans.
+- Post-fix focused suite: `1511 passed, 3 skipped in 133.21s (0:02:13)`.
 
 Final proof must show:
 
@@ -629,6 +641,8 @@ Final proof must show:
 - model-visible diagnostics equal the rendered request, including evidence IDs, omission reasons, and prompt hash;
 - checkpoint samples remain bounded while the durable ledger remains complete and resume-stable;
 - no score-weight or final-cutoff change was introduced by this plan.
+- neutral lexical defaults, ambiguous URL-only ledger rows, and malformed
+  language-native values have dedicated regression coverage.
 
 ## Completion Criteria
 

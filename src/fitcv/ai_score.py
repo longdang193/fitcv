@@ -879,9 +879,11 @@ def build_ranking_job_input(
         for field_name in ("native", "read", "write", "speak"):
             if field_name in item and item.get(field_name) not in (None, ""):
                 value = item.get(field_name)
-                language[field_name] = (
-                    bool(value) if field_name == "native" else _bounded_text(value, RANKING_TERM_MAX_CHARS)
-                )
+                if field_name == "native":
+                    if isinstance(value, bool):
+                        language[field_name] = value
+                else:
+                    language[field_name] = _bounded_text(value, RANKING_TERM_MAX_CHARS)
         all_candidate_languages.append(language)
     languages = all_candidate_languages
     all_candidate_employment = [

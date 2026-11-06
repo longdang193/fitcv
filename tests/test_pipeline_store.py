@@ -231,3 +231,29 @@ def test_shortlist_score_updates_use_stable_identity_when_urls_collide(
         ).fetchall()
 
     assert stored == [("run:job-1", 0.9, 1), ("run:job-2", 0.3, 2)]
+
+
+def test_shortlist_score_updates_skip_ambiguous_url_only_ranked_rows(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    sqlite_path = tmp_path / "pipeline.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    rows = [
+        {"identity": "run:job-1", "run_job_id": "job-1", "job_url": "https://example.com/shared", "shortlist_status": "shortlist_admitted", "raw_hit_present": True, "admission_order": 0},
+        {"identity": "run:job-2", "run_job_id": "job-2", "job_url": "https://example.com/shared", "shortlist_status": "shortlist_admitted", "raw_hit_present": True, "admission_order": 1},
+    ]
+    persist_shortlist_admission_ledger(rows, {}, "run-1", {"pipeline": {"vector_search_top_n": 50}})
+
+    update_shortlist_admission_ledger_scores(
+        [{"identity": "url:https://example.com/shared", "job_url": "https://example.com/shared", "ai_score": 0.9, "score_status": "valid", "baseline_rank": 1}],
+        {"rows": rows},
+        "run-1",
+    )
+
+    with sqlite3.connect(sqlite_path) as conn:
+        stored = conn.execute(
+            "SELECT job_identity, score_value FROM shortlist_admission_ledger WHERE run_id = 'run-1' ORDER BY job_identity"
+        ).fetchall()
+
+    assert stored == [("run:job-1", None), ("run:job-2", None)]
