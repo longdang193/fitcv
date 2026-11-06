@@ -112,7 +112,7 @@ visibility.
 - Branch: `codex/fitcv-matching-accuracy`
 - Base commit: `bdb9d25408ebc893ea922b4fc9b9336b3f928e33`
 - Expected workspace: `review-fix changes pending commit`
-- Next action: commit and push the final review fixes, rerun the benchmark on the final code, then merge PR #121 after publication verification
+- Next action: merge PR #121 after final publication verification; retain the provider-backed E2E latency limitation as an explicit external deferral
 - Blockers: `full provider-backed 280-job run exceeded the bounded validation window during enrichment; no terminal compatibility score was produced`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -123,7 +123,7 @@ visibility.
 | Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | all lexical fallback candidates compete with vector production rows before `effective_top_n`; displaced rows remain auditable; vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
 | Task 5 | `completed` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | 8-item evidence bound, visibility manifest, mandatory omissions, and 12,000-character budget tests pass |
 | Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | explicit empty `model_visible_evidence_ids` is persisted without falling back to selected IDs; persistence/checkpoint/sqlite suite: 403 passed |
-| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues and final review found four additional confirmed issues; all nine are patched with focused regressions; affected suite `1,093 passed, 3 skipped`; full suite `3,629 passed, 10 skipped`; final benchmark and merge publication remain |
+| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues and final review found four additional confirmed issues; all nine are patched with focused regressions; affected suite `1,093 passed, 3 skipped`; full suite `3,629 passed, 10 skipped`; final benchmark on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280` preserves selected evidence recall `0.9375`, selected requirement recall `1.0`, false negatives `1`; provider-backed 280-job run remains externally deferred after enrichment heartbeats without terminal scoring |
 
 ### Post-review remediation
 
@@ -168,6 +168,15 @@ The final review regressions cover each case, including a scorer-to-SQLite
 rejection path. The final review agent reported `877 passed, 2 skipped` in its
 independent subset; the lead rerun against the final worktree reports the
 broader affected suite and full suite counts above.
+
+Final benchmark proof on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280`:
+
+- Baseline and ablation: selected evidence-pair recall `0.8125`, selected
+  requirement recall `0.866667`, false negatives `3`.
+- Requirement-aware and current-hash: selected evidence-pair recall `0.9375`,
+  selected requirement recall `1.0`, false negatives `1`.
+- Requirement-aware and current-hash agree exactly; no ordering regression is
+  introduced by the final review fixes.
 
 ## Task Breakdown
 
