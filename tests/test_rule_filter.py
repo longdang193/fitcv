@@ -531,6 +531,17 @@ def test_must_have_skills_missing_skill_fails() -> None:
     assert not check_must_have_skills(_job(required_skills=["Java"]), _prefs(must_have_skills=["SQL"]))
 
 
+def test_degraded_description_does_not_turn_missing_extraction_into_mismatch() -> None:
+    assert check_must_have_skills(
+        _job(
+            required_skills=["Java"],
+            description="Lebenslauf Telefon +49 89 236139465",
+            description_quality="boilerplate_only",
+        ),
+        _prefs(must_have_skills=["SQL"]),
+    )
+
+
 def test_must_have_skills_empty_prefs_passes() -> None:
     """No must-have skills = always pass."""
     assert check_must_have_skills(_job(required_skills=[]), _prefs(must_have_skills=[]))

@@ -549,6 +549,12 @@ def check_must_have_skills(
     must_haves = prefs.get("must_have_skills", [])
     if not must_haves:
         return True
+    description_quality = str(job.get("description_quality") or "").strip().lower()
+    if (
+        description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        or str(job.get("enrich_reuse_status") or "").strip().lower() == "enrichment_fallback"
+    ):
+        return True
     canonical_job_skills = job.get("required_skills_canonical")
     if isinstance(canonical_job_skills, list) and canonical_job_skills:
         job_skills = canonical_job_skills

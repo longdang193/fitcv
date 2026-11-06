@@ -20,8 +20,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv import evidence as evidence_module
+from fitcv.ai_score import build_ranking_job_input, build_ranking_request
+from fitcv.contracts import build_description_quality
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.cv_generator import build_generation_prompt
+from fitcv.enrich import merge_scraped_and_enriched
 from fitcv.evidence import (
     _annotate_requirement_support,
     build_required_skill_descriptors,
@@ -31,6 +34,10 @@ from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 from fitcv.late_stage_contract import (
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
 )
+from fitcv.rule_filter import apply_rule_filters
+from fitcv.normalize import normalize_job
+from fitcv.runtime_routing import LlmRouting
+from fitcv.vector_search import LEXICAL_RETRIEVAL_STRATEGY, run_vector_search
 
 DEFAULT_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "requirement_support_benchmark.json"
 DEFAULT_POLICY = REPO_ROOT / "config" / "policy" / "cv_analysis.yaml"
@@ -1408,6 +1415,256 @@ def run_benchmark(
     }
 
 
+def run_integrity_benchmark(
+    *,
+    requirement_fixture_path: Path,
+    admission_fixture_path: Path,
+) -> dict[str, Any]:
+    """Run deterministic production admission/retrieval/request checks."""
+    requirement_fixture = _load_json(requirement_fixture_path.resolve())
+    admission_fixture = _load_json(admission_fixture_path.resolve())
+    candidates: list[dict[str, Any]] = []
+    for profile_name, profile in dict(admission_fixture.get("profiles") or {}).items():
+        fixture_candidates = [
+            candidate
+            for candidate in list(profile.get("candidates") or [])
+            if isinstance(candidate, dict)
+        ]
+        jobs = []
+        for candidate in fixture_candidates:
+            raw_job = dict(candidate.get("job") or {})
+            normalized_job = normalize_job(raw_job)
+            source_job = dict(candidate.get("job") or {})
+            required_skills = list(source_job.get("required_skills") or [])
+            if not required_skills:
+                required_skills = [
+                    str(value)
+                    for value in list(source_job.get("required_skills_canonical") or [])
+                    if str(value).strip()
+                ]
+            deterministic_enrichment = {
+                "required_skills": required_skills,
+                "preferred_skills": list(source_job.get("preferred_skills") or []),
+                "responsibilities": list(source_job.get("responsibilities") or []),
+                "tech_stack": list(source_job.get("tech_stack") or []),
+                "keywords": list(source_job.get("keywords") or []),
+                "domain": source_job.get("domain"),
+                "job_family": source_job.get("job_family"),
+                "location_type": source_job.get("location_type"),
+                "mandatory_clauses": list(source_job.get("mandatory_clauses") or []),
+                "language_requirements": list(source_job.get("language_requirements") or []),
+            }
+            jobs.append(
+                merge_scraped_and_enriched(
+                    normalized_job,
+                    deterministic_enrichment,
+                    config={},
+                )
+            )
+        config = {
+            "pipeline": {
+                "retrieval_strategy": LEXICAL_RETRIEVAL_STRATEGY,
+                "vector_search_top_n": int(profile.get("retrieval_top_n") or 50),
+            },
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 0.50,
+                    "role_family": 0.30,
+                    "work_mode": 0.20,
+                },
+            },
+        }
+        profile_data = dict(profile.get("profile") or {})
+        filter_result = apply_rule_filters(
+            jobs,
+            profile_data.get("preferences") or {},
+            config=config,
+        )
+        passed_urls = [str(value) for value in filter_result.get("passed") or []]
+        passed_url_set = set(passed_urls)
+        retrieval = run_vector_search(
+            profile_data,
+            passed_urls,
+            config,
+            top_n=int(profile.get("retrieval_top_n") or 50),
+            structured_jobs=jobs,
+            requested_strategy=LEXICAL_RETRIEVAL_STRATEGY,
+        )
+        production_rows = list(retrieval.get("production_rows") or [])
+        retrieval_by_url = {
+            str(row.get("job_url") or ""): index
+            for index, row in enumerate(production_rows, start=1)
+            if isinstance(row, dict) and str(row.get("job_url") or "")
+        }
+        route = LlmRouting(
+            provider="deterministic_local",
+            base_url="http://127.0.0.1",
+            wire_api="openai_compatible",
+            model="benchmark-no-provider-call",
+            timeout_seconds=1.0,
+        )
+        for candidate, normalized_job in zip(fixture_candidates, jobs):
+            job = dict(normalized_job)
+            job_url = str(job.get("job_url") or "")
+            scoring_admitted = job_url in retrieval_by_url
+            ranking_input: dict[str, Any] | None = None
+            request_record: dict[str, Any] | None = None
+            if scoring_admitted:
+                ranking_input = build_ranking_job_input(job, profile_data, config)
+                request_record = build_ranking_request(
+                    job,
+                    ranking_input["candidate_summary"],
+                    ranking_input["candidate_evidence"],
+                    config,
+                    ranking_input=ranking_input,
+                    resolved_route=route,
+                )
+            requirements = (
+                json.loads(str(ranking_input["job_requirements"]))
+                if ranking_input is not None
+                else {}
+            )
+            source_provenance = dict(requirements.get("source_provenance") or {})
+            visibility = dict((request_record or {}).get("visibility_manifest") or {})
+            job_visibility = dict(visibility.get("job") or {})
+            evidence_visibility = dict(visibility.get("evidence") or {})
+            required_values = [str(value) for value in list(requirements.get("required_skills") or [])]
+            description = str(job.get("description") or "").casefold()
+            source_span_covered = sum(
+                1 for value in required_values if str(value).casefold() in description
+            )
+            rejection = next(
+                (
+                    item for item in filter_result.get("rejected") or []
+                    if str(item.get("job_url") or "") == job_url
+                ),
+                {},
+            )
+            candidates.append({
+                "profile": profile_name,
+                "candidate_id": str(candidate.get("candidate_id") or ""),
+                "label": str(candidate.get("label") or ""),
+                "rule_filter_passed": job_url in passed_url_set,
+                "admitted": scoring_admitted,
+                "filter_reasons": list(rejection.get("reasons") or []),
+                "job_url": job_url,
+                "rank": retrieval_by_url.get(job_url),
+                "retrieval_strategy": str(
+                    (retrieval.get("diagnostics") or {}).get("effective_strategy")
+                    or LEXICAL_RETRIEVAL_STRATEGY
+                ),
+                "required_values": required_values,
+                "required_values_visible": list(job_visibility.get("model_visible_fields") or []),
+                "source_checksum": source_provenance.get("description_source_checksum"),
+                "source_boundary": source_provenance.get("description_boundary"),
+                "description_quality": source_provenance.get("description_quality") or build_description_quality(
+                    job.get("description"), "fixture"
+                )["description_quality"],
+                "source_span_covered": source_span_covered,
+                "source_span_denominator": len(required_values),
+                "scorer_input_ready": bool(
+                    request_record
+                    and (request_record.get("visibility_manifest") or {}).get("mandatory_core_complete", True)
+                ),
+                "scorer_visible_evidence_ids": list(evidence_visibility.get("selected_ids") or []),
+                "score_status": "not_scored_provider_disabled" if scoring_admitted else "not_admitted",
+                "score_value": None,
+            })
+
+    expected_relevant = [
+        item for item in candidates if item["label"] == "relevant"
+    ]
+    admitted_relevant = [
+        item for item in expected_relevant
+        if item["admitted"] and item["rank"] is not None and item["rank"] <= 50
+    ]
+    source_span_denominator = sum(item["source_span_denominator"] for item in candidates)
+    source_span_covered = sum(item["source_span_covered"] for item in candidates)
+    quality_counts: dict[str, int] = {}
+    score_state_counts: dict[str, int] = {}
+    for item in candidates:
+        quality_counts[item["description_quality"]] = quality_counts.get(item["description_quality"], 0) + 1
+        score_state_counts[item["score_status"]] = score_state_counts.get(item["score_status"], 0) + 1
+    scorer_visible = {
+        item["candidate_id"]: {
+            "required_values": item["required_values"],
+            "source_checksum": item["source_checksum"],
+            "source_boundary": item["source_boundary"],
+        }
+        for item in candidates
+    }
+    integrity = {
+        "no_relevant_job_filtered_before_scoring": len(admitted_relevant) == len(expected_relevant),
+        "all_admitted_jobs_have_source_identity": all(
+            item["source_checksum"] and item["source_boundary"] is not None for item in candidates
+            if item["admitted"]
+        ),
+        "all_admitted_jobs_have_scorer_facts": all(
+            item["scorer_input_ready"] for item in candidates if item["admitted"]
+        ),
+    }
+    return {
+        "benchmark_schema_version": 1,
+        "provider_calls": False,
+        "cohort": {
+            "requirement_fixture": str(requirement_fixture_path.resolve().relative_to(REPO_ROOT)),
+            "admission_fixture": str(admission_fixture_path.resolve().relative_to(REPO_ROOT)),
+            "requirement_scenario_ids": [
+                str(item.get("scenario_id") or "")
+                for item in list(requirement_fixture.get("scenarios") or [])
+            ],
+            "admission_profile_names": sorted({item["profile"] for item in candidates}),
+        },
+        "denominator": len(candidates),
+        "expected_relevant_ids": [item["candidate_id"] for item in expected_relevant],
+        "recall_at_50": (
+            round(len(admitted_relevant) / len(expected_relevant), 6)
+            if expected_relevant else "not_applicable"
+        ),
+        "source_span_coverage": {
+            "covered": source_span_covered,
+            "denominator": source_span_denominator,
+            "recall": round(source_span_covered / source_span_denominator, 6)
+            if source_span_denominator else "not_applicable",
+        },
+        "description_quality_counts": quality_counts,
+        "scorer_visible": {
+            "ids": sorted(scorer_visible),
+            "values": scorer_visible,
+        },
+        "cache": {
+            "status": "not_run",
+            "reused": None,
+            "revalidated": None,
+            "rejected": None,
+            "reason": "provider_free_benchmark_does_not_open_or_mutate_the_runtime_cache",
+        },
+        "persistence": {
+            "status": "not_run",
+            "reason": "provider_free_benchmark_is_read_only",
+        },
+        "production_path": {
+            "normalized": True,
+            "deterministic_enrichment_projection": True,
+            "rule_filter": True,
+            "retrieval": True,
+            "ranking_input": True,
+            "provider_scoring": False,
+            "hybrid_orchestration": False,
+        },
+        "admission_counts": {
+            "total": len(candidates),
+            "admitted": sum(int(item["admitted"]) for item in candidates),
+            "expected_relevant": len(expected_relevant),
+            "relevant_admitted": len(admitted_relevant),
+        },
+        "score_state_counts": score_state_counts,
+        "integrity_assertions": integrity,
+        "fixture_invariants": dict(admission_fixture.get("budget_invariants") or {}),
+        "records": candidates,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--weight", type=float)
@@ -1420,12 +1677,18 @@ def main() -> int:
         ),
     )
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
+    parser.add_argument("--admission-fixture", type=Path)
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)
     parser.add_argument("--warmups", type=int, default=WARMUP_RUNS)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.weight is not None:
+    if args.admission_fixture is not None:
+        result = run_integrity_benchmark(
+            requirement_fixture_path=args.fixture,
+            admission_fixture_path=args.admission_fixture,
+        )
+    elif args.weight is not None:
         result = run(args.weight)
     elif args.arm is not None:
         result = run_benchmark(
@@ -1436,7 +1699,7 @@ def main() -> int:
             warmups=args.warmups,
         )
     else:
-        parser.error("provide --weight or --arm")
+        parser.error("provide --weight, --arm, or --admission-fixture")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))

@@ -56,7 +56,13 @@ def test_export_score_state_keeps_stage_disposition_unscored_without_failure() -
     }
     normalized = normalize_score_state_for_export(stage_row)
 
-    assert normalized == {"ai_score": None, "score_status": "unscored", "failure_code": None}
+    assert normalized == {
+        "ai_score": None,
+        "score_status": "unscored",
+        "failure_code": None,
+        "disposition": "not_scored",
+        "retry_eligible": False,
+    }
     assert normalize_score_state_for_export({**stage_row, **normalized}) == normalized
 
 

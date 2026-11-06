@@ -131,6 +131,7 @@ from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
     ENRICHMENT_FALLBACK_STATUS,
     FRESH_ENRICHMENT_STATUS,
+    MIGRATED_CACHED_ENRICHMENT_STATUS,
     REUSED_CACHED_ENRICHMENT_STATUS,
     build_enrich_contract_fingerprint,
     build_raw_job_fingerprint,
@@ -380,10 +381,19 @@ def _finalize_reused_enriched_row(
         return row
     row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
     row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
-    row["enrich_reuse_status"] = REUSED_CACHED_ENRICHMENT_STATUS
+    reuse_status = str(row.get("enrich_reuse_status") or "")
+    row["enrich_reuse_status"] = (
+        reuse_status
+        if reuse_status == MIGRATED_CACHED_ENRICHMENT_STATUS
+        else REUSED_CACHED_ENRICHMENT_STATUS
+    )
     row["reuse_decision"] = build_reuse_decision(
-        decision=REUSED_CACHED_ENRICHMENT_STATUS,
-        reason_code="exact_fingerprint_match",
+        decision=row["enrich_reuse_status"],
+        reason_code=(
+            "validated_legacy_cache_migration"
+            if row["enrich_reuse_status"] == MIGRATED_CACHED_ENRICHMENT_STATUS
+            else "exact_fingerprint_match"
+        ),
         fingerprint=raw_job_fingerprints.get(job_url),
         source_artifact_type="enrich",
     )
@@ -4009,7 +4019,84 @@ def run_pipeline(
                 pipeline_store.store_shortlist(shortlist, config)
                 raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
                 shortlist_urls = set(unique_job_urls(shortlist))
+                normalized_by_url = {
+                    str(row.get("job_url") or "").strip(): row
+                    for row in normalized
+                    if str(row.get("job_url") or "").strip()
+                }
+                input_index_by_url = {
+                    str(row.get("job_url") or "").strip(): index
+                    for index, row in enumerate(normalized)
+                    if str(row.get("job_url") or "").strip()
+                }
+                enriched_by_url = {
+                    str(row.get("job_url") or "").strip(): row
+                    for row in enriched
+                    if str(row.get("job_url") or "").strip()
+                }
+
+                def admission_source_row(
+                    job_url: str,
+                    fallback: dict[str, Any] | None = None,
+                ) -> dict[str, Any]:
+                    source_row = dict(normalized_by_url.get(job_url) or {})
+                    source_row.update(enriched_by_url.get(job_url) or {})
+                    source_row.update(fallback or {})
+                    if not source_row.get("raw_job_fingerprint") and source_row:
+                        source_row["raw_job_fingerprint"] = build_raw_job_fingerprint(source_row)["fingerprint"]
+                    return source_row
+
                 admission_rows = []
+                for rejected in pre_filter_rejected_jobs:
+                    job_url = str(rejected.get("job_url") or "").strip()
+                    source_row = admission_source_row(job_url, rejected)
+                    admission_rows.append(
+                        {
+                            "identity": primary_job_identity_key(source_row) or job_url,
+                            "job_url": job_url,
+                            "input_index": input_index_by_url.get(job_url),
+                            "shortlist_status": "rejected_before_enrichment",
+                            "raw_hit_present": False,
+                            "admission_reason": None,
+                            "exclusion_reason": "pre_enrichment_filter:" + ",".join(
+                                str(reason) for reason in list(rejected.get("reasons") or [])
+                            ),
+                            **{
+                                field_name: source_row.get(field_name)
+                                for field_name in (
+                                    "source_provider", "source_job_id", "raw_job_fingerprint",
+                                    "description_quality", "description_source", "description_complete",
+                                    "description_source_checksum", "description_source_length",
+                                    "description_boundary", "enrich_reuse_status",
+                                )
+                            },
+                        }
+                    )
+                for rejected in candidate_filter_rejected_jobs:
+                    job_url = str(rejected.get("job_url") or "").strip()
+                    source_row = admission_source_row(job_url, rejected)
+                    admission_rows.append(
+                        {
+                            "identity": primary_job_identity_key(source_row) or job_url,
+                            "job_url": job_url,
+                            "input_index": input_index_by_url.get(job_url),
+                            "shortlist_status": "rejected_before_shortlist",
+                            "raw_hit_present": False,
+                            "admission_reason": None,
+                            "exclusion_reason": "candidate_filter:" + ",".join(
+                                str(reason) for reason in list(rejected.get("reasons") or [])
+                            ),
+                            **{
+                                field_name: source_row.get(field_name)
+                                for field_name in (
+                                    "source_provider", "source_job_id", "raw_job_fingerprint",
+                                    "description_quality", "description_source", "description_complete",
+                                    "description_source_checksum", "description_source_length",
+                                    "description_boundary", "enrich_reuse_status",
+                                )
+                            },
+                        }
+                    )
                 for input_index, job in enumerate(passed_jobs):
                     job_url = str(job.get("job_url") or "").strip()
                     shortlist_row = next(
@@ -4040,6 +4127,16 @@ def run_pipeline(
                             "exclusion_reason": (
                                 "after_fused_cutoff" if job_url in raw_shortlist_urls else "not_returned_in_raw_hits"
                             ) if job_url not in shortlist_urls else None,
+                            "source_provider": job.get("source_provider"),
+                            "source_job_id": job.get("source_job_id"),
+                            "raw_job_fingerprint": job.get("raw_job_fingerprint"),
+                            "description_quality": job.get("description_quality"),
+                            "description_source": job.get("description_source"),
+                            "description_complete": job.get("description_complete"),
+                            "description_source_checksum": job.get("description_source_checksum"),
+                            "description_source_length": job.get("description_source_length"),
+                            "description_boundary": job.get("description_boundary"),
+                            "enrich_reuse_status": job.get("enrich_reuse_status"),
                         }
                     )
                 pipeline_store.store_shortlist_admission_ledger(
@@ -4052,6 +4149,9 @@ def run_pipeline(
                     "contract_version": "shortlist_admission_manifest_v1",
                     "counts": {
                         "eligible": len(passed_jobs),
+                        "total_candidates": len(admission_rows),
+                        "rejected_before_enrichment": len(pre_filter_rejected_jobs),
+                        "rejected_before_shortlist": len(candidate_filter_rejected_jobs),
                         "raw_retrieved": len(raw_shortlist_urls),
                         "admitted": len(shortlist_urls),
                         "not_returned": sum(

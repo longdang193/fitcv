@@ -103,7 +103,7 @@
           "job": {
             "job_url": "fixture://missing-vector-relevant",
             "title": "Kafka Data Engineer",
-            "description": "Operate Kafka and Python streaming pipelines for regulated banking workloads.",
+            "description": "Operate Kafka and Python streaming pipelines for regulated banking workloads. Responsibilities include production monitoring, incident response, and data-quality checks.",
             "job_family": "data_engineering",
             "domain": "banking",
             "required_skills_canonical": [
@@ -126,7 +126,7 @@
           "job": {
             "job_url": "fixture://weak-vector-hit",
             "title": "Frontend Engineer",
-            "description": "Build browser interfaces with JavaScript and CSS.",
+            "description": "Build browser interfaces with JavaScript and CSS. Responsibilities include component delivery, accessibility checks, and frontend regression testing.",
             "job_family": "frontend",
             "domain": "web",
             "required_skills_canonical": [
@@ -148,7 +148,7 @@
           "job": {
             "job_url": "fixture://negative-domain",
             "title": "Financial Controller",
-            "description": "Prepare accounting close and tax reports; no software engineering work.",
+            "description": "Prepare accounting close and tax reports; no software engineering work. Responsibilities include reconciliations, audit support, and month-end reporting.",
             "job_family": "finance",
             "domain": "accounting",
             "required_skills_canonical": [
@@ -170,7 +170,7 @@
           "job": {
             "job_url": "fixture://negative-seniority",
             "title": "Junior Data Intern",
-            "description": "Learn basic spreadsheet reporting under supervision.",
+            "description": "Learn basic spreadsheet reporting under supervision. Responsibilities include data entry, workbook maintenance, and routine reporting tasks.",
             "job_family": "data_analysis",
             "domain": "banking",
             "required_skills_canonical": [
@@ -193,7 +193,7 @@
           "job": {
             "job_url": "fixture://lexical-only-relevant",
             "title": "SQL Analytics Engineer",
-            "description": "Use SQL and Python to support banking reporting and data quality.",
+            "description": "Use SQL and Python to support banking reporting and data quality. Responsibilities include validation checks, issue triage, and stakeholder-facing analysis.",
             "job_family": "analytics",
             "domain": "banking",
             "required_skills_canonical": [

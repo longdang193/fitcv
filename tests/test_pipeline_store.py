@@ -130,6 +130,16 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
         "vector_similarity": 0.91,
         "lexical_rank": 2,
         "lexical_score": 0.82,
+        "source_provider": "indeed",
+        "source_job_id": "indeed-1",
+        "raw_job_fingerprint": "raw-1",
+        "description_quality": "full",
+        "description_source": "description",
+        "description_complete": True,
+        "description_source_checksum": "checksum-1",
+        "description_source_length": 2400,
+        "description_boundary": {"start": 0, "end": 2400},
+        "enrich_reuse_status": "fresh_compute",
         "ranking_input_diagnostics": {
             "selected_evidence_ids": ["project-1"],
             "model_visible_evidence_ids": [],
@@ -162,7 +172,11 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
             """
             SELECT score_status, score_value, final_rank,
                    selected_evidence_ids_json, model_visible_evidence_ids_json, mandatory_omissions_json,
-                   canonical_checksums_json, request_char_count, request_within_budget
+                   canonical_checksums_json, request_char_count, request_within_budget,
+                   source_provider, source_job_id, raw_job_fingerprint,
+                   description_quality, description_source, description_complete,
+                   description_source_checksum, description_source_length,
+                   description_boundary_json, enrichment_trust, enrich_reuse_status
             FROM shortlist_admission_ledger
             WHERE run_id = 'run-1' AND job_identity = 'job-1'
             """
@@ -179,6 +193,17 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
         json.dumps({"languages": "abc"}, sort_keys=True),
         4200,
         1,
+        "indeed",
+        "indeed-1",
+        "raw-1",
+        "full",
+        "description",
+        1,
+        "checksum-1",
+        2400,
+        json.dumps({"start": 0, "end": 2400}, sort_keys=True),
+        "trusted",
+        "fresh_compute",
     )
 
 
@@ -229,7 +254,7 @@ def test_shortlist_admission_ledger_persists_scorer_rejection_diagnostics(
         "unscored",
         "needs_enrichment",
         json.dumps(["project-1"], sort_keys=True),
-        json.dumps({"candidate_certifications": 0, "candidate_employment": 0, "candidate_education": 0, "candidate_languages": 0, "candidate_mandatory_clauses": 0, "candidate_required_skills": 0, "job_enrichment_fallback": 1, "job_language_requirements": 0, "job_mandatory_clauses": 0, "job_required_skills": 0, "job_technology_requirements": 0}, sort_keys=True),
+        json.dumps({"candidate_certifications": 0, "candidate_employment": 0, "candidate_education": 0, "candidate_languages": 0, "candidate_mandatory_clauses": 0, "candidate_required_skills": 0, "job_enrichment_degraded": 0, "job_enrichment_fallback": 1, "job_language_requirements": 0, "job_mandatory_clauses": 0, "job_required_skills": 0, "job_technology_requirements": 0}, sort_keys=True),
         0,
         json.dumps([], sort_keys=True),
     )

@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "benchmark_requirement_support.py"
 COMPARE_PATH = REPO_ROOT / "scripts" / "compare_requirement_support.py"
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "requirement_support_benchmark.json"
+ADMISSION_FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "retrieval_admission_fixture.json"
 
 
 def _benchmark_module() -> Any:
@@ -52,6 +53,30 @@ def test_fixture_contains_positive_and_negative_grounding_cases() -> None:
         "unsupported_structured_skill",
         "responsibility_only",
     }
+
+
+def test_integrity_benchmark_reports_admission_and_scorer_visibility() -> None:
+    module = _benchmark_module()
+
+    result = module.run_integrity_benchmark(
+        requirement_fixture_path=FIXTURE_PATH,
+        admission_fixture_path=ADMISSION_FIXTURE_PATH,
+    )
+
+    assert result["provider_calls"] is False
+    assert result["recall_at_50"] == 1.0
+    assert result["admission_counts"]["relevant_admitted"] == result["admission_counts"]["expected_relevant"]
+    assert result["integrity_assertions"] == {
+        "no_relevant_job_filtered_before_scoring": True,
+        "all_admitted_jobs_have_source_identity": True,
+        "all_admitted_jobs_have_scorer_facts": True,
+    }
+    assert set(result["scorer_visible"]["ids"]) == {
+        record["candidate_id"] for record in result["records"]
+    }
+    assert all(record["score_value"] is None for record in result["records"])
+    assert all(record["retrieval_strategy"] == "lexical_v1" for record in result["records"])
+    assert all(record["scorer_input_ready"] for record in result["records"] if record["admitted"])
 
 
 def test_scenarios_resolve_independent_inputs_without_shared_fallback() -> None:

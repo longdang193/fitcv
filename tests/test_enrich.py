@@ -231,6 +231,35 @@ def test_sqlite_reuse_lookup_rejects_contract_or_fingerprint_mismatch(
     assert reusable == {}
 
 
+def test_sqlite_reuse_lookup_rejects_legacy_cache_without_contract_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    load_structured_jobs(
+        enriched=[
+            {
+                "job_url": "https://example.com/jobs/legacy",
+                "required_skills": ["SQL"],
+                "raw_job_fingerprint": "raw-fingerprint-match",
+                "enrich_reuse_status": "fresh_enrichment",
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[{"job_url": "https://example.com/jobs/legacy", "description": "SQL"}],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/legacy": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="new-contract",
+    )
+
+    assert reusable == {}
+
+
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
 
 def test_parse_extraction_response_valid_json() -> None:
@@ -1162,6 +1191,70 @@ def test_merge_scraped_and_enriched_supplements_sparse_generic_required_skills_f
         "customer success",
     ]
     assert result["required_skill_entities"] == []
+
+
+def test_rejected_raw_skill_cannot_replace_validated_entity_canonical() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/semantic-trust",
+            "title": "Data Engineer",
+            "description": "Build Python data pipelines for production analytics.",
+        },
+        {
+            "required_skills": ["communication skills", "Python"],
+            "required_skill_entities": [
+                {"raw_text": "Python", "canonical": "python", "confidence": 0.99}
+            ],
+            "preferred_skills": [],
+            "preferred_skill_entities": [],
+        },
+        {},
+    )
+
+    assert result["required_skills_canonical"] == ["python"]
+
+
+def test_german_requirement_bullets_keep_required_skills_and_exclude_preferred() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/german-requirements",
+            "title": "Data Engineer",
+            "description": "Anforderungen:\n• Python\n• SQL\nIdealerweise Power BI",
+        },
+        {
+            "required_skills": [],
+            "preferred_skills": [],
+            "responsibilities": [],
+            "tech_stack": [],
+            "keywords": [],
+        },
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+    assert "Power BI" not in result["required_skills"]
+
+
+def test_mandatory_clause_provenance_uses_source_spans() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/source-spans",
+            "title": "Data Engineer",
+            "description": "German C1 required for customer communication.",
+        },
+        {
+            "mandatory_clauses": [
+                {
+                    "clause_type": "language",
+                    "value": "German C1",
+                    "source_spans": [{"text": "German C1", "start": 0, "end": 9}],
+                }
+            ]
+        },
+        {},
+    )
+
+    assert result["mandatory_clause_provenance"][0]["source_spans"]
 
 
 def test_derive_required_skills_display_prefers_structured_entities_when_raw_required_skills_are_verbose() -> None:
