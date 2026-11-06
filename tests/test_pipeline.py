@@ -1228,6 +1228,19 @@ def test_run_pipeline_emits_run_all_stage_progress_after_normalize() -> None:
     assert len(progress_snapshots) == 1
     assert progress_snapshots[0]["last_completed_stage"] == "normalize"
     assert progress_snapshots[0]["completed_stages"] == ["normalize"]
+    stage_statuses = {
+        stage_id: stage["status"]
+        for stage_id, stage in progress_snapshots[0]["stage_transition_artifacts"]["stages"].items()
+    }
+    assert stage_statuses == {
+        "normalize": "completed",
+        "enrich": "not_reached",
+        "rule_filter": "not_reached",
+        "shortlist": "not_reached",
+        "ranking": "not_reached",
+        "cv_analysis": "not_reached",
+        "cv_generation": "not_reached",
+    }
 
 
 def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs() -> None:

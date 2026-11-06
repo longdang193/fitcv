@@ -6659,6 +6659,46 @@ def test_snapshot_progress_counts_terminal_stage_rows_when_summary_list_is_empty
     assert detail["progress"] == {"completed": 6, "total": 6}
 
 
+def test_snapshot_progress_does_not_count_not_reached_stages_as_completed() -> None:
+    run_id = "run-snapshot-progress-not-reached"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Analyst", "job_url": "https://example.com/analyst"}],
+    )
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {
+            "total_jobs": 1,
+            "completed_stages": ["enrichment"],
+            "stage_transition_artifacts": {
+                "stages": {
+                    "enrichment": {"status": "completed"},
+                    "screening": {"status": "not_reached"},
+                    "shortlisting": {"status": "not_reached"},
+                    "ranking": {"status": "not_reached"},
+                    "cv-analysis": {"status": "not_reached"},
+                    "cv-generation": {"status": "not_reached"},
+                }
+            },
+        },
+        run_status=RunStatus.AWAITING_CONTINUE,
+        snapshot_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["progress"] == {"completed": 1, "total": 6}
+    assert [stage["status"] for stage in detail["stages"]] == [
+        "succeeded",
+        "pending",
+        "pending",
+        "pending",
+        "pending",
+        "pending",
+    ]
+
+
 def test_run_detail_reconciles_stale_progress_from_stage_execution_states() -> None:
     run_id = "run-stale-progress-reconciliation"
     _create_normalized_run_with_jobs(

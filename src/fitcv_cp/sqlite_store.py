@@ -15641,7 +15641,10 @@ def persist_pipeline_snapshot(
                 if stage_id is None or not isinstance(block_value, dict):
                     continue
                 block = dict(block_value)
-                stage_status = run_stage_status_from_pipeline(str(block.get("status") or ""))
+                raw_stage_status = str(block.get("status") or "").strip().lower()
+                if raw_stage_status in {"", "not_reached"}:
+                    continue
+                stage_status = run_stage_status_from_pipeline(raw_stage_status)
                 if stage_status.value == "pending" and stage_id in completed_stage_ids:
                     stage_status = run_stage_status_from_pipeline("completed")
                 output_counts = dict(block.get("output_counts") or {})
