@@ -229,8 +229,12 @@ _APPLICATION_ARTIFACT_PHRASE_MARKERS: tuple[str, ...] = (
     "job application",
     "telefonnummer",
 )
-_APPLICATION_CONTACT_RE = re.compile(
-    r"\b(?:e[- ]?mail|phone|telefon|tel\.?)\b|\+?\d[\d\s()./-]{6,}"
+_APPLICATION_EMAIL_RE = re.compile(
+    r"\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b",
+    re.IGNORECASE,
+)
+_APPLICATION_PHONE_RE = re.compile(
+    r"(?<![\w/])(?:\+\d{1,3}[\s().-]*)?(?:\d[\s().-]*){7,}\d(?![\w/])"
 )
 
 
@@ -467,7 +471,10 @@ def _is_application_artifact(raw_text: str, canonical: str) -> bool:
         return True
     if any(marker in raw_lower or marker in canonical_lower for marker in _APPLICATION_ARTIFACT_PHRASE_MARKERS):
         return True
-    return bool(_APPLICATION_CONTACT_RE.search(raw_lower))
+    return bool(
+        _APPLICATION_EMAIL_RE.search(raw_lower)
+        or _APPLICATION_PHONE_RE.search(raw_lower)
+    )
 
 
 def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
@@ -554,24 +561,25 @@ def _build_skill_entities(
     if field_name not in {"required_skills", "preferred_skills"}:
         return []
     normalized_entities = _normalise_skill_entities(raw_entities, config=config)
-    if normalized_entities:
-        return normalized_entities
-    fallback_entities: list[SkillEntity] = []
+    entities = list(normalized_entities)
+    existing_canonicals = {str(entity["canonical"]).casefold() for entity in entities}
     for raw_value in raw_values:
-        normalized_alias = raw_value.strip().lower()
         canonical = _canonicalize_text_item(field_name, raw_value, config)
         if not _is_reusable_skill_alias(raw_value, canonical):
             continue
         if not _is_allowed_skill_entity(raw_value, canonical):
             continue
-        fallback_entities.append(
+        if canonical.casefold() in existing_canonicals:
+            continue
+        entities.append(
             {
                 "raw_text": raw_value,
                 "canonical": canonical,
                 "confidence": 1.0,
             }
         )
-    return fallback_entities
+        existing_canonicals.add(canonical.casefold())
+    return entities
 
 
 def _build_mapping_suggestions(
@@ -2185,6 +2193,46 @@ def merge_scraped_and_enriched(
         merged["role_family_mapping_suggestions"] = existing_role
     for field_name in _CANONICAL_SKILL_FIELDS:
         merged[field_name] = _filter_skill_values(merged.get(field_name), field_name, config)
+    for raw_field, entity_field, canonical_field in (
+        ("required_skills", "required_skill_entities", "required_skills_canonical"),
+        ("preferred_skills", "preferred_skill_entities", "preferred_skills_canonical"),
+    ):
+        entities = _build_skill_entities(
+            list(merged.get(raw_field) or []),
+            raw_field,
+            config,
+            raw_entities=merged.get(entity_field) if isinstance(merged.get(entity_field), list) else None,
+        )
+        merged[entity_field] = entities
+        merged[canonical_field] = _canonical_from_entities(entities)
+    rebuilt_mapping_suggestions: list[MappingSuggestion] = []
+    seen_mapping_pairs: set[tuple[str, str]] = set()
+    for item in list(enriched.get("mapping_suggestions") or []):
+        if not isinstance(item, dict):
+            continue
+        alias = str(item.get("alias") or "").strip()
+        canonical = str(item.get("canonical") or "").strip().lower()
+        if not alias or not canonical or not _is_allowed_skill_entity(alias, canonical):
+            continue
+        pair = (alias.casefold(), canonical)
+        if pair in seen_mapping_pairs:
+            continue
+        rebuilt_mapping_suggestions.append(dict(item))
+        seen_mapping_pairs.add(pair)
+    for entity in [
+        *(list(merged.get("required_skill_entities") or [])),
+        *(list(merged.get("preferred_skill_entities") or [])),
+    ]:
+        alias = str(entity.get("raw_text") or "").strip()
+        canonical = str(entity.get("canonical") or "").strip().lower()
+        if not _is_reusable_skill_alias(alias, canonical):
+            continue
+        pair = (alias.casefold(), canonical)
+        if pair in seen_mapping_pairs:
+            continue
+        rebuilt_mapping_suggestions.extend(_build_mapping_suggestions(entities=[entity]))
+        seen_mapping_pairs.add(pair)
+    merged["mapping_suggestions"] = rebuilt_mapping_suggestions
     merged = _repair_required_skill_signal(merged, config)
     _apply_job_semantic_snapshot(merged, merged, cfg)
     return merged

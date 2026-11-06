@@ -489,7 +489,11 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
     assert merged["required_skills"] == ["Python programming for data science"]
     assert merged["required_skills_canonical"] == ["python programming for data science"]
     assert merged["required_skill_entities"] == [
-        {"raw_text": "Python programming for data science", "canonical": "python programming for data science"}
+        {
+            "raw_text": "Python programming for data science",
+            "canonical": "python programming for data science",
+            "confidence": 1.0,
+        }
     ]
     assert merged["mapping_suggestions"][0]["alias"] == "python programming for data science"
     assert merged["location_type_raw"] == "Remote"
@@ -2505,22 +2509,129 @@ def test_merge_scraped_and_enriched_reprojects_canonical_fields_from_raw_values(
 def test_parse_extraction_response_rejects_application_artifacts_as_skills() -> None:
     response = json.dumps(
         {
-            "required_skills": ["Telefon +49 89 236139465", "Lebenslauf", "Python"],
-            "preferred_skills": ["Anschreiben", "Power BI"],
+            "required_skills": [
+                "Telefon +49 89 236139465",
+                "Lebenslauf",
+                "Python",
+                "Email marketing",
+                "Phone support",
+                "Windows Server 2019/2022",
+                "ISO 27001/27002",
+            ],
+            "preferred_skills": ["Anschreiben", "Power BI", "Email marketing"],
             "required_skill_entities": [
                 {"raw_text": "Telefon +49 89 236139465", "canonical": "Telefon +49 89 236139465"},
                 {"raw_text": "Lebenslauf", "canonical": "Lebenslauf"},
                 {"raw_text": "Python", "canonical": "Python"},
+                {"raw_text": "Email marketing", "canonical": "Email marketing"},
             ],
             "preferred_skill_entities": [
                 {"raw_text": "Anschreiben", "canonical": "Anschreiben"},
                 {"raw_text": "Power BI", "canonical": "Power BI"},
+                {"raw_text": "Email marketing", "canonical": "Email marketing"},
             ],
         }
     )
 
     result = parse_extraction_response(response, {})["parsed"]
 
+    assert result["required_skills"] == [
+        "Python",
+        "Email marketing",
+        "Phone support",
+        "Windows Server 2019/2022",
+        "ISO 27001/27002",
+    ]
+    assert result["required_skills_canonical"] == ["python", "email marketing"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "Python", "canonical": "python", "confidence": 1.0},
+        {"raw_text": "Email marketing", "canonical": "email marketing", "confidence": 1.0},
+    ]
+    assert result["preferred_skills"] == ["Power BI", "Email marketing"]
+    assert result["preferred_skills_canonical"] == ["power bi", "email marketing"]
+
+
+def test_lookup_reusable_structured_jobs_rebuilds_cached_skill_entities_after_filtering(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    job_url = "https://example.com/jobs/stale-entities"
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS structured_jobs_cache (
+                job_url TEXT PRIMARY KEY,
+                raw_job_fingerprint TEXT,
+                enrich_contract_fingerprint TEXT,
+                payload_json TEXT NOT NULL,
+                enriched_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO structured_jobs_cache(
+                job_url,
+                raw_job_fingerprint,
+                enrich_contract_fingerprint,
+                payload_json,
+                enriched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                job_url,
+                "fp-1",
+                "contract-1",
+                json.dumps(
+                    {
+                        "job_url": job_url,
+                        "title": "Data Analyst",
+                        "required_skills": ["Lebenslauf", "Python"],
+                        "required_skills_canonical": ["lebenslauf", "python"],
+                        "required_skill_entities": [
+                            {"raw_text": "Lebenslauf", "canonical": "lebenslauf"},
+                            {"raw_text": "Python", "canonical": "python"},
+                        ],
+                        "preferred_skills": ["Telefon", "Power BI"],
+                        "preferred_skills_canonical": ["telefon", "power bi"],
+                        "preferred_skill_entities": [
+                            {"raw_text": "Telefon", "canonical": "telefon"},
+                            {"raw_text": "Power BI", "canonical": "power bi"},
+                        ],
+                        "tech_stack": [],
+                        "keywords": [],
+                        "location_type": None,
+                        "seniority": None,
+                        "job_family": None,
+                        "domain": None,
+                    }
+                ),
+                "2026-11-06T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": job_url,
+                "title": "Data Analyst",
+                "description": "Build Python analytics solutions.",
+                "description_quality": "full",
+                "description_source": "indeed",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={job_url: "fp-1"},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    result = reusable[job_url]
     assert result["required_skills"] == ["Python"]
     assert result["required_skills_canonical"] == ["python"]
     assert result["required_skill_entities"] == [
@@ -2528,6 +2639,9 @@ def test_parse_extraction_response_rejects_application_artifacts_as_skills() -> 
     ]
     assert result["preferred_skills"] == ["Power BI"]
     assert result["preferred_skills_canonical"] == ["power bi"]
+    assert result["preferred_skill_entities"] == [
+        {"raw_text": "Power BI", "canonical": "power bi", "confidence": 1.0}
+    ]
 
 
 def test_merge_scraped_and_enriched_removes_cached_application_artifacts_from_skills() -> None:

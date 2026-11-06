@@ -742,6 +742,8 @@ def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() 
         resolved_route=route,
     )
     assert request["visibility_manifest"]["mandatory_core_complete"] is True
+    visible_candidate = json.loads(request["bounded_ranking_input"]["candidate_summary"])
+    assert visible_candidate["skills"] == required_skills
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 

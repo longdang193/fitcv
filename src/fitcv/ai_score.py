@@ -300,6 +300,15 @@ def build_ranking_request(
                 variants.append(dict(reduced))
         return _serialize_payload(bounded_payload), _serialize_payload(bounded_payload) != raw, metadata, variants
 
+    jd_raw = source.get("job_requirements") or build_job_summary_text(job)
+    job_payload = _structured_payload(jd_raw) or {}
+    mandatory_candidate_skill_keys = {
+        _canonical_skill(value, _semantic_policy(config))
+        for field_name in ("required_skills", "technology_requirements")
+        for value in list(job_payload.get(field_name) or [])
+        if _canonical_skill(value, _semantic_policy(config))
+    }
+
     def bound_candidate_summary(value: Any) -> tuple[str, bool, dict[str, Any], list[dict[str, Any]]]:
         raw = str(value or "")
         payload = _structured_payload(raw)
@@ -346,7 +355,19 @@ def build_ranking_request(
                 if isinstance(value, (dict, str, int, float))
             ]
         if isinstance(bounded_payload.get("skills"), list):
-            bounded_payload["skills"] = bounded_payload["skills"][:RANKING_MAX_SKILLS]
+            mandatory_skills = [
+                skill
+                for skill in bounded_payload["skills"]
+                if _canonical_skill(skill, _semantic_policy(config)) in mandatory_candidate_skill_keys
+            ]
+            optional_skills = [
+                skill
+                for skill in bounded_payload["skills"]
+                if _canonical_skill(skill, _semantic_policy(config)) not in mandatory_candidate_skill_keys
+            ]
+            bounded_payload["skills"] = mandatory_skills + optional_skills[
+                :max(0, RANKING_MAX_SKILLS - len(mandatory_skills))
+            ]
 
         def serialize() -> str:
             return _serialize_payload(bounded_payload)
@@ -393,10 +414,15 @@ def build_ranking_request(
             "truncated_fields": [
                 key for key in selected_fields if bounded_payload.get(key) != payload.get(key)
             ],
+            "mandatory_skills": [
+                skill
+                for skill in bounded_payload.get("skills", [])
+                if _canonical_skill(skill, _semantic_policy(config)) in mandatory_candidate_skill_keys
+            ],
+            "mandatory_skills_over_budget": len(serialize()) > 2_500 and bool(mandatory_candidate_skill_keys),
         }
         return serialize(), changed, metadata, [dict(bounded_payload)]
 
-    jd_raw = source.get("job_requirements") or build_job_summary_text(job)
     jd_summary, jd_summary_truncated, job_visibility, job_variants = bound_job_summary(jd_raw)
 
     candidate_text, candidate_summary_truncated, candidate_visibility, candidate_variants = bound_candidate_summary(
@@ -408,6 +434,20 @@ def build_ranking_request(
     }
     if job.get("enrichment_degraded"):
         mandatory_omissions["job_enrichment_degraded"] = 1
+    if candidate_visibility.get("mandatory_skills_over_budget"):
+        mandatory_omissions["candidate_required_skills"] = len(
+            list(candidate_visibility.get("mandatory_skills") or [])
+        )
+        raise RankingInputBudgetExceeded(
+            "mandatory candidate skills exceed the ranking candidate-summary budget",
+            visibility_manifest={
+                "job": job_visibility,
+                "candidate": candidate_visibility,
+                "evidence": {"raw_count": 0, "selected_count": 0, "rendered_count": 0, "model_visible_count": 0, "omitted_count": 0},
+                "mandatory_omissions": mandatory_omissions,
+                "mandatory_core_complete": False,
+            },
+        )
     degraded_enrichment = bool(
         (source.get("contract_metadata") or {}).get("degraded_enrichment")
         or job.get("enrichment_degraded")
@@ -593,7 +633,10 @@ def build_ranking_input_diagnostics(
     request_payload = dict((request_record or {}).get("request_payload") or {})
     candidate_skill_count = 0
     visible_candidate_skills: list[str] = []
-    candidate_summary_value = source.get("candidate_summary")
+    candidate_summary_value = (
+        dict((request_record or {}).get("bounded_ranking_input") or {}).get("candidate_summary")
+        or source.get("candidate_summary")
+    )
     if isinstance(candidate_summary_value, str):
         try:
             candidate_payload = json.loads(candidate_summary_value) or {}
