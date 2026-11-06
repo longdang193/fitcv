@@ -132,6 +132,7 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
         "lexical_score": 0.82,
         "ranking_input_diagnostics": {
             "selected_evidence_ids": ["project-1"],
+            "model_visible_evidence_ids": [],
             "mandatory_omissions": {},
             "canonical_checksums": {"languages": "abc"},
             "request_char_count": 4200,
@@ -160,7 +161,7 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
         stored = conn.execute(
             """
             SELECT score_status, score_value, final_rank,
-                   selected_evidence_ids_json, mandatory_omissions_json,
+                   selected_evidence_ids_json, model_visible_evidence_ids_json, mandatory_omissions_json,
                    canonical_checksums_json, request_char_count, request_within_budget
             FROM shortlist_admission_ledger
             WHERE run_id = 'run-1' AND job_identity = 'job-1'
@@ -173,6 +174,7 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
         0.87,
         1,
         json.dumps(["project-1"], sort_keys=True),
+        json.dumps([], sort_keys=True),
         json.dumps({}, sort_keys=True),
         json.dumps({"languages": "abc"}, sort_keys=True),
         4200,

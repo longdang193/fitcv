@@ -473,6 +473,19 @@ def test_contract_type_missing_is_unknown_when_allow_list_is_configured() -> Non
     assert classify_contract_type(_job(contract_type=None), _prefs(contract_types=["Full-time"])) == "unknown"
 
 
+def test_contract_type_unknown_literals_are_neutral_by_default() -> None:
+    assert classify_contract_type(_job(contract_type="Unknown"), _prefs(contract_types=["Full-time"])) == "unknown"
+    assert check_contract_type(_job(contract_type="not specified"), _prefs(contract_types=["Full-time"]))
+
+
+def test_contract_type_missing_policy_can_reject_unknown_values() -> None:
+    config = {"rule_filter": {"missing_contract_type_policy": "reject"}}
+    assert classify_contract_type(_job(contract_type="Unknown"), _prefs(contract_types=["Full-time"]), config) == "mismatch"
+    assert not check_contract_type(_job(contract_type=None), _prefs(), config)
+    result = apply_rule_filters([_job(contract_type="Unknown")], _prefs(), config=config)
+    assert result["rejected"][0]["reasons"] == ["contract_type_excluded"]
+
+
 def test_unselected_title_failure_is_marked_but_not_rejected() -> None:
     result = apply_rule_filters(
         [_job(job_url="http://title-mark-only", title="Unrelated role")],

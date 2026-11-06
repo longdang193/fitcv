@@ -1263,26 +1263,34 @@ def run_vector_search(
             for row in lexical_result.get("production_rows") or []
             if str(row.get("job_url") or "") not in admitted_urls
         ]
-        available_slots = max(0, effective_top_n - len(production_rows))
-        fallback_rows = fallback_candidates[:available_slots]
-        replaced_full_cutoff = False
-        if not available_slots and fallback_candidates and production_rows:
-            best_fallback = max(
-                fallback_candidates,
-                key=lambda row: (float(row.get("retrieval_score") or 0.0), str(row.get("job_url") or "")),
+        combined_candidates = [*production_rows, *fallback_candidates]
+        combined_candidates.sort(
+            key=lambda row: (
+                -float(
+                    row.get("vector_similarity")
+                    if row.get("shortlist_origin") == "vector_search"
+                    else row.get("retrieval_score") or 0.0
+                ),
+                str(row.get("job_url") or ""),
             )
-            weakest_index, weakest = min(
-                enumerate(production_rows),
-                key=lambda pair: (float(pair[1].get("vector_similarity") or 0.0), str(pair[1].get("job_url") or "")),
-            )
-            if float(best_fallback.get("retrieval_score") or 0.0) > float(weakest.get("vector_similarity") or 0.0):
-                best_fallback["rescued_displaced_job_url"] = str(weakest.get("job_url") or "")
-                best_fallback["rescue_reason"] = "lexical_recovery_competed_with_full_vector_cutoff"
-                production_rows[weakest_index] = best_fallback
-                fallback_rows = [best_fallback]
-                replaced_full_cutoff = True
-        if not replaced_full_cutoff:
-            production_rows = [*production_rows, *fallback_rows]
+        )
+        admitted_candidates = combined_candidates[:effective_top_n]
+        admitted_urls = {str(row.get("job_url") or "") for row in admitted_candidates}
+        displaced_vector_rows = [
+            row
+            for row in production_rows
+            if str(row.get("job_url") or "") not in admitted_urls
+        ]
+        displaced_vector_urls = [str(row.get("job_url") or "") for row in displaced_vector_rows]
+        fallback_rows = []
+        for row in admitted_candidates:
+            if row.get("shortlist_origin") != "lexical_fallback":
+                continue
+            if displaced_vector_urls:
+                row["rescued_displaced_job_url"] = displaced_vector_urls.pop(0)
+                row["rescue_reason"] = "lexical_recovery_competed_with_vector_cutoff"
+            fallback_rows.append(row)
+        production_rows = admitted_candidates
         fallback_diagnostics = dict(lexical_result.get("diagnostics") or {})
         fallback_urls = {str(row.get("job_url") or "") for row in fallback_rows}
         seen_audit_urls = {
@@ -1291,6 +1299,7 @@ def run_vector_search(
             if str(row.get("job_url") or "")
         }
         for row in [
+            *displaced_vector_rows,
             *(lexical_result.get("production_rows") or []),
             *(lexical_result.get("audit_rows") or []),
         ]:
@@ -1361,7 +1370,9 @@ def run_vector_search(
                 fallback_diagnostics.get("scored_jobs_total") or len(fallback_rows)
             ),
             "fallback_admitted_total": len(fallback_rows),
-            "vector_admitted_total": min(len(ranked_rows), effective_top_n),
+            "vector_admitted_total": sum(
+                1 for row in production_rows if row.get("shortlist_origin") == "vector_search"
+            ),
             "missing_job_embedding_total": len(missing_urls),
             "invalid_job_embedding_total": len(invalid_urls),
             "candidate_embedding_available": candidate_embedding is not None,

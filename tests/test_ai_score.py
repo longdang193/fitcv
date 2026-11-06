@@ -359,13 +359,34 @@ def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() ->
     assert "mandatory:education:1" in result["contract_metadata"]["requirement_ids"]
 
 
-def test_fallback_enrichment_can_use_raw_description_as_degraded_input() -> None:
+def test_fallback_enrichment_requires_retry_even_when_raw_description_exists() -> None:
     ranking_input = build_ranking_job_input(
         {
             "enrich_reuse_status": "enrichment_fallback",
             "description_cleaned": "Requirements: German C1 and AWS certification",
         },
         {"skills": []},
+    )
+
+    with pytest.raises(RankingInputIncomplete):
+        build_ranking_request(
+            {},
+            ranking_input["candidate_summary"],
+            [],
+            {},
+            ranking_input=ranking_input,
+        )
+
+
+def test_build_ranking_request_drops_optional_raw_description_before_budget_failure(monkeypatch) -> None:
+    monkeypatch.setattr("fitcv.ai_score.RANKING_REQUEST_MAX_CHARS", 3_000)
+    ranking_input = build_ranking_job_input(
+        {
+            "title": "Data Engineer",
+            "required_skills": ["Python"],
+            "description": "optional context " * 3000,
+        },
+        {"skills": [{"name": "Python"}]},
     )
 
     request = build_ranking_request(
@@ -376,8 +397,8 @@ def test_fallback_enrichment_can_use_raw_description_as_degraded_input() -> None
         ranking_input=ranking_input,
     )
 
-    assert request["visibility_manifest"]["mandatory_core_complete"] is False
-    assert "Requirements" in request["request"].prompt
+    assert "raw_description" not in request["request"].prompt
+    assert "job_optional" in request["prompt_truncation_steps"]
 
 
 def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> None:

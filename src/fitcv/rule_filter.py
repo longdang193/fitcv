@@ -491,12 +491,21 @@ def check_fit_context(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
         for field_name in ("years_experience_min", "years_experience_max")
     )
 
-def classify_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> str:
+def classify_contract_type(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> str:
     """Classify contract metadata without treating missing data as mismatch."""
     contract_type = str(job.get("contract_type") or "").strip().lower()
     excluded = _get_excluded_contract_types(prefs)
     allowed = _normalized_string_list(prefs.get("contract_types"))
-    if not contract_type:
+    if contract_type in {"", "unknown", "none", "n/a", "not specified", "unspecified"}:
+        missing_policy = str(
+            ((config or {}).get("rule_filter") or {}).get("missing_contract_type_policy") or "unknown"
+        ).strip().lower()
+        if missing_policy == "reject":
+            return "mismatch"
         return "unknown" if (excluded or allowed) else "match"
     if contract_type in excluded:
         return "mismatch"
@@ -505,9 +514,13 @@ def classify_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> str:
     return "match"
 
 
-def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
+def check_contract_type(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> bool:
     """Return True unless contract metadata is a confirmed mismatch."""
-    return classify_contract_type(job, prefs) != "mismatch"
+    return classify_contract_type(job, prefs, config) != "mismatch"
 
 
 def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -755,7 +768,7 @@ def apply_rule_filters(
         ("seniority_mismatch", lambda job, preferences: check_seniority(job, preferences, config)),
         ("missing_fit_context", check_fit_context),
         ("location_type_excluded", check_location_type),
-        ("contract_type_excluded", check_contract_type),
+        ("contract_type_excluded", lambda job, preferences: check_contract_type(job, preferences, config)),
         ("experience_level_excluded", check_experience_level),
         (
             "must_have_skill_missing",
@@ -784,7 +797,7 @@ def apply_rule_filters(
                 reasons.append(title_reason)
             else:
                 marks.append(_build_rule_filter_mark(title_reason, job, prefs, config))
-        contract_state = classify_contract_type(job, prefs)
+        contract_state = classify_contract_type(job, prefs, config)
         if contract_state == "unknown":
             marks.append(
                 {

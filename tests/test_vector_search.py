@@ -1376,6 +1376,58 @@ def test_run_vector_search_keeps_valid_vectors_and_fills_remaining_slots_lexical
     assert result["diagnostics"]["vector_admitted_total"] == 1
 
 
+def test_run_vector_search_lets_all_strong_lexical_fallbacks_compete_with_vector_cutoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            [
+                ("https://example.com/vector-a", json.dumps([0.1, 1.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/vector-b", json.dumps([0.2, 1.0]), "2026-01-01T00:00:00Z"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    monkeypatch.setattr(
+        "fitcv.vector_search._lexical_search_result",
+        lambda *_args, **_kwargs: {
+            "production_rows": [
+                {"job_url": "https://example.com/lexical-a", "retrieval_score": 0.95},
+                {"job_url": "https://example.com/lexical-b", "retrieval_score": 0.90},
+            ],
+            "audit_rows": [],
+            "diagnostics": {"scored_jobs_total": 2},
+        },
+    )
+    jobs = [
+        {"job_url": "https://example.com/vector-a", "title": "Data Engineer"},
+        {"job_url": "https://example.com/vector-b", "title": "Data Engineer"},
+        {"job_url": "https://example.com/lexical-a", "title": "Data Engineer"},
+        {"job_url": "https://example.com/lexical-b", "title": "Data Engineer"},
+    ]
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        [job["job_url"] for job in jobs],
+        {"pipeline": {"vector_search_top_n": 2, "shortlist_audit_sample_n": 0}},
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == [
+        "https://example.com/lexical-a",
+        "https://example.com/lexical-b",
+    ]
+    assert result["diagnostics"]["fallback_admitted_total"] == 2
+    assert result["diagnostics"]["vector_admitted_total"] == 0
+
+
 def test_fixed_recall_fixture_reports_vector_lexical_and_merged_recall_at_50(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

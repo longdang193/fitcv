@@ -111,19 +111,40 @@ visibility.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-matching-accuracy`
 - Base commit: `bdb9d25408ebc893ea922b4fc9b9336b3f928e33`
-- Expected workspace: `implementation changes pending commit`
-- Next action: commit the validated implementation, then run the requested independent PR review cycle
+- Expected workspace: `review-fix changes pending commit`
+- Next action: commit the validated review fixes, rerun the benchmark, then run the requested independent PR review cycle
 - Blockers: `full provider-backed 280-job run exceeded the bounded validation window during enrichment; no terminal compatibility score was produced`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Task 1 | `completed` | current | `codex/high` | none | focused failing fixtures and baseline counts | 390 passed, 2 skipped in focused matching suite; fixtures cover filter, retrieval, evidence, scoring, and skip paths |
-| Task 2 | `completed` | current | `codex/high` | Task 1 | enrichment/scoring state tests | fallback/degraded input, retryability, raw-description preservation, and score-state tests pass |
-| Task 3 | `completed` | current | `codex/high` | Task 1 | rule-filter tri-state tests | contract-type unknown/mismatch and selected title-filter policy tests pass |
-| Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
+| Task 2 | `completed` | current | `codex/high` | Task 1 | enrichment/scoring state tests | fallback/degraded input remains retryable even with raw text; optional raw description is removed before budget failure; focused scoring tests pass |
+| Task 3 | `completed` | current | `codex/high` | Task 1 | rule-filter tri-state tests | contract-type unknown literals remain neutral by default; `missing_contract_type_policy=reject` is wired through filtering; selected title-filter policy tests pass |
+| Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | all lexical fallback candidates compete with vector production rows before `effective_top_n`; displaced rows remain auditable; vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
 | Task 5 | `completed` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | 8-item evidence bound, visibility manifest, mandatory omissions, and 12,000-character budget tests pass |
-| Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | persistence/checkpoint/sqlite suite: 403 passed |
-| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | benchmark preserved recall (`selected evidence 0.8125→0.9375`, requirements `0.866667→1.0`); review E2E 2 passed; full suite 3617 passed, 10 skipped, 3 unrelated frontend/packaging failures; real 280-job run emitted enrichment heartbeats but was stopped without a terminal score |
+| Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | explicit empty `model_visible_evidence_ids` is persisted without falling back to selected IDs; persistence/checkpoint/sqlite suite: 403 passed |
+| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues; all five are patched with focused regressions; 1,088 affected-suite tests and full suite 3,624 passed, 10 skipped; benchmark rerun and independent review remain before completion |
+
+### Post-review remediation
+
+The first independent review identified five confirmed issues and no speculative
+changes are included. The execution patch preserves the approved defaults and
+addresses only these contracts:
+
+1. Keep `job_enrichment_fallback` as an unresolved mandatory omission even when
+   a raw description is available; raw text is not proof that all structured
+   mandatory facts survived extraction.
+2. Treat `raw_description` as optional request context and remove it before
+   rejecting a request whose structured mandatory contract fits the existing
+   12,000-character limit.
+3. Merge vector production candidates with every lexical fallback candidate,
+   apply the existing `effective_top_n` once, and put displaced vector rows in
+   the audit set.
+4. Wire `rule_filter.missing_contract_type_policy` into classification and
+   normalize common unknown literals without turning them into mismatches by
+   default.
+5. Preserve explicit empty model-visible evidence lists in both admission-ledger
+   persistence paths instead of falling back to selected evidence.
 
 ## Task Breakdown
 

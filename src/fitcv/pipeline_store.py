@@ -105,8 +105,11 @@ def persist_shortlist_admission_ledger(
                         if (row.get("ranking_input_diagnostics") or {}).get("mandatory_core_complete") is not None
                         else None,
                         json.dumps(
-                            (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids") or
-                            (row.get("ranking_input_diagnostics") or {}).get("selected_evidence_ids") or [],
+                            (
+                                (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids")
+                                if (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids") is not None
+                                else (row.get("ranking_input_diagnostics") or {}).get("selected_evidence_ids") or []
+                            ),
                             sort_keys=True,
                         ),
                     )
@@ -272,11 +275,14 @@ def update_shortlist_admission_ledger_scores(
                          int(bool(ranked.get("retry_eligible"))) if ranked.get("retry_eligible") is not None else None,
                          int(bool(diagnostics.get("mandatory_core_complete")))
                          if diagnostics.get("mandatory_core_complete") is not None else None,
-                         json.dumps(
-                             diagnostics.get("model_visible_evidence_ids")
-                             or diagnostics.get("selected_evidence_ids") or [],
-                             sort_keys=True,
-                         ),
+                        json.dumps(
+                            (
+                                diagnostics.get("model_visible_evidence_ids")
+                                if diagnostics.get("model_visible_evidence_ids") is not None
+                                else diagnostics.get("selected_evidence_ids") or []
+                            ),
+                            sort_keys=True,
+                        ),
                         str(run_id),
                         identity,
                     ),

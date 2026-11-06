@@ -294,7 +294,7 @@ def build_ranking_request(
         }
         variants: list[dict[str, Any]] = [dict(bounded_payload)]
         reduced = dict(bounded_payload)
-        for key in ("preferred_skills", "responsibilities", "domain", "job_family", "seniority"):
+        for key in ("raw_description", "preferred_skills", "responsibilities", "domain", "job_family", "seniority"):
             if key in reduced:
                 reduced.pop(key)
                 variants.append(dict(reduced))
@@ -942,8 +942,6 @@ def build_ranking_job_input(
         "job_enrichment_fallback": int(job.get("enrich_reuse_status") == "enrichment_fallback"),
     }
     degraded_enrichment = bool(mandatory_omissions["job_enrichment_fallback"])
-    if degraded_enrichment and str(job.get("description_cleaned") or job.get("description") or "").strip():
-        mandatory_omissions["job_enrichment_fallback"] = 0
     def requirement_tokens(value: Any) -> set[str]:
         stop_words = {"and", "the", "for", "with", "from", "this", "that", "required", "related"}
         return {
