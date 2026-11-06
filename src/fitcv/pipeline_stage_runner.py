@@ -732,6 +732,13 @@ def execute_ranking_stage(
             resolved_preference_policy=resolved_preference_policy,
         )
         pipeline_store.store_final_ranking(ranked, config)
+        update_ledger = getattr(pipeline_store, "update_shortlist_admission_ledger_scores", None)
+        if update_ledger is not None:
+            update_ledger(
+                [*ai_scores, *ranked],
+                state.get("ranking_admission_manifest"),
+                run_id,
+            )
         if reporter is not None:
             reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
         state["ai_scores"] = ai_scores

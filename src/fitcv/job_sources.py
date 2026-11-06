@@ -9,7 +9,7 @@ import math
 import re
 import socket
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
@@ -54,6 +54,7 @@ class ScannerRequest:
     careers_url: str
     keywords: tuple[str, ...]
     max_jobs: int
+    acquisition_limit: int
     timeout_seconds: int
     trusted_provider_config: Mapping[str, Any] | None = None
 
@@ -71,6 +72,7 @@ class AcquisitionResult:
     provider_id: str
     selection_mode: str
     artifact: CanonicalJobs
+    diagnostics: Mapping[str, Any] = field(default_factory=dict)
 
 
 def _provider_map(providers: ProviderMap | None) -> ProviderMap:
@@ -303,6 +305,7 @@ def build_scanner_request(
     provider: str = "auto",
     keywords: Sequence[str] | None = None,
     max_jobs: int = 50,
+    acquisition_limit: int | None = None,
     timeout_seconds: int = 60,
     providers: ProviderMap | None = None,
     trusted_provider_config: Mapping[str, Any] | None = None,
@@ -337,12 +340,20 @@ def build_scanner_request(
             "invalid_scanner_request",
             "company_name must contain 1 through 200 characters",
         )
+    requested_max_jobs = _bounded_int("max_jobs", max_jobs, 1, 200)
+    effective_acquisition_limit = _bounded_int(
+        "acquisition_limit",
+        requested_max_jobs if acquisition_limit is None else acquisition_limit,
+        1,
+        200,
+    )
     return ScannerRequest(
         provider=provider_id,
         company_name=company,
         careers_url=derived_url if validated_config is not None else _canonical_https_url(careers_url),
         keywords=_normalize_keywords(keywords),
-        max_jobs=_bounded_int("max_jobs", max_jobs, 1, 200),
+        max_jobs=requested_max_jobs,
+        acquisition_limit=effective_acquisition_limit,
         timeout_seconds=_bounded_int("timeout_seconds", timeout_seconds, 1, 120),
         trusted_provider_config=validated_config,
     )
@@ -575,7 +586,7 @@ def _acquire_ashby(request: ScannerRequest) -> list[dict[str, Any]]:
         raise
     except (ValueError, RuntimeError, json.JSONDecodeError) as exc:
         raise _mapped_provider_error("ashby", request.careers_url, exc) from exc
-    return jobs[: request.max_jobs]
+    return jobs[: request.acquisition_limit]
 
 
 def _acquire_lever(request: ScannerRequest) -> list[dict[str, Any]]:
@@ -591,7 +602,7 @@ def _acquire_lever(request: ScannerRequest) -> list[dict[str, Any]]:
         raise
     except (ValueError, RuntimeError, json.JSONDecodeError) as exc:
         raise _mapped_provider_error("lever", request.careers_url, exc) from exc
-    return jobs[: request.max_jobs]
+    return jobs[: request.acquisition_limit]
 
 
 def _acquire_personio(request: ScannerRequest) -> list[dict[str, Any]]:
@@ -618,7 +629,7 @@ def _acquire_personio(request: ScannerRequest) -> list[dict[str, Any]]:
         raise
     except (ElementTree.ParseError, ValueError, RuntimeError) as exc:
         raise _mapped_provider_error("personio", request.careers_url, exc) from exc
-    return jobs[: request.max_jobs]
+    return jobs[: request.acquisition_limit]
 
 
 def _acquire_greenhouse(request: ScannerRequest) -> list[dict[str, Any]]:
@@ -642,7 +653,7 @@ def _acquire_greenhouse(request: ScannerRequest) -> list[dict[str, Any]]:
         raise
     except (ValueError, RuntimeError, json.JSONDecodeError) as exc:
         raise _mapped_provider_error("greenhouse", request.careers_url, exc) from exc
-    return jobs[: request.max_jobs]
+    return jobs[: request.acquisition_limit]
 
 
 def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
@@ -653,7 +664,7 @@ def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
     jobs: list[dict[str, Any]] = []
     seen: set[str] = set()
     offset = 0
-    while len(jobs) < request.max_jobs:
+    while len(jobs) < request.acquisition_limit:
         try:
             _check_public_dns(api_url, "workday", request.careers_url)
             payload = _ats._fetch_json(
@@ -662,7 +673,7 @@ def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
                 body={
                     "limit": _ats._PAGE_SIZE,
                     "offset": offset,
-                    "searchText": " ".join(request.keywords),
+                    "searchText": "",
                     "appliedFacets": {},
                 },
             )
@@ -685,7 +696,7 @@ def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
             if job_url and job_url not in seen:
                 seen.add(job_url)
                 jobs.append(job)
-                if len(jobs) >= request.max_jobs:
+                if len(jobs) >= request.acquisition_limit:
                     break
         postings = payload.get("jobPostings")
         count = len(postings) if isinstance(postings, list) else 0
@@ -712,14 +723,14 @@ def _acquire_gem(request: ScannerRequest) -> list[dict[str, Any]]:
         detail_query = "query ExternalJobPosting($boardId: String!, $extId: String!) { oatsExternalJobPosting(boardId: $boardId, extId: $extId) { title descriptionHtml extId firstPublishedTsSec locations { id extId name city isoCountry isRemote } job { id locationType employmentType } } }"
         selected: list[dict[str, Any]] = []
         for row in postings:
-            if not isinstance(row, dict) or not _ats._matches(str(row.get("title") or ""), request.keywords):
+            if not isinstance(row, dict):
                 continue
             ext_id = str(row.get("extId") or "")
             detail_payload = _ats._fetch_json(api_url, math.ceil(_remaining_timeout(deadline, "gem", request.careers_url)), body={"query": detail_query, "variables": {"boardId": board_slug, "extId": ext_id}})
             detail = ((detail_payload.get("data") or {}).get("oatsExternalJobPosting"))
             if isinstance(detail, dict):
                 selected.append({**row, "detail": detail})
-            if len(selected) >= request.max_jobs:
+            if len(selected) >= request.acquisition_limit:
                 break
         return _ats.parse_gem_jobs({"data": {"oatsExternalJobPostings": {"jobPostings": selected}}}, company_name=request.company_name, careers_url=request.careers_url, keywords=request.keywords)
     except JobSourceError:
@@ -748,7 +759,7 @@ def acquire_scanner_jobs(
     definition = resolve_provider(request, providers=providers)
     try:
         jobs = definition.acquire(request)
-        artifact = canonicalize_jobs(jobs[: request.max_jobs])
+        artifact = canonicalize_jobs(jobs[: request.acquisition_limit])
     except JobSourceError:
         raise
     except Exception as exc:
@@ -757,6 +768,14 @@ def acquire_scanner_jobs(
         provider_id=definition.provider_id,
         selection_mode="auto" if request.provider == "auto" else "explicit",
         artifact=artifact,
+        diagnostics={
+            "requested_max_jobs": request.max_jobs,
+            "acquisition_limit": request.acquisition_limit,
+            "fetched_detail_count": len(jobs),
+            "provider_capped": len(jobs) >= request.acquisition_limit,
+            "title_discarded": 0,
+            "keyword_query": "",
+        },
     )
 
 

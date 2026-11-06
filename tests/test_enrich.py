@@ -1413,13 +1413,13 @@ def test_lookup_reusable_structured_jobs_repairs_sparse_generic_required_skills_
     ]
 
 
-def test_apply_structured_normalization_coerces_fractional_years_in_dict_payload() -> None:
+def test_apply_structured_normalization_preserves_fractional_years_in_dict_payload() -> None:
     result = _apply_structured_normalization(
         {"years_experience_min": 0.5, "years_experience_max": 2.8},
         config=None,
     )
-    assert result["years_experience_min"] == 0
-    assert result["years_experience_max"] == 2
+    assert result["years_experience_min"] == 0.5
+    assert result["years_experience_max"] == 2.8
 
 def test_apply_structured_normalization_emits_domain_and_role_family_mapping_suggestions() -> None:
     output = EnrichmentOutput(
@@ -1718,7 +1718,7 @@ def test_enrich_job_falls_back_when_structured_payload_fails_validation() -> Non
 
     assert result["required_skills"] == ["SQL"]
     assert result["required_skills_canonical"] == ["sql"]
-    assert result["years_experience_min"] == 0
+    assert result["years_experience_min"] == 0.5
 
 # ── per-item parallel enrichment ───────────────────────────────────────────────
 

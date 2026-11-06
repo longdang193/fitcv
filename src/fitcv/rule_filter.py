@@ -458,11 +458,37 @@ def check_location_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
 
 
 def check_fit_context(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
-    """Return True when at least one normalized fit-context field exists."""
+    """Return True when normalized context or usable matching input exists."""
     del prefs
-    return any(
+    if any(
         str(job.get(field_name) or "").strip()
         for field_name in ("location_type", "seniority", "job_family", "domain")
+    ):
+        return True
+    if any(
+        str(job.get(field_name) or "").strip()
+        for field_name in ("description_cleaned", "description", "raw_description")
+    ):
+        return True
+    if any(
+        isinstance(job.get(field_name), list) and job.get(field_name)
+        for field_name in (
+            "required_skills",
+            "required_skill_entities",
+            "qualifications",
+            "education",
+            "certifications",
+            "employment_constraints",
+            "mandatory_clauses",
+            "language_requirements",
+            "responsibilities",
+            "tech_stack",
+        )
+    ):
+        return True
+    return any(
+        isinstance(job.get(field_name), (int, float)) and not isinstance(job.get(field_name), bool)
+        for field_name in ("years_experience_min", "years_experience_max")
     )
 
 def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -763,6 +789,27 @@ def apply_rule_filters(
                     for factor_id, factor_result in eligibility["fit_factor_results"].items()
                     if factor_result["eligibility_decision"] == "reject"
                 )
+            )
+
+        has_normalized_fit_context = any(
+            str(job.get(field_name) or "").strip()
+            for field_name in ("location_type", "seniority", "job_family", "domain")
+        )
+        if not has_normalized_fit_context and check_fit_context(job, prefs):
+            fallback_status = str(job.get("enrich_reuse_status") or "") == "enrichment_fallback"
+            marks.append(
+                {
+                    "code": "enrichment_fallback" if fallback_status else "missing_fit_context",
+                    "message": (
+                        "Structured enrichment failed; raw job text remains available for retrieval."
+                        if fallback_status
+                        else "Structured fit context is incomplete; usable job evidence remains available for retrieval."
+                    ),
+                    "details": {
+                        "admission": "retained_for_retrieval",
+                        "original_reason": "missing_fit_context",
+                    },
+                }
             )
 
         for reason_code, check_fn in checks:

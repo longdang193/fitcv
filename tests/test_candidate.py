@@ -19,6 +19,7 @@ from fitcv.candidate import (
     load_profile_yaml,
     prepare_profile_rows,
     validate_profile,
+    validate_candidate_profile_v2,
 )
 import fitcv.candidate as candidate_module
 import fitcv.evidence as evidence_module
@@ -188,6 +189,73 @@ def test_legacy_bullet_skill_upgrades_existing_claimed_only_skill_to_supported()
     skill = next(item for item in converted["skills"] if item["name"] == "SQL")
     assert skill["support_status"] == "supported"
     assert skill["evidence_refs"]
+
+
+def test_legacy_language_dimensions_survive_v2_adaptation() -> None:
+    converted = adapt_candidate_profile_to_v2(
+        {
+            "experiences": [],
+            "projects": [],
+            "achievements": [],
+            "languages": [
+                {
+                    "id": "lang_de",
+                    "name": "German",
+                    "level": "B1",
+                    "native": False,
+                    "read": "B2",
+                    "write": "B1",
+                    "speak": "B1",
+                }
+            ],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+    )
+
+    assert converted["languages"] == [
+        {
+            "id": "lang_de",
+            "name": "German",
+            "level": "B1",
+            "native": False,
+            "read": "B2",
+            "write": "B1",
+            "speak": "B1",
+            "source_refs": [{"document_id": "doc_1"}],
+        }
+    ]
+
+
+def test_v2_language_dimensions_are_accepted_by_schema_validation() -> None:
+    profile = adapt_candidate_profile_to_v2(
+        {
+            "schema_version": "candidate-profile.v2",
+            "source_documents": [],
+            "name": "Candidate",
+            "languages": [
+                {
+                    "id": "lang_de",
+                    "name": "German",
+                    "level": "B1",
+                    "native": False,
+                    "read": "B2",
+                    "write": "B1",
+                    "speak": "B1",
+                }
+            ],
+        },
+        {
+            "id": "doc_1",
+            "origin": "uploaded",
+            "filename": "profile.json",
+            "media_type": "application/json",
+            "sha256": "0" * 64,
+        },
+    )
+
+    errors = validate_candidate_profile_v2(profile)
+
+    assert not any("unsupported field in languages/lang_de" in error for error in errors)
 
 def test_runtime_convergence_rejects_invalid_v2_references() -> None:
     profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})

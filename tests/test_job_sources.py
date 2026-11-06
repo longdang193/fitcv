@@ -52,7 +52,21 @@ def test_build_scanner_request_normalizes_shared_contract() -> None:
     assert request.careers_url == "https://job-boards.eu.greenhouse.io/acme"
     assert request.keywords == ("Data Engineer", "Analytics")
     assert request.max_jobs == 50
+    assert request.acquisition_limit == 50
     assert request.timeout_seconds == 60
+
+
+def test_build_scanner_request_separates_acquisition_limit_from_legacy_max_jobs() -> None:
+    request = job_sources.build_scanner_request(
+        provider="ashby",
+        company_name="ACME",
+        careers_url="https://jobs.ashbyhq.com/acme",
+        max_jobs=50,
+        acquisition_limit=200,
+    )
+
+    assert request.max_jobs == 50
+    assert request.acquisition_limit == 200
 
 
 @pytest.mark.parametrize(

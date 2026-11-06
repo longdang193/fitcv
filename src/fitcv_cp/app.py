@@ -9985,6 +9985,7 @@ def create_app(
                         careers_url=req.careers_url,
                         keywords=req.keywords,
                         max_jobs=req.max_jobs,
+                        acquisition_limit=200,
                         timeout_seconds=req.timeout_seconds,
                     )
                     acquisition = acquire_scanner_jobs(scanner_request)
@@ -10009,6 +10010,7 @@ def create_app(
                             "careers_url": scanner_request.careers_url,
                             "keywords": list(scanner_request.keywords),
                             "max_jobs": scanner_request.max_jobs,
+                        "acquisition_limit": scanner_request.acquisition_limit,
                             "timeout_seconds": scanner_request.timeout_seconds,
                             "retrieved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                         },
@@ -10204,6 +10206,7 @@ def create_app(
                     careers_url=str(form.get("careers_url") or ""),
                     keywords=keyword_values,
                     max_jobs=max_jobs,
+                    acquisition_limit=200,
                     timeout_seconds=timeout_seconds,
                 )
                 acquisition = acquire_scanner_jobs(scanner_request)
@@ -10233,6 +10236,7 @@ def create_app(
                 "careers_url": scanner_request.careers_url,
                 "keywords": list(scanner_request.keywords),
                 "max_jobs": scanner_request.max_jobs,
+                "acquisition_limit": scanner_request.acquisition_limit,
                 "timeout_seconds": scanner_request.timeout_seconds,
             }
             try:
@@ -10611,6 +10615,7 @@ def create_app(
                     careers_url=careers_url,
                     keywords=keywords.splitlines(),
                     max_jobs=max_jobs,
+                    acquisition_limit=200,
                     timeout_seconds=timeout_seconds,
                 )
                 acquisition = acquire_scanner_jobs(scanner_request)
