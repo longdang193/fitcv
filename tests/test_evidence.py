@@ -2888,3 +2888,23 @@ def test_profile_evidence_pool_projects_once_per_revision(monkeypatch: pytest.Mo
     select_ranking_evidence(pool, {"required_skills": ["SQL"]})
     select_ranking_evidence(pool, {"required_skills": ["Python"]})
     assert calls == 1
+
+
+def test_select_ranking_evidence_can_preserve_three_distinct_project_proofs() -> None:
+    evidence_pool = [
+        _cached_evidence_item("project-sql", ["SQL"], "Built a SQL pipeline."),
+        _cached_evidence_item("project-python", ["Python"], "Built a Python service."),
+        _cached_evidence_item("project-cloud", ["GCP"], "Deployed a GCP workload."),
+    ]
+
+    selected = select_ranking_evidence(
+        evidence_pool,
+        {"required_skills": ["SQL", "Python", "GCP"]},
+        limit=3,
+    )
+
+    assert {item["evidence_id"] for item in selected} == {
+        "project-sql",
+        "project-python",
+        "project-cloud",
+    }

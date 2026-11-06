@@ -55,8 +55,9 @@ def persist_shortlist_admission_ledger(
                   captured_at, score_status, failure_code, score_value, final_rank,
                   ranking_input_diagnostics_json, selected_evidence_ids_json,
                   mandatory_omissions_json, canonical_checksums_json,
-                  request_char_count, request_within_budget
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  request_char_count, request_within_budget, disposition, retry_eligible,
+                  mandatory_core_complete, model_visible_evidence_ids_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -98,6 +99,19 @@ def persist_shortlist_admission_ledger(
                         int(bool((row.get("ranking_input_diagnostics") or {}).get("request_within_budget")))
                         if (row.get("ranking_input_diagnostics") or {}).get("request_within_budget") is not None
                         else None,
+                        row.get("disposition"),
+                        int(bool(row.get("retry_eligible"))) if row.get("retry_eligible") is not None else None,
+                        int(bool((row.get("ranking_input_diagnostics") or {}).get("mandatory_core_complete")))
+                        if (row.get("ranking_input_diagnostics") or {}).get("mandatory_core_complete") is not None
+                        else None,
+                        json.dumps(
+                            (
+                                (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids")
+                                if (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids") is not None
+                                else (row.get("ranking_input_diagnostics") or {}).get("selected_evidence_ids") or []
+                            ),
+                            sort_keys=True,
+                        ),
                     )
                     for row in rows
                 ],
@@ -138,6 +152,10 @@ def _ensure_shortlist_admission_ledger(conn: Any) -> None:
           canonical_checksums_json TEXT,
           request_char_count INTEGER,
           request_within_budget INTEGER,
+          disposition TEXT,
+          retry_eligible INTEGER,
+          mandatory_core_complete INTEGER,
+          model_visible_evidence_ids_json TEXT,
           PRIMARY KEY (run_id, job_identity)
         )
         """
@@ -154,6 +172,10 @@ def _ensure_shortlist_admission_ledger(conn: Any) -> None:
         "canonical_checksums_json": "TEXT",
         "request_char_count": "INTEGER",
         "request_within_budget": "INTEGER",
+        "disposition": "TEXT",
+        "retry_eligible": "INTEGER",
+        "mandatory_core_complete": "INTEGER",
+        "model_visible_evidence_ids_json": "TEXT",
     }
     for name, sql_type in columns.items():
         if name not in existing:
@@ -232,7 +254,8 @@ def update_shortlist_admission_ledger_scores(
                     SET score_status = ?, failure_code = ?, score_value = ?, final_rank = ?,
                         ranking_input_diagnostics_json = ?, selected_evidence_ids_json = ?,
                         mandatory_omissions_json = ?, canonical_checksums_json = ?,
-                        request_char_count = ?, request_within_budget = ?
+                         request_char_count = ?, request_within_budget = ?, disposition = ?,
+                         retry_eligible = ?, mandatory_core_complete = ?, model_visible_evidence_ids_json = ?
                     WHERE run_id = ? AND job_identity = ?
                     """,
                     (
@@ -248,6 +271,18 @@ def update_shortlist_admission_ledger_scores(
                         int(bool(diagnostics.get("request_within_budget")))
                         if diagnostics.get("request_within_budget") is not None
                         else None,
+                         ranked.get("disposition"),
+                         int(bool(ranked.get("retry_eligible"))) if ranked.get("retry_eligible") is not None else None,
+                         int(bool(diagnostics.get("mandatory_core_complete")))
+                         if diagnostics.get("mandatory_core_complete") is not None else None,
+                        json.dumps(
+                            (
+                                diagnostics.get("model_visible_evidence_ids")
+                                if diagnostics.get("model_visible_evidence_ids") is not None
+                                else diagnostics.get("selected_evidence_ids") or []
+                            ),
+                            sort_keys=True,
+                        ),
                         str(run_id),
                         identity,
                     ),

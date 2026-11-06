@@ -491,10 +491,14 @@ def execute_ranking_stage(
         ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = {}
         ranking_admission_rows: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
+            evidence_limit = max(
+                2,
+                int((config.get("pipeline") or {}).get("evidence_top_k") or 2),
+            )
             selected_evidence = select_ranking_evidence(
                 profile_evidence_pool,
                 shortlisted_job,
-                limit=2,
+                limit=evidence_limit,
                 semantic_policy=semantic_policy,
             )
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
