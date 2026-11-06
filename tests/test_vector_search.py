@@ -1187,7 +1187,15 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
         for index in range(1, 51)
     ]
     lexical_only_url = "https://example.com/lexical-only-winner"
-    lexical_rows.insert(0, {"job_url": lexical_only_url, "lexical_rank": 1})
+    lexical_rows.insert(
+        0,
+        {
+            "job_url": lexical_only_url,
+            "lexical_rank": 1,
+            "retrieval_score": 0.9,
+            "retrieval_components": {"skill_overlap": 1.0},
+        },
+    )
 
     result = _hybrid_search_result(
         vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
@@ -1199,6 +1207,41 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
 
     assert lexical_only_url in {row["job_url"] for row in result["production_rows"]}
     assert result["diagnostics"]["lexical_only_rescue_count"] == 1
+
+
+def test_hybrid_fusion_does_not_rescue_neutral_or_missing_score_rows() -> None:
+    dual_channel_rows = [
+        {"job_url": f"https://example.com/dual-{index}", "vector_rank": index}
+        for index in range(1, 3)
+    ]
+    lexical_rows = [
+        {
+            "job_url": "https://example.com/neutral",
+            "lexical_rank": 1,
+            "retrieval_score": 0.9,
+            "retrieval_components": {
+                "skill_overlap": 0.0,
+                "title_relevance": 0.0,
+                "technology_overlap": 0.0,
+                "description_overlap": 0.0,
+                "match_details": {"domain": "neutral", "role_family": "neutral"},
+            },
+        },
+        {"job_url": "https://example.com/missing-score", "lexical_rank": 2},
+    ]
+
+    result = _hybrid_search_result(
+        vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
+        lexical_result={"production_rows": lexical_rows, "audit_rows": [], "diagnostics": {}},
+        eligible_job_urls=[row["job_url"] for row in dual_channel_rows + lexical_rows],
+        top_n=2,
+        channel_depth=4,
+    )
+
+    production_urls = {row["job_url"] for row in result["production_rows"]}
+    assert "https://example.com/neutral" not in production_urls
+    assert "https://example.com/missing-score" not in production_urls
+    assert result["diagnostics"]["lexical_only_rescue_count"] == 0
 
 
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(

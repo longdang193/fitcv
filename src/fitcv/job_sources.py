@@ -57,6 +57,7 @@ class ScannerRequest:
     acquisition_limit: int
     timeout_seconds: int
     trusted_provider_config: Mapping[str, Any] | None = None
+    acquisition_diagnostics: dict[str, Any] = field(default_factory=dict, compare=False, repr=False)
 
 
 @dataclass(frozen=True)
@@ -664,7 +665,25 @@ def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
     jobs: list[dict[str, Any]] = []
     seen: set[str] = set()
     offset = 0
-    while len(jobs) < request.acquisition_limit:
+    request.acquisition_diagnostics.update(
+        {
+            "fetched_detail_count": 0,
+            "provider_capped": False,
+            "title_discarded": 0,
+            "keyword_query": "",
+        }
+    )
+
+    def load_detail(url: str) -> str:
+        request.acquisition_diagnostics["fetched_detail_count"] = int(
+            request.acquisition_diagnostics.get("fetched_detail_count") or 0
+        ) + 1
+        return _fetch_detail(url, deadline, "workday", request.careers_url)
+
+    while (
+        len(jobs) < request.acquisition_limit
+        and int(request.acquisition_diagnostics.get("fetched_detail_count") or 0) < request.acquisition_limit
+    ):
         try:
             _check_public_dns(api_url, "workday", request.careers_url)
             payload = _ats._fetch_json(
@@ -682,9 +701,9 @@ def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
                 company_name=request.company_name,
                 careers_url=request.careers_url,
                 keywords=request.keywords,
-                description_loader=lambda url: _fetch_detail(
-                    url, deadline, "workday", request.careers_url
-                ),
+                description_loader=load_detail,
+                max_detail_fetches=request.acquisition_limit
+                - int(request.acquisition_diagnostics.get("fetched_detail_count") or 0),
             )
         except JobSourceError:
             raise
@@ -698,6 +717,9 @@ def _acquire_workday(request: ScannerRequest) -> list[dict[str, Any]]:
                 jobs.append(job)
                 if len(jobs) >= request.acquisition_limit:
                     break
+        if int(request.acquisition_diagnostics.get("fetched_detail_count") or 0) >= request.acquisition_limit:
+            request.acquisition_diagnostics["provider_capped"] = True
+            break
         postings = payload.get("jobPostings")
         count = len(postings) if isinstance(postings, list) else 0
         total = payload.get("total")
@@ -757,6 +779,7 @@ def acquire_scanner_jobs(
     providers: ProviderMap | None = None,
 ) -> AcquisitionResult:
     definition = resolve_provider(request, providers=providers)
+    request.acquisition_diagnostics.clear()
     try:
         jobs = definition.acquire(request)
         artifact = canonicalize_jobs(jobs[: request.acquisition_limit])
@@ -775,6 +798,7 @@ def acquire_scanner_jobs(
             "provider_capped": len(jobs) >= request.acquisition_limit,
             "title_discarded": 0,
             "keyword_query": "",
+            **request.acquisition_diagnostics,
         },
     )
 

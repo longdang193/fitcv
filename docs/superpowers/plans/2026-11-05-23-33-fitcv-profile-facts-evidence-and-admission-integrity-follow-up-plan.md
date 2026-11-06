@@ -591,7 +591,7 @@ Final artifact-level verification after all tasks:
 
 ### Execution Evidence
 
-- Focused suite: `1506 passed, 3 skipped in 143.01s (0:02:23)`.
+- Focused suite: `1509 passed, 3 skipped in 132.83s (0:02:12)` after the first PR review fixes.
 - Compile check: `python -m compileall -q src/fitcv src/fitcv_cp tests` passed.
 - Diff check: `git diff --check` passed.
 - Full suite: `3600 passed, 10 skipped, 3 failed in 260.05s (0:04:20)`.
@@ -603,6 +603,10 @@ Final artifact-level verification after all tasks:
   independently reports the same missing `frontend/dist` path.
 - Because the full suite is not green, the plan remains `active`; no unrelated
   frontend build or packaging changes were made.
+- First PR review findings were fixed before the next review cycle: stable
+  run/fingerprint identity resolution for colliding URLs, end-to-end language
+  dimension projection, bounded Workday detail fetches, and affirmative lexical
+  rescue gating with neutral/missing-score negative tests.
 
 Final proof must show:
 

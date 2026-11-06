@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from fitcv.ai_score import build_ranking_request
+from fitcv.ai_score import build_ranking_job_input, build_ranking_request
 from fitcv.rule_filter import apply_rule_filters
 
 
@@ -69,6 +69,25 @@ def test_final_scorer_request_retains_language_dimensions_and_ongoing_education(
     assert '"speak": "B1"' in prompt
     assert "ongoing" in prompt
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+
+
+def test_ranking_input_preserves_dimension_only_and_native_language_records() -> None:
+    ranking_input = build_ranking_job_input(
+        {"job_url": "https://example.com/job", "required_skills": []},
+        {
+            "languages": [
+                {"id": "language-german", "name": "German", "read": "B2", "write": "B1", "speak": "B1"},
+                {"id": "language-french", "name": "French", "native": True},
+            ]
+        },
+        {},
+    )
+
+    languages = json.loads(ranking_input["candidate_summary"])["languages"]
+    assert languages == [
+        {"level": "b1", "name": "German", "read": "B2", "write": "B1", "speak": "B1"},
+        {"level": "native", "name": "French", "native": True},
+    ]
 
 
 def test_raw_description_or_substantive_requirement_survives_missing_fit_context() -> None:

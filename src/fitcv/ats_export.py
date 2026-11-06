@@ -516,11 +516,15 @@ def parse_workday_jobs(
     keywords: Sequence[str] = (),
     today: date | None = None,
     description_loader: Callable[[str], str] | None = None,
+    max_detail_fetches: int | None = None,
 ) -> list[dict[str, str]]:
     _, job_base = _workday_endpoints(careers_url)
     rows = payload.get("jobPostings")
     jobs: list[dict[str, str]] = []
+    detail_fetches = 0
     for row in rows if isinstance(rows, list) else []:
+        if max_detail_fetches is not None and detail_fetches >= max(0, int(max_detail_fetches)):
+            break
         if not isinstance(row, dict):
             continue
         title = str(row.get("title") or "").strip()
@@ -528,6 +532,7 @@ def parse_workday_jobs(
         if not title or not external_path.startswith("/job/"):
             continue
         job_url = f"{job_base}{external_path}"
+        detail_fetches += 1
         page_html = description_loader(job_url) if description_loader is not None else ""
         description = _meta_description(page_html)
         if not description:

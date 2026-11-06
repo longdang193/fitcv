@@ -824,6 +824,28 @@ def _hybrid_search_result(
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
     lexical_rows = list(lexical_result.get("production_rows") or [])
+
+    def has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
+        try:
+            score = float(row.get("retrieval_score"))
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(score):
+            return False
+        components = dict(row.get("retrieval_components") or {})
+        if any(
+            isinstance(components.get(key), (int, float))
+            and math.isfinite(float(components[key]))
+            and float(components[key]) > 0.0
+            for key in ("skill_overlap", "title_relevance", "technology_overlap", "description_overlap")
+        ):
+            return True
+        match_details = dict(components.get("match_details") or {})
+        return any(
+            str(value).strip().lower() not in {"", "none", "neutral", "unknown"}
+            for value in match_details.values()
+        )
+
     by_url: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(vector_rows, start=1):
         url = str(row.get("job_url") or "").strip()
@@ -835,6 +857,8 @@ def _hybrid_search_result(
     for rank, row in enumerate(lexical_rows, start=1):
         url = str(row.get("job_url") or "").strip()
         if not url:
+            continue
+        if url not in by_url and not has_affirmative_lexical_relevance(row):
             continue
         target = by_url.setdefault(url, {**row})
         if "vector_rank" not in target or target.get("shortlist_origin") in {"lexical_search", "audit"}:
@@ -890,7 +914,13 @@ def _hybrid_search_result(
         rescue_threshold = float((lexical_result.get("diagnostics") or {}).get("lexical_rescue_min_score") or 0.2)
         for lexical_row in lexical_only_rows:
             lexical_score = lexical_row.get("retrieval_score")
-            if lexical_score is not None and float(lexical_score) < rescue_threshold:
+            try:
+                lexical_score_value = float(lexical_score)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(lexical_score_value) or lexical_score_value < rescue_threshold:
+                continue
+            if not has_affirmative_lexical_relevance(lexical_row):
                 continue
             lexical_url = str(lexical_row.get("job_url") or "")
             if not lexical_url or lexical_url in selected_urls:
