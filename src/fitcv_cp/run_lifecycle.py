@@ -49,6 +49,7 @@ _CANONICAL_STAGE_BY_ALIAS = {
     "cv_generation": "cv-generation",
     "cv-generation": "cv-generation",
 }
+_NON_TERMINAL_PIPELINE_STAGE_ALIASES = {"normalize"}
 _RUN_DISPLAY_STATUS = {
     RunStatus.QUEUED: "Running",
     RunStatus.RUNNING: "Running",
@@ -61,6 +62,9 @@ _RUN_DISPLAY_STATUS = {
 
 def canonical_stage_id(stage_id: str) -> str | None:
     return _CANONICAL_STAGE_BY_ALIAS.get(str(stage_id or "").strip())
+
+def pipeline_stage_is_control_plane_terminal(stage_id: str) -> bool:
+    return str(stage_id or "").strip().lower() not in _NON_TERMINAL_PIPELINE_STAGE_ALIASES
 
 def run_display_status(status: RunStatus) -> str:
     return _RUN_DISPLAY_STATUS[status]
