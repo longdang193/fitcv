@@ -50,12 +50,14 @@ def test_valid_zero_score_remains_rankable_and_failures_do_not() -> None:
 
 
 def test_export_score_state_keeps_stage_disposition_unscored_without_failure() -> None:
-    assert normalize_score_state_for_export(
-        {
-            "pipeline_status": "not_shortlisted",
-            "job_outcome": {"reason_code": "not_selected_by_shortlist"},
-        }
-    ) == {"ai_score": None, "score_status": "unscored", "failure_code": None}
+    stage_row = {
+        "pipeline_status": "not_shortlisted",
+        "job_outcome": {"reason_code": "not_selected_by_shortlist"},
+    }
+    normalized = normalize_score_state_for_export(stage_row)
+
+    assert normalized == {"ai_score": None, "score_status": "unscored", "failure_code": None}
+    assert normalize_score_state_for_export({**stage_row, **normalized}) == normalized
 
 
 @pytest.mark.parametrize(

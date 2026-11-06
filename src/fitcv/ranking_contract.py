@@ -215,6 +215,16 @@ _EXPORT_SCORE_STATE_INPUT_FIELDS = (
 
 def normalize_score_state_for_export(row: Mapping[str, Any]) -> dict[str, Any]:
     """Normalize export rows without inventing failures for stage-only outcomes."""
+    has_score_evidence = any(
+        row.get(field) not in (None, "")
+        for field in _EXPORT_SCORE_STATE_INPUT_FIELDS
+        if field != "score_status"
+    )
+    has_stage_disposition = bool(str(row.get("pipeline_status") or "").strip()) or isinstance(
+        row.get("job_outcome"), Mapping
+    )
+    if not has_score_evidence and has_stage_disposition:
+        return {"ai_score": None, "score_status": SCORE_STATUS_UNSCORED, "failure_code": None}
     if not any(row.get(field) not in (None, "") for field in _EXPORT_SCORE_STATE_INPUT_FIELDS):
         return {"ai_score": None, "score_status": SCORE_STATUS_UNSCORED, "failure_code": None}
     return normalize_score_state(row)
