@@ -1410,6 +1410,16 @@ def run_ai_scoring(
             return score_row
         except RankingInputBudgetExceeded as exc:
             failure_code = "needs_enrichment" if isinstance(exc, RankingInputIncomplete) else "budget_exceeded"
+            rejection_diagnostics = build_ranking_input_diagnostics(ranking_input)
+            rejection_diagnostics.update(
+                {
+                    "request_within_budget": False,
+                    "request_max_chars": RANKING_REQUEST_MAX_CHARS,
+                    "prompt_truncated": True,
+                    "prompt_truncation_steps": ["mandatory_core_did_not_fit"],
+                    "visibility_manifest": exc.visibility_manifest,
+                }
+            )
             return {
                 "job_url": str(job.get("job_url", "")),
                 **{
@@ -1424,14 +1434,7 @@ def run_ai_scoring(
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
                 "parser_status": exc.failure_code,
-                "ranking_input_diagnostics": {
-                    "contract_version": RANKING_INPUT_CONTRACT_VERSION,
-                    "request_within_budget": False,
-                    "request_max_chars": RANKING_REQUEST_MAX_CHARS,
-                    "prompt_truncated": True,
-                    "prompt_truncation_steps": ["mandatory_core_did_not_fit"],
-                    "visibility_manifest": exc.visibility_manifest,
-                },
+                "ranking_input_diagnostics": rejection_diagnostics,
             }
         except Exception as exc:  # noqa: BLE001
             return {

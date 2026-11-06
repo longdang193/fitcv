@@ -182,6 +182,59 @@ def test_shortlist_admission_ledger_migrates_and_round_trips_score_facts(
     )
 
 
+def test_shortlist_admission_ledger_persists_scorer_rejection_diagnostics(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from fitcv.ai_score import build_ranking_job_input, run_ai_scoring
+
+    sqlite_path = tmp_path / "pipeline.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    ranking_input = build_ranking_job_input(
+        {"enrich_reuse_status": "enrichment_fallback", "description": "Requirements: German C1"},
+        {
+            "skills": [],
+            "_projected_evidence_pool": [{"evidence_id": "project-1", "kind": "project", "title": "Project"}],
+        },
+    )
+    scored = run_ai_scoring(
+        [{"job_url": "https://example.com/job", "run_job_id": "job-1", "ranking_input": ranking_input}],
+        "candidate",
+        {},
+    )[0]
+    row = {
+        "identity": "run:job-1",
+        "job_url": "https://example.com/job",
+        "shortlist_status": "shortlist_admitted",
+        "raw_hit_present": True,
+        "admission_order": 0,
+        "ranking_input_diagnostics": scored["ranking_input_diagnostics"],
+    }
+
+    persist_shortlist_admission_ledger([row], {}, "run-1", {"pipeline": {"vector_search_top_n": 50}})
+    update_shortlist_admission_ledger_scores([scored], {"rows": [row]}, "run-1")
+
+    with sqlite3.connect(sqlite_path) as conn:
+        stored = conn.execute(
+            """
+            SELECT score_status, failure_code, selected_evidence_ids_json,
+                   mandatory_omissions_json, mandatory_core_complete,
+                   model_visible_evidence_ids_json
+            FROM shortlist_admission_ledger
+            WHERE run_id = 'run-1' AND job_identity = 'run:job-1'
+            """
+        ).fetchone()
+
+    assert stored == (
+        "unscored",
+        "needs_enrichment",
+        json.dumps(["project-1"], sort_keys=True),
+        json.dumps({"candidate_certifications": 0, "candidate_employment": 0, "candidate_education": 0, "candidate_languages": 0, "candidate_mandatory_clauses": 0, "candidate_required_skills": 0, "job_enrichment_fallback": 1, "job_language_requirements": 0, "job_mandatory_clauses": 0, "job_required_skills": 0, "job_technology_requirements": 0}, sort_keys=True),
+        0,
+        json.dumps([], sort_keys=True),
+    )
+
+
 def test_shortlist_score_updates_use_stable_identity_when_urls_collide(
     monkeypatch,
     tmp_path,

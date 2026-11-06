@@ -112,7 +112,7 @@ visibility.
 - Branch: `codex/fitcv-matching-accuracy`
 - Base commit: `bdb9d25408ebc893ea922b4fc9b9336b3f928e33`
 - Expected workspace: `review-fix changes pending commit`
-- Next action: run the second and final independent PR review cycle; merge only after its findings are addressed or the review-cycle limit is reached
+- Next action: commit and push the final review fixes, rerun the benchmark on the final code, then merge PR #121 after publication verification
 - Blockers: `full provider-backed 280-job run exceeded the bounded validation window during enrichment; no terminal compatibility score was produced`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -123,7 +123,7 @@ visibility.
 | Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | all lexical fallback candidates compete with vector production rows before `effective_top_n`; displaced rows remain auditable; vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
 | Task 5 | `completed` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | 8-item evidence bound, visibility manifest, mandatory omissions, and 12,000-character budget tests pass |
 | Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | explicit empty `model_visible_evidence_ids` is persisted without falling back to selected IDs; persistence/checkpoint/sqlite suite: 403 passed |
-| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues; all five are patched with focused regressions; affected suite `1,088 passed, 3 skipped`; full suite `3,624 passed, 10 skipped`; review-fix benchmark on `97ce898874524452497dff02bfb41b16d47a857e` preserves selected evidence recall `0.9375`, selected requirement recall `1.0`, and false negatives `1`; provider-backed 280-job run remains bounded-window blocked; final independent review remains |
+| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues and final review found four additional confirmed issues; all nine are patched with focused regressions; affected suite `1,093 passed, 3 skipped`; full suite `3,629 passed, 10 skipped`; final benchmark and merge publication remain |
 
 ### Post-review remediation
 
@@ -151,6 +151,23 @@ Fresh proof after the remediation commit:
 - `python -m pytest tests/test_enrich.py tests/test_ai_score.py tests/test_rule_filter.py tests/test_ranking.py tests/test_vector_search.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py -q` → `1,088 passed, 3 skipped`.
 - `python -m pytest -q` → `3,624 passed, 10 skipped`.
 - The four requirement-support benchmark arms and comparison report use implementation ref `97ce898874524452497dff02bfb41b16d47a857e`; requirement-aware and current-hash arms agree with selected evidence-pair recall `0.9375`, selected requirement recall `1.0`, and false-negative count `1`.
+
+The final independent review found four additional confirmed defects, all
+addressed before merge:
+
+1. Reuse the affirmative lexical-relevance predicate so neutral fallback rows
+   cannot displace vector candidates.
+2. Apply `vector_search_top_n` to the non-semantic backend fallback and retain
+   the remainder as audit rows.
+3. Remove newly admitted URLs from audit candidates after lexical recovery.
+4. Merge scorer exception visibility with the normal ranking-input diagnostics
+   before persistence, preserving selected evidence, mandatory omissions,
+   completeness, and checksums.
+
+The final review regressions cover each case, including a scorer-to-SQLite
+rejection path. The final review agent reported `877 passed, 2 skipped` in its
+independent subset; the lead rerun against the final worktree reports the
+broader affected suite and full suite counts above.
 
 ## Task Breakdown
 

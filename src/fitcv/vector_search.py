@@ -815,6 +815,30 @@ def _unavailable_search_result(
     }
 
 
+def _has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
+    try:
+        score = float(row.get("retrieval_score"))
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(score):
+        return False
+    components = dict(row.get("retrieval_components") or {})
+    if components.get("required_skill_intersection") is True:
+        return True
+    if any(
+        isinstance(components.get(key), (int, float))
+        and math.isfinite(float(components[key]))
+        and float(components[key]) > 0.0
+        for key in ("title_relevance", "technology_overlap", "description_overlap")
+    ):
+        return True
+    match_details = dict(components.get("match_details") or {})
+    return any(
+        str(value).strip().lower() not in {"", "none", "neutral", "unknown"}
+        for value in match_details.values()
+    )
+
+
 def _hybrid_search_result(
     *,
     vector_result: dict[str, Any],
@@ -826,29 +850,6 @@ def _hybrid_search_result(
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
     lexical_rows = list(lexical_result.get("production_rows") or [])
-
-    def has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
-        try:
-            score = float(row.get("retrieval_score"))
-        except (TypeError, ValueError):
-            return False
-        if not math.isfinite(score):
-            return False
-        components = dict(row.get("retrieval_components") or {})
-        if components.get("required_skill_intersection") is True:
-            return True
-        if any(
-            isinstance(components.get(key), (int, float))
-            and math.isfinite(float(components[key]))
-            and float(components[key]) > 0.0
-            for key in ("title_relevance", "technology_overlap", "description_overlap")
-        ):
-            return True
-        match_details = dict(components.get("match_details") or {})
-        return any(
-            str(value).strip().lower() not in {"", "none", "neutral", "unknown"}
-            for value in match_details.values()
-        )
 
     by_url: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(vector_rows, start=1):
@@ -862,7 +863,7 @@ def _hybrid_search_result(
         url = str(row.get("job_url") or "").strip()
         if not url:
             continue
-        if url not in by_url and not has_affirmative_lexical_relevance(row):
+        if url not in by_url and not _has_affirmative_lexical_relevance(row):
             continue
         target = by_url.setdefault(url, {**row})
         if "vector_rank" not in target or target.get("shortlist_origin") in {"lexical_search", "audit"}:
@@ -924,7 +925,7 @@ def _hybrid_search_result(
                 continue
             if not math.isfinite(lexical_score_value) or lexical_score_value < rescue_threshold:
                 continue
-            if not has_affirmative_lexical_relevance(lexical_row):
+            if not _has_affirmative_lexical_relevance(lexical_row):
                 continue
             lexical_url = str(lexical_row.get("job_url") or "")
             if not lexical_url or lexical_url in selected_urls:
@@ -1093,7 +1094,7 @@ def run_vector_search(
             profile,
             eligible_job_urls,
             config,
-            len(eligible_job_urls),
+            effective_top_n,
             structured_jobs,
             requested_strategy=requested_strategy,
             fallback_reason="non_semantic_embedding_backend",
@@ -1261,7 +1262,10 @@ def run_vector_search(
                 "fallback_source_rank": row.get("vector_rank"),
             }
             for row in lexical_result.get("production_rows") or []
-            if str(row.get("job_url") or "") not in admitted_urls
+            if (
+                str(row.get("job_url") or "") not in admitted_urls
+                and _has_affirmative_lexical_relevance(row)
+            )
         ]
         combined_candidates = [*production_rows, *fallback_candidates]
         combined_candidates.sort(
@@ -1308,6 +1312,11 @@ def run_vector_search(
                 continue
             audit_candidates.append(row)
             seen_audit_urls.add(job_url)
+        audit_candidates = [
+            row
+            for row in audit_candidates
+            if str(row.get("job_url") or "") not in admitted_urls
+        ]
     candidate_query_signature = str(candidate_query.get("candidate_query_signature") or "")
     audit_ranked = [
         {

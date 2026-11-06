@@ -1532,6 +1532,29 @@ def test_observation_toggle_keeps_identical_model_input(monkeypatch: pytest.Monk
     assert captured[0] == captured[1]
 
 
+def test_scoring_rejection_preserves_ranking_input_diagnostics(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    ranking_input = build_ranking_job_input(
+        {"enrich_reuse_status": "enrichment_fallback", "description": "Requirements: German C1"},
+        {
+            "skills": [],
+            "_projected_evidence_pool": [{"evidence_id": "project-1", "kind": "project", "title": "Project"}],
+        },
+    )
+    result = run_ai_scoring(
+        [{"job_url": "https://example.com/job", "ranking_input": ranking_input}],
+        "candidate",
+        {},
+    )[0]
+
+    diagnostics = result["ranking_input_diagnostics"]
+    assert result["failure_code"] == "needs_enrichment"
+    assert diagnostics["selected_evidence_ids"] == ["project-1"]
+    assert diagnostics["mandatory_omissions"]["job_enrichment_fallback"] == 1
+    assert diagnostics["mandatory_core_complete"] is False
+
+
 def test_ranking_stage_freezes_route_until_next_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
     from contextlib import nullcontext
     from fitcv.pipeline_stage_runner import execute_ranking_stage
