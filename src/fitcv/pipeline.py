@@ -1871,6 +1871,7 @@ def _build_stage_progress_summary(
         profile=candidate_profile,
         config=config,
         resolved_preference_policy=dict(state.get("resolved_preference_policy") or {}),
+        reached_stage_ids=set(completed_pipeline_stages_through(last_completed_stage)),
     )
     return {
         "run_id": run_id,
@@ -3073,20 +3074,40 @@ def _build_stage_transition_artifacts(
     enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
     ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
+    reached_stage_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """@capability cv_system.stage-artifact-diagnostics"""
     candidate_query_debug = dict(candidate_query_debug or {})
     enrich_llm_runtime_observations = list(enrich_llm_runtime_observations or [])
     ranking_llm_runtime_observations = list(ranking_llm_runtime_observations or [])
     cv_analysis_results = list(cv_analysis_results or [])
-    shortlist_reached = len(passed_jobs) > 0
-    ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
-    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    enrichment_reached = reached_stage_ids is None or "enrich" in reached_stage_ids
+    screening_reached = reached_stage_ids is None or "rule_filter" in reached_stage_ids
+    shortlist_reached = (
+        len(passed_jobs) > 0
+        if reached_stage_ids is None
+        else "shortlist" in reached_stage_ids
+    )
+    ranking_reached = (
+        shortlist_reached
+        and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
+        if reached_stage_ids is None
+        else "ranking" in reached_stage_ids
+    )
+    cv_analysis_reached = (
+        len(ranked) > 0 or len(cv_analysis_results) > 0
+        if reached_stage_ids is None
+        else "cv_analysis" in reached_stage_ids
+    )
     generation_execution_records = [
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
-    cv_generation_reached = len(generation_execution_records) > 0
+    cv_generation_reached = (
+        len(generation_execution_records) > 0
+        if reached_stage_ids is None
+        else "cv_generation" in reached_stage_ids
+    )
     raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
     shortlist_candidate_query_components = {
         "headline": str(candidate_query_components.get("headline") or ""),
@@ -3308,33 +3329,41 @@ def _build_stage_transition_artifacts(
                     "deduplicated",
                 ),
             ),
-            "enrich": _build_enrich_stage_block_artifacts(
-                normalized=normalized,
-                pre_filter_rejected_jobs=pre_filter_rejected_jobs,
-                enriched=enriched,
-                profile=profile,
-                config=config,
-                enrich_prompt_provenance=enrich_prompt_provenance,
-                enrich_reuse_counts=enrich_reuse_counts,
-                enrich_reuse_metrics=enrich_reuse_metrics,
-                llm_runtime_observations=enrich_llm_runtime_observations,
-                stage_block_builder=_stage_block,
-                sample_rows_builder=_sample_rows,
-                job_sample_builder=_job_sample,
-                extract_job_url=extract_job_url,
-                candidate_profile_summary_builder=_candidate_profile_summary,
+            "enrich": (
+                _build_enrich_stage_block_artifacts(
+                    normalized=normalized,
+                    pre_filter_rejected_jobs=pre_filter_rejected_jobs,
+                    enriched=enriched,
+                    profile=profile,
+                    config=config,
+                    enrich_prompt_provenance=enrich_prompt_provenance,
+                    enrich_reuse_counts=enrich_reuse_counts,
+                    enrich_reuse_metrics=enrich_reuse_metrics,
+                    llm_runtime_observations=enrich_llm_runtime_observations,
+                    stage_block_builder=_stage_block,
+                    sample_rows_builder=_sample_rows,
+                    job_sample_builder=_job_sample,
+                    extract_job_url=extract_job_url,
+                    candidate_profile_summary_builder=_candidate_profile_summary,
+                )
+                if enrichment_reached
+                else _stage_block_not_reached("enrich")
             ),
-            "rule_filter": _build_rule_filter_stage_block_artifacts(
-                enriched=enriched,
-                passed_jobs=passed_jobs,
-                candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
-                grouped_reject_reasons=grouped_reject_reasons,
-                grouped_mark_codes=grouped_mark_codes,
-                selected_rule_filters=selected_rule_filters,
-                stage_block_builder=_stage_block,
-                sample_rows_builder=_sample_rows,
-                job_sample_builder=_job_sample,
-                rule_filter_decision_sample_builder=_rule_filter_decision_sample,
+            "rule_filter": (
+                _build_rule_filter_stage_block_artifacts(
+                    enriched=enriched,
+                    passed_jobs=passed_jobs,
+                    candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
+                    grouped_reject_reasons=grouped_reject_reasons,
+                    grouped_mark_codes=grouped_mark_codes,
+                    selected_rule_filters=selected_rule_filters,
+                    stage_block_builder=_stage_block,
+                    sample_rows_builder=_sample_rows,
+                    job_sample_builder=_job_sample,
+                    rule_filter_decision_sample_builder=_rule_filter_decision_sample,
+                )
+                if screening_reached
+                else _stage_block_not_reached("rule_filter")
             ),
             "shortlist": _build_shortlist_stage_block_artifacts(
                 shortlist_reached=shortlist_reached,
