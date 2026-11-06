@@ -4148,6 +4148,45 @@ def test_results_export_v4_freezes_decision_feedback_source() -> None:
     assert payload["decision_feedback_source"]["alternatives"][0]["alternative_id"] == "raw-1"
 
 
+def test_results_export_worker_preserves_stage_unscored_state() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _build_results_export_payload
+
+    payload = json.loads(
+        _build_results_export_payload(
+            run_id="run-1",
+            run_record=SimpleNamespace(
+                triggered_by="admin",
+                run_mode="run_all",
+                created_at=None,
+                started_at=None,
+                jobs_path="data/jobs.json",
+                jobs_input_source=None,
+                candidate_profile_source=None,
+                candidate_profile_json=None,
+            ),
+            effective_config=None,
+            summary={"total_jobs": 1, "passed_filter": 0, "ranked": 0, "cvs_generated": 0},
+            export_results=[
+                {
+                    "job_url": "https://example.test/not-shortlisted",
+                    "pipeline_status": "not_shortlisted",
+                    "job_outcome": {"reason_code": "not_selected_by_shortlist"},
+                    "scores": {"ai_score": None, "score_status": None, "failure_code": None},
+                }
+            ],
+            finished_at=datetime.datetime(2026, 7, 16, tzinfo=datetime.timezone.utc),
+            replay_context={},
+        )
+    )
+
+    result = payload["results"][0]
+    assert result["score_status"] == "unscored"
+    assert result["failure_code"] is None
+    assert result["scores"]["failure_code"] is None
+
+
 def test_verify_jobs_input_projection_accepts_exact_snapshot(tmp_path) -> None:
     from types import SimpleNamespace
     from fitcv_cp.worker_job import _verify_jobs_input_projection

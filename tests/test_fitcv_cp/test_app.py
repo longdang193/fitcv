@@ -18162,3 +18162,40 @@ def test_results_export_normalizes_score_state_without_fabricating_zero() -> Non
     })
     assert valid["ai_score"] == 0.0
     assert valid["score_status"] == "valid"
+
+
+def test_results_export_does_not_label_unscored_stage_dispositions_as_ambiguous() -> None:
+    from fitcv_cp.app import _normalize_results_export_row
+
+    not_shortlisted = _normalize_results_export_row({
+        "job_url": "https://example.com/not-shortlisted",
+        "pipeline_status": "not_shortlisted",
+        "scores": {
+            "ai_score": None,
+            "score_status": None,
+            "failure_code": None,
+        },
+        "job_outcome": {
+            "reason_code": "not_selected_by_shortlist",
+        },
+    })
+
+    assert not_shortlisted["score_status"] == "unscored"
+    assert not_shortlisted["failure_code"] is None
+
+
+def test_results_export_preserves_explicit_scoring_failure_for_unscored_job() -> None:
+    from fitcv_cp.app import _normalize_results_export_row
+
+    budget_limited = _normalize_results_export_row({
+        "job_url": "https://example.com/budget-limited",
+        "pipeline_status": "ranking_unavailable",
+        "scores": {
+            "ai_score": None,
+            "score_status": "unscored",
+            "failure_code": "budget_exceeded",
+        },
+    })
+
+    assert budget_limited["score_status"] == "unscored"
+    assert budget_limited["failure_code"] == "budget_exceeded"

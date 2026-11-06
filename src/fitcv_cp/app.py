@@ -121,7 +121,7 @@ from fitcv.pipeline_contracts import (
     timeline_stage_download_for_event,
     timeline_stage_label,
 )
-from fitcv.ranking_contract import normalize_score_state
+from fitcv.ranking_contract import normalize_score_state, normalize_score_state_for_export
 from fitcv.rule_filter import evaluate_title_filter, normalize_title_keywords
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
 from fitcv.prompts import get_prompt_definition, render_prompt, required_template_variables
@@ -4198,7 +4198,7 @@ def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
         **(dict(normalized.get("scores") or {}) if isinstance(normalized.get("scores"), dict) else {}),
         **normalized,
     }
-    score_state = normalize_score_state(score_source)
+    score_state = normalize_score_state_for_export(score_source)
     normalized["ai_score"] = score_state["ai_score"]
     normalized["score_status"] = score_state["score_status"]
     normalized["failure_code"] = score_state["failure_code"]

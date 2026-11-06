@@ -20,6 +20,7 @@ from fitcv.ranking_contract import (
     build_baseline_result,
     fit_label_from_score,
     normalize_score_state,
+    normalize_score_state_for_export,
     resolve_fit_label_for_row,
     validate_weight_contract,
 )
@@ -46,6 +47,38 @@ def test_valid_zero_score_remains_rankable_and_failures_do_not() -> None:
     ranked = rank_jobs(jobs, top_n=10)
     assert [row["job_url"] for row in ranked] == ["zero"]
     assert jobs[1]["score_status"] == "unscored"
+
+
+def test_export_score_state_keeps_stage_disposition_unscored_without_failure() -> None:
+    stage_row = {
+        "pipeline_status": "not_shortlisted",
+        "job_outcome": {"reason_code": "not_selected_by_shortlist"},
+    }
+    normalized = normalize_score_state_for_export(stage_row)
+
+    assert normalized == {"ai_score": None, "score_status": "unscored", "failure_code": None}
+    assert normalize_score_state_for_export({**stage_row, **normalized}) == normalized
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_status", "expected_failure"),
+    [
+        ("parser_status", "missing_ai_score", "invalid", "missing_ai_score"),
+        ("reranker_parser_status", "runtime_exception", "unscored", "provider_failure"),
+        ("score_reasoning", "parse failure: malformed", "invalid", "parser_failure"),
+        ("reranker_score_reasoning", "scoring error: provider", "unscored", "provider_failure"),
+    ],
+)
+def test_export_score_state_preserves_legacy_failure_contract(
+    field: str,
+    value: str,
+    expected_status: str,
+    expected_failure: str,
+) -> None:
+    normalized = normalize_score_state_for_export({field: value})
+
+    assert normalized["score_status"] == expected_status
+    assert normalized["failure_code"] == expected_failure
 
 
 def test_job_identity_keys_prefer_run_then_fingerprint_and_suppress_url_aliases() -> None:
