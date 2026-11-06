@@ -345,6 +345,8 @@ def build_ranking_request(
                 for value in values
                 if isinstance(value, (dict, str, int, float))
             ]
+        if isinstance(bounded_payload.get("skills"), list):
+            bounded_payload["skills"] = bounded_payload["skills"][:RANKING_MAX_SKILLS]
 
         def serialize() -> str:
             return _serialize_payload(bounded_payload)
@@ -494,7 +496,7 @@ def build_ranking_request(
         for candidate_variant in candidate_variants[1:]:
             attempts.append((_serialize_payload(job_variant), _serialize_payload(candidate_variant), selected_evidence, "optional"))
     base_attempts = list(attempts)
-    evidence_counts = range(len(evidence) - 1, 0, -1) if evidence else (0,)
+    evidence_counts = range(len(evidence) - 1, -1, -1) if evidence else (0,)
     for evidence_count in evidence_counts:
         attempts.extend(
             (job_value, candidate_value, selected_evidence[:evidence_count], f"candidate_evidence:{len(evidence)}->{evidence_count}")

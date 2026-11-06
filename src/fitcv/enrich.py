@@ -212,6 +212,26 @@ _NON_SKILL_PHRASE_MARKERS: tuple[str, ...] = (
     "high degree of ownership",
     "soft skill",
 )
+_APPLICATION_ARTIFACT_EXACT: frozenset[str] = frozenset({
+    "anschreiben",
+    "bewerbung",
+    "cv",
+    "lebenslauf",
+    "notenspiegel",
+    "resume",
+    "telefon",
+})
+_APPLICATION_ARTIFACT_PHRASE_MARKERS: tuple[str, ...] = (
+    "application materials",
+    "bewerbungsunterlagen",
+    "cover letter",
+    "current resume",
+    "job application",
+    "telefonnummer",
+)
+_APPLICATION_CONTACT_RE = re.compile(
+    r"\b(?:e[- ]?mail|phone|telefon|tel\.?)\b|\+?\d[\d\s()./-]{6,}"
+)
 
 
 class SkillEntity(TypedDict):
@@ -283,7 +303,7 @@ RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v2"
 ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v2"
 ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
 ENRICH_CONTRACT_VERSION = "enrich_contract_v2"
-ENRICH_VALIDATION_POLICY_VERSION = "enrichment_validation_policy_v2"
+ENRICH_VALIDATION_POLICY_VERSION = "enrichment_validation_policy_v3"
 FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
 REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
 MIGRATED_CACHED_ENRICHMENT_STATUS = "migrated_cached_enrichment"
@@ -438,10 +458,24 @@ def _is_generic_ai_concept_overreach(raw_text: str, canonical: str) -> bool:
     return "genai" not in raw_lower and "generative ai" not in raw_lower
 
 
+def _is_application_artifact(raw_text: str, canonical: str) -> bool:
+    raw_lower = " ".join(raw_text.strip().lower().split())
+    canonical_lower = " ".join(canonical.strip().lower().split())
+    if not raw_lower or not canonical_lower:
+        return False
+    if raw_lower in _APPLICATION_ARTIFACT_EXACT or canonical_lower in _APPLICATION_ARTIFACT_EXACT:
+        return True
+    if any(marker in raw_lower or marker in canonical_lower for marker in _APPLICATION_ARTIFACT_PHRASE_MARKERS):
+        return True
+    return bool(_APPLICATION_CONTACT_RE.search(raw_lower))
+
+
 def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
     raw_lower = raw_text.strip().lower()
     canonical_lower = canonical.strip().lower()
     if not raw_lower or not canonical_lower:
+        return False
+    if _is_application_artifact(raw_text, canonical):
         return False
     if canonical_lower in _LANGUAGE_CANONICALS:
         return False
@@ -452,6 +486,21 @@ def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
     if _is_generic_ai_concept_overreach(raw_text, canonical):
         return False
     return True
+
+
+def _filter_skill_values(
+    raw_values: Any,
+    field_name: str,
+    config: dict | None,
+) -> list[str]:
+    if field_name not in _CANONICAL_SKILL_FIELDS:
+        return _normalize_array_values(raw_values) if isinstance(raw_values, list) else []
+    filtered: list[str] = []
+    for raw_value in _normalize_array_values(raw_values) if isinstance(raw_values, list) else []:
+        canonical = _canonicalize_text_item(field_name, raw_value, config)
+        if _is_allowed_skill_entity(raw_value, canonical):
+            filtered.append(raw_value)
+    return _dedupe_text_values(filtered)
 
 
 def _is_reusable_skill_alias(raw_text: str, canonical: str) -> bool:
@@ -1341,11 +1390,11 @@ def _apply_structured_normalization(
     actual_location = _canonical_actual_location(output.actual_location)
     language_requirements = _canonical_language_requirements(output.language_requirements)
     required_skills = _remove_language_requirements_from_skills(
-        _normalize_array_values(output.required_skills),
+        _filter_skill_values(output.required_skills, "required_skills", config),
         language_requirements,
     )
     preferred_skills = _remove_language_requirements_from_skills(
-        _normalize_array_values(output.preferred_skills),
+        _filter_skill_values(output.preferred_skills, "preferred_skills", config),
         language_requirements,
     )
     responsibilities = _normalize_array_values(output.responsibilities)
@@ -1733,6 +1782,8 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     for field in _KNOWN_FIELDS:
         raw_value = raw.get(field)
         parsed[field] = _coerce_field(field, raw_value, config)
+    for field_name in _CANONICAL_SKILL_FIELDS:
+        parsed[field_name] = _filter_skill_values(parsed.get(field_name), field_name, config)
     if isinstance(raw.get("location_type"), str) and raw.get("location_type") and parsed.get("location_type") is None:
         errors.append("coercion_warning:location_type:invalid_enum")
     if isinstance(raw.get("seniority"), str) and raw.get("seniority") and parsed.get("seniority") is None:
@@ -2132,6 +2183,8 @@ def merge_scraped_and_enriched(
                 }
             )
         merged["role_family_mapping_suggestions"] = existing_role
+    for field_name in _CANONICAL_SKILL_FIELDS:
+        merged[field_name] = _filter_skill_values(merged.get(field_name), field_name, config)
     merged = _repair_required_skill_signal(merged, config)
     _apply_job_semantic_snapshot(merged, merged, cfg)
     return merged

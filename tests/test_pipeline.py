@@ -1867,7 +1867,10 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
 
     assert result["paused_after_stage"] == "ranking"
     assert result["next_stage"] == "cv_analysis"
-    assert mock_ai.call_args.args[0] == shortlist
+    scored_shortlist = mock_ai.call_args.args[0]
+    assert len(scored_shortlist) == len(shortlist)
+    assert {key: value for key, value in scored_shortlist[0].items() if key != "ranking_input"} == shortlist[0]
+    assert scored_shortlist[0]["ranking_input"]["candidate_summary"]
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
@@ -7338,15 +7341,16 @@ def test_run_pipeline_does_not_score_missing_vector_rows(
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     shortlist_arg = mock_ai.call_args.args[0]
-    assert shortlist_arg == [
-        {
-            **first_job,
-            "marks": [],
-            "vector_similarity": 0.9,
-            "vector_rank": 1,
-            "shortlist_origin": "vector_search",
-        }
-    ]
+    expected_shortlist_row = {
+        **first_job,
+        "marks": [],
+        "vector_similarity": 0.9,
+        "vector_rank": 1,
+        "shortlist_origin": "vector_search",
+    }
+    assert len(shortlist_arg) == 1
+    assert {key: value for key, value in shortlist_arg[0].items() if key != "ranking_input"} == expected_shortlist_row
+    assert "candidate_evidence" in shortlist_arg[0]["ranking_input"]
     second_export_row = next(
         row for row in result["export_results"]
         if row["job_url"] == second_job["job_url"]

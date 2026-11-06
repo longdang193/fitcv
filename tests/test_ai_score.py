@@ -862,6 +862,60 @@ def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflo
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
+def test_ranking_request_bounds_oversized_candidate_skills_and_keeps_project_evidence() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="test-model",
+        timeout_seconds=12.0,
+        request_start_interval_secs=0.0,
+        auth_mode="env",
+        temperature=0.0,
+        model_record_id="model-record",
+        configuration_revision="configuration",
+    )
+    project_text = "Built Power BI dashboards and Python data pipelines."
+    profile = {
+        "skills": [
+            {"name": f"Skill {index:03d} " + ("x" * 70)}
+            for index in range(130)
+        ] + [{"name": "Power BI"}, {"name": "Python"}],
+        "_projected_evidence_pool": [{
+            "evidence_id": "project-strong",
+            "kind": "project",
+            "title": "Analytics project",
+            "parent_title": "Analytics project",
+            "text": project_text,
+            "scoring_context": project_text,
+            "skills": ["Power BI", "Python"],
+        }],
+    }
+    job = {
+        "title": "Data Analyst",
+        "required_skills": ["Power BI", "Python"],
+        "description": "optional context " * 1000,
+    }
+    ranking_input = build_ranking_job_input(job, profile)
+
+    request = build_ranking_request(
+        job,
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=route,
+    )
+
+    prompt = request["request"].prompt
+    assert '"Power BI"' in prompt
+    assert '"Python"' in prompt
+    assert project_text in prompt
+    assert request["visibility_manifest"]["evidence"]["selected_ids"] == ["project-strong"]
+    assert request["visibility_manifest"]["evidence"]["model_visible_count"] == 1
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+
+
 def test_final_ranking_request_retains_language_dimensions() -> None:
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
@@ -1750,6 +1804,68 @@ def test_ranking_stage_persists_selected_evidence_and_scorer_diagnostics(monkeyp
     assert state["ranking_admission_manifest"]["counts"]["ai_score_selected"] == 1
     assert state["ranking_admission_manifest"]["rows"][0]["score_execution"] == "fresh"
     assert state["ranking_admission_manifest"]["rows"][0]["request_fingerprint"] == "fp"
+
+
+def test_ranking_stage_attaches_bounded_input_to_each_scoring_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+    from fitcv.pipeline_stage_runner import execute_ranking_stage
+
+    captured: dict[str, Any] = {}
+
+    class Store:
+        def store_final_ranking(self, *_: Any) -> None:
+            return None
+
+    job = {
+        "job_url": "https://example.com/identity-sensitive-role",
+        "run_job_id": "run-job-1",
+        "raw_job_fingerprint": "raw-job-1",
+        "title": "Data Analyst",
+        "required_skills": ["SQL"],
+        "responsibilities": ["Build reports"],
+    }
+    profile = {
+        "skills": [{"name": "SQL"}],
+        "projects": [
+            {
+                "id": "reporting-project",
+                "name": "Reporting Project",
+                "skills": ["SQL"],
+                "highlights": ["Built SQL reports."],
+            }
+        ],
+    }
+
+    def score(jobs: list[dict[str, Any]], *_args: Any, **_kwargs: Any) -> list[dict[str, Any]]:
+        captured["job"] = jobs[0]
+        return [{"job_url": jobs[0]["job_url"], "ai_score": 0.8, "score_status": "valid"}]
+
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_run_preference_policy", lambda **_kwargs: object())
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolved_preference_policy_to_dict", lambda _policy: {})
+    execute_ranking_stage(
+        run_id="run-1",
+        state={},
+        shortlist=[job],
+        candidate_summary="Candidate analyst",
+        profile=profile,
+        config={"pipeline": {"ai_score_top_n": 1}, "reuse": {"ranking": {"enabled": False}}},
+        final_top_n=1,
+        reporter=None,
+        pipeline_store=Store(),
+        observe_span=lambda *_args, **_kwargs: nullcontext(),
+        set_span_attributes=lambda _attrs: None,
+        cancellation_check=None,
+        cancellation_error_cls=RuntimeError,
+        ranking_ai_score_reuse_index={},
+        build_ai_score_input_fingerprint=lambda *_args, **_kwargs: {"fingerprint": "fp"},
+        extract_job_url=lambda row: row["job_url"],
+        run_ai_scoring=score,
+        build_ranking_features=lambda *_args, **_kwargs: [],
+        rank_jobs=lambda *_args, **_kwargs: [],
+        preference_policy_resolver=lambda _contract: None,
+    )
+
+    assert captured["job"]["ranking_input"]["candidate_evidence"]
 
 
 def test_route_resolution_failure_maps_to_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:

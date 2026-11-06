@@ -583,7 +583,7 @@ def execute_ranking_stage(
                         )
                     )
                 continue
-            fresh_scoring_jobs.append(shortlisted_job)
+            fresh_scoring_jobs.append({**shortlisted_job, "ranking_input": ranking_input})
             if identity_key:
                 fresh_ai_score_fingerprints[identity_key] = fingerprint_record["fingerprint"]
             if manifest_identity in ranking_admission_rows:

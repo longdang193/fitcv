@@ -2502,6 +2502,56 @@ def test_merge_scraped_and_enriched_reprojects_canonical_fields_from_raw_values(
     assert merged["semantic_snapshot"]["field_completeness"]["required_skills"] == "complete"
 
 
+def test_parse_extraction_response_rejects_application_artifacts_as_skills() -> None:
+    response = json.dumps(
+        {
+            "required_skills": ["Telefon +49 89 236139465", "Lebenslauf", "Python"],
+            "preferred_skills": ["Anschreiben", "Power BI"],
+            "required_skill_entities": [
+                {"raw_text": "Telefon +49 89 236139465", "canonical": "Telefon +49 89 236139465"},
+                {"raw_text": "Lebenslauf", "canonical": "Lebenslauf"},
+                {"raw_text": "Python", "canonical": "Python"},
+            ],
+            "preferred_skill_entities": [
+                {"raw_text": "Anschreiben", "canonical": "Anschreiben"},
+                {"raw_text": "Power BI", "canonical": "Power BI"},
+            ],
+        }
+    )
+
+    result = parse_extraction_response(response, {})["parsed"]
+
+    assert result["required_skills"] == ["Python"]
+    assert result["required_skills_canonical"] == ["python"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "Python", "canonical": "python", "confidence": 1.0}
+    ]
+    assert result["preferred_skills"] == ["Power BI"]
+    assert result["preferred_skills_canonical"] == ["power bi"]
+
+
+def test_merge_scraped_and_enriched_removes_cached_application_artifacts_from_skills() -> None:
+    merged = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/application-artifacts",
+            "title": "Data Analyst",
+            "description": "Build Python analytics solutions.",
+        },
+        {
+            "required_skills": ["Telefon +49 89 236139465", "Lebenslauf", "Python"],
+            "preferred_skills": ["Anschreiben", "Power BI"],
+            "required_skill_entities": [],
+            "preferred_skill_entities": [],
+        },
+        {},
+    )
+
+    assert merged["required_skills"] == ["Python"]
+    assert merged["required_skills_canonical"] == ["python"]
+    assert merged["preferred_skills"] == ["Power BI"]
+    assert merged["preferred_skills_canonical"] == ["power bi"]
+
+
 def test_load_run_structured_jobs_persists_semantic_snapshot(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
