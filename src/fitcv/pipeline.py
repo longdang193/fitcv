@@ -3083,14 +3083,31 @@ def _build_stage_transition_artifacts(
     cv_analysis_results = list(cv_analysis_results or [])
     enrichment_reached = reached_stage_ids is None or "enrich" in reached_stage_ids
     screening_reached = reached_stage_ids is None or "rule_filter" in reached_stage_ids
-    shortlist_reached = len(passed_jobs) > 0
-    ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
-    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    shortlist_reached = (
+        len(passed_jobs) > 0
+        if reached_stage_ids is None
+        else "shortlist" in reached_stage_ids
+    )
+    ranking_reached = (
+        shortlist_reached
+        and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
+        if reached_stage_ids is None
+        else "ranking" in reached_stage_ids
+    )
+    cv_analysis_reached = (
+        len(ranked) > 0 or len(cv_analysis_results) > 0
+        if reached_stage_ids is None
+        else "cv_analysis" in reached_stage_ids
+    )
     generation_execution_records = [
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
-    cv_generation_reached = len(generation_execution_records) > 0
+    cv_generation_reached = (
+        len(generation_execution_records) > 0
+        if reached_stage_ids is None
+        else "cv_generation" in reached_stage_ids
+    )
     raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
     shortlist_candidate_query_components = {
         "headline": str(candidate_query_components.get("headline") or ""),
