@@ -941,7 +941,15 @@ def build_ranking_job_input(
         "candidate_mandatory_clauses": 0,
         "job_enrichment_fallback": int(job.get("enrich_reuse_status") == "enrichment_fallback"),
     }
-    degraded_enrichment = bool(mandatory_omissions["job_enrichment_fallback"])
+    description_quality = str(job.get("description_quality") or "unknown").strip().lower()
+    degraded_enrichment = bool(mandatory_omissions["job_enrichment_fallback"]) or (
+        "description_quality" in job and description_quality in {
+        "missing",
+        "partial",
+        "boilerplate_only",
+        "unknown",
+        }
+    )
     def requirement_tokens(value: Any) -> set[str]:
         stop_words = {"and", "the", "for", "with", "from", "this", "that", "required", "related"}
         return {
@@ -1023,8 +1031,30 @@ def build_ranking_job_input(
         ],
         "mandatory_clauses": candidate_mandatory_clauses,
     }
+    def typed_language_requirement(value: Any) -> dict[str, Any] | str:
+        if isinstance(value, dict):
+            typed = {
+                key: value[key]
+                for key in ("language", "name", "expected_level", "level", "requirement_type", "type", "evidence", "source_span")
+                if value.get(key) not in (None, "", [], {})
+            }
+            return typed or {"value": _bounded_text(value, RANKING_TERM_MAX_CHARS)}
+        return _bounded_text(value, RANKING_TERM_MAX_CHARS)
+
+    typed_job_languages = [
+        typed_language_requirement(value)
+        for value in job_language_values
+        if typed_language_requirement(value)
+    ]
     requirements = {
         "title": str(job.get("title") or "")[:160],
+        "source_provenance": {
+            "source_provider": job.get("source_provider"),
+            "description_source": job.get("description_source"),
+            "description_quality": description_quality,
+            "description_source_checksum": job.get("description_source_checksum"),
+            "description_boundary": job.get("description_boundary"),
+        },
         "raw_description": _bounded_text(
             job.get("description_cleaned") or job.get("description"),
             RANKING_EVIDENCE_TEXT_MAX_CHARS * 4,
@@ -1041,11 +1071,7 @@ def build_ranking_job_input(
         "domain": str(job.get("domain") or ""),
         "responsibilities": bounded(job.get("responsibilities")),
         "technology_requirements": technology_requirements,
-        "language_requirements": [
-            str(value).strip()
-            for value in list(job.get("language_requirements") or job.get("languages") or [])
-            if str(value).strip()
-        ],
+        "language_requirements": typed_job_languages,
         "location": {"location_type": str(job.get("location_type") or ""), "actual_location": job.get("actual_location") or job.get("location") or None},
         "years_experience_min": job.get("years_experience_min"),
         "years_experience_max": job.get("years_experience_max"),
@@ -1076,6 +1102,7 @@ def build_ranking_job_input(
         "semantic_policy_fingerprint": str(policy.get("policy_fingerprint") or ""),
         "canonical_checksums": {
             "job_requirements": _stable_json_fingerprint(requirements),
+            "description_source": str(job.get("description_source_checksum") or ""),
             "candidate_facts": _stable_json_fingerprint(candidate),
             "job_requirements_complete": _stable_json_fingerprint({
                 key: job.get(key)
@@ -1139,6 +1166,8 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
         "key_risks": [],
         "score_status": SCORE_STATUS_INVALID,
         "failure_code": None,
+        "disposition": "invalid_score",
+        "retry_eligible": False,
     }
 
     def _failure(code: str, reasoning: str) -> dict[str, Any]:
@@ -1187,6 +1216,8 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
         "key_risks":         list(data.get("key_risks", []) or []),
         "score_status":      SCORE_STATUS_VALID,
         "failure_code":      None,
+        "disposition":       "scored",
+        "retry_eligible":    False,
         "missing_fields":    missing_fields,
         "parser_status":     "ok",
     }
@@ -1280,10 +1311,12 @@ def _ranking_result_to_row(job: dict[str, Any], result: LlmRuntimeResult) -> dic
                 "key_risks": list(value.get("key_risks") or []),
                 "legacy_model_fit_label": None,
                 "parser_status": str(value.get("parser_status") or failure.code),
+                "disposition": "retryable_failure" if score_status == SCORE_STATUS_UNSCORED else "invalid_score",
                 "retry_eligible": score_status == SCORE_STATUS_UNSCORED,
             }
         )
     else:
+        value["disposition"] = str(value.get("disposition") or "scored")
         value["retry_eligible"] = False
     value["job_url"] = str(job.get("job_url", ""))
     for identity_field in ("run_job_id", "raw_job_fingerprint", "source_job_url"):
@@ -1430,6 +1463,7 @@ def run_ai_scoring(
                 "ai_score": None, "legacy_model_fit_label": None,
                 "score_status": SCORE_STATUS_UNSCORED,
                 "failure_code": failure_code,
+                "disposition": "needs_enrichment" if failure_code == "needs_enrichment" else "retryable_failure",
                 "retry_eligible": True,
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
@@ -1447,6 +1481,7 @@ def run_ai_scoring(
                 "ai_score": None, "legacy_model_fit_label": None,
                 "score_status": SCORE_STATUS_UNSCORED,
                 "failure_code": "provider_failure",
+                "disposition": "retryable_failure",
                 "retry_eligible": True,
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],

@@ -337,6 +337,8 @@ def rank_jobs(
         score_state = normalize_score_state(job)
         job["score_status"] = score_state["score_status"]
         job["failure_code"] = score_state["failure_code"]
+        job["disposition"] = score_state["disposition"]
+        job["retry_eligible"] = score_state["retry_eligible"]
         if score_state["score_status"] != SCORE_STATUS_VALID or job.get("baseline_fit") is None:
             continue
         scored_jobs.append(job)

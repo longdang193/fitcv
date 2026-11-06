@@ -191,10 +191,35 @@ def normalize_score_state(row: Mapping[str, Any]) -> dict[str, Any]:
         raw_failure = "validation_failure"
     if status == SCORE_STATUS_UNSCORED and not raw_failure:
         raw_failure = "score_unavailable"
+    disposition = str(row.get("disposition") or "").strip() or None
+    if disposition is None:
+        if status == SCORE_STATUS_VALID:
+            disposition = "scored"
+        elif raw_failure == "needs_enrichment":
+            disposition = "needs_enrichment"
+        elif status == SCORE_STATUS_INVALID:
+            disposition = "invalid_score"
+        elif raw_failure in {"timeout", "provider_failure", "budget_exceeded"}:
+            disposition = "retryable_failure"
+        else:
+            disposition = "unavailable"
+    retry_value = row.get("retry_eligible")
+    retry_eligible = (
+        bool(retry_value)
+        if retry_value is not None
+        else status == SCORE_STATUS_UNSCORED and raw_failure in {
+            "needs_enrichment",
+            "timeout",
+            "provider_failure",
+            "budget_exceeded",
+        }
+    )
     return {
         "ai_score": float(score) if status == SCORE_STATUS_VALID and score is not None else None,
         "score_status": status,
         "failure_code": raw_failure,
+        "disposition": disposition,
+        "retry_eligible": retry_eligible,
     }
 
 
@@ -224,9 +249,21 @@ def normalize_score_state_for_export(row: Mapping[str, Any]) -> dict[str, Any]:
         row.get("job_outcome"), Mapping
     )
     if not has_score_evidence and has_stage_disposition:
-        return {"ai_score": None, "score_status": SCORE_STATUS_UNSCORED, "failure_code": None}
+        return {
+            "ai_score": None,
+            "score_status": SCORE_STATUS_UNSCORED,
+            "failure_code": None,
+            "disposition": "not_scored",
+            "retry_eligible": False,
+        }
     if not any(row.get(field) not in (None, "") for field in _EXPORT_SCORE_STATE_INPUT_FIELDS):
-        return {"ai_score": None, "score_status": SCORE_STATUS_UNSCORED, "failure_code": None}
+        return {
+            "ai_score": None,
+            "score_status": SCORE_STATUS_UNSCORED,
+            "failure_code": None,
+            "disposition": "unavailable",
+            "retry_eligible": False,
+        }
     return normalize_score_state(row)
 
 

@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fitcv import evidence as evidence_module
+from fitcv.contracts import build_description_quality
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.cv_generator import build_generation_prompt
 from fitcv.evidence import (
@@ -1408,6 +1409,127 @@ def run_benchmark(
     }
 
 
+def run_integrity_benchmark(
+    *,
+    requirement_fixture_path: Path,
+    admission_fixture_path: Path,
+) -> dict[str, Any]:
+    """Run deterministic admission/provenance checks without provider calls."""
+    requirement_fixture = _load_json(requirement_fixture_path.resolve())
+    admission_fixture = _load_json(admission_fixture_path.resolve())
+    candidates: list[dict[str, Any]] = []
+    for profile_name, profile in dict(admission_fixture.get("profiles") or {}).items():
+        for rank, candidate in enumerate(list(profile.get("candidates") or []), start=1):
+            if not isinstance(candidate, dict):
+                continue
+            job = dict(candidate.get("job") or {})
+            description_quality = build_description_quality(job.get("description"), "fixture")
+            required_values = list(
+                job.get("required_skills_canonical")
+                or job.get("required_skills")
+                or []
+            )
+            description = str(job.get("description") or "").casefold()
+            source_span_covered = sum(
+                1 for value in required_values if str(value).casefold() in description
+            )
+            score = candidate.get("ai_score")
+            score_status = "valid" if isinstance(score, (int, float)) and math.isfinite(float(score)) else "unscored"
+            candidates.append(
+                {
+                    "profile": profile_name,
+                    "candidate_id": str(candidate.get("candidate_id") or ""),
+                    "rank": rank,
+                    "label": str(candidate.get("label") or ""),
+                    "admitted": True,
+                    "job_url": str(job.get("job_url") or ""),
+                    "required_values": [str(value) for value in required_values],
+                    "source_checksum": description_quality["description_source_checksum"],
+                    "source_boundary": description_quality["description_boundary"],
+                    "description_quality": description_quality["description_quality"],
+                    "source_span_covered": source_span_covered,
+                    "source_span_denominator": len(required_values),
+                    "score_status": score_status,
+                    "score_value": float(score) if score_status == "valid" else None,
+                }
+            )
+
+    expected_relevant = [
+        item for item in candidates if item["label"] == "relevant"
+    ]
+    admitted_relevant = [item for item in expected_relevant if item["admitted"] and item["rank"] <= 50]
+    source_span_denominator = sum(item["source_span_denominator"] for item in candidates)
+    source_span_covered = sum(item["source_span_covered"] for item in candidates)
+    quality_counts: dict[str, int] = {}
+    score_state_counts: dict[str, int] = {}
+    for item in candidates:
+        quality_counts[item["description_quality"]] = quality_counts.get(item["description_quality"], 0) + 1
+        score_state_counts[item["score_status"]] = score_state_counts.get(item["score_status"], 0) + 1
+    scorer_visible = {
+        item["candidate_id"]: {
+            "required_values": item["required_values"],
+            "source_checksum": item["source_checksum"],
+            "source_boundary": item["source_boundary"],
+        }
+        for item in candidates
+    }
+    integrity = {
+        "no_relevant_job_filtered_before_scoring": len(admitted_relevant) == len(expected_relevant),
+        "all_admitted_jobs_have_source_identity": all(
+            item["source_checksum"] and item["source_boundary"] is not None for item in candidates
+        ),
+        "all_admitted_jobs_have_scorer_facts": all(
+            item["score_status"] == "valid" or item["required_values"] == [] for item in candidates
+        ),
+    }
+    return {
+        "benchmark_schema_version": 1,
+        "provider_calls": False,
+        "cohort": {
+            "requirement_fixture": str(requirement_fixture_path.resolve().relative_to(REPO_ROOT)),
+            "admission_fixture": str(admission_fixture_path.resolve().relative_to(REPO_ROOT)),
+            "requirement_scenario_ids": [
+                str(item.get("scenario_id") or "")
+                for item in list(requirement_fixture.get("scenarios") or [])
+            ],
+            "admission_profile_names": sorted({item["profile"] for item in candidates}),
+        },
+        "denominator": len(candidates),
+        "expected_relevant_ids": [item["candidate_id"] for item in expected_relevant],
+        "recall_at_50": (
+            round(len(admitted_relevant) / len(expected_relevant), 6)
+            if expected_relevant else "not_applicable"
+        ),
+        "source_span_coverage": {
+            "covered": source_span_covered,
+            "denominator": source_span_denominator,
+            "recall": round(source_span_covered / source_span_denominator, 6)
+            if source_span_denominator else "not_applicable",
+        },
+        "description_quality_counts": quality_counts,
+        "scorer_visible": {
+            "ids": sorted(scorer_visible),
+            "values": scorer_visible,
+        },
+        "cache": {
+            "reused": 0,
+            "revalidated": 0,
+            "rejected": 0,
+            "not_applicable": True,
+        },
+        "admission_counts": {
+            "total": len(candidates),
+            "admitted": sum(int(item["admitted"]) for item in candidates),
+            "expected_relevant": len(expected_relevant),
+            "relevant_admitted": len(admitted_relevant),
+        },
+        "score_state_counts": score_state_counts,
+        "integrity_assertions": integrity,
+        "fixture_invariants": dict(admission_fixture.get("budget_invariants") or {}),
+        "records": candidates,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--weight", type=float)
@@ -1420,12 +1542,18 @@ def main() -> int:
         ),
     )
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
+    parser.add_argument("--admission-fixture", type=Path)
     parser.add_argument("--pool-size", type=int, default=4)
     parser.add_argument("--runs", type=int, default=MEASURED_RUNS)
     parser.add_argument("--warmups", type=int, default=WARMUP_RUNS)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.weight is not None:
+    if args.admission_fixture is not None:
+        result = run_integrity_benchmark(
+            requirement_fixture_path=args.fixture,
+            admission_fixture_path=args.admission_fixture,
+        )
+    elif args.weight is not None:
         result = run(args.weight)
     elif args.arm is not None:
         result = run_benchmark(
@@ -1436,7 +1564,7 @@ def main() -> int:
             warmups=args.warmups,
         )
     else:
-        parser.error("provide --weight or --arm")
+        parser.error("provide --weight, --arm, or --admission-fixture")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))

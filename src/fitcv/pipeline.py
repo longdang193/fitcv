@@ -131,6 +131,7 @@ from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
     ENRICHMENT_FALLBACK_STATUS,
     FRESH_ENRICHMENT_STATUS,
+    MIGRATED_CACHED_ENRICHMENT_STATUS,
     REUSED_CACHED_ENRICHMENT_STATUS,
     build_enrich_contract_fingerprint,
     build_raw_job_fingerprint,
@@ -380,10 +381,19 @@ def _finalize_reused_enriched_row(
         return row
     row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
     row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
-    row["enrich_reuse_status"] = REUSED_CACHED_ENRICHMENT_STATUS
+    reuse_status = str(row.get("enrich_reuse_status") or "")
+    row["enrich_reuse_status"] = (
+        reuse_status
+        if reuse_status == MIGRATED_CACHED_ENRICHMENT_STATUS
+        else REUSED_CACHED_ENRICHMENT_STATUS
+    )
     row["reuse_decision"] = build_reuse_decision(
-        decision=REUSED_CACHED_ENRICHMENT_STATUS,
-        reason_code="exact_fingerprint_match",
+        decision=row["enrich_reuse_status"],
+        reason_code=(
+            "validated_legacy_cache_migration"
+            if row["enrich_reuse_status"] == MIGRATED_CACHED_ENRICHMENT_STATUS
+            else "exact_fingerprint_match"
+        ),
         fingerprint=raw_job_fingerprints.get(job_url),
         source_artifact_type="enrich",
     )

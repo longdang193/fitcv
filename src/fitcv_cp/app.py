@@ -4202,6 +4202,8 @@ def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
     normalized["ai_score"] = score_state["ai_score"]
     normalized["score_status"] = score_state["score_status"]
     normalized["failure_code"] = score_state["failure_code"]
+    normalized["disposition"] = score_state["disposition"]
+    normalized["retry_eligible"] = score_state["retry_eligible"]
     decision_chain = normalized.get("decision_chain")
     if not isinstance(decision_chain, dict):
         decision_chain = {}
@@ -4313,6 +4315,40 @@ def _with_required_skills_display(job: dict[str, Any]) -> dict[str, Any]:
     display = derive_required_skills_display(normalized_job)
     normalized_job["required_skills_display"] = list(display.get("values") or [])
     normalized_job["required_skills_display_source"] = display.get("source")
+    category_fields = (
+        ("required", "required_skills"),
+        ("preferred", "preferred_skills"),
+        ("advantage", "advantage_skills"),
+        ("technology", "tech_stack"),
+        ("keyword", "keywords"),
+        ("application", "application_instructions"),
+        ("contact", "contact_details"),
+    )
+    category_items: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for category, field_name in category_fields:
+        raw_values = (
+            normalized_job.get("required_skills_display")
+            if category == "required" and display.get("source") == "required_skill_entities"
+            else normalized_job.get(field_name)
+        )
+        values = raw_values if isinstance(raw_values, list) else [raw_values] if raw_values else []
+        for value in values:
+            text = str(value or "").strip()
+            key = text.casefold()
+            if not text or key in seen:
+                continue
+            seen.add(key)
+            category_items.append(
+                {
+                    "value": text,
+                    "category": category,
+                    "source": normalized_job.get("required_skills_display_source")
+                    if category == "required"
+                    else field_name,
+                }
+            )
+    normalized_job["required_skills_display_items"] = category_items
     return normalized_job
 
 

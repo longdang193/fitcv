@@ -40,6 +40,7 @@ from fitcv.config import (
     resolve_model_routing_part,
     sqlite_mode_enabled,
 )
+from fitcv.contracts import build_description_quality
 from fitcv.fit_factors import (
     ACTUAL_LOCATION_EXTRACTION_VERSION,
     LANGUAGE_REQUIREMENT_EXTRACTION_VERSION,
@@ -270,6 +271,7 @@ class EnrichContractFingerprintPayload(TypedDict):
     skill_postprocessing_version: str
     actual_location_extraction_version: str
     language_requirement_extraction_version: str
+    validation_policy_version: str
 
 
 class EnrichContractFingerprintResult(TypedDict):
@@ -281,8 +283,10 @@ RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v2"
 ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v2"
 ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
 ENRICH_CONTRACT_VERSION = "enrich_contract_v2"
+ENRICH_VALIDATION_POLICY_VERSION = "enrichment_validation_policy_v2"
 FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
 REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
+MIGRATED_CACHED_ENRICHMENT_STATUS = "migrated_cached_enrichment"
 ENRICHMENT_FALLBACK_STATUS = "enrichment_fallback"
 _SPARSE_REQUIRED_SKILLS_THRESHOLD = 3
 
@@ -1580,11 +1584,24 @@ def build_enrich_contract_fingerprint(
         "language_requirement_extraction_version": (
             LANGUAGE_REQUIREMENT_EXTRACTION_VERSION
         ),
+        "validation_policy_version": ENRICH_VALIDATION_POLICY_VERSION,
     }
     return {
         "payload": payload,
         "fingerprint": _fingerprint_hash(payload),
     }
+
+
+def _build_enrich_model_contract_fingerprint(
+    config: dict[str, Any] | None = None,
+    *,
+    resolved_route: LlmRouting | None = None,
+) -> str:
+    payload = dict(
+        build_enrich_contract_fingerprint(config, resolved_route=resolved_route)["payload"]
+    )
+    payload.pop("validation_policy_version", None)
+    return _fingerprint_hash(payload)
 
 
 def build_enrich_request(
@@ -1850,6 +1867,10 @@ def merge_scraped_and_enriched(
     cfg = config or {}
     model = str(enriched.get("enrichment_model") or get_enrich_extraction_model(cfg) or cfg.get("ai_score_model") or "")
     version = str(enriched.get("enrichment_version") or cfg.get("enrichment_version", "v1"))
+    model_contract_fingerprint = str(
+        enriched.get("enrich_model_contract_fingerprint")
+        or _build_enrich_model_contract_fingerprint(cfg)
+    )
     source_location = (
         scraped.get("source_location")
         if isinstance(scraped.get("source_location"), dict)
@@ -1911,6 +1932,21 @@ def merge_scraped_and_enriched(
         "applications_count": scraped.get("applications_count_int"),
         "published_at":       scraped.get("published_at"),
         "description_cleaned": scraped.get("description", ""),
+        "description_quality": scraped.get("description_quality") or build_description_quality(
+            scraped.get("description"), scraped.get("description_source")
+        )["description_quality"],
+        "description_source": scraped.get("description_source"),
+        "description_complete": bool(scraped.get("description_complete")),
+        "description_source_checksum": scraped.get("description_source_checksum") or build_description_quality(
+            scraped.get("description"), scraped.get("description_source")
+        )["description_source_checksum"],
+        "description_source_length": scraped.get("description_source_length"),
+        "description_quality_signals": scraped.get("description_quality_signals") or build_description_quality(
+            scraped.get("description"), scraped.get("description_source")
+        )["description_quality_signals"],
+        "description_boundary": scraped.get("description_boundary") or build_description_quality(
+            scraped.get("description"), scraped.get("description_source")
+        )["description_boundary"],
         # ── LLM-enriched fields ───────────────────────────────────────
         "actual_location":     actual_location,
         "language_requirements": language_requirements,
@@ -1947,6 +1983,8 @@ def merge_scraped_and_enriched(
         "enriched_at":        _normalise_enriched_at(enriched.get("enriched_at")) or datetime.now(tz=timezone.utc).isoformat(),
         "raw_job_fingerprint": enriched.get("raw_job_fingerprint"),
         "enrich_contract_fingerprint": enriched.get("enrich_contract_fingerprint"),
+        "enrich_model_contract_fingerprint": model_contract_fingerprint,
+        "enrich_validation_policy_version": ENRICH_VALIDATION_POLICY_VERSION,
         "enrich_reuse_status": enriched.get("enrich_reuse_status"),
         "enrichment_completeness": enrichment_completeness,
         "mandatory_clause_provenance": mandatory_clause_provenance,
@@ -2090,6 +2128,7 @@ def lookup_reusable_structured_jobs(
         for job in normalized_jobs
         if str(job.get("job_url") or "")
     }
+    expected_model_contract_fingerprint = _build_enrich_model_contract_fingerprint(config)
     placeholders = ",".join("?" for _ in job_urls)
     sql = (
         "SELECT job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json "
@@ -2109,8 +2148,6 @@ def lookup_reusable_structured_jobs(
                 continue
             if str(raw_fingerprint or "") != str(raw_job_fingerprints.get(job_url) or ""):
                 continue
-            if str(contract_fingerprint or "") != str(enrich_contract_fingerprint or ""):
-                continue
             normalized_job = normalized_by_url.get(job_url)
             if normalized_job is None:
                 continue
@@ -2122,13 +2159,34 @@ def lookup_reusable_structured_jobs(
                 continue
             if _is_semantically_blank_enrichment_row(cached_payload):
                 continue
+            exact_contract_match = str(contract_fingerprint or "") == str(enrich_contract_fingerprint or "")
+            if not exact_contract_match:
+                cached_model_contract = str(cached_payload.get("enrich_model_contract_fingerprint") or "")
+                if cached_model_contract and cached_model_contract != expected_model_contract_fingerprint:
+                    continue
+                candidate = merge_scraped_and_enriched(normalized_job, cached_payload, config)
+                quality = str(normalized_job.get("description_quality") or "").strip().lower()
+                required_values = list(candidate.get("required_skills") or [])
+                source_spans = list(candidate.get("mandatory_clauses") or [])
+                if quality in {"missing", "partial", "boilerplate_only", "unknown"} and (
+                    required_values or source_spans
+                ) and not any(item.get("source_span") for item in source_spans if isinstance(item, dict)):
+                    continue
+                if _is_semantically_blank_enrichment_row(candidate):
+                    continue
             merged_row = merge_scraped_and_enriched(
                 normalized_job,
                 {
                     **cached_payload,
                     "raw_job_fingerprint": raw_job_fingerprints[job_url],
                     "enrich_contract_fingerprint": enrich_contract_fingerprint,
-                    "enrich_reuse_status": REUSED_CACHED_ENRICHMENT_STATUS,
+                    "enrich_model_contract_fingerprint": expected_model_contract_fingerprint,
+                    "enrich_validation_policy_version": ENRICH_VALIDATION_POLICY_VERSION,
+                    "enrich_reuse_status": (
+                        REUSED_CACHED_ENRICHMENT_STATUS
+                        if exact_contract_match
+                        else MIGRATED_CACHED_ENRICHMENT_STATUS
+                    ),
                 },
                 config,
             )
@@ -2449,9 +2507,12 @@ _MERGE_COLUMNS = [
     "domain_raw", "domain", "tech_stack", "tech_stack_canonical",
     "years_experience_min", "years_experience_max", "keywords", "keywords_canonical",
     "job_family_raw", "job_family", "mapping_suggestions_json", "domain_mapping_suggestions_json",
-    "role_family_mapping_suggestions_json", "description_cleaned",
+    "role_family_mapping_suggestions_json", "description_cleaned", "description_quality",
+    "description_source", "description_complete", "description_source_checksum",
+    "description_source_length", "description_quality_signals_json", "description_boundary_json",
     "enrichment_version", "enrichment_model", "enriched_at",
-    "raw_job_fingerprint", "enrich_contract_fingerprint", "enrich_reuse_status",
+    "raw_job_fingerprint", "enrich_contract_fingerprint", "enrich_model_contract_fingerprint",
+    "enrich_validation_policy_version", "enrich_reuse_status",
 ]
 
 _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
@@ -2499,11 +2560,20 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("domain_mapping_suggestions_json", "STRING", "NULLABLE"),
     ("role_family_mapping_suggestions_json", "STRING", "NULLABLE"),
     ("description_cleaned", "STRING", "NULLABLE"),
+    ("description_quality", "STRING", "NULLABLE"),
+    ("description_source", "STRING", "NULLABLE"),
+    ("description_complete", "BOOL", "NULLABLE"),
+    ("description_source_checksum", "STRING", "NULLABLE"),
+    ("description_source_length", "INT64", "NULLABLE"),
+    ("description_quality_signals_json", "STRING", "NULLABLE"),
+    ("description_boundary_json", "STRING", "NULLABLE"),
     ("enrichment_version", "STRING", "NULLABLE"),
     ("enrichment_model", "STRING", "NULLABLE"),
     ("enriched_at", "TIMESTAMP", "NULLABLE"),
     ("raw_job_fingerprint", "STRING", "NULLABLE"),
     ("enrich_contract_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_model_contract_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_validation_policy_version", "STRING", "NULLABLE"),
     ("enrich_reuse_status", "STRING", "NULLABLE"),
 )
 
@@ -2514,6 +2584,8 @@ _STRUCTURED_JSON_LIST_FIELDS: tuple[tuple[str, str], ...] = (
     ("mapping_suggestions", "mapping_suggestions_json"),
     ("domain_mapping_suggestions", "domain_mapping_suggestions_json"),
     ("role_family_mapping_suggestions", "role_family_mapping_suggestions_json"),
+    ("description_quality_signals", "description_quality_signals_json"),
+    ("description_boundary", "description_boundary_json"),
 )
 
 _STRUCTURED_SCHEMA_KEYS: frozenset[str] = frozenset(
@@ -2606,6 +2678,13 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("contract_type",        "STRING",    "NULLABLE"),
     ("experience_level",     "STRING",    "NULLABLE"),
     ("published_at",         "DATE",      "NULLABLE"),
+    ("description_quality", "STRING", "NULLABLE"),
+    ("description_source", "STRING", "NULLABLE"),
+    ("description_complete", "BOOL", "NULLABLE"),
+    ("description_source_checksum", "STRING", "NULLABLE"),
+    ("description_source_length", "INT64", "NULLABLE"),
+    ("description_quality_signals_json", "STRING", "NULLABLE"),
+    ("description_boundary_json", "STRING", "NULLABLE"),
     ("location_type_raw",    "STRING",    "NULLABLE"),
     ("location_type",        "STRING",    "NULLABLE"),
     ("seniority_raw",        "STRING",    "NULLABLE"),
@@ -2642,6 +2721,8 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("enriched_at",          "TIMESTAMP", "NULLABLE"),
     ("raw_job_fingerprint",  "STRING",    "NULLABLE"),
     ("enrich_contract_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_model_contract_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_validation_policy_version", "STRING", "NULLABLE"),
     ("enrich_reuse_status",  "STRING",    "NULLABLE"),
     ("semantic_snapshot",    "JSON",      "NULLABLE"),
 )

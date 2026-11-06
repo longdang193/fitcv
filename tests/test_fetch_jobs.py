@@ -371,6 +371,40 @@ def test_fetch_sources_runs_named_inputs_sequentially(monkeypatch: pytest.Monkey
     assert any("run 2/2 broad: starting" in message for message in progress)
 
 
+def test_fetch_sources_retains_incomplete_records_for_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(actor_id, input_payload, token, **kwargs):
+        return {
+            "runId": "run-1",
+            "datasetId": "ds-1",
+            "items": [{
+                "id": "job-footer",
+                "url": "https://linkedin.example/footer",
+                "title": "Data Engineer",
+                "companyName": "Example",
+                "location": "Berlin, Germany",
+                "description": "Lebenslauf Telefon +49 89 236139465",
+            }],
+        }
+
+    monkeypatch.setattr(fetcher, "run_apify_actor", fake_run)
+    records, failures, _runs = fetcher.fetch_sources(
+        {
+            "linkedin": {
+                "source": "linkedin",
+                "kind": "apify_actor",
+                "actor": "actor/name",
+                "input": {},
+            }
+        },
+        ["linkedin"],
+        "token",
+    )
+
+    assert [record["sourceJobId"] for record in records] == ["job-footer"]
+    assert records[0]["descriptionStatus"] == "boilerplate_only"
+    assert failures == [{"sourceJobId": "job-footer", "reason": "incomplete_description"}]
+
+
 def test_apify_client_deadline_aborts_running_run(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str]] = []
     times = iter([0.0, 0.0, 2.0])

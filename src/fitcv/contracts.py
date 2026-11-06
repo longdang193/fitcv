@@ -17,6 +17,8 @@ lifecycle:
 
 from __future__ import annotations
 
+import hashlib
+import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -139,7 +141,58 @@ CANONICAL_JOB_METADATA_FIELDS: tuple[str, ...] = (
     "source_job_id",
     "description_source",
     "description_complete",
+    "description_quality",
+    "description_source_checksum",
+    "description_source_length",
+    "description_quality_signals",
+    "description_boundary",
 )
+
+_DESCRIPTION_CONTACT_RE = re.compile(
+    r"\b(?:lebenslauf|cv|resume|telefon|tel\.?|e[- ]?mail|email|kontakt|contact|bewerben|apply)\b|[+]?\d[\d ()/-]{6,}",
+    re.IGNORECASE,
+)
+_DESCRIPTION_CONTENT_RE = re.compile(
+    r"\b(?:aufgaben|anforderungen|anforderung|profil|kenntnisse|verantwort(?:ung|lich)|qualifikation|skills?|requirements?|responsibilit(?:y|ies)|develop|build|experience|erfahrung|power\s*bi|python|sql)\b",
+    re.IGNORECASE,
+)
+
+
+def build_description_quality(description: Any, source: Any = "") -> dict[str, Any]:
+    """Return one provenance-aware quality contract for a job description."""
+    text = str(description or "").strip()
+    source_name = str(source or "").strip() or "unknown"
+    checksum = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    signals: list[str] = []
+    if not text:
+        quality = "missing"
+        signals.append("empty")
+    else:
+        contact_matches = _DESCRIPTION_CONTACT_RE.findall(text)
+        content_match = bool(_DESCRIPTION_CONTENT_RE.search(text))
+        contact_only = bool(contact_matches) and not content_match and len(text) <= 240
+        if contact_only:
+            quality = "boilerplate_only"
+            signals.append("contact_or_application_only")
+        elif source_name in {"api_structured_summary", "text_snippet"}:
+            quality = "partial"
+            signals.append(source_name)
+        elif len(text) < 80:
+            quality = "partial"
+            signals.append("short_text")
+        elif content_match or len(text) >= 160:
+            quality = "full"
+            signals.append("substantive_content")
+        else:
+            quality = "unknown"
+            signals.append("no_substantive_signal")
+    return {
+        "description_quality": quality,
+        "description_source_checksum": checksum,
+        "description_source_length": len(text),
+        "description_quality_signals": signals,
+        "description_boundary": {"start": 0, "end": len(text)},
+    }
 
 DEFAULT_APPLICATION_STATUSES: tuple[str, ...] = (
     "applied",
