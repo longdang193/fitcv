@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: in_progress
+status: completed
 template_id: implementation-plan
 name: fitcv-matching-accuracy-validated-findings
 targets:
@@ -413,6 +413,7 @@ Final benchmark proof on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280`:
 - Review-fix regression proof covers the production worker export boundary plus `parser_status`, `reranker_parser_status`, `score_reasoning`, and `reranker_score_reasoning` legacy failure contracts; the affected ranking-contract, worker, and app suites pass `664` tests.
 - Final review identified and the follow-up patch fixed the composition case where app projection re-normalized worker output and invented `score_unavailable`; `normalize_score_state_for_export` is now idempotent for stage-only rows, proven by a two-pass regression.
 - Repository-wide `uv run pytest -q` was attempted and produced `3597 passed, 10 skipped, 34 failed`. The failures are outside this patch: local credential-store/page tests require the optional `local` extra (`keyring`, absent in the environment), and inverse-optimization tests require the optional `inverse-optimization` extra (`cvxpy`, absent in the environment). No optional dependency was installed without authorization.
+- The repository's CI `Full Suite` completed successfully for commit `2b9fe6ea55baecb6af7742fe076f8df713b7cf35`; this supplies the declared full-suite proof despite the local environment lacking the optional extras.
 
 **Verification:** Direct backend boundary tests, failure-path tests, persisted-state assertions, full automated suite, same-corpus evaluation report, and the committed `config/acceptance_state.yaml` thresholds (`support_recall_threshold: 1.0`, `minimum_oracle_coverage: 1.0`, `maximum_pair_false_positives: 0`).
 
@@ -431,7 +432,7 @@ Final verification must prove:
 
 ## Completion Criteria
 
-- Tasks 1–7 contain fresh evidence and the ledger is updated to `completed` only after verification. Task 7’s provider-backed run and export-normalization regression evidence are complete, but the plan remains `in_progress` until the repository-wide suite can run with its declared optional extras or the missing-extra validation is explicitly accepted.
+- Tasks 1–7 contain fresh evidence and the ledger is updated to `completed` after verification. Task 7’s provider-backed run, export-normalization regression evidence, and the successful CI `Full Suite` are complete; the local optional-extra gap is recorded as an environment limitation rather than a plan blocker.
 - Focused tests pass. The full suite has been attempted; unrelated missing-optional-extra failures are recorded rather than patched opportunistically.
 - Same-corpus evaluation shows improved or preserved recall and mandatory-fact visibility without unexplained false-positive growth.
 - Holistic ranking weights and default cutoffs remain unchanged without a separate approved calibration decision.
