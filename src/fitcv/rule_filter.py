@@ -491,17 +491,23 @@ def check_fit_context(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
         for field_name in ("years_experience_min", "years_experience_max")
     )
 
-def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
-    """Return True if job contract_type is permitted by include/exclude prefs."""
-    contract_type = str(job.get("contract_type") or "").lower()
+def classify_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> str:
+    """Classify contract metadata without treating missing data as mismatch."""
+    contract_type = str(job.get("contract_type") or "").strip().lower()
     excluded = _get_excluded_contract_types(prefs)
-    if excluded and contract_type in excluded:
-        return False
-
     allowed = _normalized_string_list(prefs.get("contract_types"))
-    if not allowed:
-        return True
-    return contract_type in allowed
+    if not contract_type:
+        return "unknown" if (excluded or allowed) else "match"
+    if contract_type in excluded:
+        return "mismatch"
+    if allowed and contract_type not in allowed:
+        return "mismatch"
+    return "match"
+
+
+def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
+    """Return True unless contract metadata is a confirmed mismatch."""
+    return classify_contract_type(job, prefs) != "mismatch"
 
 
 def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -773,8 +779,20 @@ def apply_rule_filters(
             exclude_keywords=prefs.get("job_title_exclude_keywords") or prefs.get("excluded_job_titles"),
         )
         if not title_result["passed"]:
-            reasons.append(str(title_result["reason_code"]))
-            marks.append(_build_rule_filter_mark(str(title_result["reason_code"]), job, prefs, config))
+            title_reason = str(title_result["reason_code"])
+            if title_reason in selected_filter_codes:
+                reasons.append(title_reason)
+            else:
+                marks.append(_build_rule_filter_mark(title_reason, job, prefs, config))
+        contract_state = classify_contract_type(job, prefs)
+        if contract_state == "unknown":
+            marks.append(
+                {
+                    "code": "contract_type_unknown",
+                    "message": "Contract type is missing or unrecognized; compatibility remains unknown.",
+                    "details": {"match_state": "unknown", "admission": "retained_for_retrieval"},
+                }
+            )
         if eligibility_policy is not None and candidate_fit_context is not None:
             eligibility = evaluate_fit_factors(
                 actual_location=job.get("actual_location"),

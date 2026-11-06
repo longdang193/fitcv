@@ -733,7 +733,11 @@ def test_analyze_ranked_job_converges_legacy_profile_before_evidence(
         "preferences": {},
     }
 
-    result = analyze_ranked_job(_job(), profile, _config())
+    result = analyze_ranked_job(
+        _job(),
+        profile,
+        {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}},
+    )
 
     assert result["status"] == "ready_for_generation"
     assert mock_bundle.called
@@ -1653,3 +1657,47 @@ def test_analyze_ranked_job_emits_fresh_skipped_fit_gate_record(
     assert result["outcome_reason"]["stage"] == "fit_gate"
     assert result["error"] is None
     assert mock_resolve_fit.call_count == 2
+
+
+@patch("fitcv.agentic_cv_analysis.resolve_ranked_job_fit", side_effect=["strong", "skip"])
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_skipped_fit_gate_still_inspects_richer_project_evidence(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    mock_resolve_fit,
+) -> None:
+    mock_fingerprint.return_value = {
+        "fingerprint": "analysis::rich-evidence",
+        "payload": {
+            "profile": {"name": "Candidate"},
+            "job": {"job_title": "Data Analyst"},
+            "contract_fingerprint": "contract::1",
+        },
+    }
+    mock_bundle.return_value = {
+        "selected_evidence": [{"evidence_id": "project-sql", "evidence_type": "project_entry"}],
+        "selected_evidence_ids": ["project-sql"],
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+    profile = _profile()
+    profile["projects"] = [
+        {
+            "name": "SQL pipeline",
+            "skills": ["SQL"],
+            "highlights": ["Built a SQL pipeline"],
+        }
+    ]
+    job = _job()
+    job["required_skills"] = ["SQL commercial experience"]
+
+    result = analyze_ranked_job(
+        job,
+        profile,
+        {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}},
+    )
+
+    assert mock_bundle.called
+    assert result["status"] != "skipped_fit_gate"

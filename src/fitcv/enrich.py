@@ -1877,6 +1877,21 @@ def merge_scraped_and_enriched(
             ],
         ),
     )
+    enrichment_completeness = {
+        "location": bool(actual_location),
+        "languages": bool(language_requirements),
+        "required_skills": bool(enriched.get("required_skills")),
+        "technology": bool(enriched.get("tech_stack")),
+        "mandatory_clauses": bool(mandatory_clauses),
+    }
+    mandatory_clause_provenance = [
+        {
+            "clause_id": str(item.get("clause_id") or ""),
+            "source_span": item.get("source_span"),
+        }
+        for item in mandatory_clauses
+        if isinstance(item, dict) and item.get("source_span")
+    ]
 
     merged: dict[str, Any] = {
         # ── scraped fields ────────────────────────────────────────────
@@ -1933,6 +1948,9 @@ def merge_scraped_and_enriched(
         "raw_job_fingerprint": enriched.get("raw_job_fingerprint"),
         "enrich_contract_fingerprint": enriched.get("enrich_contract_fingerprint"),
         "enrich_reuse_status": enriched.get("enrich_reuse_status"),
+        "enrichment_completeness": enrichment_completeness,
+        "mandatory_clause_provenance": mandatory_clause_provenance,
+        "mandatory_core_complete": all(enrichment_completeness.values()),
     }
     # Seed domain mapping suggestions from scraper sector -> enrich domain when they differ.
     sector_alias = str(scraped.get("sector") or "").strip().lower()
@@ -2226,7 +2244,10 @@ def _build_enrichment_fallback_row(
                 "code": failure.code,
                 "message": failure.message,
                 "attempts": attempts,
+                "retryable": bool(failure.retryable),
             },
+            "retry_eligible": bool(failure.retryable),
+            "mandatory_core_complete": False,
         }
     )
     return row

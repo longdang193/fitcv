@@ -70,7 +70,7 @@ RANKING_REQUEST_MAX_CHARS = 12_000
 RANKING_TERM_MAX_CHARS = 160
 RANKING_EVIDENCE_TEXT_MAX_CHARS = 400
 RANKING_MAX_SKILLS = 8
-RANKING_MAX_EVIDENCE = 2
+RANKING_MAX_EVIDENCE = 8
 RANKING_MAX_REQUIREMENT_IDS = 32
 
 
@@ -565,7 +565,8 @@ def build_ranking_request(
                 "omitted_count": max(0, len(evidence) - len(selected_evidence)),
             },
             "mandatory_omissions": mandatory_omissions,
-            "mandatory_core_complete": not any(value > 0 for value in mandatory_omissions.values()),
+            "mandatory_core_complete": not any(value > 0 for value in mandatory_omissions.values())
+            and not bool((source.get("contract_metadata") or {}).get("degraded_enrichment")),
         },
         "fingerprint": _stable_json_fingerprint({"request": request_payload, "route": route_payload}),
     }
@@ -603,6 +604,17 @@ def build_ranking_input_diagnostics(
         else None
     )
     retrieval = dict(retrieval_metadata or {})
+    visibility_manifest = dict((request_record or {}).get("visibility_manifest") or {})
+    visible_evidence_ids = list((visibility_manifest.get("evidence") or {}).get("selected_ids") or [])
+    mandatory_core_complete = bool(
+        visibility_manifest.get(
+            "mandatory_core_complete",
+            not any(
+                int(value or 0) > 0
+                for value in dict(metadata.get("mandatory_omissions") or {}).values()
+            ),
+        )
+    ) and not bool(metadata.get("degraded_enrichment"))
     backend_metadata = {
         key: retrieval[key]
         for key in (
@@ -626,6 +638,7 @@ def build_ranking_input_diagnostics(
         "semantic_policy_fingerprint": str(metadata.get("semantic_policy_fingerprint") or ""),
         "canonical_checksums": dict(metadata.get("canonical_checksums") or {}),
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence[:RANKING_MAX_EVIDENCE]],
+        "model_visible_evidence_ids": [str(value) for value in visible_evidence_ids if str(value).strip()],
         "selected_evidence_titles": [
             _bounded_text(item.get("parent_title") or item.get("title"), RANKING_TERM_MAX_CHARS)
             for item in evidence[:RANKING_MAX_EVIDENCE]
@@ -655,10 +668,7 @@ def build_ranking_input_diagnostics(
         },
         "omitted_counts": dict(metadata.get("omitted_counts") or {}),
         "mandatory_omissions": dict(metadata.get("mandatory_omissions") or {}),
-        "mandatory_core_complete": not any(
-            int(value or 0) > 0
-            for value in dict(metadata.get("mandatory_omissions") or {}).values()
-        ),
+        "mandatory_core_complete": mandatory_core_complete,
         "request_char_count": serialized_request,
         "request_max_chars": RANKING_REQUEST_MAX_CHARS,
         "request_within_budget": serialized_request is None or serialized_request <= RANKING_REQUEST_MAX_CHARS,
@@ -931,6 +941,9 @@ def build_ranking_job_input(
         "candidate_mandatory_clauses": 0,
         "job_enrichment_fallback": int(job.get("enrich_reuse_status") == "enrichment_fallback"),
     }
+    degraded_enrichment = bool(mandatory_omissions["job_enrichment_fallback"])
+    if degraded_enrichment and str(job.get("description_cleaned") or job.get("description") or "").strip():
+        mandatory_omissions["job_enrichment_fallback"] = 0
     def requirement_tokens(value: Any) -> set[str]:
         stop_words = {"and", "the", "for", "with", "from", "this", "that", "required", "related"}
         return {
@@ -1014,6 +1027,10 @@ def build_ranking_job_input(
     }
     requirements = {
         "title": str(job.get("title") or "")[:160],
+        "raw_description": _bounded_text(
+            job.get("description_cleaned") or job.get("description"),
+            RANKING_EVIDENCE_TEXT_MAX_CHARS * 4,
+        ),
         "required_skills": required_skills,
         "qualifications": bounded(job.get("qualifications"), limit=16),
         "education_requirements": bounded(education_requirements, limit=16),
@@ -1054,6 +1071,10 @@ def build_ranking_job_input(
     }
     contract_metadata = {
         "version": RANKING_INPUT_CONTRACT_VERSION,
+        "degraded_enrichment": degraded_enrichment,
+        "unknown_mandatory_channels": [
+            key for key, value in mandatory_omissions.items() if value and key.startswith("job_")
+        ],
         "semantic_policy_fingerprint": str(policy.get("policy_fingerprint") or ""),
         "canonical_checksums": {
             "job_requirements": _stable_json_fingerprint(requirements),
@@ -1348,9 +1369,9 @@ def run_ai_scoring(
                 )
             )
         if "candidate_evidence" in ranking_input:
-            top_evidence = list(ranking_input.get("candidate_evidence") or [])[:2]
+            top_evidence = list(ranking_input.get("candidate_evidence") or [])
         else:
-            top_evidence = list(job.get("top_evidence", []) or [])[:2]
+            top_evidence = list(job.get("top_evidence", []) or [])
         scoring_candidate_summary = str(ranking_input.get("candidate_summary") or candidate_summary)
         try:
             request_record = build_ranking_request(job, scoring_candidate_summary, top_evidence, config, ranking_input=ranking_input, resolved_route=resolved_route)
@@ -1390,6 +1411,7 @@ def run_ai_scoring(
             )
             return score_row
         except RankingInputBudgetExceeded as exc:
+            failure_code = "needs_enrichment" if isinstance(exc, RankingInputIncomplete) else "budget_exceeded"
             return {
                 "job_url": str(job.get("job_url", "")),
                 **{
@@ -1399,8 +1421,8 @@ def run_ai_scoring(
                 },
                 "ai_score": None, "legacy_model_fit_label": None,
                 "score_status": SCORE_STATUS_UNSCORED,
-                "failure_code": exc.failure_code,
-                "retry_eligible": False,
+                "failure_code": failure_code,
+                "retry_eligible": True,
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
                 "parser_status": exc.failure_code,

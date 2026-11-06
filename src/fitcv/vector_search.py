@@ -1093,7 +1093,7 @@ def run_vector_search(
             profile,
             eligible_job_urls,
             config,
-            effective_top_n,
+            len(eligible_job_urls),
             structured_jobs,
             requested_strategy=requested_strategy,
             fallback_reason="non_semantic_embedding_backend",
@@ -1253,7 +1253,7 @@ def run_vector_search(
             embedding_backend_id=embedding_backend_id,
         )
         admitted_urls = {str(row.get("job_url") or "") for row in production_rows}
-        fallback_rows = [
+        fallback_candidates = [
             {
                 **row,
                 "shortlist_origin": "lexical_fallback",
@@ -1262,8 +1262,27 @@ def run_vector_search(
             }
             for row in lexical_result.get("production_rows") or []
             if str(row.get("job_url") or "") not in admitted_urls
-        ][: max(0, effective_top_n - len(production_rows))]
-        production_rows = [*production_rows, *fallback_rows]
+        ]
+        available_slots = max(0, effective_top_n - len(production_rows))
+        fallback_rows = fallback_candidates[:available_slots]
+        replaced_full_cutoff = False
+        if not available_slots and fallback_candidates and production_rows:
+            best_fallback = max(
+                fallback_candidates,
+                key=lambda row: (float(row.get("retrieval_score") or 0.0), str(row.get("job_url") or "")),
+            )
+            weakest_index, weakest = min(
+                enumerate(production_rows),
+                key=lambda pair: (float(pair[1].get("vector_similarity") or 0.0), str(pair[1].get("job_url") or "")),
+            )
+            if float(best_fallback.get("retrieval_score") or 0.0) > float(weakest.get("vector_similarity") or 0.0):
+                best_fallback["rescued_displaced_job_url"] = str(weakest.get("job_url") or "")
+                best_fallback["rescue_reason"] = "lexical_recovery_competed_with_full_vector_cutoff"
+                production_rows[weakest_index] = best_fallback
+                fallback_rows = [best_fallback]
+                replaced_full_cutoff = True
+        if not replaced_full_cutoff:
+            production_rows = [*production_rows, *fallback_rows]
         fallback_diagnostics = dict(lexical_result.get("diagnostics") or {})
         fallback_urls = {str(row.get("job_url") or "") for row in fallback_rows}
         seen_audit_urls = {

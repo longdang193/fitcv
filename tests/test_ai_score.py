@@ -359,7 +359,7 @@ def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() ->
     assert "mandatory:education:1" in result["contract_metadata"]["requirement_ids"]
 
 
-def test_fallback_enrichment_is_explicitly_unscored() -> None:
+def test_fallback_enrichment_can_use_raw_description_as_degraded_input() -> None:
     ranking_input = build_ranking_job_input(
         {
             "enrich_reuse_status": "enrichment_fallback",
@@ -368,14 +368,16 @@ def test_fallback_enrichment_is_explicitly_unscored() -> None:
         {"skills": []},
     )
 
-    with pytest.raises(RankingInputIncomplete, match="mandatory ranking facts"):
-        build_ranking_request(
-            {},
-            ranking_input["candidate_summary"],
-            [],
-            {},
-            ranking_input=ranking_input,
-        )
+    request = build_ranking_request(
+        {},
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+    )
+
+    assert request["visibility_manifest"]["mandatory_core_complete"] is False
+    assert "Requirements" in request["request"].prompt
 
 
 def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> None:
@@ -517,6 +519,31 @@ def test_build_ranking_job_input_preserves_mandatory_skills_before_request_budge
     assert requirements["skill_coverage"]["missing"] == []
 
 
+def test_build_ranking_job_input_preserves_three_project_evidence_items() -> None:
+    profile = {
+        "skills": [{"name": "SQL"}],
+        "_projected_evidence_pool": [
+            {
+                "evidence_id": f"project-{index}",
+                "kind": "project",
+                "title": f"Project {index}",
+                "text": f"Built project {index} with SQL.",
+                "source_section": "projects",
+                "skills": ["SQL"],
+            }
+            for index in range(1, 4)
+        ],
+    }
+
+    result = build_ranking_job_input({"required_skills": ["SQL"]}, profile)
+
+    assert [item["evidence_id"] for item in result["candidate_evidence"]] == [
+        "project-1",
+        "project-2",
+        "project-3",
+    ]
+
+
 def test_build_ranking_job_input_prioritizes_late_required_technology_skills() -> None:
     profile = {
         "skills": [{"name": f"Skill {index}"} for index in range(1, 10)]
@@ -613,8 +640,8 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     diagnostics = build_ranking_input_diagnostics(ranking_input, request)
 
     assert diagnostics["contract_version"] == "ranking_input_v3"
-    assert diagnostics["selected_evidence_count"] == 2
-    assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2"]
+    assert diagnostics["selected_evidence_count"] == 3
+    assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2", "ev-3"]
     assert diagnostics["candidate_skill_count"] == 9
     assert diagnostics["request_within_budget"] is True
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000

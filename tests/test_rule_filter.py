@@ -11,6 +11,7 @@ from fitcv.rule_filter import (
     apply_rule_filters,
     check_applicant_count,
     check_contract_type,
+    classify_contract_type,
     check_domain_preference,
     check_experience_level,
     check_freshness,
@@ -109,14 +110,14 @@ def test_title_filters_use_inclusion_and_exclusion_with_whole_word_matching(titl
     assert result["passed"] is expected
 
 
-def test_title_filters_are_applied_by_rule_filter_and_explain_rejection() -> None:
+def test_title_filters_are_applied_by_rule_filter_and_respect_selected_policy() -> None:
     result = apply_rule_filters(
         [_job(title="Duales Studium – AI Engineering")],
         _prefs(job_title_include_keywords=["AI"], job_title_exclude_keywords=["duales"]),
     )
-    assert result["passed"] == []
-    assert result["rejected"][0]["reasons"] == ["title_excluded"]
-    assert result["rejected"][0]["marks"][0]["details"]["matched_keyword"] == "duales"
+    assert result["passed"] == ["http://example.com/job/1"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["details"]["matched_keyword"] == "duales"
 
 
 @pytest.mark.parametrize(
@@ -466,6 +467,22 @@ def test_contract_type_rejects_profile_excluded_contract_type() -> None:
         _job(contract_type="Internship"),
         _prefs(contract_types=[], exclude_contract_types=["Internship"]),
     )
+
+
+def test_contract_type_missing_is_unknown_when_allow_list_is_configured() -> None:
+    assert classify_contract_type(_job(contract_type=None), _prefs(contract_types=["Full-time"])) == "unknown"
+
+
+def test_unselected_title_failure_is_marked_but_not_rejected() -> None:
+    result = apply_rule_filters(
+        [_job(job_url="http://title-mark-only", title="Unrelated role")],
+        _prefs(job_title_include_keywords=["Data"]),
+        config={"rule_filter": {"selected_filters": ["contract_type_excluded"]}},
+    )
+
+    assert result["passed"] == ["http://title-mark-only"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["code"] == "title_not_included"
 
 
 # ── experience level ──────────────────────────────────────────────────────────

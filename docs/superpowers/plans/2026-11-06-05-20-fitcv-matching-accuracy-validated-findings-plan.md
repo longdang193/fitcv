@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: proposed
+status: in_progress
 template_id: implementation-plan
 name: fitcv-matching-accuracy-validated-findings
 targets:
@@ -111,19 +111,19 @@ visibility.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-matching-accuracy`
 - Base commit: `bdb9d25408ebc893ea922b4fc9b9336b3f928e33`
-- Expected workspace: `clean`
-- Next action: create failing cross-stage fixtures for the validated defects
-- Blockers: `none after plan-review corrections`; task executors are `codex/high` and activation is sequential
+- Expected workspace: `implementation changes pending commit`
+- Next action: commit the validated implementation, then run the requested independent PR review cycle
+- Blockers: `full provider-backed 280-job run exceeded the bounded validation window during enrichment; no terminal compatibility score was produced`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | current | `codex/high` | none | focused failing fixtures and baseline counts | pending |
-| Task 2 | `pending` | current | `codex/high` | Task 1 | enrichment/scoring state tests | pending |
-| Task 3 | `pending` | current | `codex/high` | Task 1 | rule-filter tri-state tests | pending |
-| Task 4 | `pending` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | pending |
-| Task 5 | `pending` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | pending |
-| Task 6 | `pending` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | pending |
-| Task 7 | `pending` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | pending |
+| Task 1 | `completed` | current | `codex/high` | none | focused failing fixtures and baseline counts | 390 passed, 2 skipped in focused matching suite; fixtures cover filter, retrieval, evidence, scoring, and skip paths |
+| Task 2 | `completed` | current | `codex/high` | Task 1 | enrichment/scoring state tests | fallback/degraded input, retryability, raw-description preservation, and score-state tests pass |
+| Task 3 | `completed` | current | `codex/high` | Task 1 | rule-filter tri-state tests | contract-type unknown/mismatch and selected title-filter policy tests pass |
+| Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
+| Task 5 | `completed` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | 8-item evidence bound, visibility manifest, mandatory omissions, and 12,000-character budget tests pass |
+| Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | persistence/checkpoint/sqlite suite: 403 passed |
+| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | benchmark preserved recall (`selected evidence 0.8125→0.9375`, requirements `0.866667→1.0`); review E2E 2 passed; full suite 3617 passed, 10 skipped, 3 unrelated frontend/packaging failures; real 280-job run emitted enrichment heartbeats but was stopped without a terminal score |
 
 ## Task Breakdown
 

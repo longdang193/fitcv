@@ -510,6 +510,16 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "group": "rule_filter",
         "config_path": ["rule_filter", "selected_filters"],
     },
+    {
+        "key": "rule_filter.missing_contract_type_policy",
+        "type": "str",
+        "default": "unknown",
+        "label": "Missing Contract Type Policy",
+        "description": "How an allow-list handles missing or unrecognized contract metadata.",
+        "options": ["unknown", "reject"],
+        "group": "rule_filter",
+        "config_path": ["rule_filter", "missing_contract_type_policy"],
+    },
     # ── CV Generation ──────────────────────────────────────────────────────
     {
         "key": "cv_generation_model",
