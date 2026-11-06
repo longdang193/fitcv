@@ -4198,7 +4198,22 @@ def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
         **(dict(normalized.get("scores") or {}) if isinstance(normalized.get("scores"), dict) else {}),
         **normalized,
     }
-    score_state = normalize_score_state(score_source)
+    has_explicit_score_state = any(
+        score_source.get(field) not in (None, "")
+        for field in (
+            "ai_score",
+            "score_status",
+            "failure_code",
+            "final_score",
+            "holistic_ai_fit",
+            "personalized_display_score",
+        )
+    )
+    score_state = (
+        normalize_score_state(score_source)
+        if has_explicit_score_state
+        else {"ai_score": None, "score_status": "unscored", "failure_code": None}
+    )
     normalized["ai_score"] = score_state["ai_score"]
     normalized["score_status"] = score_state["score_status"]
     normalized["failure_code"] = score_state["failure_code"]

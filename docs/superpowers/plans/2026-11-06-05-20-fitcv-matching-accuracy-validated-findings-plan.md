@@ -19,6 +19,7 @@ targets:
   - src/fitcv/pipeline_store.py
   - src/fitcv_cp/sqlite_store.py
   - src/fitcv_cp/settings_schema.py
+  - src/fitcv_cp/app.py
   - tests/test_enrich.py
   - tests/test_ai_score.py
   - tests/test_rule_filter.py
@@ -31,6 +32,7 @@ targets:
   - tests/test_scoring_input_integrity.py
   - tests/test_fitcv_cp/test_sqlite_store.py
   - tests/test_fitcv_cp/test_settings_schema.py
+  - tests/test_fitcv_cp/test_app.py
   - tests/test_agentic_cv_analysis.py
   - scripts/benchmark_requirement_support.py
   - scripts/compare_requirement_support.py
@@ -63,6 +65,7 @@ Validated source evidence:
 - Mandatory budget overflow becomes non-retryable unscored: `src/fitcv/ai_score.py` (`run_ai_scoring`).
 - A skip result blocks the richer CV-analysis evidence path: `src/fitcv/agentic_cv_analysis.py` (`analyze_ranked_job`).
 - Inline and artifact diagnostics conflate retrieval absence, cutoffs, and scoring state: `src/fitcv/pipeline.py` and `src/fitcv/pipeline_stage_artifacts.py`.
+- Results export normalization fabricates `legacy_ambiguous_score_state` when a row has no explicit score fields, masking intentional early-stage unscored dispositions: `src/fitcv_cp/app.py` (`_normalize_results_export_row`). Explicit scorer failures such as `budget_exceeded` must remain intact.
 
 ## Implementation Outcomes
 
@@ -92,6 +95,9 @@ Every admitted job has one terminal admission/scoring disposition. Inline,
 resumed, shared-stage, control-plane, and export projections agree on retrieval
 status, failure code, retry eligibility, mandatory completeness, and evidence
 visibility.
+
+The export projection also preserves intentional early-stage `unscored` rows
+without inventing a failure code, while retaining explicit scorer failure codes.
 
 ## Execution Approach
 
@@ -394,9 +400,17 @@ Final benchmark proof on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280`:
    Require selected requirement/evidence-pair recall and mandatory-fact visibility to be no lower than the baseline, with no increase in false-negative cases and no unexplained ordering reversals.
 5. Keep `vector_search_top_n`, `ai_score_top_n`, `final_top_n`, the 12,000-character request limit, and `holistic_ai_only` unchanged unless a separate calibration decision is approved.
 
+**Completed verification evidence:**
+
+- Provider-backed run `cc509b7f-e4b7-40a6-8a65-11ca29711148` processed all `280` jobs: enrichment `280/280`, screening `264` passed and `16` seniority rejects, shortlist `50`, ranking `15` final-ranked with `32` budget-limited, CV analysis completed, and CV generation completed with `4` review-required items.
+- The persisted export reported `status: succeeded`, `280` rows, `18` valid objective compatibility scores, `32` explicit `budget_exceeded` failures, and `230` legacy ambiguous labels in the pre-fix artifact. The latter is the confirmed defect addressed by `_normalize_results_export_row`; the artifact is not rewritten retroactively.
+- The run’s `awaiting_continue` / `awaiting_review` lifecycle is expected because four CV outputs require operator review; pipeline compute completed and is not a hang.
+- TDD regression proof covers both intentional early-stage unscored rows and preservation of explicit `budget_exceeded` failures. The focused export tests pass, and `tests/test_fitcv_cp/test_app.py` passes `544` tests.
+- Repository-wide `uv run pytest -q` was attempted and produced `3597 passed, 10 skipped, 34 failed`. The failures are outside this patch: local credential-store/page tests require the optional `local` extra (`keyring`, absent in the environment), and inverse-optimization tests require the optional `inverse-optimization` extra (`cvxpy`, absent in the environment). No optional dependency was installed without authorization.
+
 **Verification:** Direct backend boundary tests, failure-path tests, persisted-state assertions, full automated suite, same-corpus evaluation report, and the committed `config/acceptance_state.yaml` thresholds (`support_recall_threshold: 1.0`, `minimum_oracle_coverage: 1.0`, `maximum_pair_false_positives: 0`).
 
-**Exit Criteria:** All cross-stage invariants pass; no unknown or infrastructure failure is represented as incompatibility; evaluation evidence is sufficient for any future ranking-weight decision.
+**Exit Criteria:** All cross-stage invariants pass; no unknown or infrastructure failure is represented as incompatibility; export normalization does not fabricate failure codes for unscored stage dispositions; evaluation evidence is sufficient for any future ranking-weight decision.
 
 ## Verification
 
@@ -411,8 +425,8 @@ Final verification must prove:
 
 ## Completion Criteria
 
-- Tasks 1–7 contain fresh evidence and the ledger is updated to `completed` only after verification.
-- Focused and full tests pass; unrelated failures are recorded rather than patched opportunistically.
+- Tasks 1–7 contain fresh evidence and the ledger is updated to `completed` only after verification. Task 7’s provider-backed run and export-normalization regression evidence are complete, but the plan remains `in_progress` until the repository-wide suite can run with its declared optional extras or the missing-extra validation is explicitly accepted.
+- Focused tests pass. The full suite has been attempted; unrelated missing-optional-extra failures are recorded rather than patched opportunistically.
 - Same-corpus evaluation shows improved or preserved recall and mandatory-fact visibility without unexplained false-positive growth.
 - Holistic ranking weights and default cutoffs remain unchanged without a separate approved calibration decision.
 - Final branch disposition remains outside this plan and requires explicit authorization through the branch-finishing workflow.
