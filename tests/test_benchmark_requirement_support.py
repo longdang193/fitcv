@@ -74,6 +74,9 @@ def test_integrity_benchmark_reports_admission_and_scorer_visibility() -> None:
     assert set(result["scorer_visible"]["ids"]) == {
         record["candidate_id"] for record in result["records"]
     }
+    assert all(record["score_value"] is None for record in result["records"])
+    assert all(record["retrieval_strategy"] == "lexical_v1" for record in result["records"])
+    assert all(record["scorer_input_ready"] for record in result["records"] if record["admitted"])
 
 
 def test_scenarios_resolve_independent_inputs_without_shared_fallback() -> None:

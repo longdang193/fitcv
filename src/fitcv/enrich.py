@@ -2162,7 +2162,7 @@ def lookup_reusable_structured_jobs(
             exact_contract_match = str(contract_fingerprint or "") == str(enrich_contract_fingerprint or "")
             if not exact_contract_match:
                 cached_model_contract = str(cached_payload.get("enrich_model_contract_fingerprint") or "")
-                if cached_model_contract and cached_model_contract != expected_model_contract_fingerprint:
+                if not cached_model_contract or cached_model_contract != expected_model_contract_fingerprint:
                     continue
                 candidate = merge_scraped_and_enriched(normalized_job, cached_payload, config)
                 quality = str(normalized_job.get("description_quality") or "").strip().lower()

@@ -397,12 +397,27 @@ def _normalize_linkedin_job(job: dict[str, Any]) -> dict[str, Any]:
     mapped = {_CAMEL_TO_SNAKE.get(key, key): value for key, value in job.items()}
     description = str(mapped.get("description") or "")
     source_provider = str(job.get("source") or "linkedin").strip().lower() or "linkedin"
-    description_quality = build_description_quality(description, "description")
+    description_source = str(mapped.get("description_source") or "description").strip() or "description"
+    description_quality = build_description_quality(description, description_source)
+    upstream_checksum = str(mapped.get("description_source_checksum") or "").strip()
+    if upstream_checksum == description_quality["description_source_checksum"]:
+        description_quality.update(
+            {
+                key: mapped[key]
+                for key in (
+                    "description_source_checksum",
+                    "description_source_length",
+                    "description_quality_signals",
+                    "description_boundary",
+                )
+                if key in mapped and mapped[key] not in (None, "")
+            }
+        )
     mapped.update(
         {
             "source_provider": source_provider,
             "source_job_id": str(job.get("id") or mapped.get("job_url") or ""),
-            "description_source": "description",
+            "description_source": description_source,
             "description_complete": description_quality["description_quality"] == "full",
             **description_quality,
             "raw_json": json.dumps(job, ensure_ascii=False),

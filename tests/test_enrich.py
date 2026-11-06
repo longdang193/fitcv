@@ -231,6 +231,35 @@ def test_sqlite_reuse_lookup_rejects_contract_or_fingerprint_mismatch(
     assert reusable == {}
 
 
+def test_sqlite_reuse_lookup_rejects_legacy_cache_without_contract_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    load_structured_jobs(
+        enriched=[
+            {
+                "job_url": "https://example.com/jobs/legacy",
+                "required_skills": ["SQL"],
+                "raw_job_fingerprint": "raw-fingerprint-match",
+                "enrich_reuse_status": "fresh_enrichment",
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[{"job_url": "https://example.com/jobs/legacy", "description": "SQL"}],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/legacy": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="new-contract",
+    )
+
+    assert reusable == {}
+
+
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
 
 def test_parse_extraction_response_valid_json() -> None:

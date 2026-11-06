@@ -404,7 +404,10 @@ def build_ranking_request(
         str(key): int(value or 0)
         for key, value in dict((source.get("contract_metadata") or {}).get("mandatory_omissions") or {}).items()
     }
-    if any(value > 0 for value in mandatory_omissions.values()):
+    degraded_enrichment = bool(
+        (source.get("contract_metadata") or {}).get("degraded_enrichment")
+    )
+    if degraded_enrichment or any(value > 0 for value in mandatory_omissions.values()):
         visibility_manifest = {
             "job": {**job_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("job_")]},
             "candidate": {**candidate_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("candidate_")]},
@@ -418,13 +421,13 @@ def build_ranking_request(
             "mandatory_omissions": mandatory_omissions,
             "mandatory_core_complete": False,
         }
-        exception_type = (
-            RankingInputIncomplete
-            if int(mandatory_omissions.get("job_enrichment_fallback") or 0) > 0
-            else RankingInputBudgetExceeded
-        )
+        exception_type = RankingInputIncomplete if degraded_enrichment or int(
+            mandatory_omissions.get("job_enrichment_fallback") or 0
+        ) > 0 else RankingInputBudgetExceeded
         raise exception_type(
-            "mandatory ranking facts were omitted before request bounding",
+            "mandatory ranking facts are not trustworthy before request bounding"
+            if degraded_enrichment
+            else "mandatory ranking facts were omitted before request bounding",
             visibility_manifest=visibility_manifest,
         )
     evidence = (

@@ -378,6 +378,32 @@ def test_fallback_enrichment_requires_retry_even_when_raw_description_exists() -
         )
 
 
+def test_run_ai_scoring_does_not_invoke_provider_for_degraded_enrichment(monkeypatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    ranking_input = build_ranking_job_input(
+        {"enrich_reuse_status": "enrichment_fallback", "description": "Requirements: SQL"},
+        {"skills": []},
+    )
+    provider_calls: list[bool] = []
+
+    def fail_if_called(**_kwargs):
+        provider_calls.append(True)
+        raise AssertionError("provider must not be invoked")
+
+    monkeypatch.setattr("fitcv.ai_score.score_job", fail_if_called)
+    result = run_ai_scoring(
+        [{"job_url": "https://example.com/jobs/degraded", "ranking_input": ranking_input}],
+        ranking_input["candidate_summary"],
+        {},
+        top_n=1,
+    )
+
+    assert provider_calls == []
+    assert result[0]["score_status"] == "unscored"
+    assert result[0]["failure_code"] == "needs_enrichment"
+
+
 def test_build_ranking_request_drops_optional_raw_description_before_budget_failure(monkeypatch) -> None:
     monkeypatch.setattr("fitcv.ai_score.RANKING_REQUEST_MAX_CHARS", 3_000)
     ranking_input = build_ranking_job_input(
