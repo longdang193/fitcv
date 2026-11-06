@@ -121,9 +121,9 @@ without inventing a failure code, while retaining explicit scorer failure codes.
 - Coordination schema: `2`
 - Branch: `codex/fitcv-matching-accuracy`
 - Base commit: `bdb9d25408ebc893ea922b4fc9b9336b3f928e33`
-- Expected workspace: `review-fix changes pending commit`
-- Next action: merge PR #121 after final publication verification; retain the provider-backed E2E latency limitation as an explicit external deferral
-- Blockers: `full provider-backed 280-job run exceeded the bounded validation window during enrichment; no terminal compatibility score was produced`
+- Expected workspace: `completion-record change committed; PR #123 review pending`
+- Next action: complete the authorized review cycles for PR #123, then merge the completion record into `main`
+- Blockers: none; the provider-backed run completed, and the local optional-extra gap is covered by the successful CI `Full Suite`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -133,7 +133,7 @@ without inventing a failure code, while retaining explicit scorer failure codes.
 | Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | all lexical fallback candidates compete with vector production rows before `effective_top_n`; displaced rows remain auditable; vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
 | Task 5 | `completed` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | 8-item evidence bound, visibility manifest, mandatory omissions, and 12,000-character budget tests pass |
 | Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | explicit empty `model_visible_evidence_ids` is persisted without falling back to selected IDs; persistence/checkpoint/sqlite suite: 403 passed |
-| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues and final review found four additional confirmed issues; all nine are patched with focused regressions; affected suite `1,093 passed, 3 skipped`; full suite `3,629 passed, 10 skipped`; final benchmark on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280` preserves selected evidence recall `0.9375`, selected requirement recall `1.0`, false negatives `1`; provider-backed 280-job run remains externally deferred after enrichment heartbeats without terminal scoring |
+| Task 7 | `completed` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues and final review found four additional confirmed issues; all nine are patched with focused regressions; affected suite `1,093 passed, 3 skipped`; CI full suite `3,631 passed, 10 skipped, 6 deselected` on `2b9fe6ea55baecb6af7742fe076f8df713b7cf35`; final benchmark on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280` preserves selected evidence recall `0.9375`, selected requirement recall `1.0`, false negatives `1`; provider-backed run `cc509b7f-e4b7-40a6-8a65-11ca29711148` completed all `280` jobs with `18` valid objective scores and `32` explicit `budget_exceeded` failures, while four CV outputs remain in the expected operator-review lifecycle |
 
 ### Post-review remediation
 
