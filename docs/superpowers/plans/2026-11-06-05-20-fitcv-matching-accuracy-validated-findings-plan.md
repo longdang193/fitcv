@@ -112,7 +112,7 @@ visibility.
 - Branch: `codex/fitcv-matching-accuracy`
 - Base commit: `bdb9d25408ebc893ea922b4fc9b9336b3f928e33`
 - Expected workspace: `review-fix changes pending commit`
-- Next action: commit the validated review fixes, rerun the benchmark, then run the requested independent PR review cycle
+- Next action: run the second and final independent PR review cycle; merge only after its findings are addressed or the review-cycle limit is reached
 - Blockers: `full provider-backed 280-job run exceeded the bounded validation window during enrichment; no terminal compatibility score was produced`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
@@ -123,7 +123,7 @@ visibility.
 | Task 4 | `completed` | current | `codex/high` | Tasks 1 and 3 | retrieval recall and neutrality tests | all lexical fallback candidates compete with vector production rows before `effective_top_n`; displaced rows remain auditable; vector/lexical rescue, missing-preference neutrality, and evidence tests pass |
 | Task 5 | `completed` | current | `codex/high` | Tasks 1 and 2 | scorer evidence/budget tests | 8-item evidence bound, visibility manifest, mandatory omissions, and 12,000-character budget tests pass |
 | Task 6 | `completed` | current | `codex/high` | Tasks 2–5 | admission/export reconciliation tests | explicit empty `model_visible_evidence_ids` is persisted without falling back to selected IDs; persistence/checkpoint/sqlite suite: 403 passed |
-| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues; all five are patched with focused regressions; 1,088 affected-suite tests and full suite 3,624 passed, 10 skipped; benchmark rerun and independent review remain before completion |
+| Task 7 | `in_progress` | current | `codex/high` | Tasks 2–6 | backend boundary, full pipeline, and evaluation proof | first review cycle found five confirmed issues; all five are patched with focused regressions; affected suite `1,088 passed, 3 skipped`; full suite `3,624 passed, 10 skipped`; review-fix benchmark on `97ce898874524452497dff02bfb41b16d47a857e` preserves selected evidence recall `0.9375`, selected requirement recall `1.0`, and false negatives `1`; provider-backed 280-job run remains bounded-window blocked; final independent review remains |
 
 ### Post-review remediation
 
@@ -145,6 +145,12 @@ addresses only these contracts:
    default.
 5. Preserve explicit empty model-visible evidence lists in both admission-ledger
    persistence paths instead of falling back to selected evidence.
+
+Fresh proof after the remediation commit:
+
+- `python -m pytest tests/test_enrich.py tests/test_ai_score.py tests/test_rule_filter.py tests/test_ranking.py tests/test_vector_search.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_checkpoint_contract.py tests/test_pipeline_store.py tests/test_fitcv_cp/test_sqlite_store.py tests/test_fitcv_cp/test_settings_schema.py -q` → `1,088 passed, 3 skipped`.
+- `python -m pytest -q` → `3,624 passed, 10 skipped`.
+- The four requirement-support benchmark arms and comparison report use implementation ref `97ce898874524452497dff02bfb41b16d47a857e`; requirement-aware and current-hash arms agree with selected evidence-pair recall `0.9375`, selected requirement recall `1.0`, and false-negative count `1`.
 
 ## Task Breakdown
 
