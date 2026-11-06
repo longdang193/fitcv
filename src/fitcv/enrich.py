@@ -467,6 +467,9 @@ def _is_application_artifact(raw_text: str, canonical: str) -> bool:
     canonical_lower = " ".join(canonical.strip().lower().split())
     if not raw_lower or not canonical_lower:
         return False
+    if raw_lower == "cv" or canonical_lower == "cv":
+        if canonical_lower in {"computer vision", "computer-vision"}:
+            return False
     if raw_lower in _APPLICATION_ARTIFACT_EXACT or canonical_lower in _APPLICATION_ARTIFACT_EXACT:
         return True
     if any(marker in raw_lower or marker in canonical_lower for marker in _APPLICATION_ARTIFACT_PHRASE_MARKERS):
@@ -2234,6 +2237,28 @@ def merge_scraped_and_enriched(
         seen_mapping_pairs.add(pair)
     merged["mapping_suggestions"] = rebuilt_mapping_suggestions
     merged = _repair_required_skill_signal(merged, config)
+    merged["enrichment_completeness"] = {
+        "location": bool(merged.get("actual_location")),
+        "languages": bool(merged.get("language_requirements")),
+        "required_skills": bool(merged.get("required_skills")),
+        "technology": bool(merged.get("tech_stack")),
+        "mandatory_clauses": bool(merged.get("mandatory_clauses")),
+    }
+    has_structured_requirement_signal = any(
+        bool(merged.get(field_name)) for field_name in structured_requirement_fields
+    )
+    merged["enrichment_degraded"] = bool(merged.get("enrichment_degraded")) or (
+        description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        or (description_quality == "full" and not has_structured_requirement_signal)
+    )
+    merged["enrichment_degraded_reason"] = (
+        "no_structured_requirement_signal"
+        if description_quality == "full" and not has_structured_requirement_signal
+        else "description_quality_degraded"
+        if description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
+        else None
+    )
+    merged["mandatory_core_complete"] = not merged["enrichment_degraded"]
     _apply_job_semantic_snapshot(merged, merged, cfg)
     return merged
 

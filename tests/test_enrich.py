@@ -2551,6 +2551,19 @@ def test_parse_extraction_response_rejects_application_artifacts_as_skills() -> 
     assert result["preferred_skills_canonical"] == ["power bi", "email marketing"]
 
 
+def test_parse_extraction_response_retains_computer_vision_abbreviation() -> None:
+    result = parse_extraction_response(
+        json.dumps({"required_skills": ["CV"]}),
+        {"skill_synonyms": {"cv": "computer vision"}},
+    )["parsed"]
+
+    assert result["required_skills"] == ["CV"]
+    assert result["required_skills_canonical"] == ["computer vision"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "CV", "canonical": "computer vision", "confidence": 1.0}
+    ]
+
+
 def test_lookup_reusable_structured_jobs_rebuilds_cached_skill_entities_after_filtering(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -2642,6 +2655,90 @@ def test_lookup_reusable_structured_jobs_rebuilds_cached_skill_entities_after_fi
     assert result["preferred_skill_entities"] == [
         {"raw_text": "Power BI", "canonical": "power bi", "confidence": 1.0}
     ]
+
+
+def test_lookup_reusable_structured_jobs_recomputes_quality_after_artifact_filtering(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    job_url = "https://example.com/jobs/artifact-only"
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS structured_jobs_cache (
+                job_url TEXT PRIMARY KEY,
+                raw_job_fingerprint TEXT,
+                enrich_contract_fingerprint TEXT,
+                payload_json TEXT NOT NULL,
+                enriched_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO structured_jobs_cache(
+                job_url,
+                raw_job_fingerprint,
+                enrich_contract_fingerprint,
+                payload_json,
+                enriched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                job_url,
+                "fp-1",
+                "contract-1",
+                json.dumps(
+                    {
+                        "job_url": job_url,
+                        "title": "Data Analyst",
+                        "required_skills": ["Lebenslauf"],
+                        "required_skills_canonical": ["lebenslauf"],
+                        "required_skill_entities": [
+                            {"raw_text": "Lebenslauf", "canonical": "lebenslauf"}
+                        ],
+                        "preferred_skills": [],
+                        "preferred_skill_entities": [],
+                        "tech_stack": [],
+                        "keywords": [],
+                        "location_type": None,
+                        "seniority": None,
+                        "job_family": None,
+                        "domain": None,
+                    }
+                ),
+                "2026-11-06T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    result = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": job_url,
+                "title": "Data Analyst",
+                "description": "A complete job description with responsibilities and qualifications.",
+                "description_quality": "full",
+                "description_source": "indeed",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={job_url: "fp-1"},
+        enrich_contract_fingerprint="contract-1",
+    )[job_url]
+
+    assert result["required_skills"] == []
+    assert result["required_skills_canonical"] == []
+    assert result["required_skill_entities"] == []
+    assert result["enrichment_completeness"]["required_skills"] is False
+    assert result["enrichment_degraded"] is True
+    assert result["enrichment_degraded_reason"] == "no_structured_requirement_signal"
+    assert result["mandatory_core_complete"] is False
 
 
 def test_merge_scraped_and_enriched_removes_cached_application_artifacts_from_skills() -> None:
