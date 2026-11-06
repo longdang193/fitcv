@@ -198,6 +198,28 @@ def normalize_score_state(row: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+_EXPORT_SCORE_STATE_INPUT_FIELDS = (
+    "ai_score",
+    "score_status",
+    "failure_code",
+    "parser_status",
+    "reranker_parser_status",
+    "score_reasoning",
+    "reranker_score_reasoning",
+    "final_score",
+    "holistic_ai_fit",
+    "baseline_fit",
+    "personalized_display_score",
+)
+
+
+def normalize_score_state_for_export(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize export rows without inventing failures for stage-only outcomes."""
+    if not any(row.get(field) not in (None, "") for field in _EXPORT_SCORE_STATE_INPUT_FIELDS):
+        return {"ai_score": None, "score_status": SCORE_STATUS_UNSCORED, "failure_code": None}
+    return normalize_score_state(row)
+
+
 def validate_weight_contract(weights: dict[str, float], *, expected_sum: float = 1.0) -> None:
     total = 0.0
     for feature_name, value in weights.items():

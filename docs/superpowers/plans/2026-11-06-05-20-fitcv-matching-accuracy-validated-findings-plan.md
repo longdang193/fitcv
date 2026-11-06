@@ -20,6 +20,7 @@ targets:
   - src/fitcv_cp/sqlite_store.py
   - src/fitcv_cp/settings_schema.py
   - src/fitcv_cp/app.py
+  - src/fitcv_cp/worker_job.py
   - tests/test_enrich.py
   - tests/test_ai_score.py
   - tests/test_rule_filter.py
@@ -33,6 +34,8 @@ targets:
   - tests/test_fitcv_cp/test_sqlite_store.py
   - tests/test_fitcv_cp/test_settings_schema.py
   - tests/test_fitcv_cp/test_app.py
+  - tests/test_fitcv_cp/test_worker_job.py
+  - tests/test_ranking_contract.py
   - tests/test_agentic_cv_analysis.py
   - scripts/benchmark_requirement_support.py
   - scripts/compare_requirement_support.py
@@ -66,6 +69,7 @@ Validated source evidence:
 - A skip result blocks the richer CV-analysis evidence path: `src/fitcv/agentic_cv_analysis.py` (`analyze_ranked_job`).
 - Inline and artifact diagnostics conflate retrieval absence, cutoffs, and scoring state: `src/fitcv/pipeline.py` and `src/fitcv/pipeline_stage_artifacts.py`.
 - Results export normalization fabricates `legacy_ambiguous_score_state` when a row has no explicit score fields, masking intentional early-stage unscored dispositions: `src/fitcv_cp/app.py` (`_normalize_results_export_row`). Explicit scorer failures such as `budget_exceeded` must remain intact.
+- The first PR review confirmed the worker export builder normalized the same rows before app projection and that legacy parser/reasoning fields were recognized by `normalize_score_state` but omitted from the export gate. The shared export normalizer now owns both decisions: `src/fitcv/ranking_contract.py` (`normalize_score_state_for_export`), used by `src/fitcv_cp/worker_job.py` and `src/fitcv_cp/app.py`.
 
 ## Implementation Outcomes
 
@@ -406,6 +410,7 @@ Final benchmark proof on `8d17feba5bc358cb8cb6ddd11be9c1ce9c6ed280`:
 - The persisted export reported `status: succeeded`, `280` rows, `18` valid objective compatibility scores, `32` explicit `budget_exceeded` failures, and `230` legacy ambiguous labels in the pre-fix artifact. The latter is the confirmed defect addressed by `_normalize_results_export_row`; the artifact is not rewritten retroactively.
 - The run’s `awaiting_continue` / `awaiting_review` lifecycle is expected because four CV outputs require operator review; pipeline compute completed and is not a hang.
 - TDD regression proof covers both intentional early-stage unscored rows and preservation of explicit `budget_exceeded` failures. The focused export tests pass, and `tests/test_fitcv_cp/test_app.py` passes `544` tests.
+- Review-fix regression proof covers the production worker export boundary plus `parser_status`, `reranker_parser_status`, `score_reasoning`, and `reranker_score_reasoning` legacy failure contracts; the affected ranking-contract, worker, and app suites pass `664` tests.
 - Repository-wide `uv run pytest -q` was attempted and produced `3597 passed, 10 skipped, 34 failed`. The failures are outside this patch: local credential-store/page tests require the optional `local` extra (`keyring`, absent in the environment), and inverse-optimization tests require the optional `inverse-optimization` extra (`cvxpy`, absent in the environment). No optional dependency was installed without authorization.
 
 **Verification:** Direct backend boundary tests, failure-path tests, persisted-state assertions, full automated suite, same-corpus evaluation report, and the committed `config/acceptance_state.yaml` thresholds (`support_recall_threshold: 1.0`, `minimum_oracle_coverage: 1.0`, `maximum_pair_false_positives: 0`).
