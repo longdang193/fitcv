@@ -75,6 +75,7 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - each nested evidence statement emits one item; section and kind remain provenance metadata, never score bonuses or reserved quotas
 - derived claims link by `evidence_refs`; runtime reverses those links into evidence-item skills without duplicating ownership
 - one global selection budget applies after channel retrieval and deterministic evidence-ID tie breaking
+- each distinct required skill keeps one recoverable supporter in the existing required-skill channel before channel-pool cutoffs; selected items retain source text, scoring context, stable evidence IDs, and source references
 - required-skill support is derived separately from profile fit: `profile_match` comes from `compute_gap()`, `canonical` records support across the projected evidence pool, `pool` records support after channel retrieval and merge, and `selected` comes only from final selected evidence; each map points requirement IDs to evidence IDs
 - only selected `verified` support can produce `support_strength: supported`; `relevant_unverified`, `not_selected`, and `unsupported` stay non-authoritative
 - `requirement_coverage` is the sole requirement-support authority; `supporting_evidence_ids` and `source_refs` point to selected `candidate-evidence.v1` items only
@@ -275,6 +276,7 @@ Phase 2 requests vector retrieval and preserves that requested strategy in diagn
 - absent fallback data produces `effective_strategy: unavailable`; retrieval never changes silently
 - `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
 - `shortlist_diagnostics` preserves coverage and cutoff metrics in checkpoint state
+- bounded query construction prioritizes repeated demonstrated skills and richer project evidence; hybrid lexical rescue excludes rows whose retrieval components are all neutral rather than treating unknown relevance as affirmative evidence
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
 - audit rows never reach shortlist persistence, AI scoring, ranking, exports, or `strong | stretch | skip` labels
 - continuation preserves prior completed shortlist artifact block, including audit evidence, while current execution updates only stages in its execution segment
@@ -287,6 +289,7 @@ Phase 3 uses one path for every admissible scored job:
 
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
+- scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; if selected attributable evidence cannot fit, the row is `score_status: unscored` with `failure_code: evidence_limited` and is excluded from ordinary compatibility ranking
 - `holistic_ai_fit` is the bounded AI scalar and sole active baseline contribution
 - six structured factors remain independently normalized, weighted, persisted, and observable
 - hard-gated or disabled location/language factors are removed once from effective structured weights, then retained weights renormalize once

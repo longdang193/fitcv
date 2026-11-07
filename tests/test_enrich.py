@@ -925,6 +925,74 @@ def test_apply_structured_normalization_emits_canonical_skill_companions() -> No
     ]
 
 
+def test_apply_structured_normalization_merges_raw_skills_missing_from_entities() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=["GCP", "Python", "SQL"],
+            required_skill_entities=[
+                {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
+            ],
+        ),
+        {"skill_synonyms": {"gcp": "google cloud"}},
+    )
+
+    assert result["required_skills_canonical"] == ["google cloud", "python", "sql"]
+    assert [item["raw_text"] for item in result["required_skill_entities"]] == ["GCP", "Python", "SQL"]
+
+
+def test_apply_structured_normalization_keeps_technical_language_and_communication_phrases() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "Natural Language Processing",
+                "Large Language Models",
+                "Language modeling",
+                "Technical communication protocol",
+                "Communication skills",
+            ],
+            required_skill_entities=[
+                {"raw_text": value, "canonical": value.lower(), "confidence": 1.0}
+                for value in [
+                    "Natural Language Processing",
+                    "Large Language Models",
+                    "Language modeling",
+                    "Technical communication protocol",
+                    "Communication skills",
+                ]
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == [
+        "natural language processing",
+        "large language models",
+        "language modeling",
+        "technical communication protocol",
+    ]
+
+
+def test_apply_structured_normalization_rejects_nontechnical_language_and_communication_fallbacks() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "SQL",
+                "English language proficiency",
+                "Strong communication abilities",
+            ],
+            required_skill_entities=[
+                {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0},
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == ["sql"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
+    ]
+
+
 def test_apply_structured_normalization_excludes_non_skill_requirement_content() -> None:
     output = EnrichmentOutput(
         required_skills=[
@@ -990,6 +1058,37 @@ def test_apply_structured_normalization_filters_soft_skills_languages_and_domain
         {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
     ]
     assert result["mapping_suggestions"] == []
+
+
+def test_apply_structured_normalization_preserves_technical_language_phrases() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "Natural Language Processing",
+                "Large Language Models",
+                "Technical communication protocol",
+                "English language proficiency",
+                "Strong communication abilities",
+            ],
+            required_skill_entities=[
+                {"raw_text": value, "canonical": value.lower(), "confidence": 1.0}
+                for value in [
+                    "Natural Language Processing",
+                    "Large Language Models",
+                    "Technical communication protocol",
+                    "English language proficiency",
+                    "Strong communication abilities",
+                ]
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == [
+        "natural language processing",
+        "large language models",
+        "technical communication protocol",
+    ]
 
 
 def test_apply_structured_normalization_uses_conservative_alias_fallback_when_entities_absent() -> None:

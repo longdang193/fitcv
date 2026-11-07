@@ -109,6 +109,14 @@ The design goal is separation of concerns: small summary surfaces for everyday
 inspection, deeper artifacts for detailed debugging, and explicit ownership for
 where each kind of truth belongs.
 
+Scoring-integrity invariants are explicit across those artifacts: accepted raw
+skills remain complete in canonical projections; retrieval bounds are
+relevance-aware and neutral lexical rows cannot rescue a cutoff position;
+selected evidence keeps both source text and scoring context with stable
+attribution; and ranking diagnostics describe the exact bounded payload seen by
+the scorer. Rows that cannot fit attributable evidence are recorded as
+evidence-limited and are not treated as normal compatibility scores.
+
 For the current public architecture and evidence narrative, use:
 
 - [architecture.md](architecture.md)

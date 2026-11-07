@@ -212,6 +212,12 @@ _NON_SKILL_PHRASE_MARKERS: tuple[str, ...] = (
     "high degree of ownership",
     "soft skill",
 )
+_TECHNICAL_SKILL_PHRASES: frozenset[str] = frozenset({
+    "natural language processing",
+    "large language models",
+    "language modeling",
+    "technical communication protocol",
+})
 _APPLICATION_ARTIFACT_EXACT: frozenset[str] = frozenset({
     "anschreiben",
     "bewerbung",
@@ -491,7 +497,11 @@ def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
         return False
     if canonical_lower in _NON_SKILL_CANONICAL_EXACT:
         return False
-    if any(marker in raw_lower or marker in canonical_lower for marker in _NON_SKILL_PHRASE_MARKERS):
+    if (
+        raw_lower not in _TECHNICAL_SKILL_PHRASES
+        and canonical_lower not in _TECHNICAL_SKILL_PHRASES
+        and any(marker in raw_lower or marker in canonical_lower for marker in _NON_SKILL_PHRASE_MARKERS)
+    ):
         return False
     if _is_generic_ai_concept_overreach(raw_text, canonical):
         return False
@@ -566,9 +576,26 @@ def _build_skill_entities(
     normalized_entities = _normalise_skill_entities(raw_entities, config=config)
     entities = list(normalized_entities)
     existing_canonicals = {str(entity["canonical"]).casefold() for entity in entities}
+    explicit_raw_values = {
+        " ".join(str(raw_entity.get("raw_text") or "").split()).casefold()
+        for raw_entity in raw_entities or []
+        if isinstance(raw_entity, dict) and str(raw_entity.get("raw_text") or "").strip()
+    }
     for raw_value in raw_values:
         canonical = _canonicalize_text_item(field_name, raw_value, config)
-        if not _is_reusable_skill_alias(raw_value, canonical):
+        normalized_raw_value = " ".join(raw_value.split()).casefold()
+        raw_is_concise_canonical = (
+            bool(raw_entities)
+            and raw_value.strip().casefold() == canonical.strip().casefold()
+            and len(raw_value.strip()) <= 40
+            and len(raw_value.strip().split()) == 1
+            and not any(char in raw_value for char in ",;:()[]{}")
+            and re.fullmatch(r"[A-Za-z][A-Za-z0-9+#.-]*", raw_value.strip()) is not None
+        )
+        if normalized_raw_value in explicit_raw_values:
+            continue
+        can_use_alias_fallback = not raw_entities and _is_reusable_skill_alias(raw_value, canonical)
+        if not can_use_alias_fallback and not raw_is_concise_canonical:
             continue
         if not _is_allowed_skill_entity(raw_value, canonical):
             continue
