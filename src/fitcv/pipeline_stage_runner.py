@@ -220,7 +220,7 @@ def execute_rule_filter_stage(
         )
         filter_result = apply_rule_filters(
             enriched,
-            profile["preferences"],
+            profile.get("preferences") or profile.get("search_preferences") or {},
             config,
             candidate_fit_context=candidate_fit_context,
         )
@@ -487,14 +487,19 @@ def execute_ranking_stage(
         fresh_scoring_jobs: list[dict[str, Any]] = []
         fresh_ai_score_fingerprints: dict[str, str] = {}
         reused_ai_scores_by_identity: dict[str, dict[str, Any]] = {}
+        evidence_limited_scores_by_identity: dict[str, dict[str, Any]] = {}
         ranking_inputs_by_identity: dict[str, dict[str, Any]] = {}
         ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = {}
         ranking_admission_rows: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
+            evidence_limit = max(
+                2,
+                int((config.get("pipeline") or {}).get("evidence_top_k") or 2),
+            )
             selected_evidence = select_ranking_evidence(
                 profile_evidence_pool,
                 shortlisted_job,
-                limit=2,
+                limit=evidence_limit,
                 semantic_policy=semantic_policy,
             )
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
@@ -516,6 +521,36 @@ def execute_ranking_stage(
                     ranking_input,
                     retrieval_metadata=retrieval_metadata,
                 )
+            if not selected_evidence:
+                evidence_limited_scores_by_identity[identity_key] = {
+                    "job_url": extract_job_url(shortlisted_job),
+                    **{
+                        field_name: shortlisted_job[field_name]
+                        for field_name in ("run_job_id", "raw_job_fingerprint", "source_job_url")
+                        if shortlisted_job.get(field_name) not in (None, "")
+                    },
+                    "ai_score": None,
+                    "legacy_model_fit_label": None,
+                    "score_status": "unscored",
+                    "failure_code": "evidence_limited",
+                    "disposition": "unavailable",
+                    "retry_eligible": False,
+                    "score_reasoning": "Scoring unavailable: no selected attributable evidence",
+                    "matched_strengths": [],
+                    "key_risks": [],
+                    "parser_status": "evidence_limited",
+                    "ranking_input_diagnostics": ranking_input_diagnostics_by_identity.get(identity_key) or {},
+                }
+                if manifest_identity in ranking_admission_rows:
+                    ranking_admission_rows[manifest_identity].update(
+                        {
+                            "score_status": "unscored",
+                            "failure_code": "evidence_limited",
+                            "retry_eligible": False,
+                            "score_execution": "unavailable",
+                        }
+                    )
+                continue
             top_evidence = [str(item.get("text") or "") for item in selected_evidence if item.get("text")]
             try:
                 fingerprint_record = build_ai_score_input_fingerprint(
@@ -579,7 +614,7 @@ def execute_ranking_stage(
                         )
                     )
                 continue
-            fresh_scoring_jobs.append(shortlisted_job)
+            fresh_scoring_jobs.append({**shortlisted_job, "ranking_input": ranking_input})
             if identity_key:
                 fresh_ai_score_fingerprints[identity_key] = fingerprint_record["fingerprint"]
             if manifest_identity in ranking_admission_rows:
@@ -647,7 +682,11 @@ def execute_ranking_stage(
         ai_scores = []
         for shortlisted_job in ai_score_candidates:
             identity_key = primary_job_identity_key(shortlisted_job)
-            score_row: dict[str, Any] | None = reused_ai_scores_by_identity.get(identity_key) or fresh_ai_scores_by_identity.get(identity_key)
+            score_row: dict[str, Any] | None = (
+                evidence_limited_scores_by_identity.get(identity_key)
+                or reused_ai_scores_by_identity.get(identity_key)
+                or fresh_ai_scores_by_identity.get(identity_key)
+            )
             if score_row is not None:
                 ai_scores.append(score_row)
                 manifest_identity = primary_job_identity_key(shortlisted_job) or extract_job_url(shortlisted_job)
@@ -732,6 +771,13 @@ def execute_ranking_stage(
             resolved_preference_policy=resolved_preference_policy,
         )
         pipeline_store.store_final_ranking(ranked, config)
+        update_ledger = getattr(pipeline_store, "update_shortlist_admission_ledger_scores", None)
+        if update_ledger is not None:
+            update_ledger(
+                [*ai_scores, *ranked],
+                state.get("ranking_admission_manifest"),
+                run_id,
+            )
         if reporter is not None:
             reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
         state["ai_scores"] = ai_scores

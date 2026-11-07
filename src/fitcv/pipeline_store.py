@@ -23,7 +23,26 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from fitcv.persistence import sqlite_connection
+from fitcv.pipeline_stages.common import job_identity_keys, primary_job_identity_key
 from fitcv.shortlist_runtime import configure_sqlite_connection, run_sqlite_io_retry, sqlite_path
+
+
+def _json_text(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def _enrichment_trust(row: dict[str, Any]) -> str:
+    explicit = str(row.get("enrichment_trust") or "").strip().lower()
+    if explicit:
+        return explicit
+    if str(row.get("enrich_reuse_status") or "").strip().lower() == "enrichment_fallback":
+        return "degraded"
+    quality = str(row.get("description_quality") or "").strip().lower()
+    if quality == "full":
+        return "trusted"
+    if quality in {"missing", "partial", "boilerplate_only", "unknown"}:
+        return "degraded"
+    return "unknown"
 
 
 def persist_shortlist_admission_ledger(
@@ -43,45 +62,41 @@ def persist_shortlist_admission_ledger(
     def _write() -> None:
         with sqlite_connection(sqlite_path(), timeout=30) as conn:
             configure_sqlite_connection(conn)
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS shortlist_admission_ledger (
-                  run_id TEXT NOT NULL,
-                  job_identity TEXT NOT NULL,
-                  job_url TEXT NOT NULL,
-                  fusion_rank INTEGER,
-                  vector_rank INTEGER,
-                  vector_score REAL,
-                  lexical_rank INTEGER,
-                  lexical_score REAL,
-                  cutoff INTEGER NOT NULL,
-                  requested_strategy TEXT,
-                  effective_strategy TEXT,
-                  fusion_fingerprint TEXT,
-                  admission_reason TEXT,
-                  exclusion_reason TEXT,
-                  raw_hit_present INTEGER NOT NULL,
-                  admitted INTEGER NOT NULL,
-                  captured_at TEXT NOT NULL,
-                  PRIMARY KEY (run_id, job_identity)
-                )
-                """
-            )
+            _ensure_shortlist_admission_ledger(conn)
             conn.executemany(
                 """
                 INSERT OR REPLACE INTO shortlist_admission_ledger(
-                  run_id, job_identity, job_url, fusion_rank, vector_rank,
+                  run_id, job_identity, job_url, source_provider, source_job_id,
+                  raw_job_fingerprint, fusion_rank, vector_rank,
                   vector_score, lexical_rank, lexical_score, cutoff,
                   requested_strategy, effective_strategy, fusion_fingerprint,
                   admission_reason, exclusion_reason, raw_hit_present, admitted,
-                  captured_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  captured_at, description_quality, description_source,
+                  description_complete, description_source_checksum,
+                  description_source_length, description_boundary_json,
+                  enrichment_trust, enrich_reuse_status,
+                  score_status, failure_code, score_value, final_rank,
+                  ranking_input_diagnostics_json, selected_evidence_ids_json,
+                  mandatory_omissions_json, canonical_checksums_json,
+                  request_char_count, request_within_budget, disposition, retry_eligible,
+                  mandatory_core_complete, model_visible_evidence_ids_json
+                ) VALUES (
+                  ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 [
                     (
                         str(run_id),
                         str(row.get("identity") or row.get("job_url") or ""),
                         str(row.get("job_url") or ""),
+                        row.get("source_provider") or row.get("provider"),
+                        row.get("source_job_id"),
+                        row.get("raw_job_fingerprint"),
                         row.get("admission_order") + 1 if row.get("admission_order") is not None else None,
                         row.get("vector_rank"),
                         row.get("vector_similarity"),
@@ -96,10 +111,279 @@ def persist_shortlist_admission_ledger(
                         int(bool(row.get("raw_hit_present"))),
                         int(row.get("shortlist_status") == "shortlist_admitted"),
                         captured_at,
+                        row.get("description_quality"),
+                        row.get("description_source"),
+                        int(bool(row.get("description_complete"))) if row.get("description_complete") is not None else None,
+                        row.get("description_source_checksum"),
+                        row.get("description_source_length"),
+                        _json_text(row.get("description_boundary") or {}),
+                        _enrichment_trust(row),
+                        row.get("enrich_reuse_status"),
+                        row.get("score_status"),
+                        row.get("failure_code"),
+                        row.get("score_value"),
+                        row.get("final_rank"),
+                        _json_text(row.get("ranking_input_diagnostics") or {}),
+                        _json_text(
+                            (row.get("ranking_input_diagnostics") or {}).get("selected_evidence_ids") or [],
+                        ),
+                        _json_text(
+                            (row.get("ranking_input_diagnostics") or {}).get("mandatory_omissions") or {},
+                        ),
+                        _json_text(
+                            (row.get("ranking_input_diagnostics") or {}).get("canonical_checksums") or {},
+                        ),
+                        (row.get("ranking_input_diagnostics") or {}).get("request_char_count"),
+                        int(bool((row.get("ranking_input_diagnostics") or {}).get("request_within_budget")))
+                        if (row.get("ranking_input_diagnostics") or {}).get("request_within_budget") is not None
+                        else None,
+                        row.get("disposition"),
+                        int(bool(row.get("retry_eligible"))) if row.get("retry_eligible") is not None else None,
+                        int(bool((row.get("ranking_input_diagnostics") or {}).get("mandatory_core_complete")))
+                        if (row.get("ranking_input_diagnostics") or {}).get("mandatory_core_complete") is not None
+                        else None,
+                        _json_text(
+                            (
+                                (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids")
+                                if (row.get("ranking_input_diagnostics") or {}).get("model_visible_evidence_ids") is not None
+                                else (row.get("ranking_input_diagnostics") or {}).get("selected_evidence_ids") or []
+                            ),
+                        ),
                     )
                     for row in rows
                 ],
             )
+            conn.commit()
+
+    run_sqlite_io_retry(_write)
+
+
+def _ensure_shortlist_admission_ledger(conn: Any) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS shortlist_admission_ledger (
+          run_id TEXT NOT NULL,
+          job_identity TEXT NOT NULL,
+          job_url TEXT NOT NULL,
+          source_provider TEXT,
+          source_job_id TEXT,
+          raw_job_fingerprint TEXT,
+          fusion_rank INTEGER,
+          vector_rank INTEGER,
+          vector_score REAL,
+          lexical_rank INTEGER,
+          lexical_score REAL,
+          cutoff INTEGER NOT NULL,
+          requested_strategy TEXT,
+          effective_strategy TEXT,
+          fusion_fingerprint TEXT,
+          admission_reason TEXT,
+          exclusion_reason TEXT,
+          raw_hit_present INTEGER NOT NULL,
+          admitted INTEGER NOT NULL,
+          captured_at TEXT NOT NULL,
+          description_quality TEXT,
+          description_source TEXT,
+          description_complete INTEGER,
+          description_source_checksum TEXT,
+          description_source_length INTEGER,
+          description_boundary_json TEXT,
+          enrichment_trust TEXT,
+          enrich_reuse_status TEXT,
+          score_status TEXT,
+          failure_code TEXT,
+          score_value REAL,
+          final_rank INTEGER,
+          ranking_input_diagnostics_json TEXT,
+          selected_evidence_ids_json TEXT,
+          mandatory_omissions_json TEXT,
+          canonical_checksums_json TEXT,
+          request_char_count INTEGER,
+          request_within_budget INTEGER,
+          disposition TEXT,
+          retry_eligible INTEGER,
+          mandatory_core_complete INTEGER,
+          model_visible_evidence_ids_json TEXT,
+          PRIMARY KEY (run_id, job_identity)
+        )
+        """
+    )
+    existing = {str(row[1]) for row in conn.execute("PRAGMA table_info(shortlist_admission_ledger)").fetchall()}
+    columns = {
+        "source_provider": "TEXT",
+        "source_job_id": "TEXT",
+        "raw_job_fingerprint": "TEXT",
+        "description_quality": "TEXT",
+        "description_source": "TEXT",
+        "description_complete": "INTEGER",
+        "description_source_checksum": "TEXT",
+        "description_source_length": "INTEGER",
+        "description_boundary_json": "TEXT",
+        "enrichment_trust": "TEXT",
+        "enrich_reuse_status": "TEXT",
+        "score_status": "TEXT",
+        "failure_code": "TEXT",
+        "score_value": "REAL",
+        "final_rank": "INTEGER",
+        "ranking_input_diagnostics_json": "TEXT",
+        "selected_evidence_ids_json": "TEXT",
+        "mandatory_omissions_json": "TEXT",
+        "canonical_checksums_json": "TEXT",
+        "request_char_count": "INTEGER",
+        "request_within_budget": "INTEGER",
+        "disposition": "TEXT",
+        "retry_eligible": "INTEGER",
+        "mandatory_core_complete": "INTEGER",
+        "model_visible_evidence_ids_json": "TEXT",
+    }
+    for name, sql_type in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE shortlist_admission_ledger ADD COLUMN {name} {sql_type}")
+
+
+def update_shortlist_admission_ledger_scores(
+    ranked_rows: list[dict[str, Any]],
+    ranking_manifest: dict[str, Any] | None,
+    run_id: str,
+) -> None:
+    manifest_rows: dict[str, dict[str, Any] | None] = {}
+    manifest_by_url: dict[str, dict[str, Any] | None] = {}
+
+    def _stable_identity_keys(row: dict[str, Any]) -> list[str]:
+        identity = str(row.get("identity") or "").strip()
+        keys = [identity, *job_identity_keys(row)]
+        return list(dict.fromkeys(key for key in keys if key and not key.startswith("url:")))
+
+    for row in list((ranking_manifest or {}).get("rows") or []):
+        if not isinstance(row, dict):
+            continue
+        for key in _stable_identity_keys(row):
+            if key in manifest_rows and manifest_rows[key] is not row:
+                manifest_rows[key] = None
+            else:
+                manifest_rows[key] = row
+        job_url = str(row.get("job_url") or "").strip()
+        if job_url:
+            if job_url in manifest_by_url and manifest_by_url[job_url] is not row:
+                manifest_by_url[job_url] = None
+            else:
+                manifest_by_url[job_url] = row
+
+    def _write() -> None:
+        with sqlite_connection(sqlite_path(), timeout=30) as conn:
+            configure_sqlite_connection(conn)
+            _ensure_shortlist_admission_ledger(conn)
+            for final_rank, ranked in enumerate(ranked_rows, start=1):
+                ranked_identity = str(ranked.get("identity") or "").strip()
+                identity_keys = _stable_identity_keys(ranked)
+                manifest = next(
+                    (manifest_rows[key] for key in identity_keys if key in manifest_rows and manifest_rows[key] is not None),
+                    None,
+                )
+                if manifest is None:
+                    job_url = str(ranked.get("job_url") or "").strip()
+                    manifest = manifest_by_url.get(job_url)
+                if manifest is None and (not ranked_identity or ranked_identity.startswith("url:")):
+                    continue
+                manifest = manifest or {}
+                identity = str(
+                    manifest.get("identity")
+                    or primary_job_identity_key(manifest)
+                    or ranked_identity
+                    or primary_job_identity_key(ranked)
+                    or manifest.get("job_url")
+                    or ranked.get("job_url")
+                    or ""
+                ).strip()
+                if not identity:
+                    continue
+                diagnostics = dict(
+                    ranked.get("ranking_input_diagnostics")
+                    or manifest.get("ranking_input_diagnostics")
+                    or {}
+                )
+                provenance = {**manifest, **ranked}
+                enrichment_trust = (
+                    _enrichment_trust(provenance)
+                    if any(
+                        provenance.get(field) not in (None, "")
+                        for field in (
+                            "enrichment_trust",
+                            "description_quality",
+                            "enrich_reuse_status",
+                        )
+                    )
+                    else None
+                )
+                persisted_final_rank = (
+                    ranked.get("final_rank")
+                    or ranked.get("personalized_rank")
+                    or ranked.get("baseline_rank")
+                )
+                conn.execute(
+                    """
+                    UPDATE shortlist_admission_ledger
+                    SET source_provider = COALESCE(?, source_provider),
+                        source_job_id = COALESCE(?, source_job_id),
+                        raw_job_fingerprint = COALESCE(?, raw_job_fingerprint),
+                        description_quality = COALESCE(?, description_quality),
+                        description_source = COALESCE(?, description_source),
+                        description_complete = COALESCE(?, description_complete),
+                        description_source_checksum = COALESCE(?, description_source_checksum),
+                        description_source_length = COALESCE(?, description_source_length),
+                        description_boundary_json = COALESCE(?, description_boundary_json),
+                        enrichment_trust = COALESCE(?, enrichment_trust),
+                        enrich_reuse_status = COALESCE(?, enrich_reuse_status),
+                        score_status = ?, failure_code = ?, score_value = ?, final_rank = ?,
+                        ranking_input_diagnostics_json = ?, selected_evidence_ids_json = ?,
+                        mandatory_omissions_json = ?, canonical_checksums_json = ?,
+                         request_char_count = ?, request_within_budget = ?, disposition = ?,
+                         retry_eligible = ?, mandatory_core_complete = ?, model_visible_evidence_ids_json = ?
+                    WHERE run_id = ? AND job_identity = ?
+                    """,
+                    (
+                        ranked.get("source_provider") or manifest.get("source_provider") or ranked.get("provider") or manifest.get("provider"),
+                        ranked.get("source_job_id") or manifest.get("source_job_id"),
+                        ranked.get("raw_job_fingerprint") or manifest.get("raw_job_fingerprint"),
+                        ranked.get("description_quality") or manifest.get("description_quality"),
+                        ranked.get("description_source") or manifest.get("description_source"),
+                        int(bool(ranked.get("description_complete"))) if ranked.get("description_complete") is not None else (
+                            int(bool(manifest.get("description_complete"))) if manifest.get("description_complete") is not None else None
+                        ),
+                        ranked.get("description_source_checksum") or manifest.get("description_source_checksum"),
+                        ranked.get("description_source_length") or manifest.get("description_source_length"),
+                        _json_text(ranked.get("description_boundary") or manifest.get("description_boundary") or {})
+                        if ranked.get("description_boundary") is not None or manifest.get("description_boundary") is not None
+                        else None,
+                        enrichment_trust,
+                        ranked.get("enrich_reuse_status") or manifest.get("enrich_reuse_status"),
+                        ranked.get("score_status"),
+                        ranked.get("failure_code"),
+                        ranked.get("ai_score"),
+                        persisted_final_rank,
+                        _json_text(diagnostics),
+                        _json_text(diagnostics.get("selected_evidence_ids") or []),
+                        _json_text(diagnostics.get("mandatory_omissions") or {}),
+                        _json_text(diagnostics.get("canonical_checksums") or {}),
+                        diagnostics.get("request_char_count"),
+                        int(bool(diagnostics.get("request_within_budget")))
+                        if diagnostics.get("request_within_budget") is not None
+                        else None,
+                         ranked.get("disposition"),
+                         int(bool(ranked.get("retry_eligible"))) if ranked.get("retry_eligible") is not None else None,
+                         int(bool(diagnostics.get("mandatory_core_complete")))
+                         if diagnostics.get("mandatory_core_complete") is not None else None,
+                         _json_text(
+                            (
+                                diagnostics.get("model_visible_evidence_ids")
+                                if diagnostics.get("model_visible_evidence_ids") is not None
+                                else diagnostics.get("selected_evidence_ids") or []
+                            ),
+                        ),
+                        str(run_id),
+                        identity,
+                    ),
+                )
             conn.commit()
 
     run_sqlite_io_retry(_write)
@@ -184,6 +468,14 @@ class PipelineStore:
         config: dict[str, Any],
     ) -> None:
         persist_shortlist_admission_ledger(rows, diagnostics, run_id, config)
+
+    def update_shortlist_admission_ledger_scores(
+        self,
+        ranked_rows: list[dict[str, Any]],
+        ranking_manifest: dict[str, Any] | None,
+        run_id: str,
+    ) -> None:
+        update_shortlist_admission_ledger_scores(ranked_rows, ranking_manifest, run_id)
 
     def store_final_ranking(
         self,

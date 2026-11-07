@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-enrichment-retrieval-scoring-integrity
 targets:
@@ -164,22 +164,22 @@ scale invariance before any score-weight or cutoff policy change.
 
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
-- Branch: `main`
+- Branch: detached implementation worktree (immutable base plus plan commits)
 - Base commit: `eab9931d11c2bdb6c6674eddacc7a7bd5ebf74c6`
 - Expected workspace: current checkout contains unrelated tracked edits in `config/job_sources/*.json` and unrelated untracked data, scripts, virtual-environment, frontend, and review artifacts; do not reset, clean, or edit them
-- Next action: publish this revised plan, create a clean implementation worktree from immutable `eab9931d11c2bdb6c6674eddacc7a7bd5ebf74c6`, then execute Task 1
-- Blockers: exact production cause for job `1a32c5dae60fbb71` is unavailable until its captured source/run artifacts are supplied; implementation proceeds with sanitized fixtures and records that limitation
+- Next action: hand off the verified implementation worktree for authorized Git publication
+- Blockers: exact production cause for job `1a32c5dae60fbb71` remains unavailable without captured source/run artifacts; implementation uses sanitized fixtures and does not attribute the live incident to a single upstream stage
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | isolated | `unresolved` | none | incident trace and fixtures | pending |
-| Task 2 | `pending` | isolated | `unresolved` | Task 1 | source-quality regressions | pending |
-| Task 3 | `pending` | isolated | `unresolved` | Task 2 | enrichment semantic/provenance regressions | pending |
-| Task 4 | `pending` | isolated | `unresolved` | Task 3 | admission/retrieval recall regressions | pending |
-| Task 5 | `pending` | isolated | `unresolved` | `Task 3, Task 4` | scorer visibility and budget regressions | pending |
-| Task 6 | `pending` | isolated | `unresolved` | Task 3, Task 5 | evidence/query stability regressions | pending |
-| Task 7 | `pending` | isolated | `unresolved` | Task 4, Task 5, Task 6 | persistence/UI contract regressions | pending |
-| Task 8 | `pending` | isolated | `unresolved` | Task 1–7 | full benchmark and verification suite | pending |
+| Task 1 | `completed` | isolated | `Codex` | none | incident trace and fixtures | sanitized fixtures pass; live trace unavailable |
+| Task 2 | `completed` | isolated | `Codex` | Task 1 | source-quality regressions | `99 passed, 1 skipped`; incomplete fetch records retained |
+| Task 3 | `completed` | isolated | `Codex` | Task 2 | enrichment semantic/provenance regressions | `163 passed, 1 skipped`; cache revalidation and provenance tests pass |
+| Task 4 | `completed` | isolated | `Codex` | Task 3 | admission/retrieval recall regressions | retrieval/admission regression coverage passes; `recall@50 = 1.0` |
+| Task 5 | `completed` | isolated | `Codex` | `Task 3, Task 4` | scorer visibility and budget regressions | scorer-integrity suite passes; typed language/provenance retained |
+| Task 6 | `completed` | isolated | `Codex` | Task 3, Task 5 | evidence/query stability regressions | existing evidence/candidate suites pass; no cutoff or weighting change |
+| Task 7 | `completed` | isolated | `Codex` | `Task 4, Task 5, Task 6` | persistence/UI/checkpoint regressions | pipeline/store suite `160 passed`; ledger migration and scorer-rejection provenance pass |
+| Task 8 | `completed` | isolated | `Codex` | `Tasks 1–7` | benchmark and final verification | provider-free benchmark pass; focused enrichment/scoring/ingestion/normalization `242 passed, 2 skipped`; full suite `3647 passed, 10 skipped, 3 pre-existing failures` recorded |
 
 ## Review-Evidence Matrix
 
@@ -640,6 +640,19 @@ converted into behavior changes.
 
 **Exit Criteria:**
 - Fresh evidence proves the final acceptance invariants, all plan deviations are recorded, and `skill-verification-before-completion` returns `verified` before any later status change from `proposed` to `completed`.
+
+## Reconciled Evidence
+
+- Source quality is canonicalized in `build_description_quality()` and survives fetch, ingest, normalize, enrichment merge, run-scoped projections, cache reuse, admission, and scorer diagnostics. Footer/contact-only text is retained for recovery and is never treated as a complete description.
+- Degraded or unknown requirements remain provisional instead of becoming confirmed must-have mismatches. Existing hybrid RRF admission and `50`/`50` cutoffs are unchanged.
+- Scorer requests retain typed language requirements, source checksum/boundary metadata, requirement IDs, evidence IDs, and explicit `needs_enrichment`/`unscored` states when mandatory facts cannot be trusted or fit. `RANKING_REQUEST_MAX_CHARS` remains `12_000`; `holistic_ai_only` remains unchanged.
+- The durable shortlist ledger now migrates and round-trips stable identity, source quality/checksum/boundary, enrichment trust, reuse state, admission metadata, visibility diagnostics, score status, failure code, disposition, and retry eligibility.
+- Direct `run_ai_scoring()` calls now consume job-level `enrichment_degraded` state at the shared ranking-request boundary, preventing provider invocation when mandatory job facts are untrusted and persisting `job_enrichment_degraded` in omission diagnostics.
+- German requirement recovery tolerates blank separator segments and replacement-character bullets, preserving one-skill-per-bullet required skills while excluding preferred tails. Fetch tests now use substantive descriptions, so token-only long filler is correctly classified as `unknown`.
+- The provider-free benchmark command passes with `recall_at_50 = 1.0` and all three zero-tolerance integrity assertions true. Its JSON records cohort IDs, denominator, expected relevant IDs, source-span/checksum data, scorer-visible values, cache counters, admission counters, and score-state counts.
+- Focused implementation regression: enrichment/scoring/ingestion/normalization `242 passed, 2 skipped`; pipeline/store `160 passed`; fetch adapters `28 passed`.
+- Full repository run: `3647 passed, 10 skipped, 3 failed`. The three failures are outside the changed surfaces and share the pre-existing missing `frontend/dist` condition: `tests/test_fitcv_cp/test_frontend_host.py::test_app_spa_entry_and_deep_links`, `tests/test_fitcv_cp/test_frontend_host.py::test_csrf_cookie_issuance_and_unsafe_request_guard`, and `tests/test_fitcv_local_packaging.py::test_pyinstaller_datas_sources_exist`. They are recorded, not treated as implementation success.
+- Live Indeed causality remains unvalidated because no captured source/run artifact for `jk=1a32c5dae60fbb71` was supplied; no live retrieval or external-provider change was made.
 
 ## Verification
 

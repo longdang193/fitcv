@@ -188,6 +188,20 @@ def test_compute_declared_preference_fit_requires_policy_weights() -> None:
         compute_declared_preference_fit_details({}, {}, {})
 
 
+def test_missing_preference_dimension_is_neutral_unknown() -> None:
+    assert ranking_module._preference_dimension_score(None, ["fintech"]) == pytest.approx(0.5)
+
+
+def test_missing_preference_dimension_with_neighbors_is_neutral_unknown() -> None:
+    score, state = ranking_module._preference_dimension_score_with_neighbors(
+        job_value="",
+        preferred_values=["fintech"],
+    )
+
+    assert score == pytest.approx(0.5)
+    assert state == "unknown"
+
+
 def test_rank_jobs_sorts_descending():
     jobs = [
         {"job_url": "u1", "raw_job_fingerprint": "f1", "baseline_fit": 0.5},

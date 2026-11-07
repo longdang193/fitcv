@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 from fitcv.enrich import (
     EnrichmentOutput,
+    _build_skill_entities,
     _apply_structured_normalization,
     build_extraction_prompt,
     build_enrich_contract_fingerprint,
@@ -31,6 +32,171 @@ from fitcv.enrich import (
     parse_extraction_response,
 )
 from fitcv.prompts.models import PromptDefinition
+
+
+def test_build_skill_entities_unions_valid_raw_multiword_skill_with_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "Apache Spark"],
+        "required_skills",
+        {},
+        raw_entities=[{"raw_text": "Python", "canonical": "python", "confidence": 0.99}],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == ["Python", "Apache Spark"]
+
+
+def test_build_skill_entities_unions_raw_multiword_skill_with_multiple_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "SQL", "Apache Spark"],
+        "required_skills",
+        {},
+        raw_entities=[
+            {"raw_text": "Python", "canonical": "python", "confidence": 0.99},
+            {"raw_text": "SQL", "canonical": "sql", "confidence": 0.99},
+        ],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == ["Python", "SQL", "Apache Spark"]
+
+
+def test_build_skill_entities_keeps_support_vector_machines() -> None:
+    entities = _build_skill_entities(
+        ["Python", "Support Vector Machines"],
+        "required_skills",
+        {},
+        raw_entities=[{"raw_text": "Python", "canonical": "python", "confidence": 0.99}],
+    )
+
+    assert [entity["canonical"] for entity in entities] == ["python", "support vector machines"]
+
+
+def test_build_skill_entities_unions_valid_four_word_skill_with_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "Machine Learning Model Deployment"],
+        "required_skills",
+        {},
+        raw_entities=[{"raw_text": "Python", "canonical": "python", "confidence": 0.99}],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == [
+        "Python",
+        "Machine Learning Model Deployment",
+    ]
+    assert [entity["canonical"] for entity in entities] == [
+        "python",
+        "machine learning model deployment",
+    ]
+
+
+def test_build_skill_entities_rejects_compound_requirement_prose() -> None:
+    entities = _build_skill_entities(
+        ["Python", "SQL", "Python and SQL for data analysis"],
+        "required_skills",
+        {},
+        raw_entities=[
+            {"raw_text": "Python", "canonical": "python", "confidence": 0.99},
+            {"raw_text": "SQL", "canonical": "sql", "confidence": 0.99},
+        ],
+    )
+
+    assert [entity["canonical"] for entity in entities] == ["python", "sql"]
+
+
+@pytest.mark.parametrize("heading", ["Requirements:", "Qualifications:", "Technical Skills:"])
+def test_merge_scraped_and_enriched_recovers_common_requirement_headings(heading: str) -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": f"https://example.com/jobs/{heading.lower().replace(' ', '-')}",
+            "title": "Data Engineer",
+            "description": f"{heading}\n\u2022 Python\n\u2022 SQL\nPreferred:\n\u2022 Power BI",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+    assert "Power BI" not in result["required_skills"]
+
+
+@pytest.mark.parametrize("heading", ["Requirements", "Qualifications", "Technical Skills"])
+def test_merge_scraped_and_enriched_recovers_colonless_requirement_headings(heading: str) -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": f"https://example.com/jobs/colonless-{heading.lower().replace(' ', '-')}",
+            "title": "Data Engineer",
+            "description": f"{heading}\n- Python\n- SQL",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+
+
+def test_merge_scraped_and_enriched_stops_requirement_recovery_at_new_section() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/section-boundary",
+            "title": "Data Engineer",
+            "description": "Requirements:\n- Python\n- SQL\nBenefits:\n- Pension\n- Training Budget",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+
+
+def test_merge_scraped_and_enriched_excludes_nice_to_have_section_from_required_skills() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/nice-to-have",
+            "title": "Data Engineer",
+            "description": "Requirements:\n- Python\nNice-to-have:\n- Kubernetes",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python"]
+
+
+def test_merge_scraped_and_enriched_treats_experience_as_requirement_signal() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/experience-only",
+            "title": "Data Engineer",
+            "description": "Full description with a clear three-year experience requirement.",
+            "description_quality": "full",
+        },
+        {
+            "years_experience_min": 3,
+            "responsibilities": ["Build data pipelines"],
+        },
+        {},
+    )
+
+    assert result["years_experience_min"] == 3
+    assert result["enrichment_degraded"] is False
+    assert result["mandatory_core_complete"] is True
+
+
+def test_merge_scraped_and_enriched_keeps_preferred_only_signal_degraded() -> None:
+    merged = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/preferred-only",
+            "description": "A substantive job description with clear responsibilities and context.",
+            "description_quality": "full",
+        },
+        {"preferred_skills": ["Power BI"]},
+    )
+
+    assert merged["enrichment_degraded"] is True
+    assert merged["mandatory_core_complete"] is False
 
 
 # ── build_extraction_prompt ───────────────────────────────────────────────────
@@ -226,6 +392,35 @@ def test_sqlite_reuse_lookup_rejects_contract_or_fingerprint_mismatch(
         config={},
         raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-b"},
         enrich_contract_fingerprint="contract-b",
+    )
+
+    assert reusable == {}
+
+
+def test_sqlite_reuse_lookup_rejects_legacy_cache_without_contract_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    load_structured_jobs(
+        enriched=[
+            {
+                "job_url": "https://example.com/jobs/legacy",
+                "required_skills": ["SQL"],
+                "raw_job_fingerprint": "raw-fingerprint-match",
+                "enrich_reuse_status": "fresh_enrichment",
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[{"job_url": "https://example.com/jobs/legacy", "description": "SQL"}],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/legacy": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="new-contract",
     )
 
     assert reusable == {}
@@ -460,7 +655,11 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
     assert merged["required_skills"] == ["Python programming for data science"]
     assert merged["required_skills_canonical"] == ["python programming for data science"]
     assert merged["required_skill_entities"] == [
-        {"raw_text": "Python programming for data science", "canonical": "python programming for data science"}
+        {
+            "raw_text": "Python programming for data science",
+            "canonical": "python programming for data science",
+            "confidence": 1.0,
+        }
     ]
     assert merged["mapping_suggestions"][0]["alias"] == "python programming for data science"
     assert merged["location_type_raw"] == "Remote"
@@ -892,6 +1091,74 @@ def test_apply_structured_normalization_emits_canonical_skill_companions() -> No
     ]
 
 
+def test_apply_structured_normalization_merges_raw_skills_missing_from_entities() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=["GCP", "Python", "SQL"],
+            required_skill_entities=[
+                {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
+            ],
+        ),
+        {"skill_synonyms": {"gcp": "google cloud"}},
+    )
+
+    assert result["required_skills_canonical"] == ["google cloud", "python", "sql"]
+    assert [item["raw_text"] for item in result["required_skill_entities"]] == ["GCP", "Python", "SQL"]
+
+
+def test_apply_structured_normalization_keeps_technical_language_and_communication_phrases() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "Natural Language Processing",
+                "Large Language Models",
+                "Language modeling",
+                "Technical communication protocol",
+                "Communication skills",
+            ],
+            required_skill_entities=[
+                {"raw_text": value, "canonical": value.lower(), "confidence": 1.0}
+                for value in [
+                    "Natural Language Processing",
+                    "Large Language Models",
+                    "Language modeling",
+                    "Technical communication protocol",
+                    "Communication skills",
+                ]
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == [
+        "natural language processing",
+        "large language models",
+        "language modeling",
+        "technical communication protocol",
+    ]
+
+
+def test_apply_structured_normalization_rejects_nontechnical_language_and_communication_fallbacks() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "SQL",
+                "English language proficiency",
+                "Strong communication abilities",
+            ],
+            required_skill_entities=[
+                {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0},
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == ["sql"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
+    ]
+
+
 def test_apply_structured_normalization_excludes_non_skill_requirement_content() -> None:
     output = EnrichmentOutput(
         required_skills=[
@@ -957,6 +1224,37 @@ def test_apply_structured_normalization_filters_soft_skills_languages_and_domain
         {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
     ]
     assert result["mapping_suggestions"] == []
+
+
+def test_apply_structured_normalization_preserves_technical_language_phrases() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "Natural Language Processing",
+                "Large Language Models",
+                "Technical communication protocol",
+                "English language proficiency",
+                "Strong communication abilities",
+            ],
+            required_skill_entities=[
+                {"raw_text": value, "canonical": value.lower(), "confidence": 1.0}
+                for value in [
+                    "Natural Language Processing",
+                    "Large Language Models",
+                    "Technical communication protocol",
+                    "English language proficiency",
+                    "Strong communication abilities",
+                ]
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == [
+        "natural language processing",
+        "large language models",
+        "technical communication protocol",
+    ]
 
 
 def test_apply_structured_normalization_uses_conservative_alias_fallback_when_entities_absent() -> None:
@@ -1162,6 +1460,70 @@ def test_merge_scraped_and_enriched_supplements_sparse_generic_required_skills_f
         "customer success",
     ]
     assert result["required_skill_entities"] == []
+
+
+def test_rejected_raw_skill_cannot_replace_validated_entity_canonical() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/semantic-trust",
+            "title": "Data Engineer",
+            "description": "Build Python data pipelines for production analytics.",
+        },
+        {
+            "required_skills": ["communication skills", "Python"],
+            "required_skill_entities": [
+                {"raw_text": "Python", "canonical": "python", "confidence": 0.99}
+            ],
+            "preferred_skills": [],
+            "preferred_skill_entities": [],
+        },
+        {},
+    )
+
+    assert result["required_skills_canonical"] == ["python"]
+
+
+def test_german_requirement_bullets_keep_required_skills_and_exclude_preferred() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/german-requirements",
+            "title": "Data Engineer",
+            "description": "Anforderungen:\n• Python\n• SQL\nIdealerweise Power BI",
+        },
+        {
+            "required_skills": [],
+            "preferred_skills": [],
+            "responsibilities": [],
+            "tech_stack": [],
+            "keywords": [],
+        },
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+    assert "Power BI" not in result["required_skills"]
+
+
+def test_mandatory_clause_provenance_uses_source_spans() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/source-spans",
+            "title": "Data Engineer",
+            "description": "German C1 required for customer communication.",
+        },
+        {
+            "mandatory_clauses": [
+                {
+                    "clause_type": "language",
+                    "value": "German C1",
+                    "source_spans": [{"text": "German C1", "start": 0, "end": 9}],
+                }
+            ]
+        },
+        {},
+    )
+
+    assert result["mandatory_clause_provenance"][0]["source_spans"]
 
 
 def test_derive_required_skills_display_prefers_structured_entities_when_raw_required_skills_are_verbose() -> None:
@@ -1413,13 +1775,13 @@ def test_lookup_reusable_structured_jobs_repairs_sparse_generic_required_skills_
     ]
 
 
-def test_apply_structured_normalization_coerces_fractional_years_in_dict_payload() -> None:
+def test_apply_structured_normalization_preserves_fractional_years_in_dict_payload() -> None:
     result = _apply_structured_normalization(
         {"years_experience_min": 0.5, "years_experience_max": 2.8},
         config=None,
     )
-    assert result["years_experience_min"] == 0
-    assert result["years_experience_max"] == 2
+    assert result["years_experience_min"] == 0.5
+    assert result["years_experience_max"] == 2.8
 
 def test_apply_structured_normalization_emits_domain_and_role_family_mapping_suggestions() -> None:
     output = EnrichmentOutput(
@@ -1718,7 +2080,7 @@ def test_enrich_job_falls_back_when_structured_payload_fails_validation() -> Non
 
     assert result["required_skills"] == ["SQL"]
     assert result["required_skills_canonical"] == ["sql"]
-    assert result["years_experience_min"] == 0
+    assert result["years_experience_min"] == 0.5
 
 # ── per-item parallel enrichment ───────────────────────────────────────────────
 
@@ -2407,6 +2769,263 @@ def test_merge_scraped_and_enriched_reprojects_canonical_fields_from_raw_values(
     assert merged["job_family"] == "analytics"
     assert merged["semantic_snapshot"]["subject_identity"] == "raw-job-1"
     assert merged["semantic_snapshot"]["field_completeness"]["required_skills"] == "complete"
+
+
+def test_parse_extraction_response_rejects_application_artifacts_as_skills() -> None:
+    response = json.dumps(
+        {
+            "required_skills": [
+                "Telefon +49 89 236139465",
+                "Lebenslauf",
+                "Python",
+                "Email marketing",
+                "Phone support",
+                "Windows Server 2019/2022",
+                "ISO 27001/27002",
+            ],
+            "preferred_skills": ["Anschreiben", "Power BI", "Email marketing"],
+            "required_skill_entities": [
+                {"raw_text": "Telefon +49 89 236139465", "canonical": "Telefon +49 89 236139465"},
+                {"raw_text": "Lebenslauf", "canonical": "Lebenslauf"},
+                {"raw_text": "Python", "canonical": "Python"},
+                {"raw_text": "Email marketing", "canonical": "Email marketing"},
+            ],
+            "preferred_skill_entities": [
+                {"raw_text": "Anschreiben", "canonical": "Anschreiben"},
+                {"raw_text": "Power BI", "canonical": "Power BI"},
+                {"raw_text": "Email marketing", "canonical": "Email marketing"},
+            ],
+        }
+    )
+
+    result = parse_extraction_response(response, {})["parsed"]
+
+    assert result["required_skills"] == [
+        "Python",
+        "Email marketing",
+        "Phone support",
+        "Windows Server 2019/2022",
+        "ISO 27001/27002",
+    ]
+    assert result["required_skills_canonical"] == ["python", "email marketing"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "Python", "canonical": "python", "confidence": 1.0},
+        {"raw_text": "Email marketing", "canonical": "email marketing", "confidence": 1.0},
+    ]
+    assert result["preferred_skills"] == ["Power BI", "Email marketing"]
+    assert result["preferred_skills_canonical"] == ["power bi", "email marketing"]
+
+
+def test_parse_extraction_response_retains_computer_vision_abbreviation() -> None:
+    result = parse_extraction_response(
+        json.dumps({"required_skills": ["CV"]}),
+        {"skill_synonyms": {"cv": "computer vision"}},
+    )["parsed"]
+
+    assert result["required_skills"] == ["CV"]
+    assert result["required_skills_canonical"] == ["computer vision"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "CV", "canonical": "computer vision", "confidence": 1.0}
+    ]
+
+
+def test_lookup_reusable_structured_jobs_rebuilds_cached_skill_entities_after_filtering(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    job_url = "https://example.com/jobs/stale-entities"
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS structured_jobs_cache (
+                job_url TEXT PRIMARY KEY,
+                raw_job_fingerprint TEXT,
+                enrich_contract_fingerprint TEXT,
+                payload_json TEXT NOT NULL,
+                enriched_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO structured_jobs_cache(
+                job_url,
+                raw_job_fingerprint,
+                enrich_contract_fingerprint,
+                payload_json,
+                enriched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                job_url,
+                "fp-1",
+                "contract-1",
+                json.dumps(
+                    {
+                        "job_url": job_url,
+                        "title": "Data Analyst",
+                        "required_skills": ["Lebenslauf", "Python"],
+                        "required_skills_canonical": ["lebenslauf", "python"],
+                        "required_skill_entities": [
+                            {"raw_text": "Lebenslauf", "canonical": "lebenslauf"},
+                            {"raw_text": "Python", "canonical": "python"},
+                        ],
+                        "preferred_skills": ["Telefon", "Power BI"],
+                        "preferred_skills_canonical": ["telefon", "power bi"],
+                        "preferred_skill_entities": [
+                            {"raw_text": "Telefon", "canonical": "telefon"},
+                            {"raw_text": "Power BI", "canonical": "power bi"},
+                        ],
+                        "tech_stack": [],
+                        "keywords": [],
+                        "location_type": None,
+                        "seniority": None,
+                        "job_family": None,
+                        "domain": None,
+                    }
+                ),
+                "2026-11-06T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": job_url,
+                "title": "Data Analyst",
+                "description": "Build Python analytics solutions.",
+                "description_quality": "full",
+                "description_source": "indeed",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={job_url: "fp-1"},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    result = reusable[job_url]
+    assert result["required_skills"] == ["Python"]
+    assert result["required_skills_canonical"] == ["python"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "Python", "canonical": "python", "confidence": 1.0}
+    ]
+    assert result["preferred_skills"] == ["Power BI"]
+    assert result["preferred_skills_canonical"] == ["power bi"]
+    assert result["preferred_skill_entities"] == [
+        {"raw_text": "Power BI", "canonical": "power bi", "confidence": 1.0}
+    ]
+
+
+def test_lookup_reusable_structured_jobs_recomputes_quality_after_artifact_filtering(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    job_url = "https://example.com/jobs/artifact-only"
+
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS structured_jobs_cache (
+                job_url TEXT PRIMARY KEY,
+                raw_job_fingerprint TEXT,
+                enrich_contract_fingerprint TEXT,
+                payload_json TEXT NOT NULL,
+                enriched_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO structured_jobs_cache(
+                job_url,
+                raw_job_fingerprint,
+                enrich_contract_fingerprint,
+                payload_json,
+                enriched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                job_url,
+                "fp-1",
+                "contract-1",
+                json.dumps(
+                    {
+                        "job_url": job_url,
+                        "title": "Data Analyst",
+                        "required_skills": ["Lebenslauf"],
+                        "required_skills_canonical": ["lebenslauf"],
+                        "required_skill_entities": [
+                            {"raw_text": "Lebenslauf", "canonical": "lebenslauf"}
+                        ],
+                        "preferred_skills": [],
+                        "preferred_skill_entities": [],
+                        "tech_stack": [],
+                        "keywords": [],
+                        "location_type": None,
+                        "seniority": None,
+                        "job_family": None,
+                        "domain": None,
+                    }
+                ),
+                "2026-11-06T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    result = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": job_url,
+                "title": "Data Analyst",
+                "description": "A complete job description with responsibilities and qualifications.",
+                "description_quality": "full",
+                "description_source": "indeed",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={job_url: "fp-1"},
+        enrich_contract_fingerprint="contract-1",
+    )[job_url]
+
+    assert result["required_skills"] == []
+    assert result["required_skills_canonical"] == []
+    assert result["required_skill_entities"] == []
+    assert result["enrichment_completeness"]["required_skills"] is False
+    assert result["enrichment_degraded"] is True
+    assert result["enrichment_degraded_reason"] == "no_structured_requirement_signal"
+    assert result["mandatory_core_complete"] is False
+
+
+def test_merge_scraped_and_enriched_removes_cached_application_artifacts_from_skills() -> None:
+    merged = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/application-artifacts",
+            "title": "Data Analyst",
+            "description": "Build Python analytics solutions.",
+        },
+        {
+            "required_skills": ["Telefon +49 89 236139465", "Lebenslauf", "Python"],
+            "preferred_skills": ["Anschreiben", "Power BI"],
+            "required_skill_entities": [],
+            "preferred_skill_entities": [],
+        },
+        {},
+    )
+
+    assert merged["required_skills"] == ["Python"]
+    assert merged["required_skills_canonical"] == ["python"]
+    assert merged["preferred_skills"] == ["Power BI"]
+    assert merged["preferred_skills_canonical"] == ["power bi"]
 
 
 def test_load_run_structured_jobs_persists_semantic_snapshot(

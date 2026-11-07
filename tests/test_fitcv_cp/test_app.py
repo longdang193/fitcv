@@ -11680,6 +11680,27 @@ def test_download_settings_used_json_endpoint_404_if_snapshot_missing():
     assert resp.status_code == 404
 
 
+def test_download_settings_used_json_endpoint_200_for_awaiting_review_run():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-settings-awaiting-review",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        settings_used_json='{"run_id":"run-settings-awaiting-review","effective_settings":{}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-settings-awaiting-review/settings-used.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-settings-awaiting-review"
+
+
 def test_download_stage_slice_endpoint_200():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -12092,6 +12113,35 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
     assert manifest["file_fingerprints"]["normalize.json"].startswith("sha256:")
     assert "mapping-suggestions.json" not in manifest["missing_files"]
     assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
+
+
+def test_download_run_artifact_bundle_includes_settings_for_awaiting_review_run() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-bundle-awaiting-review",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        run_mode="run_all",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        settings_used_json='{"run_id":"run-bundle-awaiting-review","effective_settings":{}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-bundle-awaiting-review/artifacts.zip")
+
+    assert resp.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("manifest.json"))
+    assert "settings-used.json" in names
+    assert manifest["artifact_states"]["settings-used.json"] == "present"
+    assert "settings-used.json" in manifest["included_files"]
+    assert "settings-used.json" not in manifest["missing_files"]
 
 
 def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
@@ -18027,7 +18077,13 @@ def test_post_runs_uses_schema_valid_canonical_profile_snapshot(
     deserialized_profile = json.loads(run.candidate_profile_json)
     assert "candidate_profile_id" not in deserialized_profile
     assert "revision" not in deserialized_profile
-    validation_errors = validate_candidate_profile_v2(deserialized_profile)
+    validation_errors = validate_candidate_profile_v2(
+        {
+            key: value
+            for key, value in deserialized_profile.items()
+            if not key.startswith("_runtime_")
+        }
+    )
     assert validation_errors == [], f"Candidate profile snapshot has validation errors: {validation_errors}"
 
 
@@ -18069,9 +18125,10 @@ languages:
     assert validate_candidate_profile_v2(snapshot) == []
     assert [item["level"] for item in snapshot["languages"]] == ["native", "C1"]
     assert all(
-        set(item) == {"id", "name", "level", "source_refs"}
+        set(item) <= {"id", "name", "level", "native", "read", "speak", "write", "source_refs"}
         for item in snapshot["languages"]
     )
+    assert all("notes" not in item and "evidence_refs" not in item for item in snapshot["languages"])
 
 
 def test_company_catalog_route_has_exact_envelope_and_openapi_paths() -> None:
@@ -18234,3 +18291,40 @@ def test_results_export_normalizes_score_state_without_fabricating_zero() -> Non
     })
     assert valid["ai_score"] == 0.0
     assert valid["score_status"] == "valid"
+
+
+def test_results_export_does_not_label_unscored_stage_dispositions_as_ambiguous() -> None:
+    from fitcv_cp.app import _normalize_results_export_row
+
+    not_shortlisted = _normalize_results_export_row({
+        "job_url": "https://example.com/not-shortlisted",
+        "pipeline_status": "not_shortlisted",
+        "scores": {
+            "ai_score": None,
+            "score_status": None,
+            "failure_code": None,
+        },
+        "job_outcome": {
+            "reason_code": "not_selected_by_shortlist",
+        },
+    })
+
+    assert not_shortlisted["score_status"] == "unscored"
+    assert not_shortlisted["failure_code"] is None
+
+
+def test_results_export_preserves_explicit_scoring_failure_for_unscored_job() -> None:
+    from fitcv_cp.app import _normalize_results_export_row
+
+    budget_limited = _normalize_results_export_row({
+        "job_url": "https://example.com/budget-limited",
+        "pipeline_status": "ranking_unavailable",
+        "scores": {
+            "ai_score": None,
+            "score_status": "unscored",
+            "failure_code": "budget_exceeded",
+        },
+    })
+
+    assert budget_limited["score_status"] == "unscored"
+    assert budget_limited["failure_code"] == "budget_exceeded"

@@ -21,7 +21,7 @@ skills:
     name: SQL
     origin: extracted_explicit
     confidence: 0.99
-    support_status: supported
+    support_status: unsupported
     evidence_refs: []
 role_families: []
 domain_tags: []

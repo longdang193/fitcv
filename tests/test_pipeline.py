@@ -1228,6 +1228,53 @@ def test_run_pipeline_emits_run_all_stage_progress_after_normalize() -> None:
     assert len(progress_snapshots) == 1
     assert progress_snapshots[0]["last_completed_stage"] == "normalize"
     assert progress_snapshots[0]["completed_stages"] == ["normalize"]
+    stage_statuses = {
+        stage_id: stage["status"]
+        for stage_id, stage in progress_snapshots[0]["stage_transition_artifacts"]["stages"].items()
+    }
+    assert stage_statuses == {
+        "normalize": "completed",
+        "enrich": "not_reached",
+        "rule_filter": "not_reached",
+        "shortlist": "not_reached",
+        "ranking": "not_reached",
+        "cv_analysis": "not_reached",
+        "cv_generation": "not_reached",
+    }
+
+
+def test_stage_transition_artifacts_do_not_infer_future_stage_reachability_from_state() -> None:
+    job = {"job_url": "https://example.com/1", "job_title": "Data Analyst"}
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[job],
+        normalized=[job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[job],
+        passed_jobs=[job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[job],
+        shortlist=[job],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
+        vector_top_n=10,
+        candidate_summary="",
+        candidate_query_components={},
+        ai_scores=[job],
+        ranking_inputs=[job],
+        ranked=[job],
+        final_top_n=10,
+        cv_generation_debug_records=[],
+        profile={"preferences": {}},
+        config=_minimal_config(),
+        reached_stage_ids={"normalize", "enrich", "rule_filter"},
+    )
+
+    stages = artifacts["stages"]
+    assert stages["shortlist"]["status"] == "not_reached"
+    assert stages["ranking"]["status"] == "not_reached"
+    assert stages["cv_analysis"]["status"] == "not_reached"
+    assert stages["cv_generation"]["status"] == "not_reached"
 
 
 def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs() -> None:
@@ -1820,7 +1867,10 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
 
     assert result["paused_after_stage"] == "ranking"
     assert result["next_stage"] == "cv_analysis"
-    assert mock_ai.call_args.args[0] == shortlist
+    scored_shortlist = mock_ai.call_args.args[0]
+    assert len(scored_shortlist) == len(shortlist)
+    assert {key: value for key, value in scored_shortlist[0].items() if key != "ranking_input"} == shortlist[0]
+    assert scored_shortlist[0]["ranking_input"]["candidate_summary"]
 
 
 @patch("fitcv.agentic_cv_analysis.compute_gap")
@@ -2735,7 +2785,11 @@ def _minimal_profile() -> dict:
         "years_experience": 5,
         "preferences": {"target_role": "Data Engineer", "domains": []},
         "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],
-        "projects": [],
+        "projects": [{
+            "name": "SQL Platform",
+            "skills": ["SQL"],
+            "highlights": ["Built SQL data pipelines."],
+        }],
     }
 
 
@@ -2758,6 +2812,66 @@ def _minimal_job(url: str = "https://example.com/1") -> dict:
         "location_type": "remote",
         "preferences": {},
     }
+
+
+def test_evidence_integrity_backend_trace() -> None:
+    from fitcv.ai_score import build_ranking_job_input
+    from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_rankable_skills
+    from fitcv.evidence import project_candidate_evidence, select_ranking_evidence
+    from fitcv.vector_search import (
+        build_candidate_query_components,
+        build_candidate_query_signature_record,
+        build_candidate_query_text,
+    )
+
+    profile = {
+        "name": "Evidence Candidate",
+        "preferences": {"target_role": "Data Engineer"},
+        "experiences": [{
+            "id": "experience_1",
+            "role": "Data Engineer",
+            "company": "Example",
+            "bullets": [
+                {"text": "Built Python ETL pipelines.", "skills": ["Python"]},
+                {
+                    "text": "No Kubernetes experience was required.",
+                    "skills": ["Kubernetes"],
+                    "support_status": "claimed_only",
+                },
+            ],
+        }],
+        "projects": [{
+            "id": "project_1",
+            "name": "Claimed Kubernetes project",
+            "support_status": "claimed_only",
+            "tech_stack": ["Kubernetes"],
+            "business_value": "Built a Kubernetes service.",
+        }],
+        "skills": [],
+    }
+    runtime_profile = converge_candidate_profile_for_runtime(profile)
+    evidence_pool = project_candidate_evidence(runtime_profile)
+    components = build_candidate_query_components(runtime_profile)
+    query_text = build_candidate_query_text(runtime_profile)
+    signature = build_candidate_query_signature_record(components)
+    ranking_input = build_ranking_job_input(
+        {"required_skills": ["Python", "Kubernetes"]},
+        runtime_profile,
+    )
+    selected = select_ranking_evidence(
+        evidence_pool,
+        {"required_skills": ["Python", "Kubernetes"]},
+    )
+
+    assert "preferences" not in runtime_profile
+    assert "Python" in flatten_rankable_skills(runtime_profile)
+    assert "Kubernetes" not in flatten_rankable_skills(runtime_profile)
+    assert "Kubernetes" not in components["technology_hints"]
+    assert "Kubernetes" not in query_text
+    assert "Kubernetes" not in json.dumps(signature["payload"])
+    assert any("Python" in item["scoring_context"] for item in selected)
+    assert "Kubernetes" not in ranking_input["candidate_summary"]
+    assert all(item["admission_status"] == "admitted" for item in selected)
 
 
 def test_cv_analysis_stage_concurrency_defaults_to_one() -> None:
@@ -3135,18 +3249,22 @@ def test_build_cv_analysis_input_fingerprint_ignores_runtime_entry_count_only() 
 def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     """@proves cv_system.exact-match-late-stage-reuse"""
     from fitcv.ai_score import build_ai_score_input_fingerprint, build_ranking_job_input
+    from fitcv.candidate import converge_candidate_profile_for_runtime
     from fitcv.pipeline import run_pipeline
     from fitcv.vector_search import build_candidate_query_text
 
     job = _minimal_job()
     profile = _minimal_profile()
+    runtime_profile = converge_candidate_profile_for_runtime(profile)
     config = _minimal_config()
-    candidate_summary = build_candidate_query_text(profile, config)
+    candidate_summary = build_candidate_query_text(runtime_profile, config)
     ranking_input = build_ranking_job_input(
         job,
-        {**profile, "_projected_evidence_pool": []},
+        runtime_profile,
         config,
     )
+    for evidence in ranking_input.get("candidate_evidence") or []:
+        evidence["support_state"] = "supported"
     ai_score_fingerprint = build_ai_score_input_fingerprint(
         job,
         candidate_summary,
@@ -7291,15 +7409,16 @@ def test_run_pipeline_does_not_score_missing_vector_rows(
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     shortlist_arg = mock_ai.call_args.args[0]
-    assert shortlist_arg == [
-        {
-            **first_job,
-            "marks": [],
-            "vector_similarity": 0.9,
-            "vector_rank": 1,
-            "shortlist_origin": "vector_search",
-        }
-    ]
+    expected_shortlist_row = {
+        **first_job,
+        "marks": [],
+        "vector_similarity": 0.9,
+        "vector_rank": 1,
+        "shortlist_origin": "vector_search",
+    }
+    assert len(shortlist_arg) == 1
+    assert {key: value for key, value in shortlist_arg[0].items() if key != "ranking_input"} == expected_shortlist_row
+    assert "candidate_evidence" in shortlist_arg[0]["ranking_input"]
     second_export_row = next(
         row for row in result["export_results"]
         if row["job_url"] == second_job["job_url"]

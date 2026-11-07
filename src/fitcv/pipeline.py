@@ -131,6 +131,7 @@ from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
     ENRICHMENT_FALLBACK_STATUS,
     FRESH_ENRICHMENT_STATUS,
+    MIGRATED_CACHED_ENRICHMENT_STATUS,
     REUSED_CACHED_ENRICHMENT_STATUS,
     build_enrich_contract_fingerprint,
     build_raw_job_fingerprint,
@@ -380,10 +381,19 @@ def _finalize_reused_enriched_row(
         return row
     row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
     row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
-    row["enrich_reuse_status"] = REUSED_CACHED_ENRICHMENT_STATUS
+    reuse_status = str(row.get("enrich_reuse_status") or "")
+    row["enrich_reuse_status"] = (
+        reuse_status
+        if reuse_status == MIGRATED_CACHED_ENRICHMENT_STATUS
+        else REUSED_CACHED_ENRICHMENT_STATUS
+    )
     row["reuse_decision"] = build_reuse_decision(
-        decision=REUSED_CACHED_ENRICHMENT_STATUS,
-        reason_code="exact_fingerprint_match",
+        decision=row["enrich_reuse_status"],
+        reason_code=(
+            "validated_legacy_cache_migration"
+            if row["enrich_reuse_status"] == MIGRATED_CACHED_ENRICHMENT_STATUS
+            else "exact_fingerprint_match"
+        ),
         fingerprint=raw_job_fingerprints.get(job_url),
         source_artifact_type="enrich",
     )
@@ -1871,6 +1881,7 @@ def _build_stage_progress_summary(
         profile=candidate_profile,
         config=config,
         resolved_preference_policy=dict(state.get("resolved_preference_policy") or {}),
+        reached_stage_ids=set(completed_pipeline_stages_through(last_completed_stage)),
     )
     return {
         "run_id": run_id,
@@ -3073,20 +3084,40 @@ def _build_stage_transition_artifacts(
     enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
     ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
+    reached_stage_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """@capability cv_system.stage-artifact-diagnostics"""
     candidate_query_debug = dict(candidate_query_debug or {})
     enrich_llm_runtime_observations = list(enrich_llm_runtime_observations or [])
     ranking_llm_runtime_observations = list(ranking_llm_runtime_observations or [])
     cv_analysis_results = list(cv_analysis_results or [])
-    shortlist_reached = len(passed_jobs) > 0
-    ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
-    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    enrichment_reached = reached_stage_ids is None or "enrich" in reached_stage_ids
+    screening_reached = reached_stage_ids is None or "rule_filter" in reached_stage_ids
+    shortlist_reached = (
+        len(passed_jobs) > 0
+        if reached_stage_ids is None
+        else "shortlist" in reached_stage_ids
+    )
+    ranking_reached = (
+        shortlist_reached
+        and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
+        if reached_stage_ids is None
+        else "ranking" in reached_stage_ids
+    )
+    cv_analysis_reached = (
+        len(ranked) > 0 or len(cv_analysis_results) > 0
+        if reached_stage_ids is None
+        else "cv_analysis" in reached_stage_ids
+    )
     generation_execution_records = [
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
     ]
-    cv_generation_reached = len(generation_execution_records) > 0
+    cv_generation_reached = (
+        len(generation_execution_records) > 0
+        if reached_stage_ids is None
+        else "cv_generation" in reached_stage_ids
+    )
     raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
     shortlist_candidate_query_components = {
         "headline": str(candidate_query_components.get("headline") or ""),
@@ -3308,33 +3339,41 @@ def _build_stage_transition_artifacts(
                     "deduplicated",
                 ),
             ),
-            "enrich": _build_enrich_stage_block_artifacts(
-                normalized=normalized,
-                pre_filter_rejected_jobs=pre_filter_rejected_jobs,
-                enriched=enriched,
-                profile=profile,
-                config=config,
-                enrich_prompt_provenance=enrich_prompt_provenance,
-                enrich_reuse_counts=enrich_reuse_counts,
-                enrich_reuse_metrics=enrich_reuse_metrics,
-                llm_runtime_observations=enrich_llm_runtime_observations,
-                stage_block_builder=_stage_block,
-                sample_rows_builder=_sample_rows,
-                job_sample_builder=_job_sample,
-                extract_job_url=extract_job_url,
-                candidate_profile_summary_builder=_candidate_profile_summary,
+            "enrich": (
+                _build_enrich_stage_block_artifacts(
+                    normalized=normalized,
+                    pre_filter_rejected_jobs=pre_filter_rejected_jobs,
+                    enriched=enriched,
+                    profile=profile,
+                    config=config,
+                    enrich_prompt_provenance=enrich_prompt_provenance,
+                    enrich_reuse_counts=enrich_reuse_counts,
+                    enrich_reuse_metrics=enrich_reuse_metrics,
+                    llm_runtime_observations=enrich_llm_runtime_observations,
+                    stage_block_builder=_stage_block,
+                    sample_rows_builder=_sample_rows,
+                    job_sample_builder=_job_sample,
+                    extract_job_url=extract_job_url,
+                    candidate_profile_summary_builder=_candidate_profile_summary,
+                )
+                if enrichment_reached
+                else _stage_block_not_reached("enrich")
             ),
-            "rule_filter": _build_rule_filter_stage_block_artifacts(
-                enriched=enriched,
-                passed_jobs=passed_jobs,
-                candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
-                grouped_reject_reasons=grouped_reject_reasons,
-                grouped_mark_codes=grouped_mark_codes,
-                selected_rule_filters=selected_rule_filters,
-                stage_block_builder=_stage_block,
-                sample_rows_builder=_sample_rows,
-                job_sample_builder=_job_sample,
-                rule_filter_decision_sample_builder=_rule_filter_decision_sample,
+            "rule_filter": (
+                _build_rule_filter_stage_block_artifacts(
+                    enriched=enriched,
+                    passed_jobs=passed_jobs,
+                    candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
+                    grouped_reject_reasons=grouped_reject_reasons,
+                    grouped_mark_codes=grouped_mark_codes,
+                    selected_rule_filters=selected_rule_filters,
+                    stage_block_builder=_stage_block,
+                    sample_rows_builder=_sample_rows,
+                    job_sample_builder=_job_sample,
+                    rule_filter_decision_sample_builder=_rule_filter_decision_sample,
+                )
+                if screening_reached
+                else _stage_block_not_reached("rule_filter")
             ),
             "shortlist": _build_shortlist_stage_block_artifacts(
                 shortlist_reached=shortlist_reached,
@@ -3855,6 +3894,7 @@ def run_pipeline(
                 else:
                     profile_path: str = str(config["paths"]["candidate_profile"])
                     profile = load_profile_yaml(profile_path)
+                profile = converge_candidate_profile_for_runtime(profile or {})
                 pipeline_store.load_candidate_profile(profile, config)
                 candidate_skill_names = flatten_skills(profile)
                 if reporter is not None:
@@ -3866,7 +3906,7 @@ def run_pipeline(
                 )
                 filter_result = apply_rule_filters(
                     enriched,
-                    profile["preferences"],
+                    profile.get("preferences") or profile.get("search_preferences") or {},
                     config,
                     candidate_fit_context=candidate_fit_context,
                 )
@@ -3912,11 +3952,10 @@ def run_pipeline(
             else:
                 profile_path = str(config["paths"]["candidate_profile"])
                 profile = load_profile_yaml(profile_path)
+            profile = converge_candidate_profile_for_runtime(profile or {})
             candidate_skill_names = flatten_skills(profile)
 
-        evidence_projection = build_evidence_projection(
-            converge_candidate_profile_for_runtime(profile or {})
-        )
+        evidence_projection = build_evidence_projection(profile or {})
         passed_jobs = list(state["passed_jobs"])
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         passed_job_urls = [extract_job_url(job) for job in passed_jobs if extract_job_url(job)]
@@ -3980,7 +4019,84 @@ def run_pipeline(
                 pipeline_store.store_shortlist(shortlist, config)
                 raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
                 shortlist_urls = set(unique_job_urls(shortlist))
+                normalized_by_url = {
+                    str(row.get("job_url") or "").strip(): row
+                    for row in normalized
+                    if str(row.get("job_url") or "").strip()
+                }
+                input_index_by_url = {
+                    str(row.get("job_url") or "").strip(): index
+                    for index, row in enumerate(normalized)
+                    if str(row.get("job_url") or "").strip()
+                }
+                enriched_by_url = {
+                    str(row.get("job_url") or "").strip(): row
+                    for row in enriched
+                    if str(row.get("job_url") or "").strip()
+                }
+
+                def admission_source_row(
+                    job_url: str,
+                    fallback: dict[str, Any] | None = None,
+                ) -> dict[str, Any]:
+                    source_row = dict(normalized_by_url.get(job_url) or {})
+                    source_row.update(enriched_by_url.get(job_url) or {})
+                    source_row.update(fallback or {})
+                    if not source_row.get("raw_job_fingerprint") and source_row:
+                        source_row["raw_job_fingerprint"] = build_raw_job_fingerprint(source_row)["fingerprint"]
+                    return source_row
+
                 admission_rows = []
+                for rejected in pre_filter_rejected_jobs:
+                    job_url = str(rejected.get("job_url") or "").strip()
+                    source_row = admission_source_row(job_url, rejected)
+                    admission_rows.append(
+                        {
+                            "identity": primary_job_identity_key(source_row) or job_url,
+                            "job_url": job_url,
+                            "input_index": input_index_by_url.get(job_url),
+                            "shortlist_status": "rejected_before_enrichment",
+                            "raw_hit_present": False,
+                            "admission_reason": None,
+                            "exclusion_reason": "pre_enrichment_filter:" + ",".join(
+                                str(reason) for reason in list(rejected.get("reasons") or [])
+                            ),
+                            **{
+                                field_name: source_row.get(field_name)
+                                for field_name in (
+                                    "source_provider", "source_job_id", "raw_job_fingerprint",
+                                    "description_quality", "description_source", "description_complete",
+                                    "description_source_checksum", "description_source_length",
+                                    "description_boundary", "enrich_reuse_status",
+                                )
+                            },
+                        }
+                    )
+                for rejected in candidate_filter_rejected_jobs:
+                    job_url = str(rejected.get("job_url") or "").strip()
+                    source_row = admission_source_row(job_url, rejected)
+                    admission_rows.append(
+                        {
+                            "identity": primary_job_identity_key(source_row) or job_url,
+                            "job_url": job_url,
+                            "input_index": input_index_by_url.get(job_url),
+                            "shortlist_status": "rejected_before_shortlist",
+                            "raw_hit_present": False,
+                            "admission_reason": None,
+                            "exclusion_reason": "candidate_filter:" + ",".join(
+                                str(reason) for reason in list(rejected.get("reasons") or [])
+                            ),
+                            **{
+                                field_name: source_row.get(field_name)
+                                for field_name in (
+                                    "source_provider", "source_job_id", "raw_job_fingerprint",
+                                    "description_quality", "description_source", "description_complete",
+                                    "description_source_checksum", "description_source_length",
+                                    "description_boundary", "enrich_reuse_status",
+                                )
+                            },
+                        }
+                    )
                 for input_index, job in enumerate(passed_jobs):
                     job_url = str(job.get("job_url") or "").strip()
                     shortlist_row = next(
@@ -4011,6 +4127,16 @@ def run_pipeline(
                             "exclusion_reason": (
                                 "after_fused_cutoff" if job_url in raw_shortlist_urls else "not_returned_in_raw_hits"
                             ) if job_url not in shortlist_urls else None,
+                            "source_provider": job.get("source_provider"),
+                            "source_job_id": job.get("source_job_id"),
+                            "raw_job_fingerprint": job.get("raw_job_fingerprint"),
+                            "description_quality": job.get("description_quality"),
+                            "description_source": job.get("description_source"),
+                            "description_complete": job.get("description_complete"),
+                            "description_source_checksum": job.get("description_source_checksum"),
+                            "description_source_length": job.get("description_source_length"),
+                            "description_boundary": job.get("description_boundary"),
+                            "enrich_reuse_status": job.get("enrich_reuse_status"),
                         }
                     )
                 pipeline_store.store_shortlist_admission_ledger(
@@ -4023,6 +4149,9 @@ def run_pipeline(
                     "contract_version": "shortlist_admission_manifest_v1",
                     "counts": {
                         "eligible": len(passed_jobs),
+                        "total_candidates": len(admission_rows),
+                        "rejected_before_enrichment": len(pre_filter_rejected_jobs),
+                        "rejected_before_shortlist": len(candidate_filter_rejected_jobs),
                         "raw_retrieved": len(raw_shortlist_urls),
                         "admitted": len(shortlist_urls),
                         "not_returned": sum(
@@ -4109,7 +4238,7 @@ def run_pipeline(
                 build_ranking_features=build_ranking_features,
                 rank_jobs=rank_jobs,
                 preference_policy_resolver=preference_policy_resolver,
-                profile_for_projection=converge_candidate_profile_for_runtime(profile or {}),
+                profile_for_projection=profile or {},
                 evidence_projection=evidence_projection,
                 runtime_observation_callback=ranking_llm_runtime_observations.append,
                 build_reuse_decision_callback=build_reuse_decision,

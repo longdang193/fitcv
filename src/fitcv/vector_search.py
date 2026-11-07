@@ -24,7 +24,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any, TypedDict
 
-from fitcv.candidate import flatten_rankable_skills, flatten_skills, infer_role_family
+from fitcv.candidate import _is_rankable_support_status, flatten_rankable_skills, flatten_skills, infer_role_family
 from fitcv.config import MIXED_FALLBACK_RETRIEVAL_STRATEGY
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
 from fitcv.embeddings import (
@@ -229,15 +229,130 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
     values.append(text)
 
 
-def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
+_PROJECT_NEGATION_TERMS = frozenset(
+    {"no", "not", "never", "without", "haven't", "didn't", "kein", "keine", "keinen", "nicht", "nie", "ohne"}
+)
+
+
+def _project_support_is_admissible(
+    project: dict[str, Any],
+    profile: dict[str, Any] | None = None,
+) -> bool:
+    status = project.get("support_status")
+    if status is not None and not _is_rankable_support_status(status):
+        return False
+    runtime_admission = (profile or {}).get("_runtime_evidence_admission") or {}
+    if not runtime_admission:
+        return True
+    evidence = [item for item in project.get("evidence") or [] if isinstance(item, dict)]
+    if not evidence:
+        return True
+    return any(
+        runtime_admission.get(str(item.get("id")), {}).get("admission_status") == "admitted"
+        for item in evidence
+    )
+
+
+def _project_text_is_affirmative(value: Any) -> bool:
+    text = " ".join(str(value or "").split()).strip()
+    if not text:
+        return False
+    return not any(
+        re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, re.IGNORECASE)
+        for term in _PROJECT_NEGATION_TERMS
+    )
+
+
+def _is_negated_project_term(text: str, term: str) -> bool:
+    normalized_text = " ".join(str(text or "").split()).casefold()
+    normalized_term = " ".join(str(term or "").split()).casefold()
+    if not normalized_text or not normalized_term:
+        return False
+    for match in re.finditer(rf"(?<!\w){re.escape(normalized_term)}(?!\w)", normalized_text):
+        prefix = normalized_text[max(0, match.start() - 64):match.start()]
+        if any(
+            re.search(rf"(?<!\w){re.escape(marker)}(?!\w)", prefix)
+            for marker in _PROJECT_NEGATION_TERMS
+        ):
+            return True
+    return False
+
+
+def _project_value_is_admissible(value: Any, project_support_status: Any = None) -> bool:
+    if isinstance(value, dict):
+        status = value.get("support_status", project_support_status)
+        text = value.get("name") or value.get("text") or value.get("title")
+    else:
+        status = project_support_status
+        text = value
+    return (status is None or _is_rankable_support_status(status)) and _project_text_is_affirmative(text)
+
+
+def _legacy_or_supported_status(value: Any) -> bool:
+    return value is None or _is_rankable_support_status(value)
+
+
+def _admitted_claim_values(profile: dict[str, Any], section: str) -> list[str]:
+    runtime_admission = profile.get("_runtime_evidence_admission") or {}
     values: list[str] = []
-    seen: set[str] = set()
-    for project in profile.get("projects", []) or []:
-        if not isinstance(project, dict):
+    for claim in profile.get(section) or []:
+        if not isinstance(claim, dict) or claim.get("support_status") != "supported":
             continue
-        technology_values = list(project.get("tech_stack", []) or [])
+        refs = [str(ref) for ref in claim.get("evidence_refs") or []]
+        if runtime_admission and not any(
+            runtime_admission.get(ref, {}).get("admission_status") == "admitted"
+            for ref in refs
+        ):
+            continue
+        text = str(claim.get("name") or "").strip()
+        if text:
+            values.append(text)
+    return values
+
+
+def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
+    values: list[str] = list(flatten_rankable_skills(profile))
+    projects = sorted(
+        (project for project in profile.get("projects", []) or [] if isinstance(project, dict)),
+        key=lambda project: str(project.get("name") or "").casefold(),
+    )
+    for project in projects:
+        if not _project_support_is_admissible(project, profile):
+            continue
+        project_support_status = project.get("support_status")
+        project_values = [
+            value
+            for value in [*(project.get("tech_stack") or []), *(project.get("skills") or [])]
+            if _project_value_is_admissible(value, project_support_status)
+        ]
+        negated_project_terms = {
+            str(value.get("name") if isinstance(value, dict) else value).strip().casefold()
+            for evidence in project.get("evidence", []) or []
+            if isinstance(evidence, dict)
+            for value in project_values
+            if _is_negated_project_term(
+                str(evidence.get("text") or evidence.get("name") or ""),
+                str(value.get("name") if isinstance(value, dict) else value),
+            )
+        }
+        technology_values = [
+            value
+            for value in project_values
+            if _legacy_or_supported_status(
+                value.get("support_status", project_support_status) if isinstance(value, dict) else project_support_status
+            )
+            and str(value.get("name") if isinstance(value, dict) else value).strip().casefold()
+            not in negated_project_terms
+        ]
         for evidence in project.get("evidence", []) or []:
             if not isinstance(evidence, dict):
+                continue
+            if not _legacy_or_supported_status(evidence.get("support_status", project_support_status)):
+                continue
+            if profile.get("_runtime_evidence_admission") and (
+                profile["_runtime_evidence_admission"].get(str(evidence.get("id")), {}).get("admission_status")
+                != "admitted"
+            ):
                 continue
             title = str(evidence.get("title") or "").strip().casefold()
             if title != "technology stack" and not any(
@@ -245,14 +360,21 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
             ):
                 continue
             text = str(evidence.get("text") or "").strip()
-            if text:
+            project_context = " ".join(
+                str(project.get(field) or "")
+                for field in ("name", "business_value")
+            ) + " " + " ".join(str(value or "") for value in project.get("highlights") or [])
+            if text and _project_text_is_affirmative(text) and not _is_negated_project_term(
+                project_context,
+                text,
+            ):
                 technology_values.append(text)
-        technology_values.extend(project.get("skills", []) or [])
         for technology in technology_values:
             if isinstance(technology, dict):
                 technology = technology.get("name")
             text = str(technology or "").strip()
-            _append_unique_text(values, text, seen)
+            if text:
+                values.append(text)
     return values
 
 
@@ -314,13 +436,59 @@ def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
         counts[key] = counts.get(key, 0) + 1
         first_seen.setdefault(key, index)
     ranked = sorted(
-        inventory,
-        key=lambda value: (-counts[value.casefold()], first_seen[value.casefold()], value.casefold()),
+        {value.casefold(): value for value in inventory}.values(),
+        key=lambda value: (-counts[value.casefold()], value.casefold(), first_seen[value.casefold()]),
     )
     return [
         value[:CANDIDATE_QUERY_TECHNOLOGY_HINT_CHARS]
         for value in ranked[:CANDIDATE_QUERY_TECHNOLOGY_HINT_COUNT]
     ]
+
+
+def _rank_profile_skills(profile: dict[str, Any], skills: list[str]) -> list[str]:
+    counts: dict[str, int] = {skill.casefold(): 0 for skill in skills}
+    first_seen: dict[str, int] = {skill.casefold(): index for index, skill in enumerate(skills)}
+    support_weight: dict[str, int] = {skill.casefold(): 0 for skill in skills}
+
+    def record(value: Any, support_status: Any = None) -> None:
+        if isinstance(value, dict):
+            support_status = value.get("support_status", support_status)
+            value = value.get("name")
+        if support_status is None and profile.get("schema_version") != "candidate-profile.v2":
+            support_status = "supported"
+        if not _is_rankable_support_status(support_status):
+            return
+        text = str(value or "").strip()
+        key = text.casefold()
+        if key not in counts:
+            return
+        counts[key] += 1
+        status = str(support_status or "supported").strip().casefold()
+        support_weight[key] = max(support_weight[key], {"supported": 3, "verified": 3, "partial": 2}.get(status, 1))
+
+    for skill in profile.get("skills") or []:
+        if isinstance(skill, dict):
+            record(skill.get("name"), skill.get("support_status"))
+        else:
+            record(skill)
+    for experience in profile.get("experiences") or []:
+        if not isinstance(experience, dict):
+            continue
+        for bullet in experience.get("bullets") or []:
+            if not isinstance(bullet, dict):
+                continue
+            for skill in bullet.get("skills") or []:
+                record(skill, bullet.get("support_status"))
+    for project in profile.get("projects") or []:
+        if not isinstance(project, dict):
+            continue
+        for skill in project.get("skills") or []:
+            record(skill, project.get("support_status"))
+
+    return sorted(
+        skills,
+        key=lambda skill: (-support_weight[skill.casefold()], -counts[skill.casefold()], first_seen[skill.casefold()]),
+    )
 
 
 def _normalize_query_scalar(value: Any) -> str:
@@ -335,7 +503,7 @@ def build_candidate_query_components(
     max_skills = int((config or {}).get("vector_max_candidate_skills", 15))
 
     headline = str(profile.get("headline") or "").strip()
-    prefs = profile.get("preferences", {}) or {}
+    prefs = profile.get("preferences") or profile.get("search_preferences") or {}
     target_role = str(prefs.get("target_role") or "").strip()
 
     recent_roles: list[str] = []
@@ -350,7 +518,8 @@ def build_candidate_query_components(
 
     skills: list[str] = []
     seen_skills: set[str] = set()
-    for skill in flatten_rankable_skills(profile):
+    ranked_skills = _rank_profile_skills(profile, flatten_rankable_skills(profile))
+    for skill in ranked_skills:
         _append_unique_text(skills, skill, seen_skills)
         if len(skills) >= max_skills:
             break
@@ -386,6 +555,11 @@ def build_candidate_query_components(
         if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
             break
     if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
+        for domain_tag in _admitted_claim_values(profile, "domain_tags"):
+            _append_unique_text(domains, domain_tag, seen_domains)
+            if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
+                break
+    if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
         for experience in profile.get("experiences", []) or []:
             for domain_tag in experience.get("domain_tags", []) or []:
                 _append_unique_text(domains, str(domain_tag), seen_domains)
@@ -395,8 +569,16 @@ def build_candidate_query_components(
                 break
     if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
         for project in profile.get("projects", []) or []:
+            if not isinstance(project, dict) or not _project_support_is_admissible(project, profile):
+                continue
             for domain_tag in project.get("domain_tags", []) or []:
-                _append_unique_text(domains, str(domain_tag), seen_domains)
+                if _project_value_is_admissible(domain_tag, project.get("support_status")):
+                    domain_text = domain_tag.get("name") if isinstance(domain_tag, dict) else domain_tag
+                    if not _is_negated_project_term(
+                        str(project.get("business_value") or ""),
+                        str(domain_text or ""),
+                    ):
+                        _append_unique_text(domains, str(domain_text), seen_domains)
                 if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
                     break
             if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
@@ -412,12 +594,25 @@ def build_candidate_query_components(
     technology_hints = _bounded_profile_technology_hints(profile)
     project_evidence_hints: list[str] = []
     seen_project_evidence: set[str] = set()
-    for project in profile.get("projects", []) or []:
-        if not isinstance(project, dict):
+    projects = [
+        project for project in profile.get("projects", []) or [] if isinstance(project, dict)
+    ]
+    projects.sort(
+        key=lambda project: (
+            -{"supported": 3, "verified": 3, "partial": 2}.get(
+                str(project.get("support_status") or "supported").strip().casefold(), 1
+            ),
+            -sum(bool(str(project.get(field) or "").strip()) for field in ("name", "business_value")),
+            -len(list(project.get("highlights") or [])),
+            str(project.get("name") or "").casefold(),
+        )
+    )
+    for project in projects:
+        if not _project_support_is_admissible(project, profile):
             continue
         for value in [project.get("name"), project.get("business_value"), *(project.get("highlights") or [])]:
             text = str(value or "").strip()
-            if not text:
+            if not text or not _project_text_is_affirmative(text):
                 continue
             _append_unique_text(project_evidence_hints, text[:CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_CHARS], seen_project_evidence)
             if len(project_evidence_hints) >= CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_COUNT:
@@ -669,7 +864,7 @@ def _lexical_search_result(
     embedding_backend_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     components = build_candidate_query_components(profile, config)
-    prefs = dict(profile.get("preferences") or {})
+    prefs = dict(profile.get("preferences") or profile.get("search_preferences") or {})
     candidate_skills = flatten_rankable_skills(profile)
     jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
     candidate_technology = _profile_technology_inventory(profile)
@@ -680,6 +875,7 @@ def _lexical_search_result(
             continue
         required = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
         skill_score = compute_must_have_match(required, candidate_skills, config)
+        required_skill_intersection = bool(required) and skill_score > 0.0
         title_score = compute_title_relevance(
             str(job.get("title") or job.get("job_title") or "") or None,
             str(prefs.get("target_role") or "") or None,
@@ -708,7 +904,13 @@ def _lexical_search_result(
             "retrieval_score": retrieval_score,
             "retrieval_components": {
                 "skill_overlap": skill_score,
+                "required_skill_intersection": required_skill_intersection,
                 "title_relevance": title_score,
+                "title_relevance_affirmative": bool(
+                    str(job.get("title") or job.get("job_title") or "").strip()
+                    and str(prefs.get("target_role") or "").strip()
+                    and title_score > 0.0
+                ),
                 "domain": parts["domain"],
                 "role_family": parts["role_family"],
                 "location": parts["work_mode"],
@@ -765,6 +967,8 @@ def _lexical_search_result(
             "production_cutoff_retrieval_score": cutoff.get("retrieval_score") if cutoff else None,
             "embedding_generation_skipped": True,
             "personalization_unavailable_reason": "embedding_strategy_incompatible",
+            "shortlist_audit_sample_n": audit_sample_n,
+            "lexical_rescue_min_score": 0.2,
         },
         "candidate_query": {
             "text": build_candidate_query_text(profile, config),
@@ -807,6 +1011,49 @@ def _unavailable_search_result(
     }
 
 
+def _has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
+    try:
+        score = float(row.get("retrieval_score"))
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(score):
+        return False
+    components = dict(row.get("retrieval_components") or {})
+    if components.get("required_skill_intersection") is True:
+        return True
+    if components.get("title_relevance_affirmative") is True:
+        return True
+    if any(
+        isinstance(components.get(key), (int, float))
+        and math.isfinite(float(components[key]))
+        and float(components[key]) > 0.0
+        for key in ("technology_overlap", "description_overlap")
+    ):
+        return True
+    match_details = dict(components.get("match_details") or {})
+    return any(
+        str(value).strip().lower() not in {"", "none", "neutral", "unknown"}
+        for value in match_details.values()
+    )
+
+
+def _rank_normalized_scores(rows: list[dict[str, Any]], score_key: str) -> dict[str, float]:
+    ranked = []
+    for row in rows:
+        url = str(row.get("job_url") or "")
+        try:
+            score = float(row.get(score_key))
+        except (TypeError, ValueError):
+            continue
+        if url and math.isfinite(score):
+            ranked.append((url, score))
+    ranked.sort(key=lambda item: (-item[1], item[0]))
+    if len(ranked) == 1:
+        return {ranked[0][0]: 1.0}
+    denominator = len(ranked) - 1
+    return {url: (len(ranked) - index - 1) / denominator for index, (url, _score) in enumerate(ranked)}
+
+
 def _hybrid_search_result(
     *,
     vector_result: dict[str, Any],
@@ -818,6 +1065,7 @@ def _hybrid_search_result(
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
     lexical_rows = list(lexical_result.get("production_rows") or [])
+
     by_url: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(vector_rows, start=1):
         url = str(row.get("job_url") or "").strip()
@@ -829,6 +1077,8 @@ def _hybrid_search_result(
     for rank, row in enumerate(lexical_rows, start=1):
         url = str(row.get("job_url") or "").strip()
         if not url:
+            continue
+        if url not in by_url and not _has_affirmative_lexical_relevance(row):
             continue
         target = by_url.setdefault(url, {**row})
         if "vector_rank" not in target or target.get("shortlist_origin") in {"lexical_search", "audit"}:
@@ -881,15 +1131,30 @@ def _hybrid_search_result(
     ]
     rescued_rows: list[dict[str, Any]] = []
     if production_rows:
-        for lexical_row in lexical_only_rows[:1]:
+        rescue_threshold = float((lexical_result.get("diagnostics") or {}).get("lexical_rescue_min_score") or 0.2)
+        for lexical_row in lexical_only_rows:
+            lexical_score = lexical_row.get("retrieval_score")
+            try:
+                lexical_score_value = float(lexical_score)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(lexical_score_value) or lexical_score_value < rescue_threshold:
+                continue
+            if not _has_affirmative_lexical_relevance(lexical_row):
+                continue
             lexical_url = str(lexical_row.get("job_url") or "")
             if not lexical_url or lexical_url in selected_urls:
                 continue
             displaced = production_rows[-1]
-            production_rows[-1] = lexical_row
+            production_rows[-1] = {
+                **lexical_row,
+                "rescue_reason": "affirmative_lexical_relevance",
+                "rescued_displaced_job_url": str(displaced.get("job_url") or ""),
+            }
             selected_urls.remove(str(displaced.get("job_url") or ""))
             selected_urls.add(lexical_url)
-            rescued_rows.append(lexical_row)
+            rescued_rows.append(production_rows[-1])
+            break
     audit_sample_n = int((lexical_result.get("diagnostics") or {}).get("shortlist_audit_sample_n") or 0)
     audit_rows = [
         {**row, "shortlist_origin": "audit"}
@@ -935,6 +1200,16 @@ def _hybrid_search_result(
             "production_cutoff_rank": len(production_rows),
             "lexical_only_rescue_count": len(rescued_rows),
             "lexical_only_rescued_urls": [str(row.get("job_url") or "") for row in rescued_rows],
+            "lexical_only_rescue_evidence": [
+                {
+                    "job_url": str(row.get("job_url") or ""),
+                    "lexical_rank": row.get("lexical_rank"),
+                    "lexical_score": row.get("lexical_score"),
+                    "displaced_job_url": row.get("rescued_displaced_job_url"),
+                    "reason": row.get("rescue_reason"),
+                }
+                for row in rescued_rows
+            ],
             "embedding_generation_skipped": bool(vector_diagnostics.get("embedding_generation_skipped")),
             "vector_diagnostics": vector_diagnostics,
             "lexical_diagnostics": lexical_diagnostics,
@@ -1187,14 +1462,14 @@ def run_vector_search(
             profile,
             eligible_job_urls,
             config,
-            effective_top_n,
+            len(eligible_job_urls),
             structured_jobs,
             requested_strategy=requested_strategy,
             fallback_reason=fallback_reason,
             embedding_backend_id=embedding_backend_id,
         )
         admitted_urls = {str(row.get("job_url") or "") for row in production_rows}
-        fallback_rows = [
+        fallback_candidates = [
             {
                 **row,
                 "shortlist_origin": "lexical_fallback",
@@ -1202,9 +1477,49 @@ def run_vector_search(
                 "fallback_source_rank": row.get("vector_rank"),
             }
             for row in lexical_result.get("production_rows") or []
+            if (
+                str(row.get("job_url") or "") not in admitted_urls
+                and _has_affirmative_lexical_relevance(row)
+            )
+        ]
+        vector_normalized = _rank_normalized_scores(ranked_rows, "vector_similarity")
+        lexical_normalized = _rank_normalized_scores(
+            [*(lexical_result.get("production_rows") or []), *(lexical_result.get("audit_rows") or [])],
+            "retrieval_score",
+        )
+        for row in production_rows:
+            row["fallback_normalized_score"] = vector_normalized.get(str(row.get("job_url") or ""), 0.0)
+            row["fallback_native_score"] = float(row.get("vector_similarity") or 0.0)
+            row["fallback_channel_rank"] = int(row.get("vector_rank") or 10**9)
+        for row in fallback_candidates:
+            row["fallback_normalized_score"] = lexical_normalized.get(str(row.get("job_url") or ""), 0.0)
+            row["fallback_native_score"] = float(row.get("retrieval_score") or 0.0)
+            row["fallback_channel_rank"] = int(row.get("lexical_rank") or 10**9)
+        combined_candidates = [*production_rows, *fallback_candidates]
+        combined_candidates.sort(
+            key=lambda row: (
+                -float(row.get("fallback_normalized_score") or 0.0),
+                int(row.get("fallback_channel_rank") or 10**9),
+                str(row.get("job_url") or ""),
+            )
+        )
+        admitted_candidates = combined_candidates[:effective_top_n]
+        admitted_urls = {str(row.get("job_url") or "") for row in admitted_candidates}
+        displaced_vector_rows = [
+            row
+            for row in production_rows
             if str(row.get("job_url") or "") not in admitted_urls
-        ][: max(0, effective_top_n - len(production_rows))]
-        production_rows = [*production_rows, *fallback_rows]
+        ]
+        displaced_vector_urls = [str(row.get("job_url") or "") for row in displaced_vector_rows]
+        fallback_rows = []
+        for row in admitted_candidates:
+            if row.get("shortlist_origin") != "lexical_fallback":
+                continue
+            if displaced_vector_urls:
+                row["rescued_displaced_job_url"] = displaced_vector_urls.pop(0)
+                row["rescue_reason"] = "lexical_recovery_competed_with_vector_cutoff"
+            fallback_rows.append(row)
+        production_rows = admitted_candidates
         fallback_diagnostics = dict(lexical_result.get("diagnostics") or {})
         fallback_urls = {str(row.get("job_url") or "") for row in fallback_rows}
         seen_audit_urls = {
@@ -1213,6 +1528,7 @@ def run_vector_search(
             if str(row.get("job_url") or "")
         }
         for row in [
+            *displaced_vector_rows,
             *(lexical_result.get("production_rows") or []),
             *(lexical_result.get("audit_rows") or []),
         ]:
@@ -1221,6 +1537,11 @@ def run_vector_search(
                 continue
             audit_candidates.append(row)
             seen_audit_urls.add(job_url)
+        audit_candidates = [
+            row
+            for row in audit_candidates
+            if str(row.get("job_url") or "") not in admitted_urls
+        ]
     candidate_query_signature = str(candidate_query.get("candidate_query_signature") or "")
     audit_ranked = [
         {
@@ -1283,7 +1604,9 @@ def run_vector_search(
                 fallback_diagnostics.get("scored_jobs_total") or len(fallback_rows)
             ),
             "fallback_admitted_total": len(fallback_rows),
-            "vector_admitted_total": min(len(ranked_rows), effective_top_n),
+            "vector_admitted_total": sum(
+                1 for row in production_rows if row.get("shortlist_origin") == "vector_search"
+            ),
             "missing_job_embedding_total": len(missing_urls),
             "invalid_job_embedding_total": len(invalid_urls),
             "candidate_embedding_available": candidate_embedding is not None,

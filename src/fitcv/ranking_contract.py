@@ -191,11 +191,80 @@ def normalize_score_state(row: Mapping[str, Any]) -> dict[str, Any]:
         raw_failure = "validation_failure"
     if status == SCORE_STATUS_UNSCORED and not raw_failure:
         raw_failure = "score_unavailable"
+    disposition = str(row.get("disposition") or "").strip() or None
+    if disposition is None:
+        if status == SCORE_STATUS_VALID:
+            disposition = "scored"
+        elif raw_failure == "needs_enrichment":
+            disposition = "needs_enrichment"
+        elif status == SCORE_STATUS_INVALID:
+            disposition = "invalid_score"
+        elif raw_failure in {"timeout", "provider_failure", "budget_exceeded"}:
+            disposition = "retryable_failure"
+        else:
+            disposition = "unavailable"
+    retry_value = row.get("retry_eligible")
+    retry_eligible = (
+        bool(retry_value)
+        if retry_value is not None
+        else status == SCORE_STATUS_UNSCORED and raw_failure in {
+            "needs_enrichment",
+            "timeout",
+            "provider_failure",
+            "budget_exceeded",
+        }
+    )
     return {
         "ai_score": float(score) if status == SCORE_STATUS_VALID and score is not None else None,
         "score_status": status,
         "failure_code": raw_failure,
+        "disposition": disposition,
+        "retry_eligible": retry_eligible,
     }
+
+
+_EXPORT_SCORE_STATE_INPUT_FIELDS = (
+    "ai_score",
+    "score_status",
+    "failure_code",
+    "parser_status",
+    "reranker_parser_status",
+    "score_reasoning",
+    "reranker_score_reasoning",
+    "final_score",
+    "holistic_ai_fit",
+    "baseline_fit",
+    "personalized_display_score",
+)
+
+
+def normalize_score_state_for_export(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize export rows without inventing failures for stage-only outcomes."""
+    has_score_evidence = any(
+        row.get(field) not in (None, "")
+        for field in _EXPORT_SCORE_STATE_INPUT_FIELDS
+        if field != "score_status"
+    )
+    has_stage_disposition = bool(str(row.get("pipeline_status") or "").strip()) or isinstance(
+        row.get("job_outcome"), Mapping
+    )
+    if not has_score_evidence and has_stage_disposition:
+        return {
+            "ai_score": None,
+            "score_status": SCORE_STATUS_UNSCORED,
+            "failure_code": None,
+            "disposition": "not_scored",
+            "retry_eligible": False,
+        }
+    if not any(row.get(field) not in (None, "") for field in _EXPORT_SCORE_STATE_INPUT_FIELDS):
+        return {
+            "ai_score": None,
+            "score_status": SCORE_STATUS_UNSCORED,
+            "failure_code": None,
+            "disposition": "unavailable",
+            "retry_eligible": False,
+        }
+    return normalize_score_state(row)
 
 
 def validate_weight_contract(weights: dict[str, float], *, expected_sum: float = 1.0) -> None:

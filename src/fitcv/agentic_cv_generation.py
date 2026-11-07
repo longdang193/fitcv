@@ -44,7 +44,7 @@ from fitcv.config import (
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
 )
-from fitcv.contracts import FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
+from fitcv.contracts import EVIDENCE_INTEGRITY_POLICY_VERSION, FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
@@ -1818,6 +1818,7 @@ def build_cv_generation_input_fingerprint(
     )
     payload = {
         "schema_version": _CV_GENERATION_FINGERPRINT_SCHEMA_VERSION,
+        "evidence_integrity_policy_version": EVIDENCE_INTEGRITY_POLICY_VERSION,
         "generation_contract_version": _CV_GENERATION_RESULT_CONTRACT_VERSION,
         "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
         "content_plan": dict(analysis_record.get("content_plan") or {}),

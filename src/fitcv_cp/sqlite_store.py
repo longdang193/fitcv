@@ -78,6 +78,7 @@ from fitcv_cp.run_lifecycle import (
     can_unarchive_run,
     decide_terminal_run,
     job_stage_status_from_outcome,
+    pipeline_stage_is_control_plane_terminal,
     result_bucket_for_job_stage,
     run_display_status,
     run_stage_status_from_pipeline,
@@ -15656,7 +15657,8 @@ def persist_pipeline_snapshot(
     completed_stage_ids = {
         canonical
         for raw_stage_id in list(summary.get("completed_stages") or [])
-        if (canonical := canonical_stage_id(str(raw_stage_id))) is not None
+        if pipeline_stage_is_control_plane_terminal(str(raw_stage_id))
+        and (canonical := canonical_stage_id(str(raw_stage_id))) is not None
     }
     stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
     if isinstance(stage_artifacts.get("artifacts"), dict):
@@ -15678,11 +15680,16 @@ def persist_pipeline_snapshot(
         try:
             conn.execute("BEGIN IMMEDIATE")
             for raw_stage_id, block_value in stage_blocks.items():
+                if not pipeline_stage_is_control_plane_terminal(str(raw_stage_id)):
+                    continue
                 stage_id = canonical_stage_id(str(raw_stage_id))
                 if stage_id is None or not isinstance(block_value, dict):
                     continue
                 block = dict(block_value)
-                stage_status = run_stage_status_from_pipeline(str(block.get("status") or ""))
+                raw_stage_status = str(block.get("status") or "").strip().lower()
+                if raw_stage_status in {"", "not_reached"}:
+                    continue
+                stage_status = run_stage_status_from_pipeline(raw_stage_status)
                 if stage_status.value == "pending" and stage_id in completed_stage_ids:
                     stage_status = run_stage_status_from_pipeline("completed")
                 output_counts = dict(block.get("output_counts") or {})

@@ -2,6 +2,7 @@ import datetime
 import io
 import json
 import zipfile
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -139,6 +140,19 @@ def test_build_terminal_run_artifact_payloads_matches_control_plane_derived_payl
     assert actual_suppression == expected_suppression
 
 
+def test_build_terminal_run_artifact_payloads_includes_review_state_exports() -> None:
+    run = replace(
+        _make_succeeded_run(),
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+    )
+
+    payloads = build_terminal_run_artifact_payloads(run_record=run, events=[])
+
+    assert payloads["export.json"]["results"]
+    assert payloads["hitl-review-audit.json"]["queue_items"]
+
+
 def test_persist_terminal_run_artifact_mirror_writes_review_and_synonym_files(tmp_path, monkeypatch) -> None:
     run = _make_succeeded_run()
     monkeypatch.chdir(tmp_path)
@@ -181,3 +195,20 @@ def test_artifact_bundle_matches_endpoint_payloads_for_review_and_synonym_export
             response = client.get(route)
             assert response.status_code == 200
             assert bundle_payloads[filename] == json.loads(response.content)
+
+
+def test_artifact_bundle_includes_review_state_exports() -> None:
+    run = replace(
+        _make_succeeded_run(),
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
+        client = TestClient(_app())
+        bundle_response = client.get(f"/admin/runs/{run.run_id}/artifacts.zip")
+
+    assert bundle_response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(bundle_response.content)) as zf:
+        names = set(zf.namelist())
+    assert "results.json" in names
+    assert "hitl-review-audit.json" in names

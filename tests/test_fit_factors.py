@@ -182,6 +182,22 @@ def test_candidate_context_is_deterministic_and_separates_work_modes() -> None:
     )
 
 
+def test_candidate_context_reads_canonical_search_preferences() -> None:
+    context = build_candidate_fit_context(
+        {
+            "search_preferences": {
+                "locations": ["Germany"],
+                "location_types": ["remote"],
+            },
+            "languages": [],
+        },
+        valid_work_modes=["remote", "hybrid", "onsite"],
+    )
+
+    assert context["preferred_locations"] == ["Germany"]
+    assert context["preferred_work_modes"] == ["remote"]
+
+
 @pytest.mark.parametrize(  # type: ignore[misc]
     ("profile", "expected_status", "expected_diagnostic"),
     [

@@ -280,7 +280,7 @@ def build_candidate_fit_context(
     valid_work_modes: list[str] | tuple[str, ...] | set[str] | frozenset[str],
 ) -> CandidateFitContext:
     profile_mapping = profile if isinstance(profile, dict) else {}
-    preferences = profile_mapping.get("preferences")
+    preferences = profile_mapping.get("preferences") or profile_mapping.get("search_preferences")
     preference_mapping = preferences if isinstance(preferences, dict) else {}
 
     raw_locations = preference_mapping.get("locations")

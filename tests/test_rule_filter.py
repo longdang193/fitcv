@@ -11,6 +11,7 @@ from fitcv.rule_filter import (
     apply_rule_filters,
     check_applicant_count,
     check_contract_type,
+    classify_contract_type,
     check_domain_preference,
     check_experience_level,
     check_freshness,
@@ -109,14 +110,14 @@ def test_title_filters_use_inclusion_and_exclusion_with_whole_word_matching(titl
     assert result["passed"] is expected
 
 
-def test_title_filters_are_applied_by_rule_filter_and_explain_rejection() -> None:
+def test_title_filters_are_applied_by_rule_filter_and_respect_selected_policy() -> None:
     result = apply_rule_filters(
         [_job(title="Duales Studium – AI Engineering")],
         _prefs(job_title_include_keywords=["AI"], job_title_exclude_keywords=["duales"]),
     )
-    assert result["passed"] == []
-    assert result["rejected"][0]["reasons"] == ["title_excluded"]
-    assert result["rejected"][0]["marks"][0]["details"]["matched_keyword"] == "duales"
+    assert result["passed"] == ["http://example.com/job/1"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["details"]["matched_keyword"] == "duales"
 
 
 @pytest.mark.parametrize(
@@ -195,7 +196,7 @@ def test_selected_filter_defaults_match_runtime_contract_constant() -> None:
     ]
     assert isinstance(result["passed_records"], list)
 
-def test_missing_fit_context_rejects_by_default() -> None:
+def test_substantive_requirements_survive_missing_fit_context_by_default() -> None:
     result = apply_rule_filters(
         [
             _job(
@@ -209,16 +210,9 @@ def test_missing_fit_context_rejects_by_default() -> None:
         _prefs(),
     )
 
-    assert result["passed"] == []
-    assert result["rejected"] == [
-        {
-            "job_url": "http://missing-fit-context",
-            "raw_job_fingerprint": None,
-            "source_job_url": "http://missing-fit-context",
-            "reasons": ["missing_fit_context"],
-            "marks": [],
-        }
-    ]
+    assert result["passed"] == ["http://missing-fit-context"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["code"] == "missing_fit_context"
 
 
 def test_enrichment_fallback_with_raw_description_survives_missing_context_filter() -> None:
@@ -271,7 +265,11 @@ def test_unselected_missing_fit_context_emits_mark_not_reject() -> None:
             "marks": [
                 {
                     "code": "missing_fit_context",
-                    "message": "Missing fit context",
+                    "message": "Structured fit context is incomplete; usable job evidence remains available for retrieval.",
+                    "details": {
+                        "admission": "retained_for_retrieval",
+                        "original_reason": "missing_fit_context",
+                    },
                 }
             ],
         }
@@ -471,6 +469,35 @@ def test_contract_type_rejects_profile_excluded_contract_type() -> None:
     )
 
 
+def test_contract_type_missing_is_unknown_when_allow_list_is_configured() -> None:
+    assert classify_contract_type(_job(contract_type=None), _prefs(contract_types=["Full-time"])) == "unknown"
+
+
+def test_contract_type_unknown_literals_are_neutral_by_default() -> None:
+    assert classify_contract_type(_job(contract_type="Unknown"), _prefs(contract_types=["Full-time"])) == "unknown"
+    assert check_contract_type(_job(contract_type="not specified"), _prefs(contract_types=["Full-time"]))
+
+
+def test_contract_type_missing_policy_can_reject_unknown_values() -> None:
+    config = {"rule_filter": {"missing_contract_type_policy": "reject"}}
+    assert classify_contract_type(_job(contract_type="Unknown"), _prefs(contract_types=["Full-time"]), config) == "mismatch"
+    assert not check_contract_type(_job(contract_type=None), _prefs(), config)
+    result = apply_rule_filters([_job(contract_type="Unknown")], _prefs(), config=config)
+    assert result["rejected"][0]["reasons"] == ["contract_type_excluded"]
+
+
+def test_unselected_title_failure_is_marked_but_not_rejected() -> None:
+    result = apply_rule_filters(
+        [_job(job_url="http://title-mark-only", title="Unrelated role")],
+        _prefs(job_title_include_keywords=["Data"]),
+        config={"rule_filter": {"selected_filters": ["contract_type_excluded"]}},
+    )
+
+    assert result["passed"] == ["http://title-mark-only"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["code"] == "title_not_included"
+
+
 # ── experience level ──────────────────────────────────────────────────────────
 
 def test_experience_level_excludes_internship() -> None:
@@ -502,6 +529,17 @@ def test_must_have_skills_exact_match() -> None:
 
 def test_must_have_skills_missing_skill_fails() -> None:
     assert not check_must_have_skills(_job(required_skills=["Java"]), _prefs(must_have_skills=["SQL"]))
+
+
+def test_degraded_description_does_not_turn_missing_extraction_into_mismatch() -> None:
+    assert check_must_have_skills(
+        _job(
+            required_skills=["Java"],
+            description="Lebenslauf Telefon +49 89 236139465",
+            description_quality="boilerplate_only",
+        ),
+        _prefs(must_have_skills=["SQL"]),
+    )
 
 
 def test_must_have_skills_empty_prefs_passes() -> None:

@@ -12,7 +12,11 @@ import scripts.fetch_jobs as fetcher
 
 
 def _long_description(prefix: str = "job") -> str:
-    return " ".join(f"{prefix}{index}" for index in range(50))
+    substantive = (
+        f"{prefix} role: build Python data pipelines, write SQL queries, "
+        "collaborate with stakeholders, and monitor production services."
+    )
+    return substantive + " " + " ".join(f"{prefix}{index}" for index in range(50))
 
 
 def test_direct_script_entrypoint_can_load_sibling_helper() -> None:
@@ -369,6 +373,40 @@ def test_fetch_sources_runs_named_inputs_sequentially(monkeypatch: pytest.Monkey
     assert list(runs) == ["linkedin/ai", "linkedin/broad"]
     assert any("run 1/2 ai: starting" in message for message in progress)
     assert any("run 2/2 broad: starting" in message for message in progress)
+
+
+def test_fetch_sources_retains_incomplete_records_for_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(actor_id, input_payload, token, **kwargs):
+        return {
+            "runId": "run-1",
+            "datasetId": "ds-1",
+            "items": [{
+                "id": "job-footer",
+                "url": "https://linkedin.example/footer",
+                "title": "Data Engineer",
+                "companyName": "Example",
+                "location": "Berlin, Germany",
+                "description": "Lebenslauf Telefon +49 89 236139465",
+            }],
+        }
+
+    monkeypatch.setattr(fetcher, "run_apify_actor", fake_run)
+    records, failures, _runs = fetcher.fetch_sources(
+        {
+            "linkedin": {
+                "source": "linkedin",
+                "kind": "apify_actor",
+                "actor": "actor/name",
+                "input": {},
+            }
+        },
+        ["linkedin"],
+        "token",
+    )
+
+    assert [record["sourceJobId"] for record in records] == ["job-footer"]
+    assert records[0]["descriptionStatus"] == "boilerplate_only"
+    assert failures == [{"sourceJobId": "job-footer", "reason": "incomplete_description"}]
 
 
 def test_apify_client_deadline_aborts_running_run(monkeypatch: pytest.MonkeyPatch) -> None:

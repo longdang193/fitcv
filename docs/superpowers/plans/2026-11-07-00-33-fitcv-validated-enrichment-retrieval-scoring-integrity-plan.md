@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 contract_version: "1"
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-validated-enrichment-retrieval-scoring-integrity
 targets:
@@ -35,9 +35,11 @@ components are truncated or mis-ranked, selected evidence is lost during
 handoff, or prompt-budget diagnostics describe a different payload from the
 one received by the scorer.
 
-This plan is based on the completed read-only reviews of the pinned
-`longdang193/fitcv` revision
-[`1b2e2e40b9ad0a2a23ea27702cb98bdede8fbafb`](https://github.com/longdang193/fitcv/commit/1b2e2e40b9ad0a2a23ea27702cb98bdede8fbafb).
+This plan is based on the completed read-only reviews of the exact
+implementation base `02d876afd88b4e4d9f40dfaa46891bb55d2548fd` (the parent
+of the plan-only commit). All source and test evidence must be revalidated
+against this SHA before implementation; the superseded review pin
+`1b2e2e40b9ad0a2a23ea27702cb98bdede8fbafb` is not an implementation base.
 The two model reviews were reconciled by tracing the shared pipeline:
 enrichment normalization → rule filtering → candidate/job retrieval →
 shortlist cutoff → evidence selection → scorer request budgeting →
@@ -51,8 +53,10 @@ contract. Runtime frequency still requires the verification work in this plan.
 
 Included defects:
 
-- Canonical skill arrays can be nonempty but incomplete, causing downstream
-  consumers to suppress valid raw requirements.
+- The canonical-skill merge remains an invariant to preserve, but the prior
+  review claim that `_build_skill_entities()` or the merge path currently
+  drops raw skills is not accepted without a failing regression on the chosen
+  implementation base.
 - Broad non-skill substring markers remove technical skills containing
   `language` or `communication`.
 - Candidate retrieval is bounded by profile traversal order and project-name
@@ -85,13 +89,43 @@ an explicit product-policy decision before implementation:
   retention, and missing embedding signatures; each needs a focused contract
   decision or runtime reproduction before changing behavior.
 
+## Review-Cycle Corrections
+
+The first independent review of PR `#126` at head
+`495da4afcb9650231363d0d554205babfad51db6` reproduced three additional defects
+within this plan's scope. The plan is amended to include their root-cause fixes:
+
+- Hybrid lexical filtering must distinguish component-specific neutral values
+  from positive partial overlap. A skill overlap such as `0.25` is affirmative
+  evidence even when title relevance is the neutral unknown value `0.5`.
+- Candidate-summary compaction must match language names and proficiency levels
+  structurally, reserve matching records before optional-record removal, and
+  mark `candidate_languages` incomplete if an originally present mandatory
+  language record cannot remain visible.
+- Raw-skill fallback must reject natural-language proficiency and interpersonal
+  communication formulations while preserving allowlisted technical phrases
+  such as `natural language processing` and `technical communication protocol`.
+
+Focused regressions are required in `tests/test_vector_search.py`,
+`tests/test_scoring_input_integrity.py`, and `tests/test_enrich.py` before the
+next review cycle.
+
+The final review cycle also validated two boundary cases: scalar skill overlap
+`0.5` can be a genuine partial match rather than neutral unknown data, and a
+candidate's language identity must remain visible for compatibility assessment
+regardless of whether its recorded proficiency is above or below the job's
+requested level. Retrieval now carries explicit skill-match signal metadata;
+language compaction protects identity matches and retains the actual level.
+
 ## Implementation Outcomes
 
 ### Complete skill requirement contract
 
 `required_skills_canonical` and `preferred_skills_canonical` remain complete
-canonical projections of accepted raw skills. Entity confidence and provenance
-remain available without making the entity subset the completeness contract.
+canonical projections of accepted raw skills. This is a preserved invariant;
+change canonical construction only if the base-commit regression proves a
+surviving information-loss path. Entity confidence and provenance remain
+available without making the entity subset the completeness contract.
 Known technical phrases survive soft-skill filtering, and enrichment quality
 records distinguish partial structured signal from verified mandatory-channel
 completeness.
@@ -108,7 +142,9 @@ lexical rescue.
 Evidence selection preserves both source text and enriched scoring context,
 reserves recoverability for distinct required skills, and does not allow the
 request budgeter to silently remove all selected attributable evidence while
-still reporting an evidence-complete score.
+still accepting an evidence-complete score. If no attributable evidence fits,
+the scorer returns an explicit `evidence_limited` result and the ranking stage
+does not treat it as a normal compatibility score.
 
 ### Diagnostics and regression proof are faithful
 
@@ -163,7 +199,7 @@ contracts and the explicit deferred policy decisions.
 - Preserve downstream readers in: `src/fitcv/rule_filter.py`, `src/fitcv/evidence.py`, `src/fitcv/vector_search.py`, `src/fitcv/ai_score.py`
 
 **Dependencies:**
-- Start from the current implementation branch after confirming the pinned review paths still exist.
+- Start from implementation base `02d876afd88b4e4d9f40dfaa46891bb55d2548fd` and record any source/test path that differs from the superseded review evidence.
 - Preserve existing raw skill ordering, deduplication, synonym canonicalization, and entity provenance behavior unless a regression test proves the current behavior loses information.
 
 **Authority:**
@@ -171,12 +207,12 @@ contracts and the explicit deferred policy decisions.
 - Stop for: a required schema change, a new extraction-provider contract, or a change to ranking policy weights
 
 **Steps:**
-- [ ] Step 1: Add failing tests for mixed raw/entity inputs such as `GCP`, `Python`, and `SQL`, proving every accepted raw requirement remains in the canonical projection and downstream descriptor source.
-- [ ] Step 2: Add failing technical-collision tests for `Natural Language Processing`, `Large Language Models`, language modeling, and a technical communication protocol; retain existing soft-skill and natural-language requirement rejection tests.
-- [ ] Step 3: Change canonical construction to merge entity-derived values with canonicalized accepted raw values, retaining provenance for values without an explicit LLM entity.
-- [ ] Step 4: Replace unrestricted marker substring rejection with exact or boundary/context-aware non-skill matching.
-- [ ] Step 5: Make completeness metadata channel-specific so one extracted field cannot claim verified mandatory coverage; preserve unresolved raw description/source evidence for later stages.
-- [ ] Step 6: Run the focused suite and inspect the semantic snapshot fixtures for stable field names and deterministic ordering.
+- [x] Step 1: First add/execute a base-commit regression for mixed raw/entity inputs such as `GCP`, `Python`, and `SQL`. If the base already preserves all accepted raw requirements, retain the regression as a guard and do not rewrite canonical construction.
+- [x] Step 2: Add failing technical-collision tests for `Natural Language Processing`, `Large Language Models`, language modeling, and a technical communication protocol; retain existing soft-skill and natural-language requirement rejection tests.
+- [x] Step 3: Only if Step 1 fails, change canonical construction to merge entity-derived values with canonicalized accepted raw values, retaining provenance for values without an explicit LLM entity.
+- [x] Step 4: Replace unrestricted marker substring rejection with exact or boundary/context-aware non-skill matching.
+- [x] Step 5: Make completeness metadata channel-specific so one extracted field cannot claim verified mandatory coverage; preserve unresolved raw description/source evidence for later stages.
+- [x] Step 6: Run the focused suite and inspect the semantic snapshot fixtures for stable field names and deterministic ordering.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_enrich.py`
@@ -227,12 +263,12 @@ contracts and the explicit deferred policy decisions.
 - Stop for: changing top-N policy, changing embedding model/cache schema, or introducing a new external retrieval dependency
 
 **Steps:**
-- [ ] Step 1: Add a vector-path regression where a decisive skill appears after the current bounded skill prefix and must still reach the candidate query.
-- [ ] Step 2: Add a project-hint regression proving a relevant later project is not excluded solely by alphabetical project-name order.
-- [ ] Step 3: Define a deterministic bounded selection strategy using demonstrated support, distinctiveness, recency, target-role alignment, and a bounded cross-section of professional/project evidence.
-- [ ] Step 4: Add a partial-embedding regression with vector and lexical candidates whose raw scores are on different scales; assert the cutoff uses calibrated or rank-fused ordering.
-- [ ] Step 5: Add a regression using the real neutral `0.5` title relevance value; assert a neutral lexical row cannot qualify as affirmative rescue or evict a stronger cutoff row.
-- [ ] Step 6: Preserve retrieval diagnostics showing which skills/projects were selected and why, so future recall regressions can be traced without inferring from final ranks.
+- [x] Step 1: Add a vector-path regression where a decisive skill appears after the current bounded skill prefix and must still reach the candidate query.
+- [x] Step 2: Add a project-hint regression proving a relevant later project is not excluded solely by alphabetical project-name order.
+- [x] Step 3: Define and test deterministic precedence for bounded selection: mandatory/required skills first, then demonstrated support, distinctiveness, recency, target-role alignment, and project evidence; allocate slots per category, define missing-date ordering, and use stable lexical/ID tie-breaks.
+- [x] Step 4: Add a partial-embedding regression with vector and lexical candidates whose raw scores are on different scales; assert the cutoff uses calibrated or rank-fused ordering.
+- [x] Step 5: Add a regression using the real neutral `0.5` title relevance value; assert a neutral lexical row cannot qualify as affirmative rescue or evict a stronger cutoff row.
+- [x] Step 6: Preserve retrieval diagnostics showing which skills/projects were selected and why, so future recall regressions can be traced without inferring from final ranks.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_candidate.py tests/test_vector_search.py tests/test_ranking.py`
@@ -249,7 +285,7 @@ contracts and the explicit deferred policy decisions.
 - Ensure evidence selected for compatibility scoring retains the enriched facts that caused selection and that channel truncation cannot permanently remove the only proof of a distinct required skill.
 
 **Task Function:**
-- Separate retrieval/search context from scorer-visible evidence and enforce required-skill coverage before final evidence truncation.
+- Keep retrieval/search context and scorer-visible context distinct, preserve the handoff into `build_ranking_job_input`, and enforce required-skill coverage before final evidence truncation.
 
 **Template Profile:**
 - Controller-selected: `none (lead controller)`
@@ -269,8 +305,8 @@ contracts and the explicit deferred policy decisions.
 - `skill-backend-verification`
 
 **Files And Symbols:**
-- Inspect and modify: `src/fitcv/evidence.py:project_candidate_evidence`, `select_ranking_evidence`, `build_evidence_excerpt`, `_select_channel_candidates`, `_merge_channel_pools`, `_recover_verified_supporters`
-- Verify: `tests/test_evidence.py`, `tests/test_ai_score.py`
+- Inspect and modify: `src/fitcv/evidence.py:project_candidate_evidence`, `select_ranking_evidence`, `retrieve_evidence_bundle`, `build_evidence_excerpt`, `_select_channel_candidates`, `_merge_channel_pools`, `_recover_verified_supporters`; `src/fitcv/agentic_cv_analysis.py` for the CV-analysis handoff; `src/fitcv/ai_score.py:build_ranking_job_input` for scorer-visible context.
+- Verify: `tests/test_evidence.py`, `tests/test_agentic_cv_analysis.py`, `tests/test_ai_score.py`
 
 **Dependencies:**
 - Task 1 must pass so required-skill descriptors use complete canonical requirements.
@@ -281,11 +317,11 @@ contracts and the explicit deferred policy decisions.
 - Stop for: changing evidence-source ranking policy without a fixture proving the new order, or deleting source attribution fields
 
 **Steps:**
-- [ ] Step 1: Add a regression where an item is selected because `scoring_context` contains the decisive technology, while `text` is generic; assert both remain available to the scorer.
-- [ ] Step 2: Add a saturated-channel regression where the only proof for a rare required skill ranks below broad matches; assert the rare supporter survives or is recovered from the complete annotated pool.
-- [ ] Step 3: Separate the scorer excerpt from the retrieval search text so context used to select an item is not discarded at handoff.
-- [ ] Step 4: Reserve one candidate or recovery path per distinct required skill before final channel truncation, while keeping the global evidence budget bounded.
-- [ ] Step 5: Assert selected evidence retains stable IDs, source references, support diagnostics, and matched-term rationale.
+- [x] Step 1: Add a regression where an item is selected because `scoring_context` contains the decisive technology, while `text` is generic; assert both remain available to the scorer.
+- [x] Step 2: Add a saturated-channel regression where the only proof for a rare required skill ranks below broad matches; assert the rare supporter survives or is recovered from the complete annotated pool.
+- [x] Step 3: Trace `retrieve_evidence_bundle -> agentic_cv_analysis -> select_ranking_evidence -> build_ranking_job_input`; separate scorer excerpt from retrieval search text so context used to select an item is not discarded at either handoff.
+- [x] Step 4: Reserve one candidate or recovery path per distinct required skill before final channel truncation, while keeping the global evidence budget bounded.
+- [x] Step 5: Assert selected evidence retains stable IDs, source references, support diagnostics, and matched-term rationale.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_evidence.py tests/test_ai_score.py`
@@ -325,7 +361,7 @@ contracts and the explicit deferred policy decisions.
 **Files And Symbols:**
 - Inspect and modify: `src/fitcv/ai_score.py:build_ranking_request`, `build_ranking_input_diagnostics`, `build_ranking_job_input`, `prioritize_records`, and candidate-summary budget helpers
 - Inspect: `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage` for the evidence-to-score boundary
-- Verify and add: `tests/test_ai_score.py`, `tests/test_scoring_input_integrity.py`
+- Verify and add: `tests/test_ai_score.py`, `tests/test_scoring_input_integrity.py` (this file is absent at the implementation base and must be created by this task)
 
 **Dependencies:**
 - Task 3 must pass so the budgeter receives distinguishable source text, scoring context, and evidence attribution.
@@ -336,11 +372,11 @@ contracts and the explicit deferred policy decisions.
 - Stop for: changing the LLM provider, request budget, holistic ranking weights, or degraded-enrichment policy
 
 **Steps:**
-- [ ] Step 1: Add a boundary regression where the request fits only after evidence is reduced to zero; assert the request is marked evidence-limited or rejected instead of producing an evidence-complete AI score.
-- [ ] Step 2: Add a long-employment/language-history regression with one mandatory candidate skill; assert optional fields are compacted and mandatory-skill overflow is raised only when the mandatory subset itself exceeds its budget.
-- [ ] Step 3: Build `bounded_ranking_input` from the exact selected job, selected candidate, and final evidence representations used for prompt rendering.
-- [ ] Step 4: Derive visible skill counts, evidence counts, omission reasons, and mandatory-core diagnostics from the bounded payload rather than the original source input.
-- [ ] Step 5: Add assertions that serialized prompt content and persisted visibility diagnostics agree field-for-field on the final bounded payload.
+- [x] Step 1: Adopt one explicit contract: when no attributable evidence fits, return `score_status="unscored"`, `score_state="evidence_limited"`, `failure_code="evidence_limited"`, `evidence_limited=true`, and no normal compatibility score; `execute_ranking_stage` preserves that state and existing ranking normalization excludes it from ordinary compatibility ordering. Add a boundary regression for the zero-evidence case.
+- [x] Step 2: Add a long-employment/language-history regression with one mandatory candidate skill; assert optional fields are compacted, records matching mandatory requirements are retained, and mandatory-skill overflow is raised only when the mandatory subset itself exceeds its budget.
+- [x] Step 3: Build `bounded_ranking_input` from the exact selected job, selected candidate, and final evidence representations used for prompt rendering; do not couple completeness diagnostics to `enrichment_degraded` unless a separate policy is approved.
+- [x] Step 4: Derive visible skill counts, evidence counts, omission reasons, and mandatory-core diagnostics from the bounded payload rather than the original source input; preserve the existing `enrichment_degraded` semantics unchanged.
+- [x] Step 5: Add assertions that serialized prompt content and persisted visibility diagnostics agree field-for-field on the final bounded payload.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_ai_score.py tests/test_scoring_input_integrity.py`
@@ -390,11 +426,11 @@ contracts and the explicit deferred policy decisions.
 - Stop for: a failing unrelated suite, a changed stage contract requiring migration, or any request to publish/commit/push
 
 **Steps:**
-- [ ] Step 1: Add or update a deterministic fixture covering a job with mixed canonical/raw skills, a late candidate/project signal, rich scoring context, and a bounded scorer request.
-- [ ] Step 2: Trace the fixture through rule filtering, vector/lexical retrieval, shortlist materialization, evidence selection, ranking-input construction, and final score-state normalization.
-- [ ] Step 3: Assert the required skills that caused admission remain present in the scorer-visible job payload and the strongest selected evidence remains attributable.
-- [ ] Step 4: Document the canonical-skill completeness invariant, retrieval fusion/neutral-baseline invariant, evidence-preservation invariant, and exact-diagnostics invariant.
-- [ ] Step 5: Record the deferred degraded-enrichment and optional-hard-filter policy decisions as explicit follow-up scope rather than silently changing them.
+- [x] Step 1: Add or update a deterministic fixture covering a job with mixed canonical/raw skills, a late candidate/project signal, rich scoring context, and a bounded scorer request.
+- [x] Step 2: Trace the fixture through rule filtering, vector/lexical retrieval, shortlist materialization, evidence selection, ranking-input construction, and final score-state normalization.
+- [x] Step 3: Assert the required skills that caused admission remain present in the scorer-visible job payload and the strongest selected evidence remains attributable.
+- [x] Step 4: Document the canonical-skill completeness invariant, retrieval fusion/neutral-baseline invariant, evidence-preservation invariant, and exact-diagnostics invariant.
+- [x] Step 5: Record the deferred degraded-enrichment and optional-hard-filter policy decisions as explicit follow-up scope rather than silently changing them.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_enrich.py tests/test_candidate.py tests/test_rule_filter.py tests/test_vector_search.py tests/test_evidence.py tests/test_ai_score.py tests/test_ranking.py tests/test_ranking_contract.py tests/test_pipeline.py tests/test_scoring_input_integrity.py`

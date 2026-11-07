@@ -190,7 +190,7 @@ def _preference_dimension_score(job_value: str | None, preferred_values: list[st
         return 0.5
     normalized_job_value = _normalize_text(job_value)
     if not normalized_job_value:
-        return 0.0
+        return 0.5
     return 1.0 if normalized_job_value in preferred_values else 0.0
 
 def _preference_neighbor_score(config: dict[str, Any] | None = None) -> float:
@@ -213,7 +213,7 @@ def _preference_dimension_score_with_neighbors(
     if not preferred_values:
         return 0.5, "neutral"
     if not job_value:
-        return 0.0, "none"
+        return 0.5, "unknown"
     if job_value in preferred_values:
         return 1.0, "exact"
     neighbor_map = neighbors or {}
@@ -337,6 +337,8 @@ def rank_jobs(
         score_state = normalize_score_state(job)
         job["score_status"] = score_state["score_status"]
         job["failure_code"] = score_state["failure_code"]
+        job["disposition"] = score_state["disposition"]
+        job["retry_eligible"] = score_state["retry_eligible"]
         if score_state["score_status"] != SCORE_STATUS_VALID or job.get("baseline_fit") is None:
             continue
         scored_jobs.append(job)

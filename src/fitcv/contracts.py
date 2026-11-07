@@ -17,6 +17,8 @@ lifecycle:
 
 from __future__ import annotations
 
+import hashlib
+import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -24,6 +26,7 @@ from typing import Any, Mapping
 RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v2"
 STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
 CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v3"
+EVIDENCE_INTEGRITY_POLICY_VERSION = "evidence-integrity-v2"
 FINAL_ARTIFACT_CONTRACT_VERSION = "fitcv.final_artifact.v1"
 TRACE_CONTRACT_VERSION = "fitcv.trace.v1"
 EFFICIENCY_CONTRACT_VERSION = "fitcv.efficiency.v1"
@@ -117,6 +120,13 @@ SCRAPER_CAMEL_TO_SNAKE: dict[str, str] = {
     "posterProfileUrl": "poster_profile_url",
     "applyUrl": "apply_url",
     "applyType": "apply_type",
+    "descriptionHtml": "description_html",
+    "sourceDescription": "description_source",
+    "descriptionQuality": "description_quality",
+    "descriptionSourceChecksum": "description_source_checksum",
+    "descriptionSourceLength": "description_source_length",
+    "descriptionQualitySignals": "description_quality_signals",
+    "descriptionBoundary": "description_boundary",
 }
 
 REQUIRED_SCRAPER_FIELDS: tuple[str, ...] = (
@@ -139,7 +149,66 @@ CANONICAL_JOB_METADATA_FIELDS: tuple[str, ...] = (
     "source_job_id",
     "description_source",
     "description_complete",
+    "description_quality",
+    "description_source_checksum",
+    "description_source_length",
+    "description_quality_signals",
+    "description_boundary",
 )
+
+_DESCRIPTION_CONTACT_RE = re.compile(
+    r"\b(?:lebenslauf|cv|resume|telefon|tel\.?|e[- ]?mail|email|kontakt|contact|bewerben|apply)\b|[+]?\d[\d ()/-]{6,}",
+    re.IGNORECASE,
+)
+_DESCRIPTION_CONTENT_RE = re.compile(
+    r"\b(?:aufgaben|anforderungen|anforderung|profil|kenntnisse|verantwort(?:ung|lich)|qualifikation|skills?|requirements?|responsibilit(?:y|ies)|develop|build|experience|erfahrung|power\s*bi|python|sql)\b",
+    re.IGNORECASE,
+)
+_DESCRIPTION_BENEFITS_RE = re.compile(
+    r"\b(?:benefits?|vorteile|perks?|flexible\s+hours?|remote\s+work|meal\s+vouchers?|commuter\s+support)\b",
+    re.IGNORECASE,
+)
+
+
+def build_description_quality(description: Any, source: Any = "") -> dict[str, Any]:
+    """Return one provenance-aware quality contract for a job description."""
+    text = str(description or "").strip()
+    source_name = str(source or "").strip() or "unknown"
+    checksum = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    signals: list[str] = []
+    if not text:
+        quality = "missing"
+        signals.append("empty")
+    else:
+        contact_matches = _DESCRIPTION_CONTACT_RE.findall(text)
+        content_match = bool(_DESCRIPTION_CONTENT_RE.search(text))
+        contact_only = bool(contact_matches) and not content_match
+        benefits_only = bool(_DESCRIPTION_BENEFITS_RE.search(text)) and not content_match
+        if contact_only:
+            quality = "boilerplate_only"
+            signals.append("contact_or_application_only")
+        elif benefits_only:
+            quality = "boilerplate_only"
+            signals.append("benefits_only")
+        elif source_name in {"api_structured_summary", "text_snippet"}:
+            quality = "partial"
+            signals.append(source_name)
+        elif len(text) < 80:
+            quality = "partial"
+            signals.append("short_text")
+        elif content_match:
+            quality = "full"
+            signals.append("substantive_content")
+        else:
+            quality = "unknown"
+            signals.append("no_substantive_signal")
+    return {
+        "description_quality": quality,
+        "description_source_checksum": checksum,
+        "description_source_length": len(text),
+        "description_quality_signals": signals,
+        "description_boundary": {"start": 0, "end": len(text)},
+    }
 
 DEFAULT_APPLICATION_STATUSES: tuple[str, ...] = (
     "applied",

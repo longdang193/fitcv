@@ -52,7 +52,21 @@ def test_build_scanner_request_normalizes_shared_contract() -> None:
     assert request.careers_url == "https://job-boards.eu.greenhouse.io/acme"
     assert request.keywords == ("Data Engineer", "Analytics")
     assert request.max_jobs == 50
+    assert request.acquisition_limit == 50
     assert request.timeout_seconds == 60
+
+
+def test_build_scanner_request_separates_acquisition_limit_from_legacy_max_jobs() -> None:
+    request = job_sources.build_scanner_request(
+        provider="ashby",
+        company_name="ACME",
+        careers_url="https://jobs.ashbyhq.com/acme",
+        max_jobs=50,
+        acquisition_limit=200,
+    )
+
+    assert request.max_jobs == 50
+    assert request.acquisition_limit == 200
 
 
 @pytest.mark.parametrize(
@@ -210,6 +224,44 @@ def test_parse_workday_jobs_uses_public_page_description() -> None:
     assert validate_linkedin_schema(jobs[0]) == []
     assert jobs[0]["publishedAt"] == "2026-07-21"
     assert jobs[0]["description"] == "Build Databricks pipelines."
+
+
+def test_workday_detail_fetch_capacity_stops_before_later_failure(monkeypatch) -> None:
+    request = job_sources.build_scanner_request(
+        provider="workday",
+        company_name="Zalando",
+        careers_url="https://zalando.wd3.myworkdayjobs.com/ZalandoSiteWD",
+        keywords=("data engineer",),
+        max_jobs=1,
+        acquisition_limit=1,
+    )
+    payload = {
+        "jobPostings": [
+            {"title": "Senior Data Engineer", "externalPath": "/job/Berlin/Data-Engineer_1"},
+            {"title": "Nurse", "externalPath": "/job/Berlin/Nurse_2"},
+        ],
+        "total": 2,
+    }
+    detail_calls: list[str] = []
+
+    monkeypatch.setattr(job_sources, "_check_public_dns", lambda *_args: None)
+    monkeypatch.setattr(job_sources._ats, "_workday_endpoints", lambda _: ("https://example.test/api", "https://example.test"))
+    monkeypatch.setattr(job_sources._ats, "_fetch_json", lambda *_args, **_kwargs: payload)
+
+    def fetch_detail(url: str, *_args) -> str:
+        detail_calls.append(url)
+        if len(detail_calls) > 1:
+            raise AssertionError("detail capacity was exceeded")
+        return '<meta property="og:description" content="Build data pipelines.">'
+
+    monkeypatch.setattr(job_sources, "_fetch_detail", fetch_detail)
+
+    jobs = job_sources._acquire_workday(request)
+
+    assert len(jobs) == 1
+    assert len(detail_calls) == 1
+    assert request.acquisition_diagnostics["fetched_detail_count"] == 1
+    assert request.acquisition_diagnostics["provider_capped"] is True
 
 
 def test_verify_scanner_portal_reuses_provider_detection() -> None:
