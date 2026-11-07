@@ -2814,6 +2814,66 @@ def _minimal_job(url: str = "https://example.com/1") -> dict:
     }
 
 
+def test_evidence_integrity_backend_trace() -> None:
+    from fitcv.ai_score import build_ranking_job_input
+    from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_rankable_skills
+    from fitcv.evidence import project_candidate_evidence, select_ranking_evidence
+    from fitcv.vector_search import (
+        build_candidate_query_components,
+        build_candidate_query_signature_record,
+        build_candidate_query_text,
+    )
+
+    profile = {
+        "name": "Evidence Candidate",
+        "preferences": {"target_role": "Data Engineer"},
+        "experiences": [{
+            "id": "experience_1",
+            "role": "Data Engineer",
+            "company": "Example",
+            "bullets": [
+                {"text": "Built Python ETL pipelines.", "skills": ["Python"]},
+                {
+                    "text": "No Kubernetes experience was required.",
+                    "skills": ["Kubernetes"],
+                    "support_status": "claimed_only",
+                },
+            ],
+        }],
+        "projects": [{
+            "id": "project_1",
+            "name": "Claimed Kubernetes project",
+            "support_status": "claimed_only",
+            "tech_stack": ["Kubernetes"],
+            "business_value": "Built a Kubernetes service.",
+        }],
+        "skills": [],
+    }
+    runtime_profile = converge_candidate_profile_for_runtime(profile)
+    evidence_pool = project_candidate_evidence(runtime_profile)
+    components = build_candidate_query_components(runtime_profile)
+    query_text = build_candidate_query_text(runtime_profile)
+    signature = build_candidate_query_signature_record(components)
+    ranking_input = build_ranking_job_input(
+        {"required_skills": ["Python", "Kubernetes"]},
+        runtime_profile,
+    )
+    selected = select_ranking_evidence(
+        evidence_pool,
+        {"required_skills": ["Python", "Kubernetes"]},
+    )
+
+    assert "preferences" not in runtime_profile
+    assert "Python" in flatten_rankable_skills(runtime_profile)
+    assert "Kubernetes" not in flatten_rankable_skills(runtime_profile)
+    assert "Kubernetes" not in components["technology_hints"]
+    assert "Kubernetes" not in query_text
+    assert "Kubernetes" not in json.dumps(signature["payload"])
+    assert any("Python" in item["scoring_context"] for item in selected)
+    assert "Kubernetes" not in ranking_input["candidate_summary"]
+    assert all(item["admission_status"] == "admitted" for item in selected)
+
+
 def test_cv_analysis_stage_concurrency_defaults_to_one() -> None:
     from fitcv.pipeline import _cv_analysis_stage_concurrency
 
@@ -3189,16 +3249,18 @@ def test_build_cv_analysis_input_fingerprint_ignores_runtime_entry_count_only() 
 def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     """@proves cv_system.exact-match-late-stage-reuse"""
     from fitcv.ai_score import build_ai_score_input_fingerprint, build_ranking_job_input
+    from fitcv.candidate import converge_candidate_profile_for_runtime
     from fitcv.pipeline import run_pipeline
     from fitcv.vector_search import build_candidate_query_text
 
     job = _minimal_job()
     profile = _minimal_profile()
+    runtime_profile = converge_candidate_profile_for_runtime(profile)
     config = _minimal_config()
-    candidate_summary = build_candidate_query_text(profile, config)
+    candidate_summary = build_candidate_query_text(runtime_profile, config)
     ranking_input = build_ranking_job_input(
         job,
-        profile,
+        runtime_profile,
         config,
     )
     for evidence in ranking_input.get("candidate_evidence") or []:

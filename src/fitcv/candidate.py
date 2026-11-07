@@ -341,13 +341,18 @@ def _adapt_legacy_parent(
     section: str,
     item: dict[str, Any],
     document_id: str,
-) -> tuple[dict[str, Any], list[str], dict[str, dict[str, list[str]]]]:
+    *,
+    include_runtime_admission: bool = False,
+) -> tuple[dict[str, Any], list[str], dict[str, dict[str, list[str]]], dict[str, dict[str, str]]]:
     normalized = copy.deepcopy(item)
+    parent_support_status = item.get("support_status")
     parent_skill_names = [str(value or "").strip() for value in item.get("skills") or []]
     bullet_skill_names: dict[str, list[int]] = {}
+    bullet_support_status: dict[int, Any] = {}
     for index, bullet in enumerate(item.get("bullets") or []):
         if not isinstance(bullet, dict):
             continue
+        bullet_support_status[index] = bullet.get("support_status")
         for skill in bullet.get("skills") or []:
             name = str(skill or "").strip()
             if name:
@@ -525,6 +530,23 @@ def _adapt_legacy_parent(
     for field_name, end_boundary in (("start", False), ("end", True), ("date", False), ("expires", True)):
         if field_name in normalized:
             normalized[field_name] = _normalize_legacy_month(normalized[field_name], end=end_boundary)
+    runtime_evidence_admission: dict[str, dict[str, str]] = {}
+
+    def _legacy_admission_status(status: Any) -> str:
+        normalized_status = str(status or "supported").strip().casefold()
+        return "admitted" if normalized_status in {"supported", "verified", "partial"} else "excluded"
+
+    for evidence_item in evidence:
+        status = parent_support_status
+        for bullet_index, evidence_id in bullet_evidence_ids.items():
+            if evidence_id == evidence_item["id"]:
+                status = bullet_support_status.get(bullet_index) or parent_support_status
+                break
+        runtime_evidence_admission[evidence_item["id"]] = {
+            "admission_status": _legacy_admission_status(status),
+            "support_status": str(status or "supported"),
+        }
+
     section_definition = next(
         definition
         for definition in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
@@ -533,6 +555,8 @@ def _adapt_legacy_parent(
     allowed_fields = {"id", "source_refs", "evidence", *section_definition.get("item", {})}
     normalized = {key: value for key, value in normalized.items() if key in allowed_fields}
     normalized["evidence"] = evidence
+    if include_runtime_admission and runtime_evidence_admission:
+        normalized["_runtime_evidence_admission"] = runtime_evidence_admission
     all_evidence_ids = [entry["id"] for entry in evidence]
     claim_refs: dict[str, dict[str, list[str]]] = {
         "skills": {},
@@ -560,16 +584,42 @@ def _adapt_legacy_parent(
             claim_refs["skills"][name] = list(
                 dict.fromkeys([*claim_refs["skills"][name], *evidence_ids])
             )
-    return normalized, all_evidence_ids, claim_refs
+    claim_statuses: dict[str, dict[str, str]] = {
+        "skills": {},
+        "role_families": {},
+        "domain_tags": {},
+        "responsibility_themes": {},
+    }
+    for name in parent_skill_names:
+        if name:
+            claim_statuses["skills"][name] = str(parent_support_status or "supported")
+    for name in bullet_skill_names:
+        effective_statuses = [
+            bullet_support_status.get(index) or parent_support_status or "supported"
+            for index in bullet_skill_names[name]
+        ]
+        claim_statuses["skills"][name] = (
+            "supported"
+            if any(str(status).strip().casefold() in {"supported", "verified", "partial"} for status in effective_statuses)
+            else "unsupported"
+        )
+    return normalized, all_evidence_ids, claim_refs, claim_statuses
 
 
 def adapt_candidate_profile_to_v2(
     profile: dict[str, Any],
     uploaded_source_document: dict[str, Any],
+    *,
+    include_runtime_admission: bool = False,
 ) -> dict[str, Any]:
     if not isinstance(profile, dict):
         raise ValueError("Candidate profile must be a mapping")
     document_id = str(uploaded_source_document["id"])
+
+    def _canonical_support_status(value: Any, refs: list[str]) -> str:
+        status = str(value or "").strip().casefold()
+        return "supported" if refs and status in {"supported", "verified", "partial"} else "unsupported"
+
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
         supplied_documents = []
@@ -610,8 +660,9 @@ def adapt_candidate_profile_to_v2(
                 claim.setdefault("origin", "user")
                 claim.setdefault("confidence", 1.0)
                 claim["evidence_refs"] = list(dict.fromkeys(claim.get("evidence_refs") or []))
-                if not claim.get("support_status"):
-                    claim["support_status"] = "supported" if claim["evidence_refs"] else "claimed_only"
+                claim["support_status"] = _canonical_support_status(
+                    claim.get("support_status"), claim["evidence_refs"]
+                )
                 claims.append(claim)
             normalized[section] = claims
         normalized.setdefault("search_preferences", {})
@@ -630,6 +681,12 @@ def adapt_candidate_profile_to_v2(
     }
     parent_evidence: dict[str, list[str]] = {}
     legacy_claim_refs: dict[str, dict[str, set[str]]] = {
+        "skills": {},
+        "role_families": {},
+        "domain_tags": {},
+        "responsibility_themes": {},
+    }
+    legacy_claim_status: dict[str, dict[str, str]] = {
         "skills": {},
         "role_families": {},
         "domain_tags": {},
@@ -668,7 +725,12 @@ def adapt_candidate_profile_to_v2(
                 "domain_tags": list(value.get("domain_tags") or []),
                 "responsibility_themes": list(value.get("responsibility_themes") or []),
             }
-            parent, evidence_ids, scoped_claim_refs = _adapt_legacy_parent(section, value, document_id)
+            parent, evidence_ids, scoped_claim_refs, scoped_claim_status = _adapt_legacy_parent(
+                section,
+                value,
+                document_id,
+                include_runtime_admission=include_runtime_admission,
+            )
             adapted.append(parent)
             parent_evidence[parent["id"]] = evidence_ids
             for claim_section, names in metadata.items():
@@ -680,6 +742,11 @@ def adapt_candidate_profile_to_v2(
                     legacy_claim_refs[claim_section].setdefault(normalized_name, set()).update(
                         scoped_refs if scoped_refs is not None else evidence_ids
                     )
+                    status = scoped_claim_status.get(claim_section, {}).get(normalized_name)
+                    if status is not None:
+                        current_status = legacy_claim_status[claim_section].get(normalized_name)
+                        if current_status is None or status.casefold() in {"supported", "verified", "partial"}:
+                            legacy_claim_status[claim_section][normalized_name] = status
         normalized[section] = adapted
     skills: list[dict[str, Any]] = []
     for index, value in enumerate(profile.get("skills") or []):
@@ -695,12 +762,19 @@ def adapt_candidate_profile_to_v2(
         refs: list[str] = []
         for ref in claim.get("evidence_refs") or []:
             refs.extend(parent_evidence.get(ref, [ref]))
+        support_status = claim.get("support_status")
+        if support_status is None:
+            support_status = (
+                legacy_claim_status["skills"].get(str(claim.get("name") or ""), "supported")
+                if refs
+                else "claimed_only"
+            )
         claim.update(
             {
                 "id": claim.get("id") or _stable_candidate_id("skill", index, claim.get("name")),
                 "origin": claim.get("origin") or "user",
                 "confidence": claim.get("confidence", 1.0),
-                "support_status": claim.get("support_status") or ("supported" if refs else "claimed_only"),
+                "support_status": support_status,
                 "evidence_refs": list(dict.fromkeys(refs)),
             }
         )
@@ -711,7 +785,9 @@ def adapt_candidate_profile_to_v2(
         if existing is not None:
             existing["evidence_refs"] = list(dict.fromkeys([*existing["evidence_refs"], *sorted(refs)]))
             if refs and existing.get("support_status") == "claimed_only":
-                existing["support_status"] = "supported"
+                existing["support_status"] = _canonical_support_status(
+                    legacy_claim_status["skills"].get(name, "supported"), existing["evidence_refs"]
+                )
             continue
         skills.append(
             {
@@ -719,9 +795,15 @@ def adapt_candidate_profile_to_v2(
                 "name": name,
                 "origin": "extracted_explicit",
                 "confidence": 1.0,
-                "support_status": "supported" if refs else "unsupported",
+                "support_status": _canonical_support_status(
+                    legacy_claim_status["skills"].get(name, "supported"), refs
+                ),
                 "evidence_refs": sorted(refs),
             }
+        )
+    for claim in skills:
+        claim["support_status"] = _canonical_support_status(
+            claim.get("support_status"), list(claim.get("evidence_refs") or [])
         )
     normalized["skills"] = skills
     for section in ("role_families", "domain_tags", "responsibility_themes"):
@@ -740,10 +822,20 @@ def adapt_candidate_profile_to_v2(
 
 def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str, Any]:
     """Return one validated v2-compatible runtime snapshot without mutating input."""
+    runtime_evidence_admission: dict[str, dict[str, str]] = {}
+    runtime_compatibility: dict[str, Any] = {}
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
         normalized.pop("preferences", None)
+        supplied_admission = normalized.pop("_runtime_evidence_admission", {})
+        supplied_compatibility = normalized.pop("_runtime_compatibility", {})
+        if isinstance(supplied_admission, dict):
+            runtime_evidence_admission.update(copy.deepcopy(supplied_admission))
+        if isinstance(supplied_compatibility, dict):
+            runtime_compatibility.update(copy.deepcopy(supplied_compatibility))
     else:
+        if profile.get("years_experience") is not None:
+            runtime_compatibility["years_experience"] = copy.deepcopy(profile["years_experience"])
         checksum = canonical_candidate_checksum(profile)
         normalized = adapt_candidate_profile_to_v2(
             profile,
@@ -755,11 +847,42 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
                 "sha256": checksum,
                 "parser": {"name": "fitcv-v1-runtime-adapter", "version": "1"},
             },
+            include_runtime_admission=True,
         )
+    for section in _V2_EVIDENCE_COLLECTIONS:
+        for parent in normalized.get(section) or []:
+            if not isinstance(parent, dict):
+                continue
+            parent_admission = parent.pop("_runtime_evidence_admission", {})
+            if isinstance(parent_admission, dict):
+                runtime_evidence_admission.update(copy.deepcopy(parent_admission))
+    for section in _V2_DERIVED_COLLECTIONS:
+        for claim in normalized.get(section) or []:
+            if not isinstance(claim, dict):
+                continue
+            claim_status = str(claim.get("support_status") or "").strip().casefold()
+            for evidence_id in claim.get("evidence_refs") or []:
+                key = str(evidence_id)
+                current = runtime_evidence_admission.get(key, {}).get("admission_status")
+                if claim_status == "supported" and current != "excluded":
+                    runtime_evidence_admission.setdefault(key, {})["admission_status"] = "admitted"
+                elif current != "admitted":
+                    runtime_evidence_admission.setdefault(key, {})["admission_status"] = "excluded"
     errors = validate_candidate_profile_v2(normalized)
     if errors:
         raise ValueError("; ".join(errors))
+    if runtime_evidence_admission:
+        normalized["_runtime_evidence_admission"] = runtime_evidence_admission
+    if runtime_compatibility:
+        normalized["_runtime_compatibility"] = runtime_compatibility
     return normalized
+
+
+def runtime_profile_value(profile: dict[str, Any], key: str, default: Any = None) -> Any:
+    value = profile.get(key)
+    if value is not None:
+        return value
+    return (profile.get("_runtime_compatibility") or {}).get(key, default)
 
 
 def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
@@ -917,6 +1040,11 @@ def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
             confidence = claim.get("confidence")
             if not isinstance(confidence, (int, float)) or not 0 <= float(confidence) <= 1:
                 errors.append(f"{section}/{claim.get('id')} has invalid confidence")
+            support_status = claim.get("support_status")
+            if support_status not in {"supported", "unsupported"}:
+                errors.append(f"{section}/{claim.get('id')} has invalid support_status")
+            if support_status == "supported" and not claim.get("evidence_refs"):
+                errors.append(f"{section}/{claim.get('id')} supported claims require evidence_refs")
     for section in _V2_DERIVED_COLLECTIONS:
         for claim in profile.get(section) or []:
             if not isinstance(claim, dict):
@@ -1002,7 +1130,11 @@ def _normalize_text_list(values: Any) -> list[str]:
 def _normalize_profile_alignment_metadata(profile: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(profile)
 
-    preferences = dict(normalized.get("preferences") or {})
+    preferences = dict(
+        normalized.get("preferences")
+        or normalized.get("search_preferences")
+        or {}
+    )
     for key in _PREFERENCE_TEXT_KEYS:
         text = _normalize_optional_text(preferences.get(key))
         if text is not None:
@@ -1118,11 +1250,23 @@ def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any
             f"Candidate profile must be a {source_format} object, got {type(profile).__name__}"
         )
     if profile.get("schema_version") == "candidate-profile.v2":
-        errors = validate_candidate_profile_v2(profile)
+        runtime_admission = profile.get("_runtime_evidence_admission")
+        runtime_compatibility = profile.get("_runtime_compatibility")
+        validation_profile = copy.deepcopy(profile)
+        validation_profile.pop("_runtime_evidence_admission", None)
+        validation_profile.pop("_runtime_compatibility", None)
+        legacy_preferences = validation_profile.pop("preferences", None)
+        errors = validate_candidate_profile_v2(validation_profile)
         if errors:
             raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
-        normalized_profile = copy.deepcopy(profile)
-        normalized_profile["preferences"] = copy.deepcopy(profile.get("search_preferences") or {})
+        normalized_profile = validation_profile
+        if isinstance(runtime_admission, dict):
+            normalized_profile["_runtime_evidence_admission"] = runtime_admission
+        if isinstance(runtime_compatibility, dict):
+            normalized_profile["_runtime_compatibility"] = runtime_compatibility
+        normalized_profile["preferences"] = copy.deepcopy(
+            profile.get("search_preferences") or legacy_preferences or {}
+        )
         return normalized_profile
     errors = validate_profile(profile)
     if errors:
@@ -1480,7 +1624,7 @@ _NON_RANKABLE_SUPPORT_STATUSES = frozenset({"unsupported", "unverified", "reject
 
 
 def _is_rankable_support_status(value: Any) -> bool:
-    return str(value or "supported").strip().casefold() not in _NON_RANKABLE_SUPPORT_STATUSES
+    return str(value or "").strip().casefold() == "supported"
 
 
 def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
@@ -1493,12 +1637,22 @@ def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
     """
     seen: set[str] = set()
     result: list[str] = []
+    runtime_admission = profile.get("_runtime_evidence_admission") or {}
+    canonical_profile = profile.get("schema_version") == "candidate-profile.v2"
 
-    def _add(value: Any, support_status: Any = None) -> None:
+    def _add(value: Any, support_status: Any = None, evidence_refs: Any = None) -> None:
         if isinstance(value, dict):
             support_status = value.get("support_status", support_status)
+            evidence_refs = value.get("evidence_refs", evidence_refs)
             value = value.get("name")
         text = str(value or "").strip()
+        if support_status is None and not canonical_profile:
+            support_status = "supported"
+        refs = [str(ref) for ref in list(evidence_refs or [])]
+        if runtime_admission and refs and not any(
+            runtime_admission.get(ref, {}).get("admission_status") == "admitted" for ref in refs
+        ):
+            return
         if not text or not _is_rankable_support_status(support_status):
             return
         key = text.casefold()
@@ -1509,7 +1663,7 @@ def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
 
     for skill in profile.get("skills") or []:
         if isinstance(skill, dict):
-            _add(skill.get("name"), skill.get("support_status"))
+            _add(skill)
         else:
             _add(skill)
 
@@ -1543,7 +1697,7 @@ def prepare_profile_rows(profile: dict[str, Any]) -> dict[str, list[dict[str, An
     profile = _ensure_normalized_profile(profile)
     now = datetime.now(tz=timezone.utc).isoformat()
     profile_id = str(uuid.uuid4())
-    prefs = profile.get("preferences", {})
+    prefs = profile.get("preferences") or profile.get("search_preferences") or {}
 
     # ── candidate_profile (1 row) ─────────────────────────────────────────────
     profile_rows: list[dict[str, Any]] = [{

@@ -21,8 +21,8 @@ import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
-from fitcv.contracts import normalize_analysis_channel_mapping
+from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills, runtime_profile_value
+from fitcv.contracts import EVIDENCE_INTEGRITY_POLICY_VERSION, normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
     _assess_responsibility_support,
@@ -368,7 +368,9 @@ def _loose_project_review_allowed(
     seniority_values = [
         job.get("seniority"),
         job.get("experience_level"),
-        dict(profile.get("preferences") or {}).get("seniority_target"),
+        dict(profile.get("preferences") or profile.get("search_preferences") or {}).get(
+            "seniority_target"
+        ),
     ]
     normalized = {
         _normalise_seniority(str(value), config)
@@ -378,7 +380,7 @@ def _loose_project_review_allowed(
     if normalized.intersection({"senior", "lead", "manager", "director"}):
         return False
     try:
-        if float(profile.get("years_experience")) >= 5.0:
+        if float(runtime_profile_value(profile, "years_experience")) >= 5.0:
             return False
     except (TypeError, ValueError):
         pass
@@ -1398,6 +1400,7 @@ def _build_analysis_input_components(
     components["experience_evidence_mode"] = str(
         resolve_experience_evidence_mode(config)
     )
+    components["evidence_integrity_policy_version"] = EVIDENCE_INTEGRITY_POLICY_VERSION
     components["requirement_resolutions_hash"] = _hash(list(payload.get("requirement_resolutions") or []))
     return components
 
@@ -1442,6 +1445,9 @@ def _reuse_rejection_reason(
         analysis_input_components.get("experience_evidence_mode") or "full"
     ):
         return "experience_evidence_mode_changed"
+    prior_evidence_policy = str(prior_components.get("evidence_integrity_policy_version") or "")
+    if prior_evidence_policy and prior_evidence_policy != EVIDENCE_INTEGRITY_POLICY_VERSION:
+        return "evidence_integrity_policy_version_changed"
     return None
 
 
@@ -1532,7 +1538,7 @@ def analyze_ranked_job(
     gap_summary: dict[str, Any] | None = None
     loose_experience_review = False
     try:
-        profile_years_experience = profile.get("years_experience")
+        profile_years_experience = runtime_profile_value(profile, "years_experience")
         profile = converge_candidate_profile_for_runtime(profile)
         profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(

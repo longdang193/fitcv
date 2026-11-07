@@ -4,6 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 import pytest
+import yaml
 from unittest.mock import patch
 from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
 from fitcv.embeddings import build_embedding_contract_fingerprint
@@ -257,6 +258,102 @@ def test_build_candidate_query_components_filter_unsupported_technology_claims()
     row = lexical_result["production_rows"][0]
     assert row["retrieval_components"]["technology_overlap"] == 0.0
     assert _has_affirmative_lexical_relevance(row) is False
+
+
+def test_build_candidate_query_components_filter_negated_project_material() -> None:
+    profile = {
+        "projects": [
+            {
+                "name": "Claimed Kubernetes project",
+                "support_status": "claimed_only",
+                "domain_tags": ["banking"],
+                "tech_stack": ["Kubernetes"],
+                "business_value": "Built a Kubernetes service.",
+                "highlights": ["Built Kubernetes deployment."],
+            },
+            {
+                "name": "Negative project",
+                "support_status": "supported",
+                "domain_tags": [{"name": "banking", "support_status": "unsupported"}],
+                "tech_stack": ["Kubernetes"],
+                "business_value": "No Kubernetes experience was required.",
+                "highlights": ["No Kubernetes deployment was completed."],
+                "evidence": [
+                    {
+                        "title": "Technology stack",
+                        "text": "No Kubernetes experience was required.",
+                        "skills": ["Kubernetes"],
+                    }
+                ],
+            },
+            {
+                "name": "Supported analytics project",
+                "support_status": "supported",
+                "domain_tags": ["fintech"],
+                "tech_stack": ["Python"],
+                "business_value": "Built a fraud analytics workflow with Python.",
+            },
+        ]
+    }
+
+    components = build_candidate_query_components(profile)
+    signature = build_candidate_query_signature_record(components)
+    query_text = build_candidate_query_text(profile)
+
+    assert "Kubernetes" not in components["technology_hints"]
+    assert "banking" not in components["domain_hints"]
+    assert all("Claimed Kubernetes project" not in value for value in components["project_evidence_hints"])
+    assert "Python" in components["technology_hints"]
+    assert "fintech" in components["domain_hints"]
+    assert "Kubernetes" not in query_text
+    assert "Kubernetes" not in json.dumps(signature["payload"])
+
+
+def test_build_candidate_query_components_ignores_negated_canonical_project_technology() -> None:
+    profile = {
+        "projects": [
+            {
+                "name": "Canonical project",
+                "evidence": [
+                    {
+                        "id": "ev-tech",
+                        "kind": "project_highlight",
+                        "title": "Technology stack",
+                        "text": "No Kubernetes experience was required.",
+                        "skills": ["Kubernetes"],
+                    }
+                ],
+            }
+        ],
+        "experiences": [],
+        "skills": [],
+    }
+
+    components = build_candidate_query_components(converge_candidate_profile_for_runtime(profile))
+
+    assert "Kubernetes" not in components["technology_hints"]
+
+
+def test_build_candidate_query_components_reads_admitted_top_level_domain_claims() -> None:
+    profile = converge_candidate_profile_for_runtime(
+        {
+            **yaml.safe_load(Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8")),
+            "domain_tags": [
+                {
+                    "id": "domain_banking",
+                    "name": "banking",
+                    "origin": "inferred",
+                    "confidence": 0.9,
+                    "support_status": "supported",
+                    "evidence_refs": ["ev_exp_reporting_automation"],
+                }
+            ],
+        }
+    )
+
+    components = build_candidate_query_components(profile)
+
+    assert "banking" in components["domain_hints"]
 
 
 def test_rank_profile_skills_ignores_rejected_child_claim_duplicates() -> None:

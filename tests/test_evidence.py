@@ -264,6 +264,27 @@ def test_requirement_support_annotations_reach_channel_selection() -> None:
     assert bundle["selected_evidence_ids"] == ["ev-z-target"]
 
 
+def test_retrieve_evidence_bundle_excludes_non_admitted_projection_items() -> None:
+    profile = _cached_evidence_profile(
+        _cached_evidence_item("ev-admitted", ["Python"], "Built Python pipelines"),
+        _cached_evidence_item("ev-excluded", ["Python"], "Unsupported Python claim"),
+    )
+    profile["_projected_evidence_pool"][1]["admission_status"] = "excluded"
+
+    bundle = retrieve_evidence_bundle(profile, {"required_skills": ["Python"]}, 5)
+
+    assert "ev-excluded" not in bundle["retrieved_evidence_ids"]
+    assert "ev-excluded" not in bundle["selected_evidence_ids"]
+
+
+def test_project_candidate_evidence_rejects_invalid_canonical_profile() -> None:
+    profile = _v2_profile()
+    profile["skills"][0]["evidence_refs"] = ["missing-evidence"]
+
+    with pytest.raises(ValueError, match="dangling evidence_refs"):
+        project_candidate_evidence(profile)
+
+
 def test_semantic_alignment_reports_actual_embedding_backend() -> None:
     profile = _cached_evidence_profile(_cached_evidence_item("ev-sql", ["SQL"], "Built SQL reports"))
     bundle = retrieve_evidence_bundle(
@@ -2772,6 +2793,32 @@ def test_ranking_channel_matching_rejects_only_negated_occurrences() -> None:
         "title": "Pipelines",
         "text": "No Python experience was required for the role.",
         "scoring_context": "No Python experience was required for the role.",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]
+
+    assert coverage["required"] == []
+
+
+def test_ranking_channel_matching_does_not_let_structured_tags_override_negated_text() -> None:
+    item = {
+        "title": "Pipelines",
+        "text": "No Python experience was required for the role.",
+        "skills": ["Python"],
+        "scoring_context": "Python pipelines",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]
+
+    assert coverage["required"] == []
+
+
+def test_ranking_channel_matching_requires_affirmative_source_text_for_structured_tags() -> None:
+    item = {
+        "title": "Pipelines",
+        "text": "Built data pipelines in production.",
+        "skills": ["Python"],
+        "scoring_context": "Python pipelines",
     }
 
     coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]

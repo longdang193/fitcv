@@ -14,6 +14,7 @@ from fitcv.candidate import (
     candidate_profile_field_schema,
     converge_candidate_profile_for_runtime,
     flatten_skills,
+    flatten_rankable_skills,
     infer_effective_preferences,
     load_profile_json_text,
     load_profile_yaml,
@@ -201,6 +202,40 @@ def test_legacy_bullet_skill_upgrades_existing_claimed_only_skill_to_supported()
     assert skill["evidence_refs"]
 
 
+def test_legacy_non_rankable_bullet_remains_auditable_but_is_not_positive_evidence() -> None:
+    profile = {
+        "name": "Legacy Candidate",
+        "experiences": [
+            {
+                "id": "experience_1",
+                "role": "Analyst",
+                "company": "Example",
+                "bullets": [
+                    {
+                        "text": "No Python experience was required.",
+                        "skills": ["Python"],
+                        "support_status": "claimed_only",
+                    }
+                ],
+            }
+        ],
+        "skills": [],
+    }
+
+    converged = converge_candidate_profile_for_runtime(profile)
+    python_claim = next(item for item in converged["skills"] if item["name"] == "Python")
+    projected = evidence_module.project_candidate_evidence(converged)
+    selected = evidence_module.select_ranking_evidence(
+        projected,
+        {"required_skills": ["Python"]},
+    )
+
+    assert python_claim["support_status"] == "unsupported"
+    assert flatten_rankable_skills(converged) == []
+    assert any(item.get("admission_status") == "excluded" for item in projected)
+    assert selected == []
+
+
 def test_legacy_language_dimensions_survive_v2_adaptation() -> None:
     converted = adapt_candidate_profile_to_v2(
         {
@@ -274,6 +309,24 @@ def test_runtime_convergence_rejects_invalid_v2_references() -> None:
     with pytest.raises(ValueError, match="dangling evidence_refs"):
         converge_candidate_profile_for_runtime(profile)
 
+
+@pytest.mark.parametrize("support_status", [None, "unknown"])
+def test_runtime_convergence_rejects_missing_or_unknown_support_status(support_status: str | None) -> None:
+    profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
+    profile["skills"][0]["support_status"] = support_status
+
+    with pytest.raises(ValueError, match="invalid support_status"):
+        converge_candidate_profile_for_runtime(profile)
+
+
+def test_runtime_convergence_rejects_supported_claim_without_evidence_refs() -> None:
+    profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
+    profile["skills"][0]["support_status"] = "supported"
+    profile["skills"][0]["evidence_refs"] = []
+
+    with pytest.raises(ValueError, match="supported claims require evidence_refs"):
+        converge_candidate_profile_for_runtime(profile)
+
 def test_runtime_convergence_rejects_duplicate_evidence_ids() -> None:
     profile = converge_candidate_profile_for_runtime({**_VALID_PROFILE_DICT, "name": "Candidate"})
     profile["experiences"][0]["evidence"] = [
@@ -293,6 +346,58 @@ def test_runtime_convergence_rejects_duplicate_evidence_ids() -> None:
 
     with pytest.raises(ValueError, match="duplicate ID: ev_duplicate"):
         converge_candidate_profile_for_runtime(profile)
+
+
+def test_legacy_parent_unsupported_status_is_inherited_by_bullets_without_status() -> None:
+    profile = adapt_candidate_profile_to_v2(
+        {
+            "experiences": [
+                {
+                    "role": "Data Engineer",
+                    "company": "Example",
+                    "support_status": "unsupported",
+                    "bullets": [{"text": "Used Python"}],
+                }
+            ],
+            "skills": [{"name": "Python"}],
+            "projects": [],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+        include_runtime_admission=True,
+    )
+
+    evidence_id = profile["experiences"][0]["evidence"][0]["id"]
+    assert profile["experiences"][0]["_runtime_evidence_admission"][evidence_id]["admission_status"] == "excluded"
+    assert profile["skills"][0]["support_status"] == "unsupported"
+
+
+@pytest.mark.parametrize(
+    "bullets",
+    [
+        [{"text": "Supported Python", "skills": ["Python"], "support_status": "supported"}, {"text": "Unsupported Python", "skills": ["Python"], "support_status": "unsupported"}],
+        [{"text": "Unsupported Python", "skills": ["Python"], "support_status": "unsupported"}, {"text": "Supported Python", "skills": ["Python"], "support_status": "supported"}],
+    ],
+)
+def test_repeated_legacy_skill_claim_is_supported_if_any_bullet_supports_it(bullets: list[dict]) -> None:
+    profile = adapt_candidate_profile_to_v2(
+        {
+            "experiences": [{"role": "Data Engineer", "company": "Example", "bullets": bullets}],
+            "skills": [],
+            "projects": [],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+    )
+
+    assert profile["skills"][0]["name"] == "Python"
+    assert profile["skills"][0]["support_status"] == "supported"
+
+
+def test_runtime_convergence_preserves_legacy_years_experience_for_runtime_consumers() -> None:
+    converged = converge_candidate_profile_for_runtime(
+        {**_VALID_PROFILE_DICT, "name": "Candidate", "years_experience": 7}
+    )
+
+    assert converged["_runtime_compatibility"]["years_experience"] == 7
 
 
 def test_candidate_profile_v2_field_schema_is_stable_and_symmetric() -> None:

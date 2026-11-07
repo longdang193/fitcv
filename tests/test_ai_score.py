@@ -331,6 +331,36 @@ def test_build_ranking_job_input_is_bounded_and_uses_supplied_projection() -> No
     assert result["candidate_evidence"][0]["evidence_id"] == "ev-1"
 
 
+def test_build_ranking_job_input_hides_excluded_projected_evidence() -> None:
+    profile = {
+        "skills": [],
+        "_projected_evidence_pool": [
+            {
+                "evidence_id": "ev-admitted",
+                "kind": "experience",
+                "title": "Python",
+                "text": "Built Python pipelines.",
+                "admission_status": "admitted",
+            },
+            {
+                "evidence_id": "ev-excluded",
+                "kind": "experience",
+                "title": "Kubernetes",
+                "text": "Built Kubernetes deployments.",
+                "admission_status": "excluded",
+            },
+        ],
+    }
+
+    result = build_ranking_job_input(
+        {"title": "Data Engineer", "required_skills": ["Python", "Kubernetes"]},
+        profile,
+    )
+
+    assert [item["evidence_id"] for item in result["candidate_evidence"]] == ["ev-admitted"]
+    assert "Kubernetes" not in json.dumps(result["candidate_evidence"])
+
+
 def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() -> None:
     result = build_ranking_job_input(
         {

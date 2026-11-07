@@ -229,6 +229,87 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
     values.append(text)
 
 
+_PROJECT_NEGATION_TERMS = frozenset(
+    {"no", "not", "never", "without", "haven't", "didn't", "kein", "keine", "keinen", "nicht", "nie", "ohne"}
+)
+
+
+def _project_support_is_admissible(
+    project: dict[str, Any],
+    profile: dict[str, Any] | None = None,
+) -> bool:
+    status = project.get("support_status")
+    if status is not None and not _is_rankable_support_status(status):
+        return False
+    runtime_admission = (profile or {}).get("_runtime_evidence_admission") or {}
+    if not runtime_admission:
+        return True
+    evidence = [item for item in project.get("evidence") or [] if isinstance(item, dict)]
+    if not evidence:
+        return True
+    return any(
+        runtime_admission.get(str(item.get("id")), {}).get("admission_status") == "admitted"
+        for item in evidence
+    )
+
+
+def _project_text_is_affirmative(value: Any) -> bool:
+    text = " ".join(str(value or "").split()).strip()
+    if not text:
+        return False
+    return not any(
+        re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, re.IGNORECASE)
+        for term in _PROJECT_NEGATION_TERMS
+    )
+
+
+def _is_negated_project_term(text: str, term: str) -> bool:
+    normalized_text = " ".join(str(text or "").split()).casefold()
+    normalized_term = " ".join(str(term or "").split()).casefold()
+    if not normalized_text or not normalized_term:
+        return False
+    for match in re.finditer(rf"(?<!\w){re.escape(normalized_term)}(?!\w)", normalized_text):
+        prefix = normalized_text[max(0, match.start() - 64):match.start()]
+        if any(
+            re.search(rf"(?<!\w){re.escape(marker)}(?!\w)", prefix)
+            for marker in _PROJECT_NEGATION_TERMS
+        ):
+            return True
+    return False
+
+
+def _project_value_is_admissible(value: Any, project_support_status: Any = None) -> bool:
+    if isinstance(value, dict):
+        status = value.get("support_status", project_support_status)
+        text = value.get("name") or value.get("text") or value.get("title")
+    else:
+        status = project_support_status
+        text = value
+    return (status is None or _is_rankable_support_status(status)) and _project_text_is_affirmative(text)
+
+
+def _legacy_or_supported_status(value: Any) -> bool:
+    return value is None or _is_rankable_support_status(value)
+
+
+def _admitted_claim_values(profile: dict[str, Any], section: str) -> list[str]:
+    runtime_admission = profile.get("_runtime_evidence_admission") or {}
+    values: list[str] = []
+    for claim in profile.get(section) or []:
+        if not isinstance(claim, dict) or claim.get("support_status") != "supported":
+            continue
+        refs = [str(ref) for ref in claim.get("evidence_refs") or []]
+        if runtime_admission and not any(
+            runtime_admission.get(ref, {}).get("admission_status") == "admitted"
+            for ref in refs
+        ):
+            continue
+        text = str(claim.get("name") or "").strip()
+        if text:
+            values.append(text)
+    return values
+
+
 def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
     values: list[str] = list(flatten_rankable_skills(profile))
     projects = sorted(
@@ -236,18 +317,42 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
         key=lambda project: str(project.get("name") or "").casefold(),
     )
     for project in projects:
+        if not _project_support_is_admissible(project, profile):
+            continue
         project_support_status = project.get("support_status")
+        project_values = [
+            value
+            for value in [*(project.get("tech_stack") or []), *(project.get("skills") or [])]
+            if _project_value_is_admissible(value, project_support_status)
+        ]
+        negated_project_terms = {
+            str(value.get("name") if isinstance(value, dict) else value).strip().casefold()
+            for evidence in project.get("evidence", []) or []
+            if isinstance(evidence, dict)
+            for value in project_values
+            if _is_negated_project_term(
+                str(evidence.get("text") or evidence.get("name") or ""),
+                str(value.get("name") if isinstance(value, dict) else value),
+            )
+        }
         technology_values = [
             value
-            for value in list(project.get("tech_stack", []) or [])
-            if _is_rankable_support_status(
+            for value in project_values
+            if _legacy_or_supported_status(
                 value.get("support_status", project_support_status) if isinstance(value, dict) else project_support_status
             )
+            and str(value.get("name") if isinstance(value, dict) else value).strip().casefold()
+            not in negated_project_terms
         ]
         for evidence in project.get("evidence", []) or []:
             if not isinstance(evidence, dict):
                 continue
-            if not _is_rankable_support_status(evidence.get("support_status", project_support_status)):
+            if not _legacy_or_supported_status(evidence.get("support_status", project_support_status)):
+                continue
+            if profile.get("_runtime_evidence_admission") and (
+                profile["_runtime_evidence_admission"].get(str(evidence.get("id")), {}).get("admission_status")
+                != "admitted"
+            ):
                 continue
             title = str(evidence.get("title") or "").strip().casefold()
             if title != "technology stack" and not any(
@@ -255,15 +360,15 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
             ):
                 continue
             text = str(evidence.get("text") or "").strip()
-            if text:
+            project_context = " ".join(
+                str(project.get(field) or "")
+                for field in ("name", "business_value")
+            ) + " " + " ".join(str(value or "") for value in project.get("highlights") or [])
+            if text and _project_text_is_affirmative(text) and not _is_negated_project_term(
+                project_context,
+                text,
+            ):
                 technology_values.append(text)
-        technology_values.extend(
-            value
-            for value in project.get("skills", []) or []
-            if _is_rankable_support_status(
-                value.get("support_status", project_support_status) if isinstance(value, dict) else project_support_status
-            )
-        )
         for technology in technology_values:
             if isinstance(technology, dict):
                 technology = technology.get("name")
@@ -349,6 +454,8 @@ def _rank_profile_skills(profile: dict[str, Any], skills: list[str]) -> list[str
         if isinstance(value, dict):
             support_status = value.get("support_status", support_status)
             value = value.get("name")
+        if support_status is None and profile.get("schema_version") != "candidate-profile.v2":
+            support_status = "supported"
         if not _is_rankable_support_status(support_status):
             return
         text = str(value or "").strip()
@@ -396,7 +503,7 @@ def build_candidate_query_components(
     max_skills = int((config or {}).get("vector_max_candidate_skills", 15))
 
     headline = str(profile.get("headline") or "").strip()
-    prefs = profile.get("preferences", {}) or {}
+    prefs = profile.get("preferences") or profile.get("search_preferences") or {}
     target_role = str(prefs.get("target_role") or "").strip()
 
     recent_roles: list[str] = []
@@ -448,6 +555,11 @@ def build_candidate_query_components(
         if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
             break
     if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
+        for domain_tag in _admitted_claim_values(profile, "domain_tags"):
+            _append_unique_text(domains, domain_tag, seen_domains)
+            if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
+                break
+    if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
         for experience in profile.get("experiences", []) or []:
             for domain_tag in experience.get("domain_tags", []) or []:
                 _append_unique_text(domains, str(domain_tag), seen_domains)
@@ -457,8 +569,16 @@ def build_candidate_query_components(
                 break
     if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
         for project in profile.get("projects", []) or []:
+            if not isinstance(project, dict) or not _project_support_is_admissible(project, profile):
+                continue
             for domain_tag in project.get("domain_tags", []) or []:
-                _append_unique_text(domains, str(domain_tag), seen_domains)
+                if _project_value_is_admissible(domain_tag, project.get("support_status")):
+                    domain_text = domain_tag.get("name") if isinstance(domain_tag, dict) else domain_tag
+                    if not _is_negated_project_term(
+                        str(project.get("business_value") or ""),
+                        str(domain_text or ""),
+                    ):
+                        _append_unique_text(domains, str(domain_text), seen_domains)
                 if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
                     break
             if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
@@ -488,9 +608,11 @@ def build_candidate_query_components(
         )
     )
     for project in projects:
+        if not _project_support_is_admissible(project, profile):
+            continue
         for value in [project.get("name"), project.get("business_value"), *(project.get("highlights") or [])]:
             text = str(value or "").strip()
-            if not text:
+            if not text or not _project_text_is_affirmative(text):
                 continue
             _append_unique_text(project_evidence_hints, text[:CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_CHARS], seen_project_evidence)
             if len(project_evidence_hints) >= CANDIDATE_QUERY_PROJECT_EVIDENCE_HINT_COUNT:
@@ -742,7 +864,7 @@ def _lexical_search_result(
     embedding_backend_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     components = build_candidate_query_components(profile, config)
-    prefs = dict(profile.get("preferences") or {})
+    prefs = dict(profile.get("preferences") or profile.get("search_preferences") or {})
     candidate_skills = flatten_rankable_skills(profile)
     jobs_by_url = {str(job.get("job_url") or ""): job for job in structured_jobs}
     candidate_technology = _profile_technology_inventory(profile)

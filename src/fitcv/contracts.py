@@ -26,6 +26,7 @@ from typing import Any, Mapping
 RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v2"
 STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
 CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v3"
+EVIDENCE_INTEGRITY_POLICY_VERSION = "evidence-integrity-v2"
 FINAL_ARTIFACT_CONTRACT_VERSION = "fitcv.final_artifact.v1"
 TRACE_CONTRACT_VERSION = "fitcv.trace.v1"
 EFFICIENCY_CONTRACT_VERSION = "fitcv.efficiency.v1"

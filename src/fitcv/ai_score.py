@@ -52,7 +52,7 @@ from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.evidence import bounded_term_values, build_evidence_excerpt, project_candidate_evidence
-from fitcv.candidate import flatten_rankable_skills
+from fitcv.candidate import flatten_rankable_skills, runtime_profile_value
 from fitcv.fit_factors import _candidate_level
 from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 from fitcv.prompts import render_prompt
@@ -145,17 +145,38 @@ def _bounded_values(values: Any, *, limit: int, item_chars: int = RANKING_TERM_M
 
 
 def _bounded_source_refs(values: Any, *, limit: int = 4) -> list[dict[str, Any] | str]:
+    allowed_locator_fields = {
+        "markdown_lines": {"kind", "start", "end"},
+        "docx_paragraph": {"kind", "part", "paragraph"},
+        "docx_table_cell": {"kind", "part", "table", "row", "cell"},
+    }
     result: list[dict[str, Any] | str] = []
     seen: set[str] = set()
     for value in list(values or []):
         if isinstance(value, dict):
-            reference = {
-                str(key): value[key]
-                for key in ("document_id", "source_block_id", "locator")
-                if key in value and value[key] not in (None, "")
-            }
+            reference = {}
+            for key in ("document_id", "source_block_id", "locator"):
+                if key not in value or value[key] in (None, ""):
+                    continue
+                if key == "locator" and isinstance(value[key], dict):
+                    reference[key] = dict(value[key])
+                else:
+                    reference[key] = _bounded_text(value[key], RANKING_TERM_MAX_CHARS)
             if isinstance(reference.get("locator"), dict):
-                reference["locator"] = dict(reference["locator"])
+                locator = reference["locator"]
+                kind = str(locator.get("kind") or "")
+                fields = allowed_locator_fields.get(kind) or {
+                    "kind", "page", "paragraph", "part", "start", "end", "table", "row", "cell"
+                }
+                reference["locator"] = {
+                    str(key): (
+                        _bounded_text(locator[key], RANKING_TERM_MAX_CHARS)
+                        if isinstance(locator[key], str)
+                        else locator[key]
+                    )
+                    for key in sorted(fields or set())
+                    if key in locator and locator[key] not in (None, "")
+                }
             normalized = json.dumps(reference, ensure_ascii=False, sort_keys=True)
         else:
             reference = _bounded_text(value, RANKING_TERM_MAX_CHARS)
@@ -655,8 +676,14 @@ def build_ranking_request(
         "job_requirements": selected_job,
         "candidate_summary": selected_candidate,
         "candidate_evidence": list(selected_evidence),
+        "model_visible_evidence_ids": [
+            str(item.get("evidence_id") or "")
+            for item in selected_items
+            if isinstance(item, dict) and str(item.get("evidence_id") or "").strip()
+        ],
         "contract_metadata": dict(source.get("contract_metadata") or {}),
     }
+    model_visible_payload_fingerprint = _stable_json_fingerprint(bounded_ranking_input)
     return {
         "request": request,
         "route": route,
@@ -688,12 +715,14 @@ def build_ranking_request(
                     if isinstance(item, dict)
                 ],
                 "omitted_count": max(0, len(evidence) - len(selected_evidence)),
+                "model_visible_payload_fingerprint": model_visible_payload_fingerprint,
             },
             "mandatory_omissions": mandatory_omissions,
             "mandatory_core_complete": not any(value > 0 for value in mandatory_omissions.values())
             and not bool((source.get("contract_metadata") or {}).get("degraded_enrichment")),
         },
         "fingerprint": _stable_json_fingerprint({"request": request_payload, "route": route_payload}),
+        "model_visible_payload_fingerprint": model_visible_payload_fingerprint,
     }
 
 
@@ -709,6 +738,10 @@ def build_ranking_input_diagnostics(
     evidence = [item for item in list(source.get("candidate_evidence") or []) if isinstance(item, dict)]
     request_payload = dict((request_record or {}).get("request_payload") or {})
     bounded_input = dict((request_record or {}).get("bounded_ranking_input") or {})
+    model_visible_payload_fingerprint = (
+        str((request_record or {}).get("model_visible_payload_fingerprint") or "")
+        or (_stable_json_fingerprint(bounded_input) if bounded_input else "")
+    )
     candidate_skill_count = 0
     model_visible_candidate_skill_count = 0
     visible_candidate_skills: list[str] = []
@@ -782,6 +815,7 @@ def build_ranking_input_diagnostics(
         "selected_evidence_count": len(evidence[:RANKING_MAX_EVIDENCE]),
         "raw_evidence_count": len(evidence),
         "model_visible_evidence_count": len(list(bounded_input.get("candidate_evidence") or [])),
+        "model_visible_payload_fingerprint": model_visible_payload_fingerprint,
         "candidate_skill_count": candidate_skill_count,
         "model_visible_candidate_skill_count": model_visible_candidate_skill_count,
         "visible_candidate_skills": visible_candidate_skills,
@@ -971,7 +1005,9 @@ def build_ranking_job_input(
         "source_refs": _bounded_source_refs(item.get("source_refs"), limit=4),
         "source_ref": _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
-    } for item in projected_evidence if isinstance(item, dict)]
+    } for item in projected_evidence
+        if isinstance(item, dict)
+        and str(item.get("admission_status") or "admitted") == "admitted"]
     evidence = [
         *[item for item in projected_evidence_records if _is_attributable_evidence(item)],
         *[item for item in projected_evidence_records if not _is_attributable_evidence(item)],
@@ -1230,8 +1266,11 @@ def build_ranking_job_input(
     }
     candidate = {
         "skills": candidate_skills,
-        "years_experience": profile.get("years_experience"),
-        "target_role": str((profile.get("preferences") or {}).get("target_role") or ""),
+        "years_experience": runtime_profile_value(profile, "years_experience"),
+        "target_role": str(
+            (profile.get("preferences") or profile.get("search_preferences") or {}).get("target_role")
+            or ""
+        ),
         "languages": languages,
         "employment": employment,
         "education": education,
