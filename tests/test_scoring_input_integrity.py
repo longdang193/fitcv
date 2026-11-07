@@ -1,19 +1,8 @@
-"""Focused regressions for admission-to-scoring information preservation."""
-
 import json
 from types import SimpleNamespace
 
-import pytest
-
-import fitcv.ai_score as ai_score_module
-from fitcv.ai_score import (
-    RankingInputEvidenceLimited,
-    build_ranking_input_diagnostics,
-    build_ranking_job_input,
-    build_ranking_request,
-    run_ai_scoring,
-)
-from fitcv.evidence import retrieve_evidence_bundle, select_ranking_evidence
+from fitcv.ai_score import build_ranking_job_input, build_ranking_request
+from fitcv.rule_filter import apply_rule_filters
 
 
 def _route() -> SimpleNamespace:
@@ -27,260 +16,95 @@ def _route() -> SimpleNamespace:
         auth_mode="env",
         temperature=0.0,
         model_record_id="model-record",
-        configuration_revision="config",
+        configuration_revision="config-revision",
     )
 
 
-def test_ranking_input_preserves_source_text_and_decisive_scoring_context() -> None:
-    profile = {
-        "_projected_evidence_pool": [{
-            "evidence_id": "ev-agent",
-            "kind": "project",
-            "title": "Agent platform",
-            "text": "Generic source summary.",
-            "scoring_context": "OpenAI-compatible APIs and Claude Code integration",
-            "source_ref": "projects[0]",
-            "skills": [],
-        }],
-    }
-
-    ranking_input = build_ranking_job_input(
-        {"tech_stack": ["OpenAI-compatible APIs"]},
-        profile,
-    )
-
-    evidence = ranking_input["candidate_evidence"][0]
-    assert evidence["text"] == "Generic source summary."
-    assert evidence["scoring_context"] == "OpenAI-compatible APIs and Claude Code integration"
-
-
-def test_rare_required_skill_support_is_reserved_before_channel_cutoff() -> None:
-    profile = {
-        "_projected_evidence_pool": [
-            {
-                "evidence_id": "ev-common",
-                "kind": "project",
-                "title": "Common work",
-                "text": "Built Python services.",
-                "scoring_context": "Python services",
-                "skills": ["Python"],
-                "source_ref": "projects[0]",
-            },
-            {
-                "evidence_id": "ev-rare",
-                "kind": "project",
-                "title": "Rare system",
-                "text": "Built production systems with RareTool.",
-                "scoring_context": "RareTool production system",
-                "skills": ["RareTool"],
-                "source_ref": "projects[1]",
-            },
-        ]
-    }
+def test_final_scorer_request_retains_language_dimensions_and_ongoing_education() -> None:
     job = {
-        "title": "Platform Engineer",
-        "required_skills": ["RareTool"],
-        "required_skills_canonical": ["raretool"],
+        "job_url": "https://example.com/job",
+        "title": "Data Analyst",
+        "required_skills": ["SQL"],
+        "language_requirements": [{"name": "German", "level": "B1"}],
+        "education": [{"degree": "Master", "field": "Data Science", "status": "ongoing"}],
     }
-
-    bundle = retrieve_evidence_bundle(
-        profile,
+    candidate_summary = json.dumps({
+        "skills": ["SQL"],
+        "languages": [{
+            "name": "German",
+            "level": "B1",
+            "native": False,
+            "read": "B1",
+            "write": "A2",
+            "speak": "B1",
+        }],
+        "employment": [],
+        "education": [{
+            "institution": "Example University",
+            "degree": "Master",
+            "field": "Data Science",
+            "start": "2024-10",
+            "end": "Present",
+        }],
+        "certifications": [],
+        "years_experience": 2,
+        "target_role": "Data Analyst",
+    }, ensure_ascii=False)
+    ranking_input = {
+        "candidate_summary": candidate_summary,
+        "job_requirements": "SQL, German B1, ongoing Master Data Science",
+    }
+    request = build_ranking_request(
         job,
-        top_k=1,
-        config={"cv_analysis": {"semantic_alignment": {"channel_pool_size": 1}}},
+        candidate_summary,
+        [],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=_route(),
     )
 
-    assert bundle["selected_evidence_ids"] == ["ev-rare"]
+    prompt = request["request"].prompt
+    assert '"read": "B1"' in prompt
+    assert '"write": "A2"' in prompt
+    assert '"speak": "B1"' in prompt
+    assert "ongoing" in prompt
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
-def test_only_zero_evidence_prompt_fits_returns_explicit_evidence_limited_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        ai_score_module,
-        "build_scoring_prompt",
-        lambda _job, _candidate, evidence, **_kwargs: "x" * (13_000 if evidence else 100),
+def test_ranking_input_preserves_dimension_only_and_native_language_records() -> None:
+    ranking_input = build_ranking_job_input(
+        {"job_url": "https://example.com/job", "required_skills": []},
+        {
+            "languages": [
+                {"id": "language-german", "name": "German", "read": "B2", "write": "B1", "speak": "B1"},
+                {"id": "language-french", "name": "French", "native": True},
+            ]
+        },
+        {},
     )
-    monkeypatch.setattr(ai_score_module, "resolve_llm_routing", lambda *_args, **_kwargs: _route())
 
-    rows = run_ai_scoring(
+    languages = json.loads(ranking_input["candidate_summary"])["languages"]
+    assert languages == [
+        {"level": "b1", "name": "German", "read": "B2", "write": "B1", "speak": "B1"},
+        {"level": "native", "name": "French", "native": True},
+    ]
+
+
+def test_raw_description_or_substantive_requirement_survives_missing_fit_context() -> None:
+    result = apply_rule_filters(
         [{
             "job_url": "https://example.com/job",
-            "ranking_input": {
-                "job_requirements": "Small job",
-                "candidate_summary": "Small candidate",
-                "candidate_evidence": [{
-                    "evidence_id": "ev-1",
-                    "text": "Attributable evidence",
-                    "source_ref": "cv:1",
-                }],
-            },
+            "title": "Platform Engineer",
+            "description": "Build SQL and BigQuery data pipelines.",
+            "required_skills": [],
+            "seniority": None,
+            "location_type": None,
+            "job_family": None,
+            "domain": None,
         }],
-        "candidate",
-        {},
+        {"seniority_target": "mid", "location_types": [], "contract_types": []},
     )
 
-    assert rows[0]["score_status"] == "unscored"
-    assert rows[0]["score_state"] == "evidence_limited"
-    assert rows[0]["evidence_limited"] is True
-    assert rows[0]["failure_code"] == "evidence_limited"
-    assert rows[0]["retry_eligible"] is False
-
-
-def test_candidate_overflow_reports_optional_field_ownership_and_keeps_skills() -> None:
-    candidate_summary = json.dumps({
-        "skills": ["RareTool", "Python"],
-        "languages": [{"name": "German", "level": "professional"}] * 12,
-        "employment": [{"role": "Platform Engineer", "company": "Company" * 80}] * 12,
-        "education": [{"degree": "MSc", "field": "Computer Science" * 20}] * 4,
-        "certifications": [{"name": "Certification", "issuer": "Issuer" * 20}] * 4,
-        "years_experience": 5,
-        "target_role": "Platform Engineer",
-    }, ensure_ascii=False)
-
-    request = build_ranking_request(
-        {},
-        candidate_summary,
-        [],
-        {},
-        ranking_input={
-            "job_requirements": json.dumps({"language_requirements": ["German"]}),
-            "candidate_summary": candidate_summary,
-        },
-        resolved_route=_route(),
-    )
-
-    candidate = json.loads(request["bounded_ranking_input"]["candidate_summary"])
-    visibility = request["visibility_manifest"]["candidate"]
-    assert candidate["skills"] == ["RareTool", "Python"]
-    assert visibility["omitted_counts"].get("employment", 0) > 0
-    assert visibility["mandatory_omitted_fields"] == []
-
-
-@pytest.mark.parametrize("candidate_level", ["C1", "A2"])
-def test_candidate_overflow_protects_mandatory_language_identity(candidate_level: str) -> None:
-    candidate_summary = json.dumps({
-        "skills": ["RareTool", "Python"] + [f"Skill{index}" * 8 for index in range(80)],
-        "languages": [
-            {"name": "French", "level": "B2"},
-            {"name": "German", "level": candidate_level},
-        ],
-        "employment": [{"role": "Platform Engineer" * 10, "company": "Company" * 80}] * 12,
-        "years_experience": 5,
-        "target_role": "Platform Engineer",
-    }, ensure_ascii=False)
-
-    request = build_ranking_request(
-        {},
-        candidate_summary,
-        [],
-        {},
-        ranking_input={
-            "job_requirements": json.dumps({"language_requirements": ["German B2"]}),
-            "candidate_summary": candidate_summary,
-        },
-        resolved_route=_route(),
-    )
-
-    candidate = json.loads(request["bounded_ranking_input"]["candidate_summary"])
-    visibility = request["visibility_manifest"]["candidate"]
-    assert {item["name"] for item in candidate["languages"]} == {"German"}
-    assert candidate["languages"][0]["level"] == candidate_level
-    assert visibility["mandatory_omitted_fields"] == []
-
-
-def test_diagnostics_use_exact_final_bounded_payload() -> None:
-    ranking_input = {
-        "job_requirements": json.dumps({"title": "Platform Engineer"}),
-        "candidate_summary": json.dumps({"skills": ["RareTool", "Python"]}),
-        "candidate_evidence": [{
-            "evidence_id": "ev-1",
-            "title": "Rare system",
-            "text": "Generic source",
-            "scoring_context": "RareTool production system",
-            "source_ref": "projects[1]",
-        }],
-        "contract_metadata": {"version": "ranking_input_v3"},
-    }
-    request = build_ranking_request(
-        {},
-        ranking_input["candidate_summary"],
-        ranking_input["candidate_evidence"],
-        {},
-        ranking_input=ranking_input,
-        resolved_route=_route(),
-    )
-
-    diagnostics = build_ranking_input_diagnostics(ranking_input, request)
-    final_payload = request["bounded_ranking_input"]
-    assert diagnostics["bounded_ranking_input"] == final_payload
-    assert diagnostics["selected_evidence_ids"] == ["ev-1"]
-    assert diagnostics["visible_candidate_skills"] == ["RareTool", "Python"]
-    assert final_payload["candidate_evidence"][0]["text"] in request["request"].prompt
-
-
-def test_admitted_job_handoff_keeps_required_skill_and_attributable_evidence() -> None:
-    job = {
-        "title": "Platform Engineer",
-        "required_skills": ["RareTool"],
-        "required_skills_canonical": ["raretool"],
-        "tech_stack": ["RareTool"],
-    }
-    profile = {
-        "skills": [{"name": "RareTool"}],
-        "_projected_evidence_pool": [{
-            "evidence_id": "ev-rare",
-            "kind": "project",
-            "title": "Rare system",
-            "text": "Generic source summary.",
-            "scoring_context": "Built production systems with RareTool",
-            "source_refs": [{"document_id": "cv", "locator": {"page": 2}}],
-            "source_ref": "projects[0]",
-            "skills": ["RareTool"],
-        }],
-    }
-
-    selected = select_ranking_evidence(profile["_projected_evidence_pool"], job, limit=1)
-    ranking_input = build_ranking_job_input(
-        job,
-        {**profile, "_projected_evidence_pool": selected},
-    )
-    request = build_ranking_request(
-        job,
-        ranking_input["candidate_summary"],
-        ranking_input["candidate_evidence"],
-        {},
-        ranking_input=ranking_input,
-        resolved_route=_route(),
-    )
-
-    visible_job = json.loads(request["bounded_ranking_input"]["job_requirements"])
-    visible_evidence = request["bounded_ranking_input"]["candidate_evidence"][0]
-    assert any(value.casefold() == "raretool" for value in visible_job["required_skills"])
-    assert visible_evidence["evidence_id"] == "ev-rare"
-    assert "RareTool" in visible_evidence["scoring_context"]
-    assert visible_evidence["source_refs"] == [{"document_id": "cv", "locator": {"page": 2}}]
-
-
-def test_build_ranking_request_raises_evidence_limited_when_zero_evidence_is_only_fit(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        ai_score_module,
-        "build_scoring_prompt",
-        lambda _job, _candidate, evidence, **_kwargs: "x" * (13_000 if evidence else 100),
-    )
-
-    with pytest.raises(RankingInputEvidenceLimited):
-        build_ranking_request(
-            {},
-            "candidate",
-            [],
-            {},
-            ranking_input={
-                "job_requirements": "job",
-                "candidate_summary": "candidate",
-                "candidate_evidence": [{"evidence_id": "ev-1", "text": "proof"}],
-            },
-            resolved_route=_route(),
-        )
+    assert result["passed"] == ["https://example.com/job"]
+    assert result["rejected"] == []
+    assert result["passed_records"][0]["marks"][0]["code"] == "missing_fit_context"

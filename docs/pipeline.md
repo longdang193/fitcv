@@ -290,7 +290,6 @@ Phase 3 uses one path for every admissible scored job:
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
 - scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; if selected attributable evidence cannot fit, the row is `score_status: unscored` with `failure_code: evidence_limited` and is excluded from ordinary compatibility ranking
-- scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; if selected attributable evidence cannot fit, the row is `score_status: unscored` with `failure_code: evidence_limited` and is excluded from ordinary compatibility ranking
 - `holistic_ai_fit` is the bounded AI scalar and sole active baseline contribution
 - six structured factors remain independently normalized, weighted, persisted, and observable
 - hard-gated or disabled location/language factors are removed once from effective structured weights, then retained weights renormalize once

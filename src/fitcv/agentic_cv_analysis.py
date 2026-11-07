@@ -1506,7 +1506,8 @@ def analyze_ranked_job(
             config,
             evidence_projection=resolved_evidence_projection,
         )
-        if ranking_fit_label == "skip" and not loose_experience_review:
+        has_projected_evidence = bool(resolved_evidence_projection.get("items")) and loose_experience_review
+        if ranking_fit_label == "skip" and not loose_experience_review and not has_projected_evidence:
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, BLOCKED_BY_RERANKER_STATUS),

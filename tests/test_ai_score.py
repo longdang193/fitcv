@@ -23,6 +23,7 @@ from fitcv.ai_score import (
     parse_score_response,
     run_ai_scoring,
 )
+from fitcv.enrich import merge_scraped_and_enriched
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -359,7 +360,7 @@ def test_build_ranking_job_input_preserves_mandatory_clause_facts_and_spans() ->
     assert "mandatory:education:1" in result["contract_metadata"]["requirement_ids"]
 
 
-def test_fallback_enrichment_is_explicitly_unscored() -> None:
+def test_fallback_enrichment_requires_retry_even_when_raw_description_exists() -> None:
     ranking_input = build_ranking_job_input(
         {
             "enrich_reuse_status": "enrichment_fallback",
@@ -368,7 +369,7 @@ def test_fallback_enrichment_is_explicitly_unscored() -> None:
         {"skills": []},
     )
 
-    with pytest.raises(RankingInputIncomplete, match="mandatory ranking facts"):
+    with pytest.raises(RankingInputIncomplete):
         build_ranking_request(
             {},
             ranking_input["candidate_summary"],
@@ -376,6 +377,80 @@ def test_fallback_enrichment_is_explicitly_unscored() -> None:
             {},
             ranking_input=ranking_input,
         )
+
+
+def test_run_ai_scoring_does_not_invoke_provider_for_degraded_enrichment(monkeypatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    ranking_input = build_ranking_job_input(
+        {"enrich_reuse_status": "enrichment_fallback", "description": "Requirements: SQL"},
+        {"skills": []},
+    )
+    provider_calls: list[bool] = []
+
+    def fail_if_called(**_kwargs):
+        provider_calls.append(True)
+        raise AssertionError("provider must not be invoked")
+
+    monkeypatch.setattr("fitcv.ai_score.score_job", fail_if_called)
+    result = run_ai_scoring(
+        [{"job_url": "https://example.com/jobs/degraded", "ranking_input": ranking_input}],
+        ranking_input["candidate_summary"],
+        {},
+        top_n=1,
+    )
+
+    assert provider_calls == []
+    assert result[0]["score_status"] == "unscored"
+    assert result[0]["failure_code"] == "needs_enrichment"
+
+
+def test_domain_only_enrichment_is_unscored_without_provider_call(monkeypatch) -> None:
+    job = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/domain-only",
+            "title": "Data Engineer",
+            "description": "Build Python data pipelines for production analytics.",
+        },
+        {"domain": "analytics", "job_family": "data_engineering"},
+        {},
+    )
+    calls = []
+
+    def fail_if_called(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("provider must not be called")
+
+    monkeypatch.setattr(ai_score_module, "score_job", fail_if_called)
+    result = run_ai_scoring([job], "candidate", {}, top_n=1)
+
+    assert not calls
+    assert result[0]["score_status"] == "unscored"
+    assert result[0]["failure_code"] == "needs_enrichment"
+    assert result[0]["ranking_input_diagnostics"]["mandatory_omissions"]["job_enrichment_degraded"] == 1
+
+
+def test_build_ranking_request_drops_optional_raw_description_before_budget_failure(monkeypatch) -> None:
+    monkeypatch.setattr("fitcv.ai_score.RANKING_REQUEST_MAX_CHARS", 3_000)
+    ranking_input = build_ranking_job_input(
+        {
+            "title": "Data Engineer",
+            "required_skills": ["Python"],
+            "description": "optional context " * 3000,
+        },
+        {"skills": [{"name": "Python"}]},
+    )
+
+    request = build_ranking_request(
+        {},
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+    )
+
+    assert "raw_description" not in request["request"].prompt
+    assert "job_optional" in request["prompt_truncation_steps"]
 
 
 def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> None:
@@ -517,6 +592,31 @@ def test_build_ranking_job_input_preserves_mandatory_skills_before_request_budge
     assert requirements["skill_coverage"]["missing"] == []
 
 
+def test_build_ranking_job_input_preserves_three_project_evidence_items() -> None:
+    profile = {
+        "skills": [{"name": "SQL"}],
+        "_projected_evidence_pool": [
+            {
+                "evidence_id": f"project-{index}",
+                "kind": "project",
+                "title": f"Project {index}",
+                "text": f"Built project {index} with SQL.",
+                "source_section": "projects",
+                "skills": ["SQL"],
+            }
+            for index in range(1, 4)
+        ],
+    }
+
+    result = build_ranking_job_input({"required_skills": ["SQL"]}, profile)
+
+    assert [item["evidence_id"] for item in result["candidate_evidence"]] == [
+        "project-1",
+        "project-2",
+        "project-3",
+    ]
+
+
 def test_build_ranking_job_input_prioritizes_late_required_technology_skills() -> None:
     profile = {
         "skills": [{"name": f"Skill {index}"} for index in range(1, 10)]
@@ -613,8 +713,8 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     diagnostics = build_ranking_input_diagnostics(ranking_input, request)
 
     assert diagnostics["contract_version"] == "ranking_input_v3"
-    assert diagnostics["selected_evidence_count"] == 2
-    assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2"]
+    assert diagnostics["selected_evidence_count"] == 3
+    assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2", "ev-3"]
     assert diagnostics["candidate_skill_count"] == 9
     assert diagnostics["request_within_budget"] is True
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
@@ -642,6 +742,8 @@ def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() 
         resolved_route=route,
     )
     assert request["visibility_manifest"]["mandatory_core_complete"] is True
+    visible_candidate = json.loads(request["bounded_ranking_input"]["candidate_summary"])
+    assert visible_candidate["skills"] == required_skills
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
@@ -759,6 +861,102 @@ def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflo
     assert '"Skill 1"' in request["request"].prompt
     assert "German" in request["request"].prompt
     assert request["prompt_truncated"] is True
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+
+
+def test_ranking_request_bounds_oversized_candidate_skills_and_keeps_project_evidence() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="test-model",
+        timeout_seconds=12.0,
+        request_start_interval_secs=0.0,
+        auth_mode="env",
+        temperature=0.0,
+        model_record_id="model-record",
+        configuration_revision="configuration",
+    )
+    project_text = "Built Power BI dashboards and Python data pipelines."
+    profile = {
+        "skills": [
+            {"name": f"Skill {index:03d} " + ("x" * 70)}
+            for index in range(130)
+        ] + [{"name": "Power BI"}, {"name": "Python"}],
+        "_projected_evidence_pool": [{
+            "evidence_id": "project-strong",
+            "kind": "project",
+            "title": "Analytics project",
+            "parent_title": "Analytics project",
+            "text": project_text,
+            "scoring_context": project_text,
+            "skills": ["Power BI", "Python"],
+        }],
+    }
+    job = {
+        "title": "Data Analyst",
+        "required_skills": ["Power BI", "Python"],
+        "description": "optional context " * 1000,
+    }
+    ranking_input = build_ranking_job_input(job, profile)
+
+    request = build_ranking_request(
+        job,
+        ranking_input["candidate_summary"],
+        [],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=route,
+    )
+
+    prompt = request["request"].prompt
+    assert '"Power BI"' in prompt
+    assert '"Python"' in prompt
+    assert project_text in prompt
+    assert request["visibility_manifest"]["evidence"]["selected_ids"] == ["project-strong"]
+    assert request["visibility_manifest"]["evidence"]["model_visible_count"] == 1
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+
+
+def test_final_ranking_request_retains_language_dimensions() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="configuration",
+    )
+    candidate_summary = json.dumps(
+        {
+            "skills": ["SQL"],
+            "languages": [{
+                "name": "German",
+                "level": "B1",
+                "native": False,
+                "read": "B2",
+                "write": "B1",
+                "speak": "B1",
+            }],
+            "employment": [],
+            "education": [{"degree": "MSc", "field": "Data Science", "start": "2024-10", "end": "Present"}],
+            "certifications": [],
+            "years_experience": 2,
+            "target_role": "Data Analyst",
+        },
+        ensure_ascii=False,
+    )
+    request = build_ranking_request(
+        {},
+        candidate_summary,
+        [],
+        {},
+        ranking_input={"job_requirements": "German B1 and analytics", "candidate_summary": candidate_summary},
+        resolved_route=route,
+    )
+
+    prompt = request["request"].prompt
+    assert '"read": "B2"' in prompt
+    assert '"write": "B1"' in prompt
+    assert '"speak": "B1"' in prompt
+    assert '"end": "Present"' in prompt
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
@@ -1442,6 +1640,29 @@ def test_observation_toggle_keeps_identical_model_input(monkeypatch: pytest.Monk
     assert captured[0] == captured[1]
 
 
+def test_scoring_rejection_preserves_ranking_input_diagnostics(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    ranking_input = build_ranking_job_input(
+        {"enrich_reuse_status": "enrichment_fallback", "description": "Requirements: German C1"},
+        {
+            "skills": [],
+            "_projected_evidence_pool": [{"evidence_id": "project-1", "kind": "project", "title": "Project"}],
+        },
+    )
+    result = run_ai_scoring(
+        [{"job_url": "https://example.com/job", "ranking_input": ranking_input}],
+        "candidate",
+        {},
+    )[0]
+
+    diagnostics = result["ranking_input_diagnostics"]
+    assert result["failure_code"] == "needs_enrichment"
+    assert diagnostics["selected_evidence_ids"] == ["project-1"]
+    assert diagnostics["mandatory_omissions"]["job_enrichment_fallback"] == 1
+    assert diagnostics["mandatory_core_complete"] is False
+
+
 def test_ranking_stage_freezes_route_until_next_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
     from contextlib import nullcontext
     from fitcv.pipeline_stage_runner import execute_ranking_stage
@@ -1585,6 +1806,68 @@ def test_ranking_stage_persists_selected_evidence_and_scorer_diagnostics(monkeyp
     assert state["ranking_admission_manifest"]["counts"]["ai_score_selected"] == 1
     assert state["ranking_admission_manifest"]["rows"][0]["score_execution"] == "fresh"
     assert state["ranking_admission_manifest"]["rows"][0]["request_fingerprint"] == "fp"
+
+
+def test_ranking_stage_attaches_bounded_input_to_each_scoring_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+    from fitcv.pipeline_stage_runner import execute_ranking_stage
+
+    captured: dict[str, Any] = {}
+
+    class Store:
+        def store_final_ranking(self, *_: Any) -> None:
+            return None
+
+    job = {
+        "job_url": "https://example.com/identity-sensitive-role",
+        "run_job_id": "run-job-1",
+        "raw_job_fingerprint": "raw-job-1",
+        "title": "Data Analyst",
+        "required_skills": ["SQL"],
+        "responsibilities": ["Build reports"],
+    }
+    profile = {
+        "skills": [{"name": "SQL"}],
+        "projects": [
+            {
+                "id": "reporting-project",
+                "name": "Reporting Project",
+                "skills": ["SQL"],
+                "highlights": ["Built SQL reports."],
+            }
+        ],
+    }
+
+    def score(jobs: list[dict[str, Any]], *_args: Any, **_kwargs: Any) -> list[dict[str, Any]]:
+        captured["job"] = jobs[0]
+        return [{"job_url": jobs[0]["job_url"], "ai_score": 0.8, "score_status": "valid"}]
+
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_run_preference_policy", lambda **_kwargs: object())
+    monkeypatch.setattr("fitcv.pipeline_stage_runner.resolved_preference_policy_to_dict", lambda _policy: {})
+    execute_ranking_stage(
+        run_id="run-1",
+        state={},
+        shortlist=[job],
+        candidate_summary="Candidate analyst",
+        profile=profile,
+        config={"pipeline": {"ai_score_top_n": 1}, "reuse": {"ranking": {"enabled": False}}},
+        final_top_n=1,
+        reporter=None,
+        pipeline_store=Store(),
+        observe_span=lambda *_args, **_kwargs: nullcontext(),
+        set_span_attributes=lambda _attrs: None,
+        cancellation_check=None,
+        cancellation_error_cls=RuntimeError,
+        ranking_ai_score_reuse_index={},
+        build_ai_score_input_fingerprint=lambda *_args, **_kwargs: {"fingerprint": "fp"},
+        extract_job_url=lambda row: row["job_url"],
+        run_ai_scoring=score,
+        build_ranking_features=lambda *_args, **_kwargs: [],
+        rank_jobs=lambda *_args, **_kwargs: [],
+        preference_policy_resolver=lambda _contract: None,
+    )
+
+    assert captured["job"]["ranking_input"]["candidate_evidence"]
 
 
 def test_route_resolution_failure_maps_to_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:

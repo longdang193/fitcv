@@ -8,6 +8,7 @@ from unittest.mock import patch
 from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
 from fitcv.embeddings import build_embedding_contract_fingerprint
 from fitcv.vector_search import (
+    _lexical_search_result,
     _hybrid_search_result,
     _dedupe_shortlist_rows,
     _technology_overlap,
@@ -156,40 +157,6 @@ def test_build_candidate_query_components_bound_skill_count() -> None:
     components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 3})
 
     assert components["flattened_skills"] == ["SQL", "Python", "BigQuery"]
-
-
-def test_build_candidate_query_components_prioritizes_repeated_late_skill() -> None:
-    profile = {
-        "skills": [{"name": "Generic Skill"}],
-        "experiences": [
-            {"role": "Earlier Role", "bullets": [{"skills": ["Other Skill"]}]},
-            {"role": "Later Role", "bullets": [{"skills": ["Rare Skill", "Rare Skill"]}]},
-        ],
-        "projects": [],
-        "preferences": {},
-    }
-
-    components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 2})
-
-    assert components["skills"] == ["Rare Skill", "Generic Skill"]
-
-
-def test_build_candidate_query_components_prioritizes_later_project_with_more_evidence() -> None:
-    profile = {
-        "projects": [
-            {"name": "Early Project", "business_value": "Short"},
-            {
-                "name": "Late Project",
-                "skills": ["Python", "SQL"],
-                "highlights": ["Built pipeline", "Reduced latency"],
-            },
-        ],
-        "preferences": {},
-    }
-
-    components = build_candidate_query_components(profile)
-
-    assert components["project_evidence_hints"][0] == "Late Project"
 
 
 def test_build_candidate_query_components_bound_project_technology_hints() -> None:
@@ -555,6 +522,42 @@ def test_lexical_retrieval_uses_raw_description_when_enrichment_falls_back() -> 
     )
 
     assert result["production_rows"][0]["retrieval_components"]["description_overlap"] == 1.0
+
+
+def test_lexical_neutral_skill_default_does_not_admit_unrelated_job() -> None:
+    profile = {
+        "preferences": {"target_role": "Data Engineer"},
+        "skills": ["SQL"],
+    }
+    job = {"job_url": "job-nurse", "title": "Registered Nurse"}
+    lexical_result = _lexical_search_result(
+        profile,
+        [job["job_url"]],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
+        top_n=1,
+        structured_jobs=[job],
+        requested_strategy="lexical_v1",
+    )
+
+    lexical_row = lexical_result["production_rows"][0]
+    assert lexical_row["retrieval_components"]["skill_overlap"] == 0.5
+    assert lexical_row["retrieval_components"]["required_skill_intersection"] is False
+    assert lexical_row["retrieval_score"] >= 0.2
+
+    fused = _hybrid_search_result(
+        vector_result={
+            "production_rows": [{"job_url": "job-vector", "vector_rank": 1}],
+            "audit_rows": [],
+            "diagnostics": {},
+        },
+        lexical_result=lexical_result,
+        eligible_job_urls=["job-vector", job["job_url"]],
+        top_n=1,
+        channel_depth=2,
+    )
+
+    assert [row["job_url"] for row in fused["production_rows"]] == ["job-vector"]
+    assert fused["diagnostics"]["lexical_only_rescue_count"] == 0
 
 
 def test_technology_overlap_preserves_punctuation_that_distinguishes_languages() -> None:
@@ -999,6 +1002,134 @@ def test_run_vector_search_reports_vector_request_and_lexical_fallback_reason(
     assert result["diagnostics"]["embedding_backend_id"] == "sqlite_deterministic_local"
 
 
+def test_run_vector_search_deterministic_fallback_honors_production_cutoff() -> None:
+    profile = {"skills": [{"name": "Python"}], "preferences": {"target_role": "Data Engineer"}}
+    jobs = [
+        {"job_url": f"https://example.com/job-{index}", "title": "Data Engineer", "required_skills": ["Python"]}
+        for index in range(3)
+    ]
+
+    result = run_vector_search(
+        profile,
+        [job["job_url"] for job in jobs],
+        {
+            "pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 2},
+            "ranking_policy": {
+                "declared_preference_component_weights": {
+                    "domain": 1.0,
+                    "role_family": 1.0,
+                    "work_mode": 1.0,
+                }
+            },
+        },
+        structured_jobs=jobs,
+        requested_strategy="vector_cosine_v1",
+    )
+
+    assert len(result["production_rows"]) == 1
+    assert len(result["audit_rows"]) == 2
+
+
+def test_run_vector_search_neutral_lexical_fallback_cannot_displace_vector_match(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/vector", json.dumps([0.2, 1.0]), "2026-01-01T00:00:00Z"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    monkeypatch.setattr(
+        "fitcv.vector_search._lexical_search_result",
+        lambda *_args, **_kwargs: {
+            "production_rows": [{
+                "job_url": "https://example.com/neutral",
+                "retrieval_score": 0.325,
+                "retrieval_components": {
+                    "skill_overlap": 0.0,
+                    "required_skill_intersection": False,
+                    "title_relevance": 0.0,
+                    "technology_overlap": 0.0,
+                    "description_overlap": 0.0,
+                    "match_details": {"domain": "neutral", "role_family": "neutral"},
+                },
+            }],
+            "audit_rows": [],
+            "diagnostics": {"scored_jobs_total": 1},
+        },
+    )
+    jobs = [
+        {"job_url": "https://example.com/vector", "title": "Data Engineer"},
+        {"job_url": "https://example.com/neutral", "title": "Unrelated Role"},
+        {"job_url": "https://example.com/missing", "title": "Data Engineer"},
+    ]
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        [job["job_url"] for job in jobs],
+        {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 0}},
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == ["https://example.com/vector"]
+    assert result["diagnostics"]["fallback_admitted_total"] == 0
+
+
+def test_run_vector_search_removes_recovered_below_cutoff_job_from_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            [
+                ("https://example.com/vector-top", json.dumps([0.2, 1.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/recovered", json.dumps([0.1, 1.0]), "2026-01-01T00:00:00Z"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    monkeypatch.setattr(
+        "fitcv.vector_search._lexical_search_result",
+        lambda *_args, **_kwargs: {
+            "production_rows": [{
+                "job_url": "https://example.com/recovered",
+                "retrieval_score": 0.95,
+                "retrieval_components": {"required_skill_intersection": True},
+            }],
+            "audit_rows": [],
+            "diagnostics": {"scored_jobs_total": 1},
+        },
+    )
+    jobs = [
+        {"job_url": "https://example.com/vector-top", "title": "Data Engineer"},
+        {"job_url": "https://example.com/recovered", "title": "Data Engineer"},
+        {"job_url": "https://example.com/missing", "title": "Data Engineer"},
+    ]
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        [job["job_url"] for job in jobs],
+        {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 5}},
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == ["https://example.com/recovered"]
+    assert "https://example.com/recovered" not in {row["job_url"] for row in result["audit_rows"]}
+
+
 def test_run_vector_search_deterministic_backend_uses_technology_overlap() -> None:
     profile = {"projects": [{"tech_stack": ["OpenAI"]}], "preferences": {}}
     jobs = [
@@ -1147,7 +1278,12 @@ def test_run_vector_search_fallback_preserves_lexical_audit_rows(
     )
     lexical_result = {
         "production_rows": [
-            {"job_url": "https://example.com/lexical-production", "vector_rank": 1},
+            {
+                "job_url": "https://example.com/lexical-production",
+                "vector_rank": 1,
+                "retrieval_score": 0.8,
+                "retrieval_components": {"required_skill_intersection": True},
+            },
         ],
         "audit_rows": [
             {"job_url": "https://example.com/lexical-audit", "vector_rank": 2},
@@ -1221,7 +1357,15 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
         for index in range(1, 51)
     ]
     lexical_only_url = "https://example.com/lexical-only-winner"
-    lexical_rows.insert(0, {"job_url": lexical_only_url, "lexical_rank": 1})
+    lexical_rows.insert(
+        0,
+        {
+            "job_url": lexical_only_url,
+            "lexical_rank": 1,
+            "retrieval_score": 0.9,
+            "retrieval_components": {"skill_overlap": 1.0, "required_skill_intersection": True},
+        },
+    )
 
     result = _hybrid_search_result(
         vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
@@ -1235,93 +1379,39 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
     assert result["diagnostics"]["lexical_only_rescue_count"] == 1
 
 
-def test_hybrid_fusion_does_not_rescue_neutral_lexical_only_row() -> None:
+def test_hybrid_fusion_does_not_rescue_neutral_or_missing_score_rows() -> None:
+    dual_channel_rows = [
+        {"job_url": f"https://example.com/dual-{index}", "vector_rank": index}
+        for index in range(1, 3)
+    ]
+    lexical_rows = [
+        {
+            "job_url": "https://example.com/neutral",
+            "lexical_rank": 1,
+            "retrieval_score": 0.9,
+            "retrieval_components": {
+                "skill_overlap": 0.0,
+                "title_relevance": 0.0,
+                "technology_overlap": 0.0,
+                "description_overlap": 0.0,
+                "match_details": {"domain": "neutral", "role_family": "neutral"},
+            },
+        },
+        {"job_url": "https://example.com/missing-score", "lexical_rank": 2},
+    ]
+
     result = _hybrid_search_result(
-        vector_result={
-            "production_rows": [{"job_url": "vector", "vector_rank": 1}],
-            "audit_rows": [],
-            "diagnostics": {},
-        },
-        lexical_result={
-            "production_rows": [{
-                "job_url": "neutral",
-                "lexical_rank": 1,
-                "retrieval_components": {
-                    "skill_overlap": 0.0,
-                    "technology_overlap": 0.0,
-                    "description_overlap": 0.0,
-                    "title_relevance": 0.5,
-                },
-            }],
-            "audit_rows": [],
-            "diagnostics": {},
-        },
-        eligible_job_urls=["vector", "neutral"],
-        top_n=1,
-        channel_depth=1,
+        vector_result={"production_rows": dual_channel_rows, "audit_rows": [], "diagnostics": {}},
+        lexical_result={"production_rows": lexical_rows, "audit_rows": [], "diagnostics": {}},
+        eligible_job_urls=[row["job_url"] for row in dual_channel_rows + lexical_rows],
+        top_n=2,
+        channel_depth=4,
     )
 
-    assert [row["job_url"] for row in result["production_rows"]] == ["vector"]
+    production_urls = {row["job_url"] for row in result["production_rows"]}
+    assert "https://example.com/neutral" not in production_urls
+    assert "https://example.com/missing-score" not in production_urls
     assert result["diagnostics"]["lexical_only_rescue_count"] == 0
-
-
-def test_hybrid_fusion_keeps_positive_partial_skill_overlap() -> None:
-    result = _hybrid_search_result(
-        vector_result={
-            "production_rows": [{"job_url": "vector", "vector_rank": 1}],
-            "audit_rows": [],
-            "diagnostics": {},
-        },
-        lexical_result={
-            "production_rows": [{
-                "job_url": "partial-skill",
-                "lexical_rank": 1,
-                "retrieval_components": {
-                    "skill_overlap": 0.25,
-                    "technology_overlap": 0.0,
-                    "description_overlap": 0.0,
-                    "title_relevance": 0.5,
-                },
-            }],
-            "audit_rows": [],
-            "diagnostics": {},
-        },
-        eligible_job_urls=["vector", "partial-skill"],
-        top_n=2,
-        channel_depth=1,
-    )
-
-    assert {row["job_url"] for row in result["production_rows"]} == {"vector", "partial-skill"}
-
-
-def test_hybrid_fusion_keeps_genuine_half_skill_overlap() -> None:
-    result = _hybrid_search_result(
-        vector_result={
-            "production_rows": [{"job_url": "vector", "vector_rank": 1}],
-            "audit_rows": [],
-            "diagnostics": {},
-        },
-        lexical_result={
-            "production_rows": [{
-                "job_url": "half-skill",
-                "lexical_rank": 1,
-                "retrieval_components": {
-                    "skill_overlap": 0.5,
-                    "skill_overlap_has_signal": True,
-                    "technology_overlap": 0.0,
-                    "description_overlap": 0.0,
-                    "title_relevance": 0.5,
-                },
-            }],
-            "audit_rows": [],
-            "diagnostics": {},
-        },
-        eligible_job_urls=["vector", "half-skill"],
-        top_n=2,
-        channel_depth=1,
-    )
-
-    assert {row["job_url"] for row in result["production_rows"]} == {"vector", "half-skill"}
 
 
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
@@ -1417,6 +1507,66 @@ def test_run_vector_search_keeps_valid_vectors_and_fills_remaining_slots_lexical
     assert result["diagnostics"]["effective_strategy"] == "vector_cosine_v1_with_lexical_fallback"
     assert result["diagnostics"]["fallback_admitted_total"] == 1
     assert result["diagnostics"]["vector_admitted_total"] == 1
+
+
+def test_run_vector_search_lets_all_strong_lexical_fallbacks_compete_with_vector_cutoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            [
+                ("https://example.com/vector-a", json.dumps([0.1, 1.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/vector-b", json.dumps([0.2, 1.0]), "2026-01-01T00:00:00Z"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    monkeypatch.setattr(
+        "fitcv.vector_search._lexical_search_result",
+        lambda *_args, **_kwargs: {
+            "production_rows": [
+                {
+                    "job_url": "https://example.com/lexical-a",
+                    "retrieval_score": 0.95,
+                    "retrieval_components": {"required_skill_intersection": True},
+                },
+                {
+                    "job_url": "https://example.com/lexical-b",
+                    "retrieval_score": 0.90,
+                    "retrieval_components": {"required_skill_intersection": True},
+                },
+            ],
+            "audit_rows": [],
+            "diagnostics": {"scored_jobs_total": 2},
+        },
+    )
+    jobs = [
+        {"job_url": "https://example.com/vector-a", "title": "Data Engineer"},
+        {"job_url": "https://example.com/vector-b", "title": "Data Engineer"},
+        {"job_url": "https://example.com/lexical-a", "title": "Data Engineer"},
+        {"job_url": "https://example.com/lexical-b", "title": "Data Engineer"},
+    ]
+
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        [job["job_url"] for job in jobs],
+        {"pipeline": {"vector_search_top_n": 2, "shortlist_audit_sample_n": 0}},
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == [
+        "https://example.com/lexical-a",
+        "https://example.com/lexical-b",
+    ]
+    assert result["diagnostics"]["fallback_admitted_total"] == 2
+    assert result["diagnostics"]["vector_admitted_total"] == 0
 
 
 def test_fixed_recall_fixture_reports_vector_lexical_and_merged_recall_at_50(

@@ -53,7 +53,7 @@ from fitcv.contracts import (
     SETTINGS_USED_SCHEMA_VERSION,
 )
 from fitcv.pipeline import PipelineCancelled, run_pipeline
-from fitcv.ranking_contract import normalize_score_state
+from fitcv.ranking_contract import normalize_score_state_for_export
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,
@@ -936,7 +936,7 @@ def _build_results_export_payload(
             **(dict(nested_scores) if isinstance(nested_scores, dict) else {}),
             **normalized_row,
         }
-        score_state = normalize_score_state(score_source)
+        score_state = normalize_score_state_for_export(score_source)
         normalized_row.update(score_state)
         normalized_export_results.append(normalized_row)
     payload = {

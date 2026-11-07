@@ -491,10 +491,14 @@ def execute_ranking_stage(
         ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = {}
         ranking_admission_rows: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
+            evidence_limit = max(
+                2,
+                int((config.get("pipeline") or {}).get("evidence_top_k") or 2),
+            )
             selected_evidence = select_ranking_evidence(
                 profile_evidence_pool,
                 shortlisted_job,
-                limit=2,
+                limit=evidence_limit,
                 semantic_policy=semantic_policy,
             )
             ranking_profile = {**profile, "_projected_evidence_pool": selected_evidence}
@@ -579,7 +583,7 @@ def execute_ranking_stage(
                         )
                     )
                 continue
-            fresh_scoring_jobs.append(shortlisted_job)
+            fresh_scoring_jobs.append({**shortlisted_job, "ranking_input": ranking_input})
             if identity_key:
                 fresh_ai_score_fingerprints[identity_key] = fingerprint_record["fingerprint"]
             if manifest_identity in ranking_admission_rows:
@@ -732,6 +736,13 @@ def execute_ranking_stage(
             resolved_preference_policy=resolved_preference_policy,
         )
         pipeline_store.store_final_ranking(ranked, config)
+        update_ledger = getattr(pipeline_store, "update_shortlist_admission_ledger_scores", None)
+        if update_ledger is not None:
+            update_ledger(
+                [*ai_scores, *ranked],
+                state.get("ranking_admission_manifest"),
+                run_id,
+            )
         if reporter is not None:
             reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
         state["ai_scores"] = ai_scores
