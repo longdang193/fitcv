@@ -220,7 +220,7 @@ def execute_rule_filter_stage(
         )
         filter_result = apply_rule_filters(
             enriched,
-            profile["preferences"],
+            profile.get("preferences") or profile.get("search_preferences") or {},
             config,
             candidate_fit_context=candidate_fit_context,
         )

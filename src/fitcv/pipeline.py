@@ -3894,6 +3894,7 @@ def run_pipeline(
                 else:
                     profile_path: str = str(config["paths"]["candidate_profile"])
                     profile = load_profile_yaml(profile_path)
+                profile = converge_candidate_profile_for_runtime(profile or {})
                 pipeline_store.load_candidate_profile(profile, config)
                 candidate_skill_names = flatten_skills(profile)
                 if reporter is not None:
@@ -3905,7 +3906,7 @@ def run_pipeline(
                 )
                 filter_result = apply_rule_filters(
                     enriched,
-                    profile["preferences"],
+                    profile.get("preferences") or profile.get("search_preferences") or {},
                     config,
                     candidate_fit_context=candidate_fit_context,
                 )
@@ -3951,11 +3952,10 @@ def run_pipeline(
             else:
                 profile_path = str(config["paths"]["candidate_profile"])
                 profile = load_profile_yaml(profile_path)
+            profile = converge_candidate_profile_for_runtime(profile or {})
             candidate_skill_names = flatten_skills(profile)
 
-        evidence_projection = build_evidence_projection(
-            converge_candidate_profile_for_runtime(profile or {})
-        )
+        evidence_projection = build_evidence_projection(profile or {})
         passed_jobs = list(state["passed_jobs"])
         candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
         passed_job_urls = [extract_job_url(job) for job in passed_jobs if extract_job_url(job)]
@@ -4238,7 +4238,7 @@ def run_pipeline(
                 build_ranking_features=build_ranking_features,
                 rank_jobs=rank_jobs,
                 preference_policy_resolver=preference_policy_resolver,
-                profile_for_projection=converge_candidate_profile_for_runtime(profile or {}),
+                profile_for_projection=profile or {},
                 evidence_projection=evidence_projection,
                 runtime_observation_callback=ranking_llm_runtime_observations.append,
                 build_reuse_decision_callback=build_reuse_decision,

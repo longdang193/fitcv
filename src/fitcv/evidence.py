@@ -53,6 +53,7 @@ from fitcv.contracts import (
     ANALYSIS_CHANNEL_IDS,
     CV_ANALYSIS_REUSE_SCHEMA_VERSION,
     DOMAIN_ALIGNMENT_CHANNEL,
+    EVIDENCE_INTEGRITY_POLICY_VERSION,
     REQUIRED_SKILL_SUPPORT_CHANNEL,
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
     ROLE_ALIGNMENT_CHANNEL,
@@ -844,7 +845,7 @@ def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
     payload = {
         "skills": list(profile.get("skills") or []),
         "years_experience": profile.get("years_experience"),
-        "preferences": dict(profile.get("preferences") or {}),
+        "preferences": dict(profile.get("preferences") or profile.get("search_preferences") or {}),
         "experiences": list(profile.get("experiences") or []),
         "education": list(profile.get("education") or []),
         "projects": list(profile.get("projects") or []),
@@ -862,6 +863,7 @@ def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
 def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     payload = {
         "schema_version": CV_ANALYSIS_REUSE_SCHEMA_VERSION,
+        "evidence_integrity_policy_version": EVIDENCE_INTEGRITY_POLICY_VERSION,
         "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
         "experience_evidence_policy_version": EXPERIENCE_EVIDENCE_POLICY_VERSION,
         "experience_evidence_mode": resolve_experience_evidence_mode(config),
@@ -1376,7 +1378,16 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
     cached = profile.get("_projected_evidence_pool")
     if isinstance(cached, list):
         return copy.deepcopy(cached)
-    canonical = converge_candidate_profile_for_runtime(profile)
+    try:
+        canonical = converge_candidate_profile_for_runtime(profile)
+    except ValueError:
+        if profile.get("schema_version") != "candidate-profile.v2":
+            raise
+        canonical = copy.deepcopy(profile)
+        canonical.pop("preferences", None)
+        canonical["preferences"] = copy.deepcopy(canonical.get("search_preferences") or {})
+        canonical.pop("_runtime_evidence_admission", None)
+    runtime_admission = canonical.get("_runtime_evidence_admission") or {}
     linked_claims: dict[str, dict[str, list[str]]] = {
         section: {} for section in ("skills", "role_families", "domain_tags", "responsibility_themes")
     }
@@ -1472,6 +1483,9 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                         "source_ref": f"{section}/{parent_id}/evidence/{evidence_id}",
                         "role": parent_title,
                         "company": organization,
+                        "admission_status": runtime_admission.get(evidence_id, {}).get(
+                            "admission_status", "admitted"
+                        ),
                     }
                 )
     for source_document in canonical.get("source_documents") or []:
@@ -1517,6 +1531,7 @@ def project_candidate_evidence(profile: dict[str, Any]) -> list[dict[str, Any]]:
                     "company": None,
                 }
             residual_item["support_fragments"] = []
+            residual_item["admission_status"] = "admitted"
             projected.append(residual_item)
     return projected
 
@@ -1546,6 +1561,8 @@ def select_ranking_evidence(
         return []
     scored = []
     for index, item in enumerate(evidence_pool):
+        if str(item.get("admission_status") or "admitted") != "admitted":
+            continue
         channel_score = score_evidence_item_by_channel(
             item,
             job,
@@ -1573,6 +1590,8 @@ def select_ranking_evidence(
                 "_selection_index": index,
             }
         )
+    if not scored:
+        return []
     first = min(
         scored,
         key=lambda item: (
@@ -1860,6 +1879,19 @@ def _evidence_search_text(item: dict[str, Any]) -> str:
     ).strip()
 
 
+def _evidence_polarity_text(item: dict[str, Any]) -> str:
+    """Return source prose used to decide whether a matched term is affirmed."""
+    for field_name in ("text", "source_text", "scoring_context"):
+        value = _normalize_optional_text(item.get(field_name))
+        if value:
+            return value
+    return "\n".join(
+        _normalize_optional_text(item.get(field_name))
+        for field_name in ("title", "parent_title", "organization", "role")
+        if _normalize_optional_text(item.get(field_name))
+    ).strip()
+
+
 def _jaccard_tokens(left: str, right: str) -> float:
     left_tokens = _tokenize(left)
     right_tokens = _tokenize(right)
@@ -1919,6 +1951,7 @@ def score_evidence_item_by_channel(
 ) -> dict[str, Any]:
     """Return deterministic weighted requirement-channel coverage."""
     text = _evidence_search_text(item)
+    polarity_text = _evidence_polarity_text(item)
     channels = _ranking_requirement_channels(job, semantic_policy)
     weights = {
         "required": 5.0,
@@ -1933,7 +1966,8 @@ def score_evidence_item_by_channel(
             for term in terms
             if any(
                 _term_is_present(text, variant)
-                and not _is_negated_term(text, variant)
+                and _term_is_present(polarity_text, variant)
+                and not _is_negated_term(polarity_text, variant)
                 for variant in _semantic_term_variants(term, semantic_policy)
             )
         ]

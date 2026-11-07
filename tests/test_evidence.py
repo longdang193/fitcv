@@ -2779,6 +2779,32 @@ def test_ranking_channel_matching_rejects_only_negated_occurrences() -> None:
     assert coverage["required"] == []
 
 
+def test_ranking_channel_matching_does_not_let_structured_tags_override_negated_text() -> None:
+    item = {
+        "title": "Pipelines",
+        "text": "No Python experience was required for the role.",
+        "skills": ["Python"],
+        "scoring_context": "Python pipelines",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]
+
+    assert coverage["required"] == []
+
+
+def test_ranking_channel_matching_requires_affirmative_source_text_for_structured_tags() -> None:
+    item = {
+        "title": "Pipelines",
+        "text": "Built data pipelines in production.",
+        "skills": ["Python"],
+        "scoring_context": "Python pipelines",
+    }
+
+    coverage = score_evidence_item_by_channel(item, {"required_skills": ["Python"]})["coverage"]
+
+    assert coverage["required"] == []
+
+
 def test_production_evidence_selection_preserves_support_state_across_newlines() -> None:
     item = {
         "evidence_id": "ev-python",

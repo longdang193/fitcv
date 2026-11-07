@@ -259,6 +259,55 @@ def test_build_candidate_query_components_filter_unsupported_technology_claims()
     assert _has_affirmative_lexical_relevance(row) is False
 
 
+def test_build_candidate_query_components_filter_negated_project_material() -> None:
+    profile = {
+        "projects": [
+            {
+                "name": "Claimed Kubernetes project",
+                "support_status": "claimed_only",
+                "domain_tags": ["banking"],
+                "tech_stack": ["Kubernetes"],
+                "business_value": "Built a Kubernetes service.",
+                "highlights": ["Built Kubernetes deployment."],
+            },
+            {
+                "name": "Negative project",
+                "support_status": "supported",
+                "domain_tags": [{"name": "banking", "support_status": "unsupported"}],
+                "tech_stack": ["Kubernetes"],
+                "business_value": "No Kubernetes experience was required.",
+                "highlights": ["No Kubernetes deployment was completed."],
+                "evidence": [
+                    {
+                        "title": "Technology stack",
+                        "text": "No Kubernetes experience was required.",
+                        "skills": ["Kubernetes"],
+                    }
+                ],
+            },
+            {
+                "name": "Supported analytics project",
+                "support_status": "supported",
+                "domain_tags": ["fintech"],
+                "tech_stack": ["Python"],
+                "business_value": "Built a fraud analytics workflow with Python.",
+            },
+        ]
+    }
+
+    components = build_candidate_query_components(profile)
+    signature = build_candidate_query_signature_record(components)
+    query_text = build_candidate_query_text(profile)
+
+    assert "Kubernetes" not in components["technology_hints"]
+    assert "banking" not in components["domain_hints"]
+    assert all("Claimed Kubernetes project" not in value for value in components["project_evidence_hints"])
+    assert "Python" in components["technology_hints"]
+    assert "fintech" in components["domain_hints"]
+    assert "Kubernetes" not in query_text
+    assert "Kubernetes" not in json.dumps(signature["payload"])
+
+
 def test_rank_profile_skills_ignores_rejected_child_claim_duplicates() -> None:
     profile = {
         "skills": [{"name": "SQL"}, {"name": "Python"}],
