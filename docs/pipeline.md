@@ -25,9 +25,9 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 ## Stage Responsibilities
 
 - `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
-- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata
+- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata; canonical skills are the deduplicated union of validated structured entities and accepted raw values, including valid multi-word skills
 - `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
-- `shortlist`: deterministic cosine retrieval over eligible jobs with valid embeddings; production rows use real vector evidence only
+- `shortlist`: relevance-aware hybrid retrieval over eligible jobs; production rows use real vector evidence when available, while partial vector/lexical fallback uses rank-normalized channel scores and lexical rescue requires affirmative component overlap
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract owns fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; pipeline persists canonical `accepted` results only
@@ -81,6 +81,11 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - `requirement_coverage` is the sole requirement-support authority; `supporting_evidence_ids` and `source_refs` point to selected `candidate-evidence.v1` items only
 - analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
 - traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
+
+Mandatory enrichment completeness is computed from mandatory requirement channels
+only. Preferred skills and responsibilities can enrich context, but cannot make a
+row appear complete when required skills, experience, education, or other
+mandatory channels are missing or degraded.
 
 ### Proof Boundary and Review Uncertainty
 
@@ -266,17 +271,19 @@ Phase 1 uses one path for both factors:
 
 Phase 2 requests vector retrieval and preserves that requested strategy in diagnostics. Compatible vectors use one path:
 
-`eligible jobs -> valid cosine evidence -> total vector order -> production Top N`
+`eligible jobs -> relevance-aware query components -> valid vector evidence -> production Top N`
 
-- ordering is `vector_similarity` descending, then `job_url` ascending
+- candidate skill query slots prioritize repeated, supported demonstrated skills with stable deterministic ties; project slots prioritize supported, richer evidence before stable profile order
+- ordering is `vector_similarity` descending, then `job_url` ascending when the vector path is complete
 - one latest embedding row per job URL is selected by `created_at DESC, id DESC`
 - missing, invalid, stale, or contract-incompatible vectors use deterministic lexical ranking only when the caller supplies the eligible structured job batch
 - vector and lexical rows never mix in one shortlist
+- partial vector/lexical fallback normalizes each channel's native scores independently before applying the configured blend; channel rank and stable URL provide scale-independent tie-breakers
 - diagnostics record `requested_strategy`, `effective_strategy`, `fallback_reason`, backend identity, model, dimension, contract fingerprint, and result counts
 - absent fallback data produces `effective_strategy: unavailable`; retrieval never changes silently
 - `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
 - `shortlist_diagnostics` preserves coverage and cutoff metrics in checkpoint state
-- bounded query construction prioritizes repeated demonstrated skills and richer project evidence; hybrid lexical rescue excludes rows whose retrieval components are all neutral rather than treating unknown relevance as affirmative evidence
+- bounded query construction prioritizes repeated demonstrated skills and richer project evidence; affirmative skill, technology, or description overlap can authorize lexical rescue, while neutral/unknown title relevance alone cannot
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
 - audit rows never reach shortlist persistence, AI scoring, ranking, exports, or `strong | stretch | skip` labels
 - continuation preserves prior completed shortlist artifact block, including audit evidence, while current execution updates only stages in its execution segment
@@ -289,7 +296,9 @@ Phase 3 uses one path for every admissible scored job:
 
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
-- scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; if selected attributable evidence cannot fit, the row is `score_status: unscored` with `failure_code: evidence_limited` and is excluded from ordinary compatibility ranking
+- scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; evidence keeps source `text`, selection `scoring_context`, stable `evidence_id`, and `source_refs` as separate fields
+- if no attributable selected evidence exists before budgeting, the row is `score_status: unscored` with `failure_code: evidence_limited`, `disposition: unavailable`, and `retry_eligible: false`; it cannot reuse a cached normal score or invoke the compatibility provider
+- if attributable evidence existed but budget trimming removes it, the row is `score_status: unscored` with retryable `failure_code: budget_exceeded`; visibility counts and omission reasons describe the final bounded payload, not the unbounded source object
 - `holistic_ai_fit` is the bounded AI scalar and sole active baseline contribution
 - six structured factors remain independently normalized, weighted, persisted, and observable
 - hard-gated or disabled location/language factors are removed once from effective structured weights, then retained weights renormalize once
