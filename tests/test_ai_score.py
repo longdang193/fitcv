@@ -1077,6 +1077,9 @@ def test_ranking_input_diagnostics_include_bounded_visible_requirements_and_back
         ranking_input,
         {
             "request_payload": {"prompt": "bounded"},
+            "bounded_ranking_input": {
+                "candidate_summary": json.dumps({"skills": [f"Skill {index}" for index in range(1, 9)]}),
+            },
             "prompt_truncated": True,
             "prompt_truncation_steps": ["candidate_facts:field_aware_bound"],
         },
@@ -1757,7 +1760,7 @@ def test_scoring_rejection_preserves_ranking_input_diagnostics(monkeypatch: pyte
     ranking_input = build_ranking_job_input(
         {"enrich_reuse_status": "enrichment_fallback", "description": "Requirements: German C1"},
         {
-            "skills": [],
+            "skills": ["Python"],
             "_projected_evidence_pool": [{"evidence_id": "project-1", "kind": "project", "title": "Project"}],
         },
     )
@@ -1770,6 +1773,9 @@ def test_scoring_rejection_preserves_ranking_input_diagnostics(monkeypatch: pyte
     diagnostics = result["ranking_input_diagnostics"]
     assert result["failure_code"] == "needs_enrichment"
     assert diagnostics["selected_evidence_ids"] == ["project-1"]
+    assert diagnostics["candidate_skill_count"] == 1
+    assert diagnostics["model_visible_candidate_skill_count"] == 0
+    assert diagnostics["visible_candidate_skills"] == []
     assert diagnostics["mandatory_omissions"]["job_enrichment_fallback"] == 1
     assert diagnostics["mandatory_core_complete"] is False
 

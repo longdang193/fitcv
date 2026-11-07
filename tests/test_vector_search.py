@@ -208,15 +208,34 @@ def test_build_candidate_query_components_filter_unsupported_technology_claims()
     profile = {
         "preferences": {"target_role": "Data Engineer"},
         "skills": [{"name": "Kafka", "support_status": "claimed_only"}, {"name": "Python"}],
+        "experiences": [
+            {
+                "support_status": "supported",
+                "bullets": [{"skills": [{"name": "Spark", "support_status": "claimed_only"}]}],
+            }
+        ],
         "projects": [
-            {"name": "Claimed", "support_status": "claimed_only", "tech_stack": ["Terraform"]},
-            {"name": "Supported", "support_status": "supported", "tech_stack": ["Airflow"]},
+            {
+                "name": "Claimed",
+                "support_status": "claimed_only",
+                "tech_stack": ["Terraform"],
+                "skills": [{"name": "Kubernetes", "support_status": "claimed_only"}],
+            },
+            {
+                "name": "Supported",
+                "support_status": "supported",
+                "tech_stack": ["Airflow"],
+                "skills": [{"name": "dbt", "support_status": "unsupported"}],
+            },
         ],
     }
 
     components = build_candidate_query_components(profile)
 
     assert "Kafka" not in components["technology_hints"]
+    assert "Spark" not in components["technology_hints"]
+    assert "Kubernetes" not in components["technology_hints"]
+    assert "dbt" not in components["technology_hints"]
     assert "Terraform" not in components["technology_hints"]
     assert "Airflow" in components["technology_hints"]
 
@@ -225,7 +244,13 @@ def test_build_candidate_query_components_filter_unsupported_technology_claims()
         ["job-claimed"],
         {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
         top_n=1,
-        structured_jobs=[{"job_url": "job-claimed", "title": "Registered Nurse", "tech_stack": ["Kafka"]}],
+        structured_jobs=[
+            {
+                "job_url": "job-claimed",
+                "title": "Registered Nurse",
+                "tech_stack": ["Kafka", "Spark", "Kubernetes", "dbt"],
+            }
+        ],
         requested_strategy="lexical_v1",
     )
 

@@ -1520,14 +1520,14 @@ def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
             if isinstance(bullet, dict):
                 status = bullet.get("support_status")
                 for skill in bullet.get("skills") or []:
-                    _add(skill.get("name") if isinstance(skill, dict) else skill, status)
+                    _add(skill, status)
 
     for project in profile.get("projects") or []:
         if not isinstance(project, dict):
             continue
         status = project.get("support_status")
         for skill in project.get("skills") or []:
-            _add(skill.get("name") if isinstance(skill, dict) else skill, status)
+            _add(skill, status)
 
     return result
 

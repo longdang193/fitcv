@@ -721,8 +721,10 @@ def build_ranking_input_diagnostics(
             return []
 
     raw_candidate_skills = summary_skills(source.get("candidate_summary"))
-    model_visible_candidate_skills = summary_skills(
-        bounded_input.get("candidate_summary") or source.get("candidate_summary")
+    model_visible_candidate_skills = (
+        summary_skills(bounded_input.get("candidate_summary"))
+        if request_record is not None
+        else []
     )
     candidate_skill_count = len(raw_candidate_skills)
     model_visible_candidate_skill_count = len(model_visible_candidate_skills)

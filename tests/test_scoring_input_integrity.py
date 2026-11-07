@@ -304,7 +304,7 @@ def test_run_ai_scoring_marks_explicit_empty_evidence_unavailable_without_provid
         [{
             "job_url": "https://example.com/no-evidence",
             "ranking_input": {
-                "candidate_summary": "candidate",
+                "candidate_summary": json.dumps({"skills": ["SQL"]}),
                 "job_requirements": "SQL",
                 "candidate_evidence": [],
             },
@@ -317,6 +317,9 @@ def test_run_ai_scoring_marks_explicit_empty_evidence_unavailable_without_provid
     assert result["failure_code"] == "evidence_limited"
     assert result["disposition"] == "unavailable"
     assert result["retry_eligible"] is False
+    assert result["ranking_input_diagnostics"]["candidate_skill_count"] == 1
+    assert result["ranking_input_diagnostics"]["model_visible_candidate_skill_count"] == 0
+    assert result["ranking_input_diagnostics"]["visible_candidate_skills"] == []
 
 
 def test_run_ai_scoring_keeps_budget_only_evidence_failure_retryable(monkeypatch) -> None:
