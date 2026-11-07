@@ -319,6 +319,18 @@ REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
 MIGRATED_CACHED_ENRICHMENT_STATUS = "migrated_cached_enrichment"
 ENRICHMENT_FALLBACK_STATUS = "enrichment_fallback"
 _SPARSE_REQUIRED_SKILLS_THRESHOLD = 3
+_MANDATORY_STRUCTURED_REQUIREMENT_FIELDS = (
+    "required_skills",
+    "tech_stack",
+    "qualifications",
+    "education",
+    "certifications",
+    "employment_constraints",
+    "mandatory_clauses",
+    "language_requirements",
+    "years_experience_min",
+    "years_experience_max",
+)
 
 # ── Markdown fence stripper ───────────────────────────────────────────────────
 
@@ -526,9 +538,10 @@ def _is_raw_skill_union_candidate(raw_text: str, canonical: str) -> bool:
             "degree",
             "related field",
             "mandatory",
-            "support",
         )
     ):
+        return False
+    if normalized in {"phone support", "customer support"}:
         return False
     if re.search(r"\b\d{2,5}(?:[./-]\d{1,5})+\b", normalized):
         return False
@@ -2084,18 +2097,8 @@ def merge_scraped_and_enriched(
         "technology": bool(enriched.get("tech_stack")),
         "mandatory_clauses": bool(mandatory_clauses),
     }
-    mandatory_structured_requirement_fields = (
-        "required_skills",
-        "tech_stack",
-        "qualifications",
-        "education",
-        "certifications",
-        "employment_constraints",
-        "mandatory_clauses",
-        "language_requirements",
-    )
     has_structured_requirement_signal = any(
-        bool(enriched.get(field_name)) for field_name in mandatory_structured_requirement_fields
+        bool(enriched.get(field_name)) for field_name in _MANDATORY_STRUCTURED_REQUIREMENT_FIELDS
     )
     enrichment_degraded = bool(enriched.get("enrichment_failure")) or (
         description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
@@ -2305,18 +2308,8 @@ def merge_scraped_and_enriched(
         "technology": bool(merged.get("tech_stack")),
         "mandatory_clauses": bool(merged.get("mandatory_clauses")),
     }
-    mandatory_structured_requirement_fields = (
-        "required_skills",
-        "tech_stack",
-        "qualifications",
-        "education",
-        "certifications",
-        "employment_constraints",
-        "mandatory_clauses",
-        "language_requirements",
-    )
     has_structured_requirement_signal = any(
-        bool(merged.get(field_name)) for field_name in mandatory_structured_requirement_fields
+        bool(merged.get(field_name)) for field_name in _MANDATORY_STRUCTURED_REQUIREMENT_FIELDS
     )
     merged["enrichment_degraded"] = bool(merged.get("enrichment_degraded")) or (
         description_quality in {"missing", "partial", "boilerplate_only", "unknown"}

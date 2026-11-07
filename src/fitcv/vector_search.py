@@ -1320,7 +1320,7 @@ def run_vector_search(
             profile,
             eligible_job_urls,
             config,
-            effective_top_n,
+            len(eligible_job_urls),
             structured_jobs,
             requested_strategy=requested_strategy,
             fallback_reason=fallback_reason,

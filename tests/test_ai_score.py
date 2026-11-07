@@ -812,6 +812,39 @@ def test_ranking_request_preserves_full_mandatory_requirement_text() -> None:
     assert request["visibility_manifest"]["mandatory_core_complete"] is True
 
 
+def test_ranking_request_budget_preserves_attributable_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("fitcv.ai_score.RANKING_REQUEST_MAX_CHARS", 2_500)
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
+    )
+    request = build_ranking_request(
+        {},
+        "candidate",
+        [],
+        {},
+        ranking_input={
+            "job_requirements": "job",
+            "candidate_summary": "candidate",
+            "candidate_evidence": [
+                *[{"evidence_id": "", "text": "unattributed noise " * 30} for _ in range(7)],
+                {
+                    "evidence_id": "ev-strong",
+                    "text": "Built the required system.",
+                    "source_ref": "cv:project:strong",
+                },
+            ],
+        },
+        resolved_route=route,
+    )
+
+    assert request["visibility_manifest"]["evidence"]["selected_ids"][0] == "ev-strong"
+    assert request["visibility_manifest"]["evidence"]["model_visible_count"] >= 1
+
+
 def test_ranking_request_renders_one_evidence_excerpt_with_metadata() -> None:
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",

@@ -1512,6 +1512,73 @@ def test_partial_fallback_ties_use_channel_rank_not_native_scale(
     assert result["production_rows"][0]["job_url"] == "https://example.com/lexical"
 
 
+def test_partial_fallback_production_is_invariant_to_audit_sample_size(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            [
+                ("https://example.com/vector-1", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/vector-2", json.dumps([0.9, 0.435]), "2026-01-01T00:00:00Z"),
+                ("https://example.com/vector-3", json.dumps([0.8, 0.6]), "2026-01-01T00:00:00Z"),
+            ],
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    lexical_rows = [
+        {
+            "job_url": f"https://example.com/fallback-{index}",
+            "lexical_rank": index,
+            "vector_rank": 100 + index,
+            "retrieval_score": 1.0 - (index * 0.1),
+            "retrieval_components": {"required_skill_intersection": True},
+        }
+        for index in range(1, 5)
+    ]
+
+    def lexical_result(_profile, _urls, config, top_n, _jobs, **_kwargs):
+        audit_size = int((config.get("pipeline") or {}).get("shortlist_audit_sample_n", 0))
+        return {
+            "production_rows": lexical_rows[:top_n],
+            "audit_rows": lexical_rows[top_n:top_n + audit_size],
+            "diagnostics": {"scored_jobs_total": len(lexical_rows)},
+        }
+
+    monkeypatch.setattr("fitcv.vector_search._lexical_search_result", lexical_result)
+    jobs = [
+        {"job_url": f"https://example.com/vector-{index}", "title": "Data Engineer"}
+        for index in range(1, 4)
+    ] + [
+        {"job_url": f"https://example.com/fallback-{index}", "title": "Data Engineer"}
+        for index in range(1, 5)
+    ]
+    urls = [job["job_url"] for job in jobs]
+
+    no_audit = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        urls,
+        {"pipeline": {"vector_search_top_n": 3, "shortlist_audit_sample_n": 0}},
+        structured_jobs=jobs,
+    )
+    with_audit = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        urls,
+        {"pipeline": {"vector_search_top_n": 3, "shortlist_audit_sample_n": 4}},
+        structured_jobs=jobs,
+    )
+
+    assert [row["job_url"] for row in no_audit["production_rows"]] == [
+        row["job_url"] for row in with_audit["production_rows"]
+    ]
+
+
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

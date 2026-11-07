@@ -144,6 +144,16 @@ def _bounded_source_refs(values: Any, *, limit: int = 4) -> list[dict[str, Any] 
             break
     return result
 
+
+def _is_attributable_evidence(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return False
+    return bool(
+        str(item.get("evidence_id") or "").strip()
+        and (str(item.get("text") or "").strip() or str(item.get("scoring_context") or "").strip())
+        and (list(item.get("source_refs") or []) or str(item.get("source_ref") or "").strip())
+    )
+
 # ── constants ─────────────────────────────────────────────────────────────────
 def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
     payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -491,11 +501,15 @@ def build_ranking_request(
             else "mandatory ranking facts were omitted before request bounding",
             visibility_manifest=visibility_manifest,
         )
-    evidence = (
-        list(source.get("candidate_evidence") or [])[:RANKING_MAX_EVIDENCE]
+    raw_evidence = (
+        list(source.get("candidate_evidence") or [])
         if "candidate_evidence" in source
-        else list(top_evidence or [])[:RANKING_MAX_EVIDENCE]
+        else list(top_evidence or [])
     )
+    evidence = [
+        *[item for item in raw_evidence if _is_attributable_evidence(item)],
+        *[item for item in raw_evidence if not _is_attributable_evidence(item)],
+    ][:RANKING_MAX_EVIDENCE]
 
     def evidence_text(item: Any) -> str:
         if not isinstance(item, dict):
@@ -518,14 +532,7 @@ def build_ranking_request(
         return " | ".join(value for value in fields if value)
 
     if "candidate_evidence" in source:
-        attributable_evidence = [
-            item
-            for item in evidence
-            if isinstance(item, dict)
-            and str(item.get("evidence_id") or "").strip()
-            and (str(item.get("text") or "").strip() or str(item.get("scoring_context") or "").strip())
-            and (list(item.get("source_refs") or []) or str(item.get("source_ref") or "").strip())
-        ]
+        attributable_evidence = [item for item in evidence if _is_attributable_evidence(item)]
         if not attributable_evidence:
             raise RankingEvidenceUnavailable(
                 "ranking requires selected attributable evidence",
@@ -609,6 +616,26 @@ def build_ranking_request(
             "ranking request mandatory contract exceeds 12000 characters",
             visibility_manifest=visibility_manifest,
         )
+    selected_items = evidence[:len(selected_evidence)]
+    if "candidate_evidence" in source and not any(
+        _is_attributable_evidence(item) for item in selected_items
+    ):
+        raise RankingInputBudgetExceeded(
+            "ranking request budget removed all attributable evidence",
+            visibility_manifest={
+                "job": job_visibility,
+                "candidate": candidate_visibility,
+                "evidence": {
+                    "raw_count": len(raw_evidence),
+                    "selected_count": len(selected_items),
+                    "rendered_count": len(selected_evidence),
+                    "model_visible_count": len(selected_evidence),
+                    "omitted_count": max(0, len(evidence) - len(selected_items)),
+                },
+                "mandatory_omissions": mandatory_omissions,
+                "mandatory_core_complete": False,
+            },
+        )
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {
         **base_request_payload,
@@ -647,7 +674,7 @@ def build_ranking_request(
                 "model_visible_count": len(selected_evidence),
                 "selected_ids": [
                     str(item.get("evidence_id") or "")
-                    for item in evidence[:len(selected_evidence)]
+                    for item in selected_items
                     if isinstance(item, dict)
                 ],
                 "omitted_count": max(0, len(evidence) - len(selected_evidence)),
@@ -904,7 +931,7 @@ def build_ranking_job_input(
         from fitcv.evidence import project_candidate_evidence
 
         projected_evidence = project_candidate_evidence(profile)
-    evidence = [{
+    projected_evidence_records = [{
         "evidence_id": str(item.get("evidence_id") or ""),
         "kind": str(item.get("kind") or ""),
         "title": _bounded_text(item.get("title"), RANKING_TERM_MAX_CHARS),
@@ -924,7 +951,11 @@ def build_ranking_job_input(
         "source_refs": _bounded_source_refs(item.get("source_refs"), limit=4),
         "source_ref": _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
-    } for item in projected_evidence[:RANKING_MAX_EVIDENCE] if isinstance(item, dict)]
+    } for item in projected_evidence if isinstance(item, dict)]
+    evidence = [
+        *[item for item in projected_evidence_records if _is_attributable_evidence(item)],
+        *[item for item in projected_evidence_records if not _is_attributable_evidence(item)],
+    ][:RANKING_MAX_EVIDENCE]
     required_values = list(job.get("required_skills_canonical") or job.get("required_skills") or [])
     all_required_skills, required_canonical = canonical_values(
         required_values,
