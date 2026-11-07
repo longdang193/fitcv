@@ -76,9 +76,11 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - derived claims link by `evidence_refs`; runtime reverses those links into evidence-item skills without duplicating ownership
 - one global selection budget applies after channel retrieval and deterministic evidence-ID tie breaking
 - each distinct required skill keeps one recoverable supporter in the existing required-skill channel before channel-pool cutoffs; selected items retain source text, scoring context, stable evidence IDs, and source references
+- candidate technology hints and lexical overlap admit only supported demonstrated skills, including supported top-level skills and experience-bullet skills; unsupported and `claimed_only` technology is excluded
 - required-skill support is derived separately from profile fit: `profile_match` comes from `compute_gap()`, `canonical` records support across the projected evidence pool, `pool` records support after channel retrieval and merge, and `selected` comes only from final selected evidence; each map points requirement IDs to evidence IDs
 - only selected `verified` support can produce `support_strength: supported`; `relevant_unverified`, `not_selected`, and `unsupported` stay non-authoritative
 - `requirement_coverage` is the sole requirement-support authority; `supporting_evidence_ids` and `source_refs` point to selected `candidate-evidence.v1` items only
+- compact `evidence_used` remains backward-compatible with `evidence_type`, `source_ref`, and `name`, while also exposing `evidence_id`, canonical `kind`, bounded `parent_title`, and bounded plural `source_refs`
 - analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
 - traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
 
@@ -92,6 +94,7 @@ mandatory channels are missing or degraded.
 - `candidate-evidence.v1` keeps original retrieval text, while `support_fragments` are deterministic source-only sentence/clause fragments used for requirement proof.
 - `requirement-support-v5` requires target skill and every qualifier in one unambiguous source fragment; sibling fragments, titles, roles, organizations, scoring metadata, and domains cannot donate proof.
 - pre-v4 analysis records are not reusable; policy version participates in the analysis contract fingerprint.
+- exact CV-analysis reuse requires the persisted experience summary, uncertainty metadata, and candidate-profile identity; older records missing any of these fields fail closed into fresh recomputation
 - non-verified requirement rows expose `uncertainty_id`, `resolution_key`, affected fact, question, disposition, evidence IDs, and source fingerprint. Human actions are `RESOLVE_WITH_ANSWER`, `CONFIRM_OMIT`, and `OVERRIDE_BLOCK`.
 - profile-scoped resolutions reuse only when candidate identity/revision, source fingerprint, resolution key, and requirement instance match; otherwise pipeline asks again.
 - resolution actions enqueue one bounded re-analysis through the existing CV regeneration entrypoint; refreshed analysis/generation replaces the prior debug record before closure.
@@ -297,6 +300,7 @@ Phase 3 uses one path for every admissible scored job:
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
 - scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; evidence keeps source `text`, selection `scoring_context`, stable `evidence_id`, and `source_refs` as separate fields
+- scorer diagnostics report raw and model-visible candidate/evidence counts from that same final selected payload, so visibility manifests do not describe a pre-budget source object
 - if no attributable selected evidence exists before budgeting, the row is `score_status: unscored` with `failure_code: evidence_limited`, `disposition: unavailable`, and `retry_eligible: false`; it cannot reuse a cached normal score or invoke the compatibility provider
 - if attributable evidence existed but budget trimming removes it, the row is `score_status: unscored` with retryable `failure_code: budget_exceeded`; visibility counts and omission reasons describe the final bounded payload, not the unbounded source object
 - `holistic_ai_fit` is the bounded AI scalar and sole active baseline contribution

@@ -344,10 +344,16 @@ _DESCRIPTION_REQUIREMENT_MARKERS: tuple[str, ...] = (
     "kenntnis",
     "knowledge",
     "anforderung",
+    "anforderungen",
     "voraussetzung",
     "qualifikation",
+    "qualifikationen",
+    "qualifications",
     "profil",
     "required",
+    "requirements",
+    "technical skills",
+    "technische kenntnisse",
     "must have",
     "you have",
     "du hast",
@@ -638,7 +644,6 @@ def _build_skill_entities(
         can_use_raw_entity_union = (
             bool(normalized_entities)
             and len(raw_value.strip()) <= 120
-            and len(raw_value.strip().split()) <= 3
             and _is_raw_skill_union_candidate(raw_value, canonical)
         )
         if not can_use_alias_fallback and not raw_is_concise_canonical and not can_use_raw_entity_union:
@@ -910,7 +915,11 @@ def _required_skill_candidates_from_description(
     candidates: list[str] = []
     in_requirement_bullets = False
     for raw_segment in _DESCRIPTION_SEGMENT_SPLIT_RE.split(description):
-        segment = _required_segment_without_preferred_tail(raw_segment.strip())
+        raw_segment = raw_segment.strip()
+        segment = _required_segment_without_preferred_tail(raw_segment)
+        if not segment and raw_segment:
+            in_requirement_bullets = False
+            continue
         if not segment and in_requirement_bullets:
             continue
         if not _is_requirement_like_description_segment(segment):

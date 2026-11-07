@@ -1,8 +1,11 @@
 import json
 from types import SimpleNamespace
 
+from fitcv.agentic_cv_analysis import build_cv_analysis_record
 from fitcv.ai_score import build_ranking_job_input, build_ranking_request, run_ai_scoring
+from fitcv.enrich import merge_scraped_and_enriched
 from fitcv.rule_filter import apply_rule_filters
+from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
 
 
 def _route() -> SimpleNamespace:
@@ -76,6 +79,33 @@ def test_final_scorer_request_retains_language_dimensions_and_ongoing_education(
     assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
 
 
+def test_final_scorer_request_preserves_typed_location_and_boolean_fields() -> None:
+    job_requirements = json.dumps({
+        "title": "Data Analyst",
+        "required_skills": ["SQL"],
+        "location": {
+            "actual_location": {"city": "Berlin", "country": "DE"},
+            "remote": False,
+        },
+    }, ensure_ascii=False)
+    request = build_ranking_request(
+        {},
+        json.dumps({"skills": ["SQL"], "languages": []}),
+        [],
+        {},
+        ranking_input={
+            "job_requirements": job_requirements,
+            "candidate_summary": json.dumps({"skills": ["SQL"], "languages": []}),
+            "candidate_evidence": [{"evidence_id": "ev-sql", "text": "Built SQL pipelines.", "source_ref": "cv:experience:sql"}],
+        },
+        resolved_route=_route(),
+    )
+
+    bounded_job = json.loads(request["bounded_ranking_input"]["job_requirements"])
+    assert bounded_job["location"]["remote"] is False
+    assert bounded_job["location"]["actual_location"] == {"city": "Berlin", "country": "DE"}
+
+
 def test_ranking_input_preserves_dimension_only_and_native_language_records() -> None:
     ranking_input = build_ranking_job_input(
         {"job_url": "https://example.com/job", "required_skills": []},
@@ -93,6 +123,102 @@ def test_ranking_input_preserves_dimension_only_and_native_language_records() ->
         {"level": "b1", "name": "German", "read": "B2", "write": "B1", "speak": "B1"},
         {"level": "native", "name": "French", "native": True},
     ]
+
+
+def test_skill_evidence_survives_enrich_retrieval_scoring_and_analysis_handoffs() -> None:
+    raw_job = {
+        "job_url": "https://example.com/job/cross-stage",
+        "title": "Data Engineer",
+        "description": "Requirements:\n- Data Engineering\n- SQL",
+    }
+    enriched_job = merge_scraped_and_enriched(
+        raw_job,
+        {
+            "required_skills": ["Data Engineering", "SQL"],
+            "required_skill_entities": [
+                {"raw_text": "Data Engineering", "canonical": "data engineering"},
+                {"raw_text": "SQL", "canonical": "sql"},
+            ],
+            "tech_stack": ["SQL"],
+        },
+        {},
+    )
+    profile = {
+        "name": "Candidate",
+        "preferences": {},
+        "skills": [
+            {"name": "Airflow", "support_status": "supported"},
+            {"name": "Kubernetes", "support_status": "claimed_only"},
+        ],
+        "experiences": [
+            {
+                "role": "Data Engineer",
+                "company": "Example",
+                "bullets": [{"text": "Built dbt pipelines", "skills": ["dbt"]}],
+            }
+        ],
+        "projects": [
+            {"name": "Demo", "tech_stack": ["Kubernetes"], "support_status": "claimed_only"}
+        ],
+        "_projected_evidence_pool": [
+            {
+                "evidence_id": "ev-dbt",
+                "kind": "experience_bullet",
+                "text": "Built dbt pipelines",
+                "source_section": "experiences",
+                "source_refs": [{"document_id": "cv-1", "source_block_id": "exp-1"}],
+                "scoring_context": "Built dbt pipelines",
+                "support_state": "supported",
+            }
+        ],
+    }
+
+    components = build_candidate_query_components(profile, {})
+    ranking_input = build_ranking_job_input(enriched_job, profile, {})
+    compact_evidence = build_cv_analysis_record(
+        job=enriched_job,
+        status="ready_for_generation",
+        analysis_input_fingerprint="analysis-cross-stage",
+        analysis_reuse_status="fresh_compute",
+        evidence_payload=[
+            {
+                "evidence_id": "ev-dbt",
+                "kind": "experience_bullet",
+                "evidence_type": "candidate_evidence",
+                "parent_title": "Data Engineer",
+                "source_refs": [{"document_id": "cv-1", "source_block_id": "exp-1"}],
+                "source_ref": "experiences[0].bullets[0]",
+                "name": "Built dbt pipelines",
+                "matched_channels": ["skills"],
+                "selection_reasons": ["supports_data_engineering"],
+            }
+        ],
+        evidence_selection_summary={"selected_evidence_count": 1},
+        gap_summary={"matched": ["Data Engineering"], "missing": ["SQL"]},
+        requirement_coverage=[
+            {
+                "requirement_id": "required_skill:data engineering",
+                "supporting_evidence_ids": ["ev-dbt"],
+                "selected_support": "verified",
+            }
+        ],
+        section_confidence_hints={},
+        do_not_claim=["SQL"],
+        fit_classification="strong",
+        ranking_fit_label="strong",
+        error=None,
+        candidate_profile_id="candidate-1",
+        candidate_profile_revision="7",
+    )
+
+    assert "data engineering" in enriched_job["required_skills_canonical"]
+    assert "Airflow" in components["technology_hints"]
+    assert "dbt" in components["technology_hints"]
+    assert "Kubernetes" not in components["technology_hints"]
+    assert ranking_input["candidate_evidence"][0]["evidence_id"] == "ev-dbt"
+    assert compact_evidence["requirement_coverage"][0]["supporting_evidence_ids"] == ["ev-dbt"]
+    assert compact_evidence["evidence_used"][0]["evidence_id"] == "ev-dbt"
+    assert compact_evidence["evidence_used"][0]["source_refs"][0]["source_block_id"] == "exp-1"
 
 
 def test_ranking_input_preserves_source_text_separately_from_scoring_context() -> None:

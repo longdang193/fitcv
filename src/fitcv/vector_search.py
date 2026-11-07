@@ -24,7 +24,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any, TypedDict
 
-from fitcv.candidate import flatten_rankable_skills, flatten_skills, infer_role_family
+from fitcv.candidate import _is_rankable_support_status, flatten_rankable_skills, flatten_skills, infer_role_family
 from fitcv.config import MIXED_FALLBACK_RETRIEVAL_STRATEGY
 from fitcv.ranking import compute_declared_preference_fit_details, compute_must_have_match, compute_title_relevance
 from fitcv.embeddings import (
@@ -230,15 +230,24 @@ def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> No
 
 
 def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
-    values: list[str] = []
+    values: list[str] = list(flatten_rankable_skills(profile))
     projects = sorted(
         (project for project in profile.get("projects", []) or [] if isinstance(project, dict)),
         key=lambda project: str(project.get("name") or "").casefold(),
     )
     for project in projects:
-        technology_values = list(project.get("tech_stack", []) or [])
+        project_support_status = project.get("support_status")
+        technology_values = [
+            value
+            for value in list(project.get("tech_stack", []) or [])
+            if _is_rankable_support_status(
+                value.get("support_status", project_support_status) if isinstance(value, dict) else project_support_status
+            )
+        ]
         for evidence in project.get("evidence", []) or []:
             if not isinstance(evidence, dict):
+                continue
+            if not _is_rankable_support_status(evidence.get("support_status", project_support_status)):
                 continue
             title = str(evidence.get("title") or "").strip().casefold()
             if title != "technology stack" and not any(
@@ -248,7 +257,13 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
             text = str(evidence.get("text") or "").strip()
             if text:
                 technology_values.append(text)
-        technology_values.extend(project.get("skills", []) or [])
+        technology_values.extend(
+            value
+            for value in project.get("skills", []) or []
+            if _is_rankable_support_status(
+                value.get("support_status", project_support_status) if isinstance(value, dict) else project_support_status
+            )
+        )
         for technology in technology_values:
             if isinstance(technology, dict):
                 technology = technology.get("name")

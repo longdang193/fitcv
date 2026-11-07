@@ -1098,6 +1098,35 @@ def test_ranking_input_diagnostics_include_bounded_visible_requirements_and_back
     }
 
 
+def test_ranking_input_diagnostics_use_final_bounded_payload_counts() -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="configuration",
+    )
+    candidate_summary = json.dumps({"skills": [f"Skill {index}" for index in range(1, 12)]})
+    ranking_input = {
+        "job_requirements": json.dumps({"title": "Data Engineer", "required_skills": ["Skill 1"]}),
+        "candidate_summary": candidate_summary,
+        "candidate_evidence": [{"evidence_id": "ev-1", "text": "Skill 1 evidence", "source_ref": "cv:experience:skill-1"}],
+    }
+
+    request = build_ranking_request(
+        {"title": "Data Engineer", "required_skills": ["Skill 1"]},
+        candidate_summary,
+        ranking_input["candidate_evidence"],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=route,
+    )
+    diagnostics = build_ranking_input_diagnostics(ranking_input, request)
+
+    assert diagnostics["candidate_skill_count"] == 11
+    assert diagnostics["model_visible_candidate_skill_count"] == 8
+    assert diagnostics["visible_candidate_skills"] == [f"Skill {index}" for index in range(1, 9)]
+    assert diagnostics["model_visible_evidence_count"] == 1
+
+
 def test_ranking_job_input_dedupes_aliases_and_keeps_required_priority() -> None:
     policy = {
         "schema_version": "semantic_policy_v2",

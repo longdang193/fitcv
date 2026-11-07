@@ -70,6 +70,41 @@ def test_build_skill_entities_keeps_support_vector_machines() -> None:
     assert [entity["canonical"] for entity in entities] == ["python", "support vector machines"]
 
 
+def test_build_skill_entities_unions_valid_four_word_skill_with_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "Machine Learning Model Deployment"],
+        "required_skills",
+        {},
+        raw_entities=[{"raw_text": "Python", "canonical": "python", "confidence": 0.99}],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == [
+        "Python",
+        "Machine Learning Model Deployment",
+    ]
+    assert [entity["canonical"] for entity in entities] == [
+        "python",
+        "machine learning model deployment",
+    ]
+
+
+@pytest.mark.parametrize("heading", ["Requirements:", "Qualifications:", "Technical Skills:"])
+def test_merge_scraped_and_enriched_recovers_common_requirement_headings(heading: str) -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": f"https://example.com/jobs/{heading.lower().replace(' ', '-')}",
+            "title": "Data Engineer",
+            "description": f"{heading}\n\u2022 Python\n\u2022 SQL\nPreferred:\n\u2022 Power BI",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+    assert "Power BI" not in result["required_skills"]
+
+
 def test_merge_scraped_and_enriched_treats_experience_as_requirement_signal() -> None:
     result = merge_scraped_and_enriched(
         {

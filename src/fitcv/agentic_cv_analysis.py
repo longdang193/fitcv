@@ -98,6 +98,8 @@ class CvAnalysisRecord(TypedDict, total=False):
     error: ErrorPayload | None
     cv_analysis_trace: dict[str, Any]
     uncertainties: list[dict[str, Any]]
+    candidate_profile_id: str
+    candidate_profile_revision: str
 
 
 def extract_job_title(job: dict[str, Any]) -> str:
@@ -105,9 +107,62 @@ def extract_job_title(job: dict[str, Any]) -> str:
 
 
 def build_evidence_used(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def bounded_value(value: Any, *, depth: int = 0) -> Any:
+        if depth >= 2:
+            return str(value)[:160]
+        if isinstance(value, dict):
+            return {
+                str(key): bounded_value(raw_value, depth=depth + 1)
+                for key, raw_value in list(value.items())[:8]
+                if raw_value not in (None, "")
+            }
+        if isinstance(value, list):
+            return [bounded_value(item, depth=depth + 1) for item in value[:8]]
+        if isinstance(value, str):
+            return value[:160]
+        if value is None:
+            return None
+        return value
+
+    def bounded_source_refs(item: dict[str, Any]) -> list[dict[str, Any] | str]:
+        values = list(item.get("source_refs") or [])
+        if not values and str(item.get("source_ref") or "").strip():
+            values = [str(item.get("source_ref") or "").strip()]
+        bounded: list[dict[str, Any] | str] = []
+        seen: set[str] = set()
+        for value in values:
+            if isinstance(value, dict):
+                reference: dict[str, Any] = {}
+                for key, raw_value in list(value.items())[:8]:
+                    if raw_value in (None, ""):
+                        continue
+                    reference[str(key)] = bounded_value(raw_value)
+                normalized = json.dumps(reference, ensure_ascii=False, sort_keys=True)
+            else:
+                reference = str(value)[:160]
+                normalized = reference.casefold()
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                bounded.append(reference)
+            if len(bounded) >= 4:
+                break
+        return bounded
+
     debug_evidence: list[dict[str, Any]] = []
     for item in evidence:
+        evidence_id = str(item.get("evidence_id") or "")
+        evidence_kind = str(item.get("kind") or item.get("evidence_type") or "")
+        parent_title = str(
+            item.get("parent_title")
+            or item.get("title")
+            or item.get("role")
+            or ""
+        )
         debug_item: dict[str, Any] = {
+            "evidence_id": evidence_id,
+            "kind": evidence_kind,
+            "parent_title": parent_title,
+            "source_refs": bounded_source_refs(item),
             "evidence_type": str(item.get("evidence_type") or ""),
             "source_ref": str(item.get("source_ref") or ""),
             "name": str(item.get("name") or ""),
@@ -696,6 +751,8 @@ def build_cv_analysis_record(
         "evidence_used": evidence_used,
         "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "experience_evidence_summary": resolved_experience_evidence_summary,
+        "candidate_profile_id": candidate_profile_id,
+        "candidate_profile_revision": candidate_profile_revision,
         "gap_summary": gap_summary,
         "requirement_coverage": list(requirement_coverage or []),
         "section_confidence_hints": dict(section_confidence_hints or {}),
@@ -1302,6 +1359,10 @@ _REUSABLE_RECORD_REQUIRED_FIELDS = frozenset(
         "evidence_payload",
         "evidence_used",
         "evidence_selection_summary",
+        "experience_evidence_summary",
+        "uncertainties",
+        "candidate_profile_id",
+        "candidate_profile_revision",
         "gap_summary",
         "requirement_coverage",
         "section_confidence_hints",
@@ -1414,12 +1475,16 @@ def _rebuild_reused_record(
         ),
         evidence_payload=list(reusable_record.get("evidence_payload") or []),
         evidence_selection_summary=dict(reusable_record.get("evidence_selection_summary") or {}),
+        experience_evidence_summary=dict(reusable_record.get("experience_evidence_summary") or {}),
         gap_summary=reusable_record.get("gap_summary"),
         requirement_coverage=list(reusable_record.get("requirement_coverage") or []),
         section_confidence_hints=dict(reusable_record.get("section_confidence_hints") or {}),
         do_not_claim=list(reusable_record.get("do_not_claim") or []),
         fit_classification=fit_classification,
         ranking_fit_label=ranking_fit_label,
+        uncertainties=list(reusable_record.get("uncertainties") or []),
+        candidate_profile_id=str(reusable_record.get("candidate_profile_id") or ""),
+        candidate_profile_revision=str(reusable_record.get("candidate_profile_revision") or ""),
         error=cast(ErrorPayload | None, prior_error),
     )
 
@@ -1435,6 +1500,8 @@ def analyze_ranked_job(
     evidence_projection: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
+    candidate_profile_id = str(profile.get("candidate_profile_id") or "").strip()
+    candidate_profile_revision = str(profile.get("revision") or "").strip()
     raw_requirement_resolutions = [
         dict(item)
         for item in list(config.get("_requirement_resolutions") or [])
@@ -1692,8 +1759,8 @@ def analyze_ranked_job(
                 do_not_claim=missing_skills,
                 fit_classification=fit_classification,
                 ranking_fit_label=resolved_baseline_fit_label,
-                candidate_profile_id=str(profile.get("candidate_profile_id") or ""),
-                candidate_profile_revision=str(profile.get("revision") or ""),
+                candidate_profile_id=candidate_profile_id,
+                candidate_profile_revision=candidate_profile_revision,
                 requirement_resolutions=requirement_resolutions,
                 error={
                     "stage": "fit_gate",
@@ -1721,8 +1788,8 @@ def analyze_ranked_job(
             do_not_claim=missing_skills,
             fit_classification=fit_classification,
             ranking_fit_label=resolved_baseline_fit_label,
-            candidate_profile_id=str(profile.get("candidate_profile_id") or ""),
-            candidate_profile_revision=str(profile.get("revision") or ""),
+            candidate_profile_id=candidate_profile_id,
+            candidate_profile_revision=candidate_profile_revision,
             requirement_resolutions=requirement_resolutions,
             error=None,
         )
@@ -1747,6 +1814,8 @@ def analyze_ranked_job(
             do_not_claim=[],
             fit_classification=ranking_fit_label,
             ranking_fit_label=resolved_baseline_fit_label,
+            candidate_profile_id=candidate_profile_id,
+            candidate_profile_revision=candidate_profile_revision,
             error={
                 "stage": "analysis",
                 "message": str(exc),
