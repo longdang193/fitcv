@@ -323,17 +323,42 @@ def _legacy_evidence(
     return item
 
 
-def _normalize_v2_parent(item: dict[str, Any], document_id: str) -> dict[str, Any]:
-    normalized = copy.deepcopy(item)
-    normalized["source_refs"] = _with_uploaded_source_ref(normalized.get("source_refs"), document_id)
-    normalized["evidence"] = [
-        {
-            **copy.deepcopy(evidence),
-            "source_refs": _with_uploaded_source_ref(evidence.get("source_refs"), document_id),
-        }
-        for evidence in normalized.get("evidence") or []
-        if isinstance(evidence, dict)
-    ]
+def _normalize_v2_parent(
+    item: dict[str, Any],
+    document_id: str,
+    *,
+    allowed_fields: set[str] | None = None,
+) -> dict[str, Any]:
+    allowed_fields = allowed_fields or set(item)
+    normalized = {
+        key: copy.deepcopy(item[key])
+        for key in allowed_fields
+        if key in item
+    }
+    if "source_refs" in allowed_fields:
+        normalized["source_refs"] = (
+            _with_uploaded_source_ref(normalized.get("source_refs"), document_id)
+            if document_id
+            else copy.deepcopy(normalized.get("source_refs") or [])
+        )
+    if "evidence" in allowed_fields:
+        evidence_fields = set(_EVIDENCE_COLLECTION_FIELD["item"])
+        normalized["evidence"] = [
+            {
+                **{
+                    key: copy.deepcopy(evidence[key])
+                    for key in evidence_fields
+                    if key in evidence
+                },
+                "source_refs": (
+                    _with_uploaded_source_ref(evidence.get("source_refs"), document_id)
+                    if document_id
+                    else copy.deepcopy(evidence.get("source_refs") or [])
+                ),
+            }
+            for evidence in normalized.get("evidence") or []
+            if isinstance(evidence, dict)
+        ]
     return normalized
 
 
@@ -586,27 +611,30 @@ def adapt_candidate_profile_to_v2(
             normalized["search_preferences"] = normalized.pop("preferences")
         for section in _V2_BASELINE_COLLECTIONS:
             values = normalized.get(section) or []
-            if section in _V2_EVIDENCE_COLLECTIONS:
-                normalized[section] = [
-                    _normalize_v2_parent(value, document_id)
-                    for value in values
-                    if isinstance(value, dict)
-                ]
-            else:
-                normalized[section] = [
-                    {
-                        **copy.deepcopy(value),
-                        "source_refs": _with_uploaded_source_ref(value.get("source_refs"), document_id),
-                    }
-                    for value in values
-                    if isinstance(value, dict)
-                ]
+            section_definition = next(
+                definition
+                for definition in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+                if definition["id"] == section
+            )
+            normalized[section] = [
+                _normalize_v2_parent(
+                    value,
+                    document_id,
+                    allowed_fields=set(section_definition.get("item", {})),
+                )
+                for value in values
+                if isinstance(value, dict)
+            ]
         for section in _V2_DERIVED_COLLECTIONS:
             claims: list[dict[str, Any]] = []
             for value in normalized.get(section) or []:
                 if not isinstance(value, dict):
                     value = {"name": value}
-                claim = copy.deepcopy(value)
+                claim = {
+                    key: copy.deepcopy(value[key])
+                    for key in _DERIVED_CLAIM_ITEM
+                    if key in value
+                }
                 claim.setdefault("origin", "user")
                 claim.setdefault("confidence", 1.0)
                 claim["evidence_refs"] = list(dict.fromkeys(claim.get("evidence_refs") or []))
@@ -742,7 +770,66 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
     """Return one validated v2-compatible runtime snapshot without mutating input."""
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
+        if "search_preferences" not in normalized and "preferences" in normalized:
+            normalized["search_preferences"] = normalized["preferences"]
         normalized.pop("preferences", None)
+        allowed_top_level = {
+            "schema_version",
+            "source_documents",
+            "name",
+            "headline",
+            "summary",
+            "contact",
+            "interests",
+            "search_preferences",
+            *_V2_BASELINE_COLLECTIONS,
+            *_V2_DERIVED_COLLECTIONS,
+        }
+        normalized = {
+            key: value
+            for key, value in normalized.items()
+            if key in allowed_top_level
+        }
+        normalized.setdefault("contact", {})
+        contact_definition = next(
+            definition
+            for definition in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+            if definition["id"] == "contact"
+        )
+        contact = normalized["contact"] if isinstance(normalized["contact"], dict) else {}
+        normalized["contact"] = {
+            key: copy.deepcopy(contact[key])
+            for key in contact_definition.get("fields", {})
+            if key in contact
+        }
+        normalized.setdefault("interests", [])
+        normalized.setdefault("search_preferences", {})
+        for section in _V2_BASELINE_COLLECTIONS:
+            values = normalized.get(section) or []
+            section_definition = next(
+                definition
+                for definition in CANDIDATE_PROFILE_V2_FIELD_REGISTRY["sections"]
+                if definition["id"] == section
+            )
+            normalized[section] = [
+                _normalize_v2_parent(
+                    value,
+                    "",
+                    allowed_fields=set(section_definition.get("item", {})),
+                )
+                for value in values
+                if isinstance(value, dict)
+            ]
+        for section in _V2_DERIVED_COLLECTIONS:
+            normalized[section] = [
+                {
+                    key: copy.deepcopy(value[key])
+                    for key in _DERIVED_CLAIM_ITEM
+                    if key in value
+                }
+                for value in normalized.get(section) or []
+                if isinstance(value, dict)
+            ]
     else:
         checksum = canonical_candidate_checksum(profile)
         normalized = adapt_candidate_profile_to_v2(

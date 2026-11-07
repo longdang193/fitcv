@@ -137,6 +137,7 @@ class RunStore(Protocol):
         include_archived: bool = False,
         archived_only: bool = False,
     ) -> list[PipelineRun]: ...
+    def list_runs_for_reconciliation(self, *, limit: int = 200) -> list[PipelineRun]: ...
     def get_events(self, run_id: str) -> list[RunEvent]: ...
     def get_process_events(self, process_type: str, process_id: str, *, limit: int = 200, cursor: str | None = None) -> dict[str, Any]: ...
     def update_run_status(self, run_id: str, status: Any, **kwargs: Any) -> dict[str, str]: ...
@@ -292,6 +293,7 @@ class ControlPlaneStore:
     update_run_orchestration_binding_fn: Any | None = None
     get_run_fn: Any | None = None
     list_runs_fn: Any | None = None
+    list_runs_for_reconciliation_fn: Any | None = None
     get_events_fn: Any | None = None
     get_process_events_fn: Any | None = None
     get_run_detail_fn: Any | None = None
@@ -1064,6 +1066,13 @@ class ControlPlaneStore:
             limit=limit,
             include_archived=include_archived,
             archived_only=archived_only,
+        )
+
+    def list_runs_for_reconciliation(self, *, limit: int = 200) -> list[PipelineRun]:
+        return self._call_list(
+            self.list_runs_for_reconciliation_fn,
+            sqlite_store.list_runs_for_reconciliation,
+            limit=limit,
         )
 
     def get_events(self, run_id: str) -> list[RunEvent]:

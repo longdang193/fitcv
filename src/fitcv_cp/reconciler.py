@@ -73,13 +73,20 @@ def reconcile_abandoned_attempts(
     terminal_failed_runs = 0
 
 
-    for run in store.list_runs(limit=200, include_archived=False, archived_only=False):
+    list_runs_for_reconciliation = getattr(store, "list_runs_for_reconciliation", None)
+    runs = (
+        list_runs_for_reconciliation(limit=200)
+        if callable(list_runs_for_reconciliation)
+        else store.list_runs(limit=200, include_archived=False, archived_only=False)
+    )
+    for run in runs:
         scanned_runs += 1
         if not can_reconcile_abandoned_attempts(run):
             continue
 
         settings = get_run_retry_settings(run)
-        cancel_requested = getattr(run, "cancel_requested_at", None) is not None
+        detailed_run: Any | None = None
+        cancel_requested = False
 
         events = store.get_events(run.run_id)
         attempt_events: list[tuple[datetime.datetime, dict[str, Any]]] = []
@@ -119,6 +126,13 @@ def reconcile_abandoned_attempts(
             lease_expires_at = _parse_iso_or_none(attempt.get("lease_expires_at"))
             if lease_expires_at is None or lease_expires_at >= now:
                 continue
+
+            if detailed_run is None:
+                get_run = getattr(store, "get_run", None)
+                detailed_run = get_run(run.run_id) if callable(get_run) else run
+                detailed_run = detailed_run or run
+                settings = get_run_retry_settings(detailed_run)
+                cancel_requested = getattr(detailed_run, "cancel_requested_at", None) is not None
 
             abandoned_attempts += 1
 
@@ -187,8 +201,8 @@ def reconcile_abandoned_attempts(
             if settings.initial_backoff_seconds > 0:
                 time.sleep(settings.initial_backoff_seconds)
             enqueue_run_with_job_id(
-                jobs_path=str(getattr(run, "jobs_path", "")),
-                config_path=str(getattr(run, "config_path", "")),
+                jobs_path=str(getattr(detailed_run, "jobs_path", "")),
+                config_path=str(getattr(detailed_run, "config_path", "")),
                 triggered_by="reconciler",
                 run_id=run.run_id,
             )

@@ -4635,7 +4635,8 @@ def confirm_candidate_profile_creation_attempt(
                     conn.execute(
                         """
                         UPDATE candidate_profiles
-                        SET lifecycle='archived', archived_at=?, updated_at=?, revision=revision+1
+                        SET lifecycle='archived', archived_at=?, updated_at=?, revision=revision+1,
+                            is_default=0
                         WHERE candidate_profile_id=? AND lifecycle='active'
                         """,
                         (now, now, parent_profile_id),
@@ -5208,7 +5209,8 @@ def transition_candidate_profile_lifecycle(
                 )
                 conn.execute(
                     """UPDATE candidate_profiles
-                       SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = ?
+                       SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = ?,
+                           is_default = 0
                        WHERE candidate_profile_id = ? AND revision = ?""",
                     (
                         lifecycle,
@@ -10972,6 +10974,45 @@ def list_runs(
             (max(1, int(limit)),),
         ).fetchall()
     return [run for row in rows if (run := _normalized_run_from_row(row)) is not None]
+
+
+def list_runs_for_reconciliation(*, limit: int = 200) -> list[PipelineRun]:
+    path = Path(_local_sqlite_path())
+    if not path.exists():
+        return []
+    with _sqlite_connection(path, read_only=True) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT run_id, backend_status, triggered_by, trigger_source, created_at,
+                   settings_used_json
+            FROM pipeline_runs
+            WHERE archived_at IS NULL AND backend_status IN ('queued', 'running')
+            ORDER BY created_at DESC, run_id DESC
+            LIMIT ?
+            """,
+            (max(1, int(limit)),),
+        ).fetchall()
+    runs: list[PipelineRun] = []
+    for row in rows:
+        try:
+            status = RunStatus(str(row["backend_status"]))
+        except ValueError:
+            continue
+        runs.append(
+            PipelineRun(
+                run_id=str(row["run_id"]),
+                status=status,
+                triggered_by=str(row["triggered_by"] or ""),
+                trigger_source=str(row["trigger_source"] or ""),
+                jobs_path="",
+                config_path="",
+                created_at=_parse_dt(row["created_at"])
+                or datetime.datetime.now(datetime.timezone.utc),
+                settings_used_json=row["settings_used_json"],
+            )
+        )
+    return runs
 
 
 def _mutate_normalized_run(run_id: str, mutate: Callable[[PipelineRun], PipelineRun]) -> bool:
