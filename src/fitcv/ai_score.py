@@ -479,7 +479,10 @@ def build_ranking_request(
         }
         variants: list[dict[str, Any]] = [dict(bounded_payload)]
         reduced = dict(bounded_payload)
-        for key in ("certifications", "education", "employment"):
+        optional_keys = ["certifications", "education"]
+        if bounded_payload.get("years_experience") not in (None, ""):
+            optional_keys.append("employment")
+        for key in optional_keys:
             if key in reduced:
                 reduced = dict(reduced)
                 reduced.pop(key)

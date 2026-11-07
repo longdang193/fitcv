@@ -195,3 +195,20 @@ def test_artifact_bundle_matches_endpoint_payloads_for_review_and_synonym_export
             response = client.get(route)
             assert response.status_code == 200
             assert bundle_payloads[filename] == json.loads(response.content)
+
+
+def test_artifact_bundle_includes_review_state_exports() -> None:
+    run = replace(
+        _make_succeeded_run(),
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
+        client = TestClient(_app())
+        bundle_response = client.get(f"/admin/runs/{run.run_id}/artifacts.zip")
+
+    assert bundle_response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(bundle_response.content)) as zf:
+        names = set(zf.namelist())
+    assert "results.json" in names
+    assert "hitl-review-audit.json" in names

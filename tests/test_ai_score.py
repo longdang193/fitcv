@@ -535,6 +535,34 @@ def test_build_ranking_request_drops_optional_candidate_facts_before_budget_fail
     assert "candidate_optional" in request["prompt_truncation_steps"]
 
 
+def test_build_ranking_request_does_not_hide_employment_without_years_experience(monkeypatch) -> None:
+    monkeypatch.setattr(ai_score_module, "RANKING_REQUEST_MAX_CHARS", 3_000)
+    candidate_summary = json.dumps(
+        {
+            "skills": ["Python"],
+            "employment": [
+                {"role": f"Role {index}", "company": "Company", "start": "2010", "end": "Present"}
+                for index in range(20)
+            ],
+            "years_experience": None,
+            "target_role": "Data Engineer",
+        },
+        ensure_ascii=False,
+    )
+    ranking_input = {
+        "job_requirements": json.dumps({"title": "Data Engineer", "required_skills": ["Python"]}),
+        "candidate_summary": candidate_summary,
+        "candidate_evidence": [{
+            "evidence_id": "ev-python-employment-bound",
+            "text": "Built Python data pipelines.",
+            "source_ref": "cv:project:python-employment-bound",
+        }],
+    }
+
+    with pytest.raises(RankingInputBudgetExceeded):
+        build_ranking_request({}, candidate_summary, [], {}, ranking_input=ranking_input)
+
+
 def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> None:
     required_certification = "AWS Certified Solutions Architect"
     profile = {
