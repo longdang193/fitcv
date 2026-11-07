@@ -11651,6 +11651,27 @@ def test_download_settings_used_json_endpoint_404_if_snapshot_missing():
     assert resp.status_code == 404
 
 
+def test_download_settings_used_json_endpoint_200_for_awaiting_review_run():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-settings-awaiting-review",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        settings_used_json='{"run_id":"run-settings-awaiting-review","effective_settings":{}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-settings-awaiting-review/settings-used.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-settings-awaiting-review"
+
+
 def test_download_stage_slice_endpoint_200():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -12063,6 +12084,35 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
     assert manifest["file_fingerprints"]["normalize.json"].startswith("sha256:")
     assert "mapping-suggestions.json" not in manifest["missing_files"]
     assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
+
+
+def test_download_run_artifact_bundle_includes_settings_for_awaiting_review_run() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-bundle-awaiting-review",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        run_mode="run_all",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        settings_used_json='{"run_id":"run-bundle-awaiting-review","effective_settings":{}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-bundle-awaiting-review/artifacts.zip")
+
+    assert resp.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("manifest.json"))
+    assert "settings-used.json" in names
+    assert manifest["artifact_states"]["settings-used.json"] == "present"
+    assert "settings-used.json" in manifest["included_files"]
+    assert "settings-used.json" not in manifest["missing_files"]
 
 
 def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
