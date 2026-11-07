@@ -1747,7 +1747,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 _json.dumps(cv_generation_trace_payload, ensure_ascii=False, indent=2),
             )
         )
-    if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
+    if _run_status_allows_export(run) and run.settings_used_json:
         files.append(
             _build_run_artifact_file(
                 run.run_id,
@@ -2835,7 +2835,7 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
     if spec.state_kind == "hitl_review":
         return "missing" if run.status == RunStatus.SUCCEEDED and bool(run.cv_generation_debug_json) else "not_applicable"
     if spec.state_kind == "settings_used":
-        return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+        return "missing" if _run_status_allows_export(run) else "not_applicable"
     if spec.state_kind == "cv_debug":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if spec.state_kind == "review_required":
@@ -16902,8 +16902,8 @@ def create_app(
         run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Settings-used export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="Settings-used export is not available for this run state")
         if not run.settings_used_json:
             raise HTTPException(status_code=404, detail="Settings-used export is not available for this run")
         try:
