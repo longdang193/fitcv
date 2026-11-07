@@ -21,7 +21,7 @@ import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
+from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills, runtime_profile_value
 from fitcv.contracts import EVIDENCE_INTEGRITY_POLICY_VERSION, normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
@@ -380,7 +380,7 @@ def _loose_project_review_allowed(
     if normalized.intersection({"senior", "lead", "manager", "director"}):
         return False
     try:
-        if float(profile.get("years_experience")) >= 5.0:
+        if float(runtime_profile_value(profile, "years_experience")) >= 5.0:
             return False
     except (TypeError, ValueError):
         pass
@@ -1538,7 +1538,7 @@ def analyze_ranked_job(
     gap_summary: dict[str, Any] | None = None
     loose_experience_review = False
     try:
-        profile_years_experience = profile.get("years_experience")
+        profile_years_experience = runtime_profile_value(profile, "years_experience")
         profile = converge_candidate_profile_for_runtime(profile)
         profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(

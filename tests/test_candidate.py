@@ -348,6 +348,58 @@ def test_runtime_convergence_rejects_duplicate_evidence_ids() -> None:
         converge_candidate_profile_for_runtime(profile)
 
 
+def test_legacy_parent_unsupported_status_is_inherited_by_bullets_without_status() -> None:
+    profile = adapt_candidate_profile_to_v2(
+        {
+            "experiences": [
+                {
+                    "role": "Data Engineer",
+                    "company": "Example",
+                    "support_status": "unsupported",
+                    "bullets": [{"text": "Used Python"}],
+                }
+            ],
+            "skills": [{"name": "Python"}],
+            "projects": [],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+        include_runtime_admission=True,
+    )
+
+    evidence_id = profile["experiences"][0]["evidence"][0]["id"]
+    assert profile["experiences"][0]["_runtime_evidence_admission"][evidence_id]["admission_status"] == "excluded"
+    assert profile["skills"][0]["support_status"] == "unsupported"
+
+
+@pytest.mark.parametrize(
+    "bullets",
+    [
+        [{"text": "Supported Python", "skills": ["Python"], "support_status": "supported"}, {"text": "Unsupported Python", "skills": ["Python"], "support_status": "unsupported"}],
+        [{"text": "Unsupported Python", "skills": ["Python"], "support_status": "unsupported"}, {"text": "Supported Python", "skills": ["Python"], "support_status": "supported"}],
+    ],
+)
+def test_repeated_legacy_skill_claim_is_supported_if_any_bullet_supports_it(bullets: list[dict]) -> None:
+    profile = adapt_candidate_profile_to_v2(
+        {
+            "experiences": [{"role": "Data Engineer", "company": "Example", "bullets": bullets}],
+            "skills": [],
+            "projects": [],
+        },
+        {"id": "doc_1", "origin": "uploaded"},
+    )
+
+    assert profile["skills"][0]["name"] == "Python"
+    assert profile["skills"][0]["support_status"] == "supported"
+
+
+def test_runtime_convergence_preserves_legacy_years_experience_for_runtime_consumers() -> None:
+    converged = converge_candidate_profile_for_runtime(
+        {**_VALID_PROFILE_DICT, "name": "Candidate", "years_experience": 7}
+    )
+
+    assert converged["_runtime_compatibility"]["years_experience"] == 7
+
+
 def test_candidate_profile_v2_field_schema_is_stable_and_symmetric() -> None:
     schema = candidate_profile_field_schema()
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
 
-from fitcv.candidate import flatten_skills, infer_effective_preferences
+from fitcv.candidate import flatten_skills, infer_effective_preferences, runtime_profile_value
 
 JOB_URL_FIELDS = ("source_job_url", "job_url", "url", "jobUrl")
 
@@ -247,7 +247,7 @@ def candidate_profile_summary(
         "effective_role_families": list(preference_resolution["effective_preferences"].get("role_families") or []),
         "effective_domains": list(preference_resolution["effective_preferences"].get("domains") or []),
         "preference_sources": dict(preference_resolution["preference_sources"] or {}),
-        "years_experience": profile.get("years_experience"),
+        "years_experience": runtime_profile_value(profile, "years_experience"),
         "skills_sample": flattened_skills[:5],
     }
     return {key: value for key, value in summary.items() if value not in (None, "", [])}

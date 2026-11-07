@@ -540,7 +540,7 @@ def _adapt_legacy_parent(
         status = parent_support_status
         for bullet_index, evidence_id in bullet_evidence_ids.items():
             if evidence_id == evidence_item["id"]:
-                status = bullet_support_status.get(bullet_index, parent_support_status)
+                status = bullet_support_status.get(bullet_index) or parent_support_status
                 break
         runtime_evidence_admission[evidence_item["id"]] = {
             "admission_status": _legacy_admission_status(status),
@@ -594,11 +594,14 @@ def _adapt_legacy_parent(
         if name:
             claim_statuses["skills"][name] = str(parent_support_status or "supported")
     for name in bullet_skill_names:
-        claim_statuses["skills"][name] = str(
-            next(
-                (bullet_support_status.get(index) for index in bullet_skill_names[name] if bullet_support_status.get(index) is not None),
-                parent_support_status or "supported",
-            )
+        effective_statuses = [
+            bullet_support_status.get(index) or parent_support_status or "supported"
+            for index in bullet_skill_names[name]
+        ]
+        claim_statuses["skills"][name] = (
+            "supported"
+            if any(str(status).strip().casefold() in {"supported", "verified", "partial"} for status in effective_statuses)
+            else "unsupported"
         )
     return normalized, all_evidence_ids, claim_refs, claim_statuses
 
@@ -820,13 +823,19 @@ def adapt_candidate_profile_to_v2(
 def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str, Any]:
     """Return one validated v2-compatible runtime snapshot without mutating input."""
     runtime_evidence_admission: dict[str, dict[str, str]] = {}
+    runtime_compatibility: dict[str, Any] = {}
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
         normalized.pop("preferences", None)
         supplied_admission = normalized.pop("_runtime_evidence_admission", {})
+        supplied_compatibility = normalized.pop("_runtime_compatibility", {})
         if isinstance(supplied_admission, dict):
             runtime_evidence_admission.update(copy.deepcopy(supplied_admission))
+        if isinstance(supplied_compatibility, dict):
+            runtime_compatibility.update(copy.deepcopy(supplied_compatibility))
     else:
+        if profile.get("years_experience") is not None:
+            runtime_compatibility["years_experience"] = copy.deepcopy(profile["years_experience"])
         checksum = canonical_candidate_checksum(profile)
         normalized = adapt_candidate_profile_to_v2(
             profile,
@@ -855,7 +864,7 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
             for evidence_id in claim.get("evidence_refs") or []:
                 key = str(evidence_id)
                 current = runtime_evidence_admission.get(key, {}).get("admission_status")
-                if claim_status == "supported":
+                if claim_status == "supported" and current != "excluded":
                     runtime_evidence_admission.setdefault(key, {})["admission_status"] = "admitted"
                 elif current != "admitted":
                     runtime_evidence_admission.setdefault(key, {})["admission_status"] = "excluded"
@@ -864,7 +873,16 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
         raise ValueError("; ".join(errors))
     if runtime_evidence_admission:
         normalized["_runtime_evidence_admission"] = runtime_evidence_admission
+    if runtime_compatibility:
+        normalized["_runtime_compatibility"] = runtime_compatibility
     return normalized
+
+
+def runtime_profile_value(profile: dict[str, Any], key: str, default: Any = None) -> Any:
+    value = profile.get(key)
+    if value is not None:
+        return value
+    return (profile.get("_runtime_compatibility") or {}).get(key, default)
 
 
 def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
@@ -1233,8 +1251,10 @@ def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any
         )
     if profile.get("schema_version") == "candidate-profile.v2":
         runtime_admission = profile.get("_runtime_evidence_admission")
+        runtime_compatibility = profile.get("_runtime_compatibility")
         validation_profile = copy.deepcopy(profile)
         validation_profile.pop("_runtime_evidence_admission", None)
+        validation_profile.pop("_runtime_compatibility", None)
         legacy_preferences = validation_profile.pop("preferences", None)
         errors = validate_candidate_profile_v2(validation_profile)
         if errors:
@@ -1242,6 +1262,8 @@ def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any
         normalized_profile = validation_profile
         if isinstance(runtime_admission, dict):
             normalized_profile["_runtime_evidence_admission"] = runtime_admission
+        if isinstance(runtime_compatibility, dict):
+            normalized_profile["_runtime_compatibility"] = runtime_compatibility
         normalized_profile["preferences"] = copy.deepcopy(
             profile.get("search_preferences") or legacy_preferences or {}
         )

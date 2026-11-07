@@ -52,7 +52,7 @@ from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.evidence import bounded_term_values, build_evidence_excerpt, project_candidate_evidence
-from fitcv.candidate import flatten_rankable_skills
+from fitcv.candidate import flatten_rankable_skills, runtime_profile_value
 from fitcv.fit_factors import _candidate_level
 from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 from fitcv.prompts import render_prompt
@@ -1264,7 +1264,7 @@ def build_ranking_job_input(
     }
     candidate = {
         "skills": candidate_skills,
-        "years_experience": profile.get("years_experience"),
+        "years_experience": runtime_profile_value(profile, "years_experience"),
         "target_role": str(
             (profile.get("preferences") or profile.get("search_preferences") or {}).get("target_role")
             or ""

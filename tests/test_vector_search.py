@@ -4,6 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 import pytest
+import yaml
 from unittest.mock import patch
 from fitcv.candidate import converge_candidate_profile_for_runtime, load_profile_json_text
 from fitcv.embeddings import build_embedding_contract_fingerprint
@@ -306,6 +307,53 @@ def test_build_candidate_query_components_filter_negated_project_material() -> N
     assert "fintech" in components["domain_hints"]
     assert "Kubernetes" not in query_text
     assert "Kubernetes" not in json.dumps(signature["payload"])
+
+
+def test_build_candidate_query_components_ignores_negated_canonical_project_technology() -> None:
+    profile = {
+        "projects": [
+            {
+                "name": "Canonical project",
+                "evidence": [
+                    {
+                        "id": "ev-tech",
+                        "kind": "project_highlight",
+                        "title": "Technology stack",
+                        "text": "No Kubernetes experience was required.",
+                        "skills": ["Kubernetes"],
+                    }
+                ],
+            }
+        ],
+        "experiences": [],
+        "skills": [],
+    }
+
+    components = build_candidate_query_components(converge_candidate_profile_for_runtime(profile))
+
+    assert "Kubernetes" not in components["technology_hints"]
+
+
+def test_build_candidate_query_components_reads_admitted_top_level_domain_claims() -> None:
+    profile = converge_candidate_profile_for_runtime(
+        {
+            **yaml.safe_load(Path("data/candidate_profile.v2.sample.yaml").read_text(encoding="utf-8")),
+            "domain_tags": [
+                {
+                    "id": "domain_banking",
+                    "name": "banking",
+                    "origin": "inferred",
+                    "confidence": 0.9,
+                    "support_status": "supported",
+                    "evidence_refs": ["ev_exp_reporting_automation"],
+                }
+            ],
+        }
+    )
+
+    components = build_candidate_query_components(profile)
+
+    assert "banking" in components["domain_hints"]
 
 
 def test_rank_profile_skills_ignores_rejected_child_claim_duplicates() -> None:

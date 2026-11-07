@@ -292,6 +292,24 @@ def _legacy_or_supported_status(value: Any) -> bool:
     return value is None or _is_rankable_support_status(value)
 
 
+def _admitted_claim_values(profile: dict[str, Any], section: str) -> list[str]:
+    runtime_admission = profile.get("_runtime_evidence_admission") or {}
+    values: list[str] = []
+    for claim in profile.get(section) or []:
+        if not isinstance(claim, dict) or claim.get("support_status") != "supported":
+            continue
+        refs = [str(ref) for ref in claim.get("evidence_refs") or []]
+        if runtime_admission and not any(
+            runtime_admission.get(ref, {}).get("admission_status") == "admitted"
+            for ref in refs
+        ):
+            continue
+        text = str(claim.get("name") or "").strip()
+        if text:
+            values.append(text)
+    return values
+
+
 def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
     values: list[str] = list(flatten_rankable_skills(profile))
     projects = sorted(
@@ -342,7 +360,14 @@ def _profile_technology_inventory(profile: dict[str, Any]) -> list[str]:
             ):
                 continue
             text = str(evidence.get("text") or "").strip()
-            if text and _project_text_is_affirmative(text):
+            project_context = " ".join(
+                str(project.get(field) or "")
+                for field in ("name", "business_value")
+            ) + " " + " ".join(str(value or "") for value in project.get("highlights") or [])
+            if text and _project_text_is_affirmative(text) and not _is_negated_project_term(
+                project_context,
+                text,
+            ):
                 technology_values.append(text)
         for technology in technology_values:
             if isinstance(technology, dict):
@@ -529,6 +554,11 @@ def build_candidate_query_components(
         _append_unique_text(domains, str(domain), seen_domains)
         if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
             break
+    if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
+        for domain_tag in _admitted_claim_values(profile, "domain_tags"):
+            _append_unique_text(domains, domain_tag, seen_domains)
+            if len(domains) >= DEFAULT_DOMAIN_HINT_COUNT:
+                break
     if len(domains) < DEFAULT_DOMAIN_HINT_COUNT:
         for experience in profile.get("experiences", []) or []:
             for domain_tag in experience.get("domain_tags", []) or []:
