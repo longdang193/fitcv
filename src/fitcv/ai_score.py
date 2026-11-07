@@ -1005,7 +1005,9 @@ def build_ranking_job_input(
         "source_refs": _bounded_source_refs(item.get("source_refs"), limit=4),
         "source_ref": _bounded_text(item.get("source_ref"), RANKING_TERM_MAX_CHARS),
         "skills": _bounded_values(item.get("skills"), limit=RANKING_MAX_SKILLS),
-    } for item in projected_evidence if isinstance(item, dict)]
+    } for item in projected_evidence
+        if isinstance(item, dict)
+        and str(item.get("admission_status") or "admitted") == "admitted"]
     evidence = [
         *[item for item in projected_evidence_records if _is_attributable_evidence(item)],
         *[item for item in projected_evidence_records if not _is_attributable_evidence(item)],
