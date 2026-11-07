@@ -24,7 +24,7 @@ from typing import Any
 
 from fitcv_cp.sqlite_store import get_events, get_run
 from fitcv_cp.models import RunEvent, RunStatus
-from fitcv_cp.app_run_support import load_cv_generation_trace_payload
+from fitcv_cp.app_run_support import _run_status_allows_export, load_cv_generation_trace_payload
 
 logger = logging.getLogger(__name__)
 
@@ -47,16 +47,16 @@ def _build_deterministic_run_artifact_payloads(run_record: Any) -> dict[str, Any
     )
 
     payloads: dict[str, Any] = {}
-    if getattr(run_record, "status", None) == RunStatus.SUCCEEDED and getattr(run_record, "results_export_json", None):
+    if _run_status_allows_export(run_record) and getattr(run_record, "results_export_json", None):
         payloads["export.json"] = {
             "run_id": str(getattr(run_record, "run_id", "")),
             "results": _results_export_rows_with_hitl_audit(run_record),
         }
-    if getattr(run_record, "status", None) == RunStatus.SUCCEEDED and getattr(run_record, "cv_generation_debug_json", None):
+    if _run_status_allows_export(run_record) and getattr(run_record, "cv_generation_debug_json", None):
         payloads["hitl-review-audit.json"] = _build_hitl_review_audit_payload(run_record)
     trace_payload = _load_run_synonym_proposals_trace_payload(run_record)
     if (
-        getattr(run_record, "status", None) == RunStatus.SUCCEEDED
+        _run_status_allows_export(run_record)
         and _run_has_reached_stage(run_record, "enrich")
         and isinstance(trace_payload, dict)
         and str(trace_payload.get("trace_status") or "").strip() != "not_applicable"

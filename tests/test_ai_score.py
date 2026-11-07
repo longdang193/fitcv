@@ -490,6 +490,51 @@ def test_build_ranking_request_drops_optional_raw_description_before_budget_fail
     assert "job_optional" in request["prompt_truncation_steps"]
 
 
+def test_build_ranking_request_drops_optional_candidate_facts_before_budget_failure(monkeypatch) -> None:
+    monkeypatch.setattr(ai_score_module, "RANKING_REQUEST_MAX_CHARS", 3_000)
+    candidate_summary = json.dumps(
+        {
+            "skills": ["Python"],
+            "languages": [{"name": "German", "level": "B2"}],
+            "employment": [
+                {"company": f"Company {index}", "description": "optional employment context " * 50}
+                for index in range(4)
+            ],
+            "years_experience": 3,
+            "target_role": "Data Engineer",
+        },
+        ensure_ascii=False,
+    )
+    ranking_input = build_ranking_job_input(
+        {
+            "title": "Data Engineer",
+            "required_skills": ["Python"],
+            "description": "Build Python data pipelines.",
+        },
+        {"skills": [{"name": "Python"}]},
+    )
+    ranking_input["candidate_summary"] = candidate_summary
+    ranking_input["candidate_evidence"] = [{
+        "evidence_id": "ev-python-candidate-bound",
+        "text": "Built Python data pipelines.",
+        "source_ref": "cv:project:python-candidate-bound",
+    }]
+
+    request = build_ranking_request(
+        {},
+        candidate_summary,
+        [],
+        {},
+        ranking_input=ranking_input,
+    )
+
+    candidate_payload = json.loads(request["bounded_ranking_input"]["candidate_summary"])
+    assert "employment" not in candidate_payload
+    assert candidate_payload["skills"] == ["Python"]
+    assert request["visibility_manifest"]["evidence"]["model_visible_count"] == 1
+    assert "candidate_optional" in request["prompt_truncation_steps"]
+
+
 def test_job_relevant_late_certification_is_preserved_in_mandatory_facts() -> None:
     required_certification = "AWS Certified Solutions Architect"
     profile = {

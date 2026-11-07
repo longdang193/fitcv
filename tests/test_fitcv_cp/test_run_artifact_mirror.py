@@ -2,6 +2,7 @@ import datetime
 import io
 import json
 import zipfile
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -137,6 +138,19 @@ def test_build_terminal_run_artifact_payloads_matches_control_plane_derived_payl
     actual_suppression.pop("created_at", None)
     expected_suppression.pop("created_at", None)
     assert actual_suppression == expected_suppression
+
+
+def test_build_terminal_run_artifact_payloads_includes_review_state_exports() -> None:
+    run = replace(
+        _make_succeeded_run(),
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+    )
+
+    payloads = build_terminal_run_artifact_payloads(run_record=run, events=[])
+
+    assert payloads["export.json"]["results"]
+    assert payloads["hitl-review-audit.json"]["queue_items"]
 
 
 def test_persist_terminal_run_artifact_mirror_writes_review_and_synonym_files(tmp_path, monkeypatch) -> None:
