@@ -939,6 +939,27 @@ def test_apply_structured_normalization_keeps_technical_language_and_communicati
     ]
 
 
+def test_apply_structured_normalization_rejects_nontechnical_language_and_communication_fallbacks() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "SQL",
+                "English language proficiency",
+                "Strong communication abilities",
+            ],
+            required_skill_entities=[
+                {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0},
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == ["sql"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
+    ]
+
+
 def test_apply_structured_normalization_excludes_non_skill_requirement_content() -> None:
     output = EnrichmentOutput(
         required_skills=[

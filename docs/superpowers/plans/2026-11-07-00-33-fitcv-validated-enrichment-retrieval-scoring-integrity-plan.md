@@ -89,6 +89,27 @@ an explicit product-policy decision before implementation:
   retention, and missing embedding signatures; each needs a focused contract
   decision or runtime reproduction before changing behavior.
 
+## Review-Cycle Corrections
+
+The first independent review of PR `#126` at head
+`495da4afcb9650231363d0d554205babfad51db6` reproduced three additional defects
+within this plan's scope. The plan is amended to include their root-cause fixes:
+
+- Hybrid lexical filtering must distinguish component-specific neutral values
+  from positive partial overlap. A skill overlap such as `0.25` is affirmative
+  evidence even when title relevance is the neutral unknown value `0.5`.
+- Candidate-summary compaction must match language names and proficiency levels
+  structurally, reserve matching records before optional-record removal, and
+  mark `candidate_languages` incomplete if an originally present mandatory
+  language record cannot remain visible.
+- Raw-skill fallback must reject natural-language proficiency and interpersonal
+  communication formulations while preserving allowlisted technical phrases
+  such as `natural language processing` and `technical communication protocol`.
+
+Focused regressions are required in `tests/test_vector_search.py`,
+`tests/test_scoring_input_integrity.py`, and `tests/test_enrich.py` before the
+next review cycle.
+
 ## Implementation Outcomes
 
 ### Complete skill requirement contract

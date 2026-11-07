@@ -157,6 +157,37 @@ def test_candidate_overflow_reports_optional_field_ownership_and_keeps_skills() 
     assert visibility["mandatory_omitted_fields"] == []
 
 
+def test_candidate_overflow_protects_qualified_mandatory_language() -> None:
+    candidate_summary = json.dumps({
+        "skills": ["RareTool", "Python"] + [f"Skill{index}" * 8 for index in range(80)],
+        "languages": [
+            {"name": "French", "level": "B2"},
+            {"name": "German", "level": "B2"},
+        ],
+        "employment": [{"role": "Platform Engineer" * 10, "company": "Company" * 80}] * 12,
+        "years_experience": 5,
+        "target_role": "Platform Engineer",
+    }, ensure_ascii=False)
+
+    request = build_ranking_request(
+        {},
+        candidate_summary,
+        [],
+        {},
+        ranking_input={
+            "job_requirements": json.dumps({"language_requirements": ["German B2"]}),
+            "candidate_summary": candidate_summary,
+        },
+        resolved_route=_route(),
+    )
+
+    candidate = json.loads(request["bounded_ranking_input"]["candidate_summary"])
+    visibility = request["visibility_manifest"]["candidate"]
+    assert {item["name"] for item in candidate["languages"]} == {"German"}
+    assert candidate["languages"][0]["level"] == "B2"
+    assert visibility["mandatory_omitted_fields"] == []
+
+
 def test_diagnostics_use_exact_final_bounded_payload() -> None:
     ranking_input = {
         "job_requirements": json.dumps({"title": "Platform Engineer"}),

@@ -356,9 +356,43 @@ def build_ranking_request(
             ]
 
         language_requirements = [
-            str(value).strip().casefold()
+            value
             for value in list((mandatory_job or {}).get("language_requirements") or [])
             if str(value).strip()
+        ]
+
+        language_level_pattern = re.compile(
+            r"\b(?:a1|a2|b1|b2|c1|c2|native|fluent|beginner|elementary|intermediate|advanced|professional)\b",
+            re.IGNORECASE,
+        )
+
+        def language_requirement_parts(value: Any) -> tuple[set[str], set[str]]:
+            if isinstance(value, dict):
+                name = value.get("language") or value.get("name") or ""
+                level = value.get("expected_level") or value.get("level") or value.get("proficiency") or ""
+                return (
+                    set(re.findall(r"[a-z]+", str(name).casefold())),
+                    set(re.findall(r"[a-z0-9]+", str(level).casefold())),
+                )
+            text = str(value or "").casefold()
+            levels = {match.casefold() for match in language_level_pattern.findall(text)}
+            name_tokens = set(re.findall(r"[a-z]+", language_level_pattern.sub(" ", text)))
+            return name_tokens, levels
+
+        def language_record_matches_requirement(record: Any, requirement: Any) -> bool:
+            if not isinstance(record, dict):
+                return False
+            required_names, required_levels = language_requirement_parts(requirement)
+            record_names = set(re.findall(r"[a-z]+", str(record.get("name") or "").casefold()))
+            record_levels = set(re.findall(r"[a-z0-9]+", str(record.get("level") or "").casefold()))
+            if required_names and not required_names.intersection(record_names):
+                return False
+            return not required_levels or bool(required_levels.intersection(record_levels))
+
+        protected_language_records = [
+            value
+            for value in list(bounded_payload.get("languages") or [])
+            if any(language_record_matches_requirement(value, requirement) for requirement in language_requirements)
         ]
         if language_requirements and isinstance(bounded_payload.get("languages"), list):
             bounded_payload["languages"] = sorted(
@@ -366,7 +400,7 @@ def build_ranking_request(
                 key=lambda value: (
                     0
                     if any(
-                        requirement in json.dumps(value, ensure_ascii=False).casefold()
+                        language_record_matches_requirement(value, requirement)
                         for requirement in language_requirements
                     )
                     else 1
@@ -384,7 +418,20 @@ def build_ranking_request(
             for key in ("certifications", "education", "employment", "languages"):
                 values = bounded_payload.get(key)
                 if isinstance(values, list) and len(values) > 1:
-                    values.pop()
+                    if key == "languages" and protected_language_records:
+                        removable_indexes = [
+                            index
+                            for index, value in enumerate(values)
+                            if not any(
+                                value == protected
+                                for protected in protected_language_records
+                            )
+                        ]
+                        if not removable_indexes:
+                            continue
+                        values.pop(removable_indexes[-1])
+                    else:
+                        values.pop()
                     omitted_counts[key] = omitted_counts.get(key, 0) + 1
                     overflow_owner = key
                     removed = True
@@ -426,6 +473,17 @@ def build_ranking_request(
             "omitted_counts": omitted_counts,
             "overflow_owner": overflow_owner,
         }
+        if language_requirements and protected_language_records:
+            visible_languages = list(bounded_payload.get("languages") or [])
+            omitted_language_requirements = [
+                requirement
+                for requirement in language_requirements
+                if any(language_record_matches_requirement(record, requirement) for record in protected_language_records)
+                and not any(language_record_matches_requirement(record, requirement) for record in visible_languages)
+            ]
+            if omitted_language_requirements:
+                metadata["mandatory_omissions"] = {"candidate_languages": len(omitted_language_requirements)}
+                metadata["mandatory_omitted_fields"] = ["candidate_languages"]
         return serialize(), changed, metadata, [dict(bounded_payload)]
 
     jd_raw = source.get("job_requirements") or build_job_summary_text(job)
@@ -439,6 +497,8 @@ def build_ranking_request(
         str(key): int(value or 0)
         for key, value in dict((source.get("contract_metadata") or {}).get("mandatory_omissions") or {}).items()
     }
+    for key, value in dict(candidate_visibility.get("mandatory_omissions") or {}).items():
+        mandatory_omissions[key] = max(int(value or 0), int(mandatory_omissions.get(key) or 0))
     if any(value > 0 for value in mandatory_omissions.values()):
         visibility_manifest = {
             "job": {**job_visibility, "mandatory_omitted_fields": [key for key in mandatory_omissions if key.startswith("job_")]},

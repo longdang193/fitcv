@@ -871,14 +871,25 @@ def _hybrid_search_result(
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
     raw_lexical_rows = list(lexical_result.get("production_rows") or [])
+
+    def has_affirmative_lexical_signal(row: dict[str, Any]) -> bool:
+        components = row.get("retrieval_components")
+        if not isinstance(components, dict):
+            return True
+        skill_overlap = float(components.get("skill_overlap") or 0.0)
+        title_relevance = float(components.get("title_relevance") or 0.0)
+        return any((
+            skill_overlap > 0.0 and skill_overlap != 0.5,
+            float(components.get("technology_overlap") or 0.0) > 0.0,
+            float(components.get("description_overlap") or 0.0) > 0.0,
+            title_relevance > 0.5,
+        ))
+
     neutral_lexical_rows = [
         row
         for row in raw_lexical_rows
         if isinstance(row.get("retrieval_components"), dict)
-        and not any(
-            float(row.get("retrieval_components", {}).get(key) or 0.0) > 0.5
-            for key in ("skill_overlap", "technology_overlap", "description_overlap", "title_relevance")
-        )
+        and not has_affirmative_lexical_signal(row)
     ]
     lexical_rows = [row for row in raw_lexical_rows if row not in neutral_lexical_rows]
     by_url: dict[str, dict[str, Any]] = {}
