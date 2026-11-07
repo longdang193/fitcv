@@ -892,6 +892,53 @@ def test_apply_structured_normalization_emits_canonical_skill_companions() -> No
     ]
 
 
+def test_apply_structured_normalization_merges_raw_skills_missing_from_entities() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=["GCP", "Python", "SQL"],
+            required_skill_entities=[
+                {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
+            ],
+        ),
+        {"skill_synonyms": {"gcp": "google cloud"}},
+    )
+
+    assert result["required_skills_canonical"] == ["google cloud", "python", "sql"]
+    assert [item["raw_text"] for item in result["required_skill_entities"]] == ["GCP", "Python", "SQL"]
+
+
+def test_apply_structured_normalization_keeps_technical_language_and_communication_phrases() -> None:
+    result = _apply_structured_normalization(
+        EnrichmentOutput(
+            required_skills=[
+                "Natural Language Processing",
+                "Large Language Models",
+                "Language modeling",
+                "Technical communication protocol",
+                "Communication skills",
+            ],
+            required_skill_entities=[
+                {"raw_text": value, "canonical": value.lower(), "confidence": 1.0}
+                for value in [
+                    "Natural Language Processing",
+                    "Large Language Models",
+                    "Language modeling",
+                    "Technical communication protocol",
+                    "Communication skills",
+                ]
+            ],
+        ),
+        {},
+    )
+
+    assert result["required_skills_canonical"] == [
+        "natural language processing",
+        "large language models",
+        "language modeling",
+        "technical communication protocol",
+    ]
+
+
 def test_apply_structured_normalization_excludes_non_skill_requirement_content() -> None:
     output = EnrichmentOutput(
         required_skills=[

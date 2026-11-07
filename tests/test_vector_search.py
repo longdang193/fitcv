@@ -158,6 +158,40 @@ def test_build_candidate_query_components_bound_skill_count() -> None:
     assert components["flattened_skills"] == ["SQL", "Python", "BigQuery"]
 
 
+def test_build_candidate_query_components_prioritizes_repeated_late_skill() -> None:
+    profile = {
+        "skills": [{"name": "Generic Skill"}],
+        "experiences": [
+            {"role": "Earlier Role", "bullets": [{"skills": ["Other Skill"]}]},
+            {"role": "Later Role", "bullets": [{"skills": ["Rare Skill", "Rare Skill"]}]},
+        ],
+        "projects": [],
+        "preferences": {},
+    }
+
+    components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 2})
+
+    assert components["skills"] == ["Rare Skill", "Generic Skill"]
+
+
+def test_build_candidate_query_components_prioritizes_later_project_with_more_evidence() -> None:
+    profile = {
+        "projects": [
+            {"name": "Early Project", "business_value": "Short"},
+            {
+                "name": "Late Project",
+                "skills": ["Python", "SQL"],
+                "highlights": ["Built pipeline", "Reduced latency"],
+            },
+        ],
+        "preferences": {},
+    }
+
+    components = build_candidate_query_components(profile)
+
+    assert components["project_evidence_hints"][0] == "Late Project"
+
+
 def test_build_candidate_query_components_bound_project_technology_hints() -> None:
     profile = {
         "projects": [
@@ -1199,6 +1233,36 @@ def test_hybrid_fusion_rescues_the_strongest_lexical_only_candidate() -> None:
 
     assert lexical_only_url in {row["job_url"] for row in result["production_rows"]}
     assert result["diagnostics"]["lexical_only_rescue_count"] == 1
+
+
+def test_hybrid_fusion_does_not_rescue_neutral_lexical_only_row() -> None:
+    result = _hybrid_search_result(
+        vector_result={
+            "production_rows": [{"job_url": "vector", "vector_rank": 1}],
+            "audit_rows": [],
+            "diagnostics": {},
+        },
+        lexical_result={
+            "production_rows": [{
+                "job_url": "neutral",
+                "lexical_rank": 1,
+                "retrieval_components": {
+                    "skill_overlap": 0.0,
+                    "technology_overlap": 0.0,
+                    "description_overlap": 0.0,
+                    "title_relevance": 0.5,
+                },
+            }],
+            "audit_rows": [],
+            "diagnostics": {},
+        },
+        eligible_job_urls=["vector", "neutral"],
+        top_n=1,
+        channel_depth=1,
+    )
+
+    assert [row["job_url"] for row in result["production_rows"]] == ["vector"]
+    assert result["diagnostics"]["lexical_only_rescue_count"] == 0
 
 
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(

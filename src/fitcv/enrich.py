@@ -188,8 +188,6 @@ _NON_SKILL_CANONICAL_EXACT: frozenset[str] = frozenset({
 _NON_SKILL_PHRASE_MARKERS: tuple[str, ...] = (
     "domain experience",
     "domain knowledge",
-    "language",
-    "communication",
     "attention to detail",
     "ownership",
     "proactive",
@@ -210,6 +208,12 @@ _NON_SKILL_PHRASE_MARKERS: tuple[str, ...] = (
     "high degree of ownership",
     "soft skill",
 )
+_TECHNICAL_SKILL_PHRASES: frozenset[str] = frozenset({
+    "natural language processing",
+    "large language models",
+    "language modeling",
+    "technical communication protocol",
+})
 
 
 class SkillEntity(TypedDict):
@@ -433,9 +437,16 @@ def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
         return False
     if canonical_lower in _NON_SKILL_CANONICAL_EXACT:
         return False
-    if any(marker in raw_lower or marker in canonical_lower for marker in _NON_SKILL_PHRASE_MARKERS):
+    if (
+        raw_lower.endswith(" communication")
+        or canonical_lower.endswith(" communication")
+    ) and raw_lower not in _TECHNICAL_SKILL_PHRASES and canonical_lower not in _TECHNICAL_SKILL_PHRASES:
         return False
-    if _is_generic_ai_concept_overreach(raw_text, canonical):
+    if raw_lower not in _TECHNICAL_SKILL_PHRASES and canonical_lower not in _TECHNICAL_SKILL_PHRASES and any(
+        marker in raw_lower or marker in canonical_lower for marker in _NON_SKILL_PHRASE_MARKERS
+    ):
+        return False
+    if raw_lower not in _TECHNICAL_SKILL_PHRASES and canonical_lower not in _TECHNICAL_SKILL_PHRASES and _is_generic_ai_concept_overreach(raw_text, canonical):
         return False
     return True
 
@@ -491,24 +502,54 @@ def _build_skill_entities(
     if field_name not in {"required_skills", "preferred_skills"}:
         return []
     normalized_entities = _normalise_skill_entities(raw_entities, config=config)
-    if normalized_entities:
-        return normalized_entities
-    fallback_entities: list[SkillEntity] = []
+    if raw_entities is None:
+        fallback_entities: list[SkillEntity] = []
+        for raw_value in raw_values:
+            canonical = _canonicalize_text_item(field_name, raw_value, config)
+            if not _is_reusable_skill_alias(raw_value, canonical):
+                continue
+            if not _is_allowed_skill_entity(raw_value, canonical):
+                continue
+            fallback_entities.append(
+                {
+                    "raw_text": raw_value,
+                    "canonical": canonical,
+                    "confidence": 1.0,
+                }
+            )
+        return fallback_entities
+    entities = list(normalized_entities)
+    existing_canonicals = {str(entity["canonical"]).casefold() for entity in entities}
+    explicit_raw_values = {
+        str(entity.get("raw_text") or "").strip().casefold()
+        for entity in raw_entities
+        if isinstance(entity, dict)
+    }
     for raw_value in raw_values:
-        normalized_alias = raw_value.strip().lower()
+        if raw_value.strip().casefold() in explicit_raw_values:
+            continue
         canonical = _canonicalize_text_item(field_name, raw_value, config)
-        if not _is_reusable_skill_alias(raw_value, canonical):
+        raw_is_concise_canonical = (
+            raw_value.strip().casefold() == canonical.strip().casefold()
+            and len(raw_value.strip()) <= 40
+            and len(raw_value.strip().split()) <= 4
+            and not any(char in raw_value for char in ",;:()[]{}")
+        )
+        if not _is_reusable_skill_alias(raw_value, canonical) and not raw_is_concise_canonical:
             continue
         if not _is_allowed_skill_entity(raw_value, canonical):
             continue
-        fallback_entities.append(
+        if canonical.casefold() in existing_canonicals:
+            continue
+        entities.append(
             {
                 "raw_text": raw_value,
                 "canonical": canonical,
                 "confidence": 1.0,
             }
         )
-    return fallback_entities
+        existing_canonicals.add(canonical.casefold())
+    return entities
 
 
 def _build_mapping_suggestions(
@@ -1305,13 +1346,21 @@ def _apply_structured_normalization(
         required_skills,
         "required_skills",
         config,
-        raw_entities=[entity.model_dump(mode="python") for entity in output.required_skill_entities],
+        raw_entities=(
+            [entity.model_dump(mode="python") for entity in output.required_skill_entities]
+            if output.required_skill_entities
+            else None
+        ),
     )
     preferred_skill_entities = _build_skill_entities(
         preferred_skills,
         "preferred_skills",
         config,
-        raw_entities=[entity.model_dump(mode="python") for entity in output.preferred_skill_entities],
+        raw_entities=(
+            [entity.model_dump(mode="python") for entity in output.preferred_skill_entities]
+            if output.preferred_skill_entities
+            else None
+        ),
     )
     mapping_suggestions = [
         *_build_mapping_suggestions(entities=required_skill_entities),
@@ -1347,18 +1396,12 @@ def _apply_structured_normalization(
         "job_family": output.job_family.lower().strip() if output.job_family else None,
         "years_experience_min": output.years_experience_min,
         "years_experience_max": output.years_experience_max,
-        **_build_array_companions(
-            field_name="required_skills",
-            raw_values=required_skills,
-            config=config,
-            raw_entities=required_skill_entities,
-        ),
-        **_build_array_companions(
-            field_name="preferred_skills",
-            raw_values=preferred_skills,
-            config=config,
-            raw_entities=preferred_skill_entities,
-        ),
+        "required_skills": required_skills,
+        "required_skills_canonical": _canonical_from_entities(required_skill_entities),
+        "required_skill_entities": required_skill_entities,
+        "preferred_skills": preferred_skills,
+        "preferred_skills_canonical": _canonical_from_entities(preferred_skill_entities),
+        "preferred_skill_entities": preferred_skill_entities,
         **_build_array_companions(field_name="responsibilities", raw_values=responsibilities, config=config),
         **_build_array_companions(field_name="tech_stack", raw_values=tech_stack, config=config),
         **_build_array_companions(field_name="keywords", raw_values=keywords, config=config),

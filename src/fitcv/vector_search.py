@@ -323,6 +323,36 @@ def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
     ]
 
 
+def _rankable_skill_occurrences(profile: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+
+    def add(value: Any, support_status: Any = None) -> None:
+        if isinstance(value, dict):
+            support_status = value.get("support_status", support_status)
+            value = value.get("name")
+        text = str(value or "").strip()
+        status = str(support_status or "supported").strip().casefold()
+        if text and status not in {"unsupported", "unverified", "rejected", "claimed_only"}:
+            values.append(text)
+
+    for skill in profile.get("skills") or []:
+        add(skill)
+    for experience in profile.get("experiences") or []:
+        if not isinstance(experience, dict):
+            continue
+        for bullet in experience.get("bullets") or []:
+            if not isinstance(bullet, dict):
+                continue
+            for skill in bullet.get("skills") or []:
+                add(skill, bullet.get("support_status"))
+    for project in profile.get("projects") or []:
+        if not isinstance(project, dict):
+            continue
+        for skill in project.get("skills") or []:
+            add(skill, project.get("support_status"))
+    return values
+
+
 def _normalize_query_scalar(value: Any) -> str:
     return normalize_text_scalar(value)
 
@@ -350,7 +380,19 @@ def build_candidate_query_components(
 
     skills: list[str] = []
     seen_skills: set[str] = set()
-    for skill in flatten_rankable_skills(profile):
+    flattened_skills = flatten_rankable_skills(profile)
+    skill_occurrences = _rankable_skill_occurrences(profile)
+    skill_counts: dict[str, int] = {}
+    skill_first_seen: dict[str, int] = {}
+    for index, skill in enumerate(skill_occurrences):
+        key = skill.casefold()
+        skill_counts[key] = skill_counts.get(key, 0) + 1
+        skill_first_seen.setdefault(key, index)
+    ranked_skills = sorted(
+        flattened_skills,
+        key=lambda value: (-skill_counts[value.casefold()], skill_first_seen[value.casefold()], value.casefold()),
+    )
+    for skill in ranked_skills:
         _append_unique_text(skills, skill, seen_skills)
         if len(skills) >= max_skills:
             break
@@ -412,7 +454,18 @@ def build_candidate_query_components(
     technology_hints = _bounded_profile_technology_hints(profile)
     project_evidence_hints: list[str] = []
     seen_project_evidence: set[str] = set()
-    for project in profile.get("projects", []) or []:
+    projects = list(profile.get("projects", []) or [])
+    ranked_projects = sorted(
+        enumerate(projects),
+        key=lambda pair: (
+            -sum(
+                len(list(pair[1].get(key) or [])) if isinstance(pair[1].get(key), list) else int(bool(pair[1].get(key)))
+                for key in ("skills", "tech_stack", "highlights", "business_value")
+            ),
+            pair[0],
+        ),
+    )
+    for _, project in ranked_projects:
         if not isinstance(project, dict):
             continue
         for value in [project.get("name"), project.get("business_value"), *(project.get("highlights") or [])]:
@@ -817,7 +870,17 @@ def _hybrid_search_result(
 ) -> dict[str, Any]:
     """Fuse bounded vector and lexical channels without mixing score scales."""
     vector_rows = list(vector_result.get("production_rows") or [])
-    lexical_rows = list(lexical_result.get("production_rows") or [])
+    raw_lexical_rows = list(lexical_result.get("production_rows") or [])
+    neutral_lexical_rows = [
+        row
+        for row in raw_lexical_rows
+        if isinstance(row.get("retrieval_components"), dict)
+        and not any(
+            float(row.get("retrieval_components", {}).get(key) or 0.0) > 0.5
+            for key in ("skill_overlap", "technology_overlap", "description_overlap", "title_relevance")
+        )
+    ]
+    lexical_rows = [row for row in raw_lexical_rows if row not in neutral_lexical_rows]
     by_url: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(vector_rows, start=1):
         url = str(row.get("job_url") or "").strip()
@@ -935,6 +998,7 @@ def _hybrid_search_result(
             "production_cutoff_rank": len(production_rows),
             "lexical_only_rescue_count": len(rescued_rows),
             "lexical_only_rescued_urls": [str(row.get("job_url") or "") for row in rescued_rows],
+            "neutral_lexical_rows_excluded": len(neutral_lexical_rows),
             "embedding_generation_skipped": bool(vector_diagnostics.get("embedding_generation_skipped")),
             "vector_diagnostics": vector_diagnostics,
             "lexical_diagnostics": lexical_diagnostics,

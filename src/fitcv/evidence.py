@@ -3832,6 +3832,49 @@ def retrieve_evidence_bundle(
                     str(item.get("evidence_id") or ""),
                 ),
             )[: int(semantic_settings["channel_pool_size"])]
+    required_skill_reservations: list[dict[str, Any]] = []
+    existing_required_skill_ids = {
+        str(item.get("evidence_id") or "")
+        for item in list(channel_pools.get(REQUIRED_SKILL_SUPPORT_CHANNEL) or [])
+    }
+    required_skill_ids = [
+        _descriptor_requirement_ref(descriptor)
+        for descriptor in list(coerced_job_context.get("requirement_descriptors") or [])
+    ]
+    for requirement_id in dict.fromkeys(value for value in required_skill_ids if value):
+        candidate_pool = [
+            item for item in base_items
+            if requirement_id in {
+                str(value)
+                for value in list(item.get("supported_requirement_ids") or [])
+            }
+        ]
+        candidate = max(
+            candidate_pool,
+            key=lambda item: (
+                _base_selection_score(item, policy=selection_policy),
+                str(item.get("evidence_id") or ""),
+            ),
+            default=None,
+        )
+        evidence_id = str((candidate or {}).get("evidence_id") or "")
+        if candidate is None or not evidence_id or evidence_id in existing_required_skill_ids:
+            continue
+        reserved = dict(candidate)
+        reserved["channel"] = REQUIRED_SKILL_SUPPORT_CHANNEL
+        reserved["channel_score"] = max(float(reserved.get("channel_score") or 0.0), 1.0)
+        reserved["channel_subscore"] = dict(
+            reserved.get("channel_subscore") or {"lexical": 1.0, "semantic": 0.0, "combined": 1.0}
+        )
+        reserved["channel_rationale"] = [requirement_id]
+        required_skill_reservations.append(reserved)
+        existing_required_skill_ids.add(evidence_id)
+    if required_skill_reservations:
+        channel_pools[REQUIRED_SKILL_SUPPORT_CHANNEL] = [
+            *list(channel_pools.get(REQUIRED_SKILL_SUPPORT_CHANNEL) or []),
+            *required_skill_reservations,
+        ]
+
     requirement_candidates: list[dict[str, Any]] = []
     seen_requirement_candidate_ids: set[str] = set()
     for entity in responsibility_entities:
