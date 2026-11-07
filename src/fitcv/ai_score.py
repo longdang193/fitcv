@@ -477,7 +477,17 @@ def build_ranking_request(
                 }
             ),
         }
-        return serialize(), changed, metadata, [dict(bounded_payload)]
+        variants: list[dict[str, Any]] = [dict(bounded_payload)]
+        reduced = dict(bounded_payload)
+        optional_keys = ["certifications", "education"]
+        if bounded_payload.get("years_experience") not in (None, ""):
+            optional_keys.append("employment")
+        for key in optional_keys:
+            if key in reduced:
+                reduced = dict(reduced)
+                reduced.pop(key)
+                variants.append(dict(reduced))
+        return serialize(), changed, metadata, variants
 
     jd_summary, jd_summary_truncated, job_visibility, job_variants = bound_job_summary(jd_raw)
 
@@ -666,6 +676,56 @@ def build_ranking_request(
                 "mandatory_core_complete": False,
             },
         )
+    selected_job_payload = _structured_payload(selected_job)
+    selected_candidate_payload = _structured_payload(selected_candidate)
+    candidate_visibility = {
+        **candidate_visibility,
+        "rendered_fields": (
+            list(selected_candidate_payload)
+            if selected_candidate_payload is not None
+            else candidate_visibility["rendered_fields"]
+        ),
+        "model_visible_fields": (
+            list(selected_candidate_payload)
+            if selected_candidate_payload is not None
+            else candidate_visibility["model_visible_fields"]
+        ),
+    }
+    if selected_candidate_payload is not None:
+        candidate_visibility["omitted_fields"] = sorted(
+            {
+                *[str(key) for key in list(candidate_visibility.get("omitted_fields") or [])],
+                *[
+                    str(key)
+                    for key in list(candidate_visibility.get("raw_fields") or [])
+                    if key not in selected_candidate_payload
+                ],
+            }
+        )
+    job_visibility = {
+        **job_visibility,
+        "rendered_fields": (
+            list(selected_job_payload)
+            if selected_job_payload is not None
+            else job_visibility["rendered_fields"]
+        ),
+        "model_visible_fields": (
+            list(selected_job_payload)
+            if selected_job_payload is not None
+            else job_visibility["model_visible_fields"]
+        ),
+    }
+    if selected_job_payload is not None:
+        job_visibility["omitted_fields"] = sorted(
+            {
+                *[str(key) for key in list(job_visibility.get("omitted_fields") or [])],
+                *[
+                    str(key)
+                    for key in list(job_visibility.get("raw_fields") or [])
+                    if key not in selected_job_payload
+                ],
+            }
+        )
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")
     request_payload = {
         **base_request_payload,
@@ -696,13 +756,9 @@ def build_ranking_request(
         "visibility_manifest": {
             "job": {
                 **job_visibility,
-                "rendered_fields": list(_structured_payload(selected_job) or job_visibility)[0:] if _structured_payload(selected_job) else job_visibility["rendered_fields"],
-                "model_visible_fields": list(_structured_payload(selected_job) or job_visibility)[0:] if _structured_payload(selected_job) else job_visibility["model_visible_fields"],
             },
             "candidate": {
                 **candidate_visibility,
-                "rendered_fields": list(_structured_payload(selected_candidate) or candidate_visibility)[0:] if _structured_payload(selected_candidate) else candidate_visibility["rendered_fields"],
-                "model_visible_fields": list(_structured_payload(selected_candidate) or candidate_visibility)[0:] if _structured_payload(selected_candidate) else candidate_visibility["model_visible_fields"],
             },
             "evidence": {
                 "raw_count": len(list(source.get("candidate_evidence") or evidence)),

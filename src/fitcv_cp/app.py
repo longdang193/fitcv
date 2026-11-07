@@ -1685,7 +1685,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
     artifact_payloads = build_terminal_run_artifact_payloads(run_record=run, events=[])
 
     results_payload = artifact_payloads.get("export.json")
-    if run.status == RunStatus.SUCCEEDED and isinstance(results_payload, dict):
+    if _run_status_allows_export(run) and isinstance(results_payload, dict):
         files.append(
             _build_run_artifact_file(
                 run.run_id,
@@ -1694,7 +1694,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
             )
         )
     hitl_review_payload = artifact_payloads.get("hitl-review-audit.json")
-    if run.status == RunStatus.SUCCEEDED and isinstance(hitl_review_payload, dict):
+    if _run_status_allows_export(run) and isinstance(hitl_review_payload, dict):
         files.append(
             _build_run_artifact_file(
                 run.run_id,
