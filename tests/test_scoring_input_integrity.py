@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from fitcv.ai_score import build_ranking_job_input, build_ranking_request
+from fitcv.ai_score import build_ranking_job_input, build_ranking_request, run_ai_scoring
 from fitcv.rule_filter import apply_rule_filters
 
 
@@ -53,6 +53,11 @@ def test_final_scorer_request_retains_language_dimensions_and_ongoing_education(
     ranking_input = {
         "candidate_summary": candidate_summary,
         "job_requirements": "SQL, German B1, ongoing Master Data Science",
+        "candidate_evidence": [{
+            "evidence_id": "ev-education-language",
+            "text": "German B1; ongoing Master Data Science",
+            "source_refs": [{"document_id": "cv-1", "source_block_id": "education-1"}],
+        }],
     }
     request = build_ranking_request(
         job,
@@ -88,6 +93,107 @@ def test_ranking_input_preserves_dimension_only_and_native_language_records() ->
         {"level": "b1", "name": "German", "read": "B2", "write": "B1", "speak": "B1"},
         {"level": "native", "name": "French", "native": True},
     ]
+
+
+def test_ranking_input_preserves_source_text_separately_from_scoring_context() -> None:
+    ranking_input = build_ranking_job_input(
+        {"job_url": "https://example.com/job", "required_skills": ["Python"]},
+        {
+            "_projected_evidence_pool": [{
+                "evidence_id": "ev-1",
+                "kind": "project",
+                "text": "Built a Python service.",
+                "scoring_context": "Python service; reduced latency by 40%.",
+                "source_refs": [{"document_id": "doc-1", "source_block_id": "block-1"}],
+            }],
+        },
+        {},
+    )
+
+    evidence = ranking_input["candidate_evidence"][0]
+    assert evidence["text"] == "Built a Python service."
+    assert evidence["scoring_context"] == "Python service; reduced latency by 40%."
+    assert evidence["source_refs"] == [{"document_id": "doc-1", "source_block_id": "block-1"}]
+
+
+def test_missing_candidate_skill_is_not_reported_as_budget_omission() -> None:
+    job = {
+        "job_url": "https://example.com/job",
+        "title": "Scala Engineer",
+        "required_skills": ["Scala"],
+    }
+    profile = {
+        "skills": ["Python"],
+        "_projected_evidence_pool": [{
+            "evidence_id": "ev-python",
+            "text": "Built Python services.",
+            "source_refs": [{"document_id": "cv-1"}],
+        }],
+    }
+    ranking_input = build_ranking_job_input(job, profile, {})
+
+    request = build_ranking_request(
+        job,
+        ranking_input["candidate_summary"],
+        ranking_input["candidate_evidence"],
+        {},
+        ranking_input=ranking_input,
+        resolved_route=_route(),
+    )
+
+    assert request["visibility_manifest"]["mandatory_core_complete"] is True
+
+
+def test_run_ai_scoring_marks_explicit_empty_evidence_unavailable_without_provider_call(monkeypatch) -> None:
+    def fail_provider(*_args, **_kwargs):
+        raise AssertionError("provider scoring must not run without selected evidence")
+
+    monkeypatch.setattr("fitcv.ai_score.score_job", fail_provider)
+    result = run_ai_scoring(
+        [{
+            "job_url": "https://example.com/no-evidence",
+            "ranking_input": {
+                "candidate_summary": "candidate",
+                "job_requirements": "SQL",
+                "candidate_evidence": [],
+            },
+        }],
+        "candidate",
+        {},
+    )[0]
+
+    assert result["score_status"] == "unscored"
+    assert result["failure_code"] == "evidence_limited"
+    assert result["disposition"] == "unavailable"
+    assert result["retry_eligible"] is False
+
+
+def test_run_ai_scoring_keeps_budget_only_evidence_failure_retryable(monkeypatch) -> None:
+    monkeypatch.setattr("fitcv.ai_score.RANKING_REQUEST_MAX_CHARS", 100)
+    monkeypatch.setattr("fitcv.ai_score.build_scoring_prompt", lambda *_args, **_kwargs: "x" * 500)
+    monkeypatch.setattr("fitcv.ai_score.score_job", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("provider scoring must not run after budget failure")))
+
+    result = run_ai_scoring(
+        [{
+            "job_url": "https://example.com/budget",
+            "ranking_input": {
+                "candidate_summary": "candidate",
+                "job_requirements": "SQL",
+                "candidate_evidence": [{
+                    "evidence_id": "ev-1",
+                    "text": "Built SQL pipelines.",
+                    "source_ref": "cv:project:sql",
+                }],
+            },
+        }],
+        "candidate",
+        {},
+    )[0]
+
+    assert result["score_status"] == "unscored"
+    assert result["failure_code"] == "budget_exceeded"
+    assert result["disposition"] == "retryable_failure"
+    assert result["retry_eligible"] is True
 
 
 def test_raw_description_or_substantive_requirement_survives_missing_fit_context() -> None:

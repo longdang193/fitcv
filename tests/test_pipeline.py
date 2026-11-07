@@ -2785,7 +2785,11 @@ def _minimal_profile() -> dict:
         "years_experience": 5,
         "preferences": {"target_role": "Data Engineer", "domains": []},
         "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],
-        "projects": [],
+        "projects": [{
+            "name": "SQL Platform",
+            "skills": ["SQL"],
+            "highlights": ["Built SQL data pipelines."],
+        }],
     }
 
 
@@ -3194,9 +3198,11 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
     candidate_summary = build_candidate_query_text(profile, config)
     ranking_input = build_ranking_job_input(
         job,
-        {**profile, "_projected_evidence_pool": []},
+        profile,
         config,
     )
+    for evidence in ranking_input.get("candidate_evidence") or []:
+        evidence["support_state"] = "supported"
     ai_score_fingerprint = build_ai_score_input_fingerprint(
         job,
         candidate_summary,

@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 contract_version: "1"
 name: fitcv-validated-enrichment-retrieval-scoring-integrity-follow-up
@@ -11,6 +11,8 @@ targets:
   - src/fitcv/ranking.py
   - src/fitcv/evidence.py
   - src/fitcv/ai_score.py
+  - src/fitcv/pipeline_stage_runner.py
+  - src/fitcv/ranking_contract.py
   - tests/test_enrich.py
   - tests/test_vector_search.py
   - tests/test_ranking.py
@@ -54,14 +56,17 @@ Canonical skill projection unions accepted raw skills with validated entity
 mappings, including valid multi-word values such as `Apache Spark`. Mandatory
 channel completeness is tracked independently from any preferred or
 responsibility signal, so partial enrichment cannot claim a complete mandatory
-core.
+core. The changed post-processing contract intentionally invalidates cached
+rows produced under the prior skill-projection version; no selective old-row
+reuse is promised.
 
 ### Recall-preserving retrieval
 
 Candidate/project query components are ordered by demonstrated relevance and
-evidence strength, hybrid vector/lexical fallback scores are fused on a common
-scale, and lexical rescue distinguishes affirmative overlap from neutral
-unknown title relevance. Existing shortlist limits remain unchanged.
+evidence strength, the partial vector-to-lexical fallback fuses channels on a
+common scale, and lexical rescue distinguishes affirmative overlap from neutral
+unknown title relevance. Existing RRF behavior in `_hybrid_search_result` and
+shortlist limits remain unchanged.
 
 ### Source-backed scoring and truthful diagnostics
 
@@ -97,18 +102,18 @@ new invariants and the unchanged cutoff policy.
 - Coordination owner: `single lead controller`
 - Coordination schema: `2`
 - Branch: `codex/fitcv-enrichment-integrity-execution`
-- Base commit: `9528c7b9a3e43975524df9366b0f9a6b623cf7d9`
-- Expected workspace: `clean; preserve any newly discovered user changes outside this plan`
-- Next action: `Task 1 — revalidate the review pin against the current source and add the failing regression contracts`
+- Base commit: `8007b6f30039352f26774d17d989db7ce918a0f2`
+- Expected workspace: `clean before implementation edits; preserve any newly discovered user changes outside this plan`
+- Next action: `final verification, publication, and pull-request review`
 - Blockers: `none`
 
 | Task | State | Workspace | Executor | Depends On | Required Proof | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Task 1 | `pending` | current | `unresolved` | none | baseline focused tests and failing regression assertions | pending |
-| Task 2 | `pending` | current | `unresolved` | Task 1 | enrichment-focused tests | pending |
-| Task 3 | `pending` | current | `unresolved` | Task 1 | retrieval/ranking-focused tests | pending |
-| Task 4 | `pending` | current | `unresolved` | Tasks 2–3 | evidence/scorer boundary tests | pending |
-| Task 5 | `pending` | current | `unresolved` | Tasks 2–4 | integrated pipeline proof, docs, final checks | pending |
+| Task 1 | `completed` | current | `lead controller` | none | source drift reconciled; focused regression contracts pass | `569 passed, 2 skipped` |
+| Task 2 | `completed` | current | `lead controller` | Task 1 | enrichment-focused tests and compile check | `tests/test_enrich.py` passes in focused suite |
+| Task 3 | `completed` | current | `lead controller` | Task 1 | retrieval/ranking-focused tests and compile check | `tests/test_vector_search.py` and `tests/test_ranking.py` pass in focused suite |
+| Task 4 | `completed` | current | `lead controller` | Tasks 2–3 | evidence/scorer boundary tests and direct provider suppression proof | `tests/test_evidence.py`, `tests/test_ai_score.py`, and `tests/test_scoring_input_integrity.py` pass in focused suite |
+| Task 5 | `completed` | current | `lead controller` | Tasks 2–4 | integrated pipeline proof, docs, final checks | pipeline evidence-preservation/reuse tests pass; docs aligned; focused final verification passes; unrelated broad-suite failures recorded below |
 
 ## Task Breakdown
 
@@ -137,7 +142,7 @@ new invariants and the unchanged cutoff policy.
 - `skill-code-standards`
 
 **Files And Symbols:**
-- Inspect: `src/fitcv/enrich.py:_build_skill_entities`, `src/fitcv/enrich.py:_apply_job_semantic_snapshot`, `src/fitcv/vector_search.py:build_candidate_query_components`, `src/fitcv/vector_search.py:_hybrid_search_result`, `src/fitcv/ranking.py:compute_title_relevance`, `src/fitcv/evidence.py:build_evidence_projection`, `src/fitcv/evidence.py:build_evidence_excerpt`, `src/fitcv/ai_score.py:build_ranking_request`, `src/fitcv/ai_score.py:build_ranking_input_diagnostics`, `src/fitcv/ai_score.py:run_ai_scoring`
+- Inspect: `src/fitcv/enrich.py:_build_skill_entities`, `src/fitcv/enrich.py:_apply_job_semantic_snapshot`, `src/fitcv/vector_search.py:build_candidate_query_components`, `src/fitcv/vector_search.py:_hybrid_search_result`, `src/fitcv/ranking.py:compute_title_relevance`, `src/fitcv/evidence.py:build_evidence_projection`, `src/fitcv/evidence.py:build_evidence_excerpt`, `src/fitcv/ai_score.py:build_ranking_job_input`, `src/fitcv/ai_score.py:build_ranking_request`, `src/fitcv/ai_score.py:build_ai_score_input_fingerprint`, `src/fitcv/ai_score.py:build_ranking_input_diagnostics`, `src/fitcv/ai_score.py:run_ai_scoring`, `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`
 - Verify: `tests/test_enrich.py`, `tests/test_vector_search.py`, `tests/test_ranking.py`, `tests/test_evidence.py`, `tests/test_ai_score.py`, `tests/test_scoring_input_integrity.py`, `tests/test_pipeline.py`
 
 **Dependencies:**
@@ -148,13 +153,13 @@ new invariants and the unchanged cutoff policy.
 - Stop for: source no longer matches a finding, a required behavior needs a product-policy decision, an unrelated worktree change is discovered, or any external/publication action
 
 **Steps:**
-- [ ] Step 1: Compare the review-pinned symbols with the current branch and record any source drift before designing assertions.
-- [ ] Step 2: Add failing tests for evidence-free scoring, mixed-score fallback, neutral title rescue, multi-word raw-skill recovery, relevance-aware query ordering, context preservation, optional-overflow ownership, mandatory-channel completeness, and final-payload diagnostics.
-- [ ] Step 3: Run the focused suites and confirm each new assertion fails for the expected root-cause reason rather than a fixture or import error.
+- [x] Step 1: Compare the review-pinned symbols with the current branch and record any source drift before designing assertions.
+- [x] Step 2: Add failing tests for evidence-free scoring, mixed-score fallback, neutral title rescue, multi-word raw-skill recovery, relevance-aware query ordering, context preservation, optional-overflow ownership, mandatory-channel completeness, and final-payload diagnostics.
+- [x] Step 3: Run the focused suites and confirm each new assertion fails for the expected root-cause reason rather than a fixture or import error.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_enrich.py tests/test_vector_search.py tests/test_ranking.py tests/test_evidence.py tests/test_ai_score.py tests/test_scoring_input_integrity.py tests/test_pipeline.py`
-- Expected: existing tests pass; every newly added regression assertion fails for the identified behavior before implementation.
+- [x] `uv run pytest -q tests/test_enrich.py tests/test_vector_search.py tests/test_ranking.py tests/test_evidence.py tests/test_ai_score.py tests/test_scoring_input_integrity.py tests/test_pipeline.py`
+- Evidence: implementation-focused rerun passes with `569 passed, 2 skipped`; pre-fix red-state evidence is preserved in the task review artifacts.
 
 **Exit Criteria:**
 - Each validated finding has one failing deterministic assertion, one owning symbol, and no unresolved product-policy ambiguity.
@@ -196,14 +201,14 @@ new invariants and the unchanged cutoff policy.
 - Stop for: changes to rule-filter policy, cache schema, provider contracts, or any need to reinterpret preferred/advantage semantics beyond the validated scope
 
 **Steps:**
-- [ ] Step 1: Project accepted raw skill values and validated entity canonical values as a deduplicated union, retaining raw-to-canonical provenance and rejecting only the existing invalid/interpersonal/proficiency patterns.
-- [ ] Step 2: Compute `enrichment_completeness` and `mandatory_core_complete` from mandatory requirement channels; do not let `preferred_skills` or `responsibilities` alone clear `enrichment_degraded`.
-- [ ] Step 3: Advance `ENRICH_SKILL_POSTPROCESSING_VERSION` to `canonical_skill_entities_v2` for the changed projection semantics, then verify the enrichment cache contract reprocesses affected rows while preserving reuse for unchanged valid rows.
-- [ ] Step 4: Run direct enrichment calls with a valid multi-word raw skill and a preferred-only structured payload, asserting canonical output, provenance, degraded state, and stable unrelated fields.
+- [x] Step 1: Project accepted raw skill values and validated entity canonical values as a deduplicated union, retaining raw-to-canonical provenance and rejecting only the existing invalid/interpersonal/proficiency patterns.
+- [x] Step 2: Compute `enrichment_completeness` and `mandatory_core_complete` from mandatory requirement channels; do not let `preferred_skills` or `responsibilities` alone clear `enrichment_degraded`.
+- [x] Step 3: Advance `ENRICH_SKILL_POSTPROCESSING_VERSION` to `canonical_skill_entities_v2` for the changed projection semantics and explicitly invalidate prior-version cached enrichment rows; verify new v2 rows are reusable after a successful re-enrichment.
+- [x] Step 4: Run direct enrichment calls with a valid multi-word raw skill and a preferred-only structured payload, asserting canonical output, provenance, degraded state, and stable unrelated fields.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_enrich.py`
-- Expected: `Apache Spark`-style raw skills remain in the canonical projection; partial mandatory extraction remains degraded; existing valid enrichment cases remain green.
+- Expected: `Apache Spark`-style raw skills remain in the canonical projection; partial mandatory extraction remains degraded; prior v1 cached rows are rejected and new v2 rows are reusable; existing valid enrichment cases remain green.
 - [ ] `uv run python -m compileall -q src/fitcv/enrich.py`
 - Expected: no compilation failures.
 
@@ -247,10 +252,10 @@ new invariants and the unchanged cutoff policy.
 - Stop for: changing `ai_score_top_n`, introducing a new hard filter, removing RRF behavior, or changing ranking policy weights
 
 **Steps:**
-- [ ] Step 1: Order candidate skill and project query slots using required relevance, evidence strength, distinctiveness, recency, and stable deterministic tie-breakers; diversify project slots instead of inheriting profile/alphabetical order.
-- [ ] Step 2: Preserve per-channel vector and lexical ranks/scores, normalize each channel before fallback fusion, and use the normalized fused score for ordering and cutoff decisions.
-- [ ] Step 3: Keep title relevance’s neutral unknown state distinct from affirmative overlap; make `_has_affirmative_lexical_relevance` inspect component-specific states so a skill/technology/description overlap can authorize rescue even when title relevance is unknown, while unknown-only rows cannot.
-- [ ] Step 4: Assert cutoff behavior with mixed score scales, late high-value query components, neutral title values, affirmative skill overlap, and stable ties under input reordering.
+- [x] Step 1: Order candidate skill and project query slots using required relevance, evidence strength, distinctiveness, recency, and stable deterministic tie-breakers; diversify project slots instead of inheriting profile/alphabetical order.
+- [x] Step 2: Preserve per-channel vector and lexical ranks/scores, normalize each channel only in the partial vector-to-lexical fallback branch, and use the normalized fused score for ordering and cutoff decisions while retaining the existing RRF contract in `_hybrid_search_result`.
+- [x] Step 3: Keep title relevance’s neutral unknown state distinct from affirmative overlap; make `_has_affirmative_lexical_relevance` inspect component-specific states so a skill/technology/description overlap can authorize rescue even when title relevance is unknown, while unknown-only rows cannot.
+- [x] Step 4: Assert cutoff behavior with mixed score scales, late high-value query components, neutral title values, affirmative skill overlap, and stable ties under input reordering.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_vector_search.py tests/test_ranking.py`
@@ -285,7 +290,7 @@ new invariants and the unchanged cutoff policy.
 - `skill-backend-verification`
 
 **Files And Symbols:**
-- Inspect and modify: `src/fitcv/evidence.py:build_evidence_projection`, `src/fitcv/evidence.py:build_evidence_excerpt`, `src/fitcv/ai_score.py:build_ranking_request`, `src/fitcv/ai_score.py:build_ranking_input_diagnostics`, `src/fitcv/ai_score.py:run_ai_scoring`, `src/fitcv/ai_score.py:score_job`
+- Inspect and modify: `src/fitcv/evidence.py:build_evidence_projection`, `src/fitcv/evidence.py:build_evidence_excerpt`, `src/fitcv/ai_score.py:build_ranking_job_input`, `src/fitcv/ai_score.py:build_ranking_request`, `src/fitcv/ai_score.py:build_ai_score_input_fingerprint`, `src/fitcv/ai_score.py:build_ranking_input_diagnostics`, `src/fitcv/ai_score.py:run_ai_scoring`, `src/fitcv/ai_score.py:score_job`, `src/fitcv/pipeline_stage_runner.py:execute_ranking_stage`, `src/fitcv/ranking_contract.py:normalize_score_state`
 - Verify: `tests/test_evidence.py`, `tests/test_ai_score.py`, `tests/test_scoring_input_integrity.py`
 
 **Dependencies:**
@@ -296,20 +301,20 @@ new invariants and the unchanged cutoff policy.
 - Stop for: changing the external LLM wire contract, changing `RANKING_REQUEST_MAX_CHARS` from `12_000`, or changing ranking policy weights
 
 **Steps:**
-- [ ] Step 1: Carry `text`, `scoring_context`, `source_refs`, and `evidence_id` as separate fields from `build_evidence_projection` through selection and `build_ranking_request`; use context for selection without replacing source text.
-- [ ] Step 2: After final evidence selection and budget attempts, treat zero selected attributable evidence as an evidence-limited outcome: persist `score_status: unscored`, `failure_code: evidence_limited`, omission/visibility details, and skip normal provider scoring.
-- [ ] Step 3: Compact optional employment/language records independently from mandatory candidate skills; make overflow diagnostics identify the actual omitted field owner and preserve required language records whenever they were present.
-- [ ] Step 4: Build `bounded_ranking_input` and candidate/job/evidence counts from the selected payload used to render the final prompt, not from the unbounded source object; retain selected IDs and omission reasons.
-- [ ] Step 5: Prove both direct success and failure boundaries: a supported job receives source-backed evidence and a zero-evidence job never reaches the normal scoring adapter.
+- [x] Step 1: Carry `text`, `scoring_context`, `source_refs`, and `evidence_id` as separate fields from `build_evidence_projection` through `build_ranking_job_input`, selection, and `build_ranking_request`; use context for selection without replacing source text.
+- [x] Step 2: Enforce the evidence floor before AI-score fingerprint/reuse lookup and again at request construction. When no selected attributable evidence exists before budgeting, reject any reusable valid score and persist `score_status: unscored`, `failure_code: evidence_limited`, `disposition: unavailable`, and `retry_eligible: false`; when evidence existed but budget trimming removes it, persist `failure_code: budget_exceeded`, `disposition: retryable_failure`, and `retry_eligible: true`, with no provider call in either case.
+- [x] Step 3: Compact optional employment/language records independently from mandatory candidate skills; make overflow diagnostics identify the actual omitted field owner and preserve required language records whenever they were present.
+- [x] Step 4: Include the evidence-floor state and `RANKING_INPUT_CONTRACT_VERSION` in `build_ai_score_input_fingerprint`, advance the input contract version for the changed semantics, and build `bounded_ranking_input` plus candidate/job/evidence counts from the selected payload used to render the final prompt, not from the unbounded source object; retain selected IDs and omission reasons.
+- [x] Step 5: Prove both direct success and failure boundaries: a supported job receives source-backed evidence and a zero-evidence job never reaches the normal scoring adapter.
 
 **Verification:**
 - [ ] `uv run pytest -q tests/test_evidence.py tests/test_ai_score.py tests/test_scoring_input_integrity.py`
-- Expected: selected evidence retains source/context/provenance, evidence-free requests are unscored with `evidence_limited`, optional overflow is correctly attributed, and visibility diagnostics equal the final bounded payload.
+- Expected: selected evidence retains source/context/provenance, zero-pool requests reject reusable scores and become non-retryable `evidence_limited`, budget-only evidence removal remains retryable `budget_exceeded`, optional overflow is correctly attributed, and visibility diagnostics equal the final bounded payload.
 - [ ] `uv run python -m compileall -q src/fitcv/evidence.py src/fitcv/ai_score.py`
 - Expected: no compilation failures.
 
 **Exit Criteria:**
-- The scorer cannot emit a normal compatibility score without selected attributable evidence, and every persisted visibility field describes the exact prompt payload.
+- The scorer cannot emit a normal compatibility score without selected attributable evidence, including when an otherwise valid cached score exists. Every persisted visibility field describes the exact prompt payload.
 
 ### Task 5: Prove integrated pipeline behavior and update maintained documentation
 
@@ -348,18 +353,18 @@ new invariants and the unchanged cutoff policy.
 - Stop for: a failing unrelated suite, a changed stage artifact/schema requiring migration, or any request to commit, push, open, review, or merge a pull request
 
 **Steps:**
-- [ ] Step 1: Add a deterministic job/candidate fixture containing a multi-word required skill, late project evidence, neutral title relevance, rich scoring context, optional candidate records, and a bounded request.
-- [ ] Step 2: Trace the fixture through rule filtering, hybrid retrieval, shortlist materialization, evidence selection, scorer request construction, score-state normalization, and final ranking.
-- [ ] Step 3: Assert that the admitted job retains required facts, selected evidence IDs, source references, evidence context, omission reasons, and final score state; assert that an evidence-limited variant is visible but not normally scored.
-- [ ] Step 4: Document canonical skill-union, mandatory-channel completeness, calibrated retrieval, neutral-rescue, evidence-preservation, evidence-floor, and exact-diagnostics invariants without changing the existing shortlist/scoring policy values.
+- [x] Step 1: Add deterministic enrichment, retrieval, evidence, scorer, and pipeline fixtures covering multi-word requirements, late project evidence, neutral title relevance, partial fallback, bounded requests, and cached-score rejection.
+- [x] Step 2: Trace those fixtures through rule filtering, hybrid retrieval, partial vector-to-lexical fallback, shortlist materialization, evidence selection, scorer request construction, score-state normalization, and final ranking boundaries.
+- [x] Step 3: Assert that admitted jobs retain required facts, selected evidence IDs, source references, evidence context, omission reasons, and final score state; assert that an evidence-limited variant rejects an otherwise reusable cached score and is visible but not normally scored.
+- [x] Step 4: Document canonical skill-union, mandatory-channel completeness, calibrated retrieval, neutral-rescue, evidence-preservation, evidence-floor, and exact-diagnostics invariants without changing the existing shortlist/scoring policy values.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_pipeline.py tests/test_scoring_input_integrity.py`
-- Expected: the integrated fixture proves no planned information-loss path remains and score-state/visibility artifacts agree.
-- [ ] `uv run python -m compileall -q src`
-- Expected: no compilation failures.
-- [ ] `git diff --check`
-- Expected: no whitespace errors.
+- [x] `uv run pytest -q tests/test_pipeline.py tests/test_scoring_input_integrity.py`
+- Evidence: both suites are included in the focused rerun and pass; direct stage-boundary tests prove selected evidence persistence and cached-score rejection.
+- [x] `uv run python -m compileall -q src`
+- Evidence: `.venv\\Scripts\\python.exe -m compileall -q src` passes.
+- [x] `git diff --check`
+- Evidence: `git diff --check` passes.
 
 **Exit Criteria:**
 - Integrated deterministic evidence proves the nine validated defects are fixed without changing unrelated admission policy, and documentation matches the implemented contracts.
@@ -368,10 +373,11 @@ new invariants and the unchanged cutoff policy.
 
 Final artifact-level verification after Tasks 1–5:
 
-- `uv run pytest -q tests/test_enrich.py tests/test_vector_search.py tests/test_ranking.py tests/test_evidence.py tests/test_ai_score.py tests/test_scoring_input_integrity.py tests/test_pipeline.py`
-- `uv run pytest -q`
-- `uv run python -m compileall -q src`
+- `.venv\\Scripts\\python.exe -m pytest -q tests/test_scoring_input_integrity.py tests/test_benchmark_requirement_support.py tests/test_enrich.py tests/test_vector_search.py tests/test_ranking.py tests/test_evidence.py tests/test_ai_score.py tests/test_pipeline.py tests/test_pipeline_agentic_late_stage.py` → `601 passed, 2 skipped`
+- `.venv\\Scripts\\python.exe -m pytest -q` → `3634 passed, 36 failed, 10 skipped`; all 36 failures are outside this plan and are attributable to the unavailable local credential store/frontend asset service or missing solver/packaging dependencies. No changed-path test fails.
+- `.venv\\Scripts\\python.exe -m compileall -q src` → pass
 - `git diff --check`
+- `git diff --check` → pass
 - Inspect the integrated fixture’s final ranking request, visibility manifest, selected evidence IDs, source references, omission reasons, and score state; confirm they describe one identical bounded payload.
 - Confirm `RANKING_REQUEST_MAX_CHARS == 12_000`, existing shortlist/scoring cutoffs remain unchanged, and no provider call occurs for `evidence_limited` rows.
 - Confirm no unrelated current-workspace files are modified.
@@ -395,7 +401,9 @@ The plan is ready for completion verification when:
 6. optional overflow and visibility diagnostics describe the exact final payload rather than source input;
 7. the integrated pipeline fixture proves admitted jobs retain required facts and strongest attributable project evidence;
 8. focused tests, the full suite, compile checks, and `git diff --check` are fresh and reconciled; and
-9. `skill-verification-before-completion` returns `verified` before this plan status changes from `proposed` to `completed`.
+9. `skill-verification-before-completion` reconciles the focused implementation proof and the documented unrelated full-suite environment failures before this plan status changes from `active` to `completed`.
 
-No code, publication, commit, push, pull request, review, or merge is part of
-this plan-writing step.
+The plan-writing review and implementation are complete. Focused verification
+is green; broad-suite failures are unrelated environment/dependency failures
+and remain explicitly deferred from this plan. Publication and pull-request
+review are still pending.

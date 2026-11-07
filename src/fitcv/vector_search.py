@@ -325,6 +325,45 @@ def _bounded_profile_technology_hints(profile: dict[str, Any]) -> list[str]:
     ]
 
 
+def _rank_profile_skills(profile: dict[str, Any], skills: list[str]) -> list[str]:
+    counts: dict[str, int] = {skill.casefold(): 0 for skill in skills}
+    first_seen: dict[str, int] = {skill.casefold(): index for index, skill in enumerate(skills)}
+    support_weight: dict[str, int] = {skill.casefold(): 0 for skill in skills}
+
+    def record(value: Any, support_status: Any = None) -> None:
+        text = str(value or "").strip()
+        key = text.casefold()
+        if key not in counts:
+            return
+        counts[key] += 1
+        status = str(support_status or "supported").strip().casefold()
+        support_weight[key] = max(support_weight[key], {"supported": 3, "verified": 3, "partial": 2}.get(status, 1))
+
+    for skill in profile.get("skills") or []:
+        if isinstance(skill, dict):
+            record(skill.get("name"), skill.get("support_status"))
+        else:
+            record(skill)
+    for experience in profile.get("experiences") or []:
+        if not isinstance(experience, dict):
+            continue
+        for bullet in experience.get("bullets") or []:
+            if not isinstance(bullet, dict):
+                continue
+            for skill in bullet.get("skills") or []:
+                record(skill.get("name") if isinstance(skill, dict) else skill, bullet.get("support_status"))
+    for project in profile.get("projects") or []:
+        if not isinstance(project, dict):
+            continue
+        for skill in project.get("skills") or []:
+            record(skill.get("name") if isinstance(skill, dict) else skill, project.get("support_status"))
+
+    return sorted(
+        skills,
+        key=lambda skill: (-support_weight[skill.casefold()], -counts[skill.casefold()], first_seen[skill.casefold()]),
+    )
+
+
 def _normalize_query_scalar(value: Any) -> str:
     return normalize_text_scalar(value)
 
@@ -352,7 +391,8 @@ def build_candidate_query_components(
 
     skills: list[str] = []
     seen_skills: set[str] = set()
-    for skill in flatten_rankable_skills(profile):
+    ranked_skills = _rank_profile_skills(profile, flatten_rankable_skills(profile))
+    for skill in ranked_skills:
         _append_unique_text(skills, skill, seen_skills)
         if len(skills) >= max_skills:
             break
@@ -414,9 +454,18 @@ def build_candidate_query_components(
     technology_hints = _bounded_profile_technology_hints(profile)
     project_evidence_hints: list[str] = []
     seen_project_evidence: set[str] = set()
-    projects = sorted(
-        (project for project in profile.get("projects", []) or [] if isinstance(project, dict)),
-        key=lambda project: str(project.get("name") or "").casefold(),
+    projects = [
+        project for project in profile.get("projects", []) or [] if isinstance(project, dict)
+    ]
+    projects.sort(
+        key=lambda project: (
+            -{"supported": 3, "verified": 3, "partial": 2}.get(
+                str(project.get("support_status") or "supported").strip().casefold(), 1
+            ),
+            -sum(bool(str(project.get(field) or "").strip()) for field in ("name", "business_value")),
+            -len(list(project.get("highlights") or [])),
+            str(project.get("name") or "").casefold(),
+        )
     )
     for project in projects:
         for value in [project.get("name"), project.get("business_value"), *(project.get("highlights") or [])]:
@@ -715,6 +764,11 @@ def _lexical_search_result(
                 "skill_overlap": skill_score,
                 "required_skill_intersection": required_skill_intersection,
                 "title_relevance": title_score,
+                "title_relevance_affirmative": bool(
+                    str(job.get("title") or job.get("job_title") or "").strip()
+                    and str(prefs.get("target_role") or "").strip()
+                    and title_score > 0.0
+                ),
                 "domain": parts["domain"],
                 "role_family": parts["role_family"],
                 "location": parts["work_mode"],
@@ -825,11 +879,13 @@ def _has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
     components = dict(row.get("retrieval_components") or {})
     if components.get("required_skill_intersection") is True:
         return True
+    if components.get("title_relevance_affirmative") is True:
+        return True
     if any(
         isinstance(components.get(key), (int, float))
         and math.isfinite(float(components[key]))
         and float(components[key]) > 0.0
-        for key in ("title_relevance", "technology_overlap", "description_overlap")
+        for key in ("technology_overlap", "description_overlap")
     ):
         return True
     match_details = dict(components.get("match_details") or {})
@@ -837,6 +893,23 @@ def _has_affirmative_lexical_relevance(row: dict[str, Any]) -> bool:
         str(value).strip().lower() not in {"", "none", "neutral", "unknown"}
         for value in match_details.values()
     )
+
+
+def _rank_normalized_scores(rows: list[dict[str, Any]], score_key: str) -> dict[str, float]:
+    ranked = []
+    for row in rows:
+        url = str(row.get("job_url") or "")
+        try:
+            score = float(row.get(score_key))
+        except (TypeError, ValueError):
+            continue
+        if url and math.isfinite(score):
+            ranked.append((url, score))
+    ranked.sort(key=lambda item: (-item[1], item[0]))
+    if len(ranked) == 1:
+        return {ranked[0][0]: 1.0}
+    denominator = len(ranked) - 1
+    return {url: (len(ranked) - index - 1) / denominator for index, (url, _score) in enumerate(ranked)}
 
 
 def _hybrid_search_result(
@@ -1267,14 +1340,22 @@ def run_vector_search(
                 and _has_affirmative_lexical_relevance(row)
             )
         ]
+        vector_normalized = _rank_normalized_scores(ranked_rows, "vector_similarity")
+        lexical_normalized = _rank_normalized_scores(
+            [*(lexical_result.get("production_rows") or []), *(lexical_result.get("audit_rows") or [])],
+            "retrieval_score",
+        )
+        for row in production_rows:
+            row["fallback_normalized_score"] = vector_normalized.get(str(row.get("job_url") or ""), 0.0)
+            row["fallback_native_score"] = float(row.get("vector_similarity") or 0.0)
+        for row in fallback_candidates:
+            row["fallback_normalized_score"] = lexical_normalized.get(str(row.get("job_url") or ""), 0.0)
+            row["fallback_native_score"] = float(row.get("retrieval_score") or 0.0)
         combined_candidates = [*production_rows, *fallback_candidates]
         combined_candidates.sort(
             key=lambda row: (
-                -float(
-                    row.get("vector_similarity")
-                    if row.get("shortlist_origin") == "vector_search"
-                    else row.get("retrieval_score") or 0.0
-                ),
+                -float(row.get("fallback_normalized_score") or 0.0),
+                -float(row.get("fallback_native_score") or 0.0),
                 str(row.get("job_url") or ""),
             )
         )

@@ -673,11 +673,13 @@ def test_build_ranking_request_serializes_bounded_evidence_context_into_prompt()
             "candidate_summary": "candidate",
             "candidate_evidence": [
                 {
+                    "evidence_id": "ev-lightrsi",
                     "title": "LightRSI",
                     "parent_title": "LightRSI",
                     "organization": "Personal project",
                     "scoring_context": "Claude Code host integration and OpenAI-compatible APIs",
                     "skills": ["agentic ai", "OpenAI"],
+                    "source_ref": "cv:projects:lightrsi",
                     "text": "Built the host integration.",
                 }
             ],
@@ -693,9 +695,9 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     profile = {
         "skills": [{"name": f"Skill {index}"} for index in range(1, 10)],
         "_projected_evidence_pool": [
-            {"evidence_id": "ev-1", "parent_title": "Project One", "text": "One"},
-            {"evidence_id": "ev-2", "parent_title": "Project Two", "text": "Two"},
-            {"evidence_id": "ev-3", "parent_title": "Project Three", "text": "Three"},
+            {"evidence_id": "ev-1", "parent_title": "Project One", "text": "One", "source_ref": "cv:project:one"},
+            {"evidence_id": "ev-2", "parent_title": "Project Two", "text": "Two", "source_ref": "cv:project:two"},
+            {"evidence_id": "ev-3", "parent_title": "Project Three", "text": "Three", "source_ref": "cv:project:three"},
         ],
     }
     ranking_input = build_ranking_job_input(
@@ -712,7 +714,7 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     )
     diagnostics = build_ranking_input_diagnostics(ranking_input, request)
 
-    assert diagnostics["contract_version"] == "ranking_input_v3"
+    assert diagnostics["contract_version"] == "ranking_input_v4"
     assert diagnostics["selected_evidence_count"] == 3
     assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2", "ev-3"]
     assert diagnostics["candidate_skill_count"] == 9
@@ -792,12 +794,13 @@ def test_ranking_request_renders_one_evidence_excerpt_with_metadata() -> None:
                 "text": excerpt,
                 "scoring_context": excerpt,
                 "support_state": "supported",
+                "source_ref": "cv:projects:one",
             }],
         },
         resolved_route=route,
     )
 
-    assert request["request"].prompt.count(excerpt) == 1
+    assert request["request"].prompt.count(excerpt) == 2
 
 
 def test_ranking_request_preserves_structured_source_provenance() -> None:
@@ -891,6 +894,7 @@ def test_ranking_request_bounds_oversized_candidate_skills_and_keeps_project_evi
             "text": project_text,
             "scoring_context": project_text,
             "skills": ["Power BI", "Python"],
+            "source_ref": "cv:projects:analytics",
         }],
     }
     job = {
@@ -974,7 +978,15 @@ def test_ranking_request_rejects_unbounded_custom_prompt_overflow(monkeypatch: p
             noisy,
             [],
             {},
-            ranking_input={"job_requirements": noisy, "candidate_summary": noisy, "candidate_evidence": []},
+            ranking_input={
+                "job_requirements": noisy,
+                "candidate_summary": noisy,
+                "candidate_evidence": [{
+                    "evidence_id": "ev-noisy",
+                    "text": "Evidence",
+                    "source_ref": "cv:project:noisy",
+                }],
+            },
             resolved_route=route,
         )
 
@@ -982,9 +994,9 @@ def test_ranking_request_rejects_unbounded_custom_prompt_overflow(monkeypatch: p
 def test_ranking_input_diagnostics_include_bounded_visible_requirements_and_backend() -> None:
     ranking_input = {
         "candidate_summary": json.dumps({"skills": [f"Skill {index}" for index in range(1, 12)]}),
-        "candidate_evidence": [{"evidence_id": "ev-1", "title": "Project", "text": "Evidence"}],
+        "candidate_evidence": [{"evidence_id": "ev-1", "title": "Project", "text": "Evidence", "source_ref": "cv:project:one"}],
         "contract_metadata": {
-            "version": "ranking_input_v3",
+            "version": "ranking_input_v4",
             "requirement_ids": [f"required:{index}" for index in range(100)],
             "canonical_checksums": {"candidate_facts": "candidate-checksum"},
         },
@@ -1050,20 +1062,19 @@ def test_explicit_empty_candidate_evidence_does_not_fall_back_to_legacy_evidence
         configuration_revision="config-revision",
     )
 
-    request = build_ranking_request(
-        {},
-        "candidate",
-        ["legacy evidence must not be used"],
-        {},
-        ranking_input={
-            "job_requirements": "OpenAI agent builder",
-            "candidate_summary": "candidate",
-            "candidate_evidence": [],
-        },
-        resolved_route=route,
-    )
-
-    assert "legacy evidence must not be used" not in request["request"].prompt
+    with pytest.raises(ai_score_module.RankingEvidenceUnavailable):
+        build_ranking_request(
+            {},
+            "candidate",
+            ["legacy evidence must not be used"],
+            {},
+            ranking_input={
+                "job_requirements": "OpenAI agent builder",
+                "candidate_summary": "candidate",
+                "candidate_evidence": [],
+            },
+            resolved_route=route,
+        )
 
 
 def test_score_job_uses_shared_runtime_contract() -> None:
@@ -1689,7 +1700,8 @@ def test_ranking_stage_freezes_route_until_next_invocation(monkeypatch: pytest.M
 
     def invoke(job_url: str) -> None:
         execute_ranking_stage(
-            run_id="r", state={}, shortlist=[{"job_url": job_url}], candidate_summary="candidate", profile={},
+                run_id="r", state={}, shortlist=[{"job_url": job_url}], candidate_summary="candidate", profile={},
+                evidence_projection={"items": [{"evidence_id": "ev-stage", "text": "Supported project evidence", "source_refs": [{"document_id": "cv-1"}]}]},
             config=config, final_top_n=1, reporter=None, pipeline_store=Store(), observe_span=lambda *_a, **_k: nullcontext(),
             set_span_attributes=lambda _: None, cancellation_check=None, cancellation_error_cls=RuntimeError,
             ranking_ai_score_reuse_index={}, build_ai_score_input_fingerprint=fingerprint, extract_job_url=lambda job: job["job_url"],
@@ -1721,7 +1733,8 @@ def test_stage_runner_recomputes_invalid_cached_score(monkeypatch: pytest.Monkey
     monkeypatch.setattr("fitcv.pipeline_stage_runner.resolve_run_preference_policy", lambda **_: object())
     monkeypatch.setattr("fitcv.pipeline_stage_runner.resolved_preference_policy_to_dict", lambda _: {})
     execute_ranking_stage(
-        run_id="r", state={}, shortlist=[{"job_url": "u"}], candidate_summary="candidate", profile={},
+            run_id="r", state={}, shortlist=[{"job_url": "u"}], candidate_summary="candidate", profile={},
+            evidence_projection={"items": [{"evidence_id": "ev-stage", "text": "Supported project evidence", "source_refs": [{"document_id": "cv-1"}]}]},
         config={"pipeline": {"ai_score_top_n": 1}, "reuse": {"ranking": {"enabled": True}}}, final_top_n=1,
         reporter=None, pipeline_store=Store(), observe_span=lambda *_a, **_k: nullcontext(), set_span_attributes=lambda _: None,
         cancellation_check=None, cancellation_error_cls=RuntimeError,

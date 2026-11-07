@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 from fitcv.enrich import (
     EnrichmentOutput,
+    _build_skill_entities,
     _apply_structured_normalization,
     build_extraction_prompt,
     build_enrich_contract_fingerprint,
@@ -31,6 +32,31 @@ from fitcv.enrich import (
     parse_extraction_response,
 )
 from fitcv.prompts.models import PromptDefinition
+
+
+def test_build_skill_entities_unions_valid_raw_multiword_skill_with_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "Apache Spark"],
+        "required_skills",
+        {},
+        raw_entities=[{"raw_text": "Python", "canonical": "python", "confidence": 0.99}],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == ["Python", "Apache Spark"]
+
+
+def test_merge_scraped_and_enriched_keeps_preferred_only_signal_degraded() -> None:
+    merged = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/preferred-only",
+            "description": "A substantive job description with clear responsibilities and context.",
+            "description_quality": "full",
+        },
+        {"preferred_skills": ["Power BI"]},
+    )
+
+    assert merged["enrichment_degraded"] is True
+    assert merged["mandatory_core_complete"] is False
 
 
 # ── build_extraction_prompt ───────────────────────────────────────────────────

@@ -821,12 +821,10 @@ def test_execute_ranking_stage_preserves_empty_evidence_ranking_input() -> None:
     captured: dict[str, Any] = {}
 
     def fingerprint(*_args: Any, **kwargs: Any) -> dict[str, Any]:
-        captured["fingerprint_ranking_input"] = kwargs["ranking_input"]
-        return {"fingerprint": "empty-evidence-fingerprint"}
+        raise AssertionError("fingerprint/reuse lookup must not run without selected evidence")
 
     def score(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
-        captured["scoring_ranking_inputs"] = kwargs["ranking_inputs"]
-        return [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
+        raise AssertionError("provider scoring must not run without selected evidence")
 
     with patch("fitcv.pipeline_stage_runner.select_ranking_evidence", return_value=[]):
         execute_ranking_stage(
@@ -851,11 +849,7 @@ def test_execute_ranking_stage_preserves_empty_evidence_ranking_input() -> None:
             rank_jobs=MagicMock(),
         )
 
-    assert captured["fingerprint_ranking_input"]["candidate_evidence"] == []
-    assert (
-        captured["scoring_ranking_inputs"][primary_job_identity_key(job)]["candidate_evidence"]
-        == []
-    )
+    assert captured == {}
 
 def _minimal_runtime_evidence(
     *,
@@ -1045,6 +1039,10 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     }
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
+    profile["projects"] = [{
+        "name": "SQL Data Platform",
+        "highlights": ["Built SQL data pipelines."],
+    }]
 
     with patch.dict("os.environ", {"FITCV_ENRICH_HEARTBEAT_EVENTS": ""}, clear=False):
         run_pipeline(

@@ -159,6 +159,33 @@ def test_build_candidate_query_components_bound_skill_count() -> None:
     assert components["flattened_skills"] == ["SQL", "Python", "BigQuery"]
 
 
+def test_build_candidate_query_components_prioritize_demonstrated_skill_evidence() -> None:
+    profile = {
+        "skills": [{"name": "Generic Tool"}, {"name": "Python"}],
+        "experiences": [
+            {"bullets": [{"skills": ["Python", "Python"]}]},
+        ],
+        "projects": [{"skills": ["Python"]}],
+    }
+
+    components = build_candidate_query_components(profile)
+
+    assert components["skills"][:2] == ["Python", "Generic Tool"]
+
+
+def test_build_candidate_query_components_prioritize_supported_project_evidence() -> None:
+    profile = {
+        "projects": [
+            {"name": "Weak Project", "support_status": "claimed_only", "highlights": ["weak"]},
+            {"name": "Strong Project", "support_status": "supported", "highlights": ["strong"]},
+        ],
+    }
+
+    components = build_candidate_query_components(profile)
+
+    assert components["project_evidence_hints"][:2] == ["Strong Project", "strong"]
+
+
 def test_build_candidate_query_components_bound_project_technology_hints() -> None:
     profile = {
         "projects": [
@@ -1414,6 +1441,34 @@ def test_hybrid_fusion_does_not_rescue_neutral_or_missing_score_rows() -> None:
     assert result["diagnostics"]["lexical_only_rescue_count"] == 0
 
 
+def test_hybrid_fallback_compares_normalized_channel_scores() -> None:
+    from fitcv.vector_search import _rank_normalized_scores
+
+    vector_scores = _rank_normalized_scores(
+        [
+            {"job_url": "https://example.com/vector-low", "vector_similarity": 0.10},
+            {"job_url": "https://example.com/vector-high", "vector_similarity": 0.20},
+        ],
+        "vector_similarity",
+    )
+    lexical_scores = _rank_normalized_scores(
+        [
+            {"job_url": "https://example.com/lexical-low", "retrieval_score": 0.90},
+            {"job_url": "https://example.com/lexical-high", "retrieval_score": 0.95},
+        ],
+        "retrieval_score",
+    )
+
+    assert vector_scores == {
+        "https://example.com/vector-high": 1.0,
+        "https://example.com/vector-low": 0.0,
+    }
+    assert lexical_scores == {
+        "https://example.com/lexical-high": 1.0,
+        "https://example.com/lexical-low": 0.0,
+    }
+
+
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1563,10 +1618,10 @@ def test_run_vector_search_lets_all_strong_lexical_fallbacks_compete_with_vector
 
     assert [row["job_url"] for row in result["production_rows"]] == [
         "https://example.com/lexical-a",
-        "https://example.com/lexical-b",
+        "https://example.com/vector-b",
     ]
-    assert result["diagnostics"]["fallback_admitted_total"] == 2
-    assert result["diagnostics"]["vector_admitted_total"] == 0
+    assert result["diagnostics"]["fallback_admitted_total"] == 1
+    assert result["diagnostics"]["vector_admitted_total"] == 1
 
 
 def test_fixed_recall_fixture_reports_vector_lexical_and_merged_recall_at_50(

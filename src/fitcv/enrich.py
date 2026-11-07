@@ -508,6 +508,30 @@ def _is_allowed_skill_entity(raw_text: str, canonical: str) -> bool:
     return True
 
 
+def _is_raw_skill_union_candidate(raw_text: str, canonical: str) -> bool:
+    normalized = " ".join(raw_text.strip().lower().split())
+    canonical_lower = " ".join(canonical.strip().lower().split())
+    if not normalized or not canonical_lower:
+        return False
+    if normalized.split()[0] in _LANGUAGE_CANONICALS:
+        return False
+    if any(
+        marker in normalized
+        for marker in (
+            "advanced",
+            "or above",
+            "proficient",
+            "experience",
+            "years",
+            "degree",
+            "related field",
+            "mandatory",
+        )
+    ):
+        return False
+    return True
+
+
 def _filter_skill_values(
     raw_values: Any,
     field_name: str,
@@ -595,7 +619,13 @@ def _build_skill_entities(
         if normalized_raw_value in explicit_raw_values:
             continue
         can_use_alias_fallback = not raw_entities and _is_reusable_skill_alias(raw_value, canonical)
-        if not can_use_alias_fallback and not raw_is_concise_canonical:
+        can_use_raw_entity_union = (
+            len(normalized_entities) == 1
+            and len(raw_value.strip()) <= 120
+            and len(raw_value.strip().split()) <= 3
+            and _is_raw_skill_union_candidate(raw_value, canonical)
+        )
+        if not can_use_alias_fallback and not raw_is_concise_canonical and not can_use_raw_entity_union:
             continue
         if not _is_allowed_skill_entity(raw_value, canonical):
             continue
@@ -685,18 +715,19 @@ def _build_array_companions(
     raw_values: list[str],
     config: dict | None,
     raw_entities: list[Any] | None = None,
+    skill_entities: list[SkillEntity] | None = None,
 ) -> dict[str, Any]:
     companions: dict[str, Any] = {field_name: raw_values}
     if field_name in _CANONICAL_SKILL_FIELDS:
-        skill_entities = _build_skill_entities(
+        resolved_entities = skill_entities or _build_skill_entities(
             raw_values,
             field_name,
             config,
             raw_entities=raw_entities,
         )
-        companions[f"{field_name}_canonical"] = _canonical_from_entities(skill_entities)
+        companions[f"{field_name}_canonical"] = _canonical_from_entities(resolved_entities)
         singular_prefix = "required_skill" if field_name == "required_skills" else "preferred_skill"
-        companions[f"{singular_prefix}_entities"] = skill_entities
+        companions[f"{singular_prefix}_entities"] = resolved_entities
     return companions
 
 
@@ -1497,12 +1528,14 @@ def _apply_structured_normalization(
             raw_values=required_skills,
             config=config,
             raw_entities=required_skill_entities,
+            skill_entities=required_skill_entities,
         ),
         **_build_array_companions(
             field_name="preferred_skills",
             raw_values=preferred_skills,
             config=config,
             raw_entities=preferred_skill_entities,
+            skill_entities=preferred_skill_entities,
         ),
         **_build_array_companions(field_name="responsibilities", raw_values=responsibilities, config=config),
         **_build_array_companions(field_name="tech_stack", raw_values=tech_stack, config=config),
@@ -2048,10 +2081,8 @@ def merge_scraped_and_enriched(
         "technology": bool(enriched.get("tech_stack")),
         "mandatory_clauses": bool(mandatory_clauses),
     }
-    structured_requirement_fields = (
+    mandatory_structured_requirement_fields = (
         "required_skills",
-        "preferred_skills",
-        "responsibilities",
         "tech_stack",
         "qualifications",
         "education",
@@ -2061,7 +2092,7 @@ def merge_scraped_and_enriched(
         "language_requirements",
     )
     has_structured_requirement_signal = any(
-        bool(enriched.get(field_name)) for field_name in structured_requirement_fields
+        bool(enriched.get(field_name)) for field_name in mandatory_structured_requirement_fields
     )
     enrichment_degraded = bool(enriched.get("enrichment_failure")) or (
         description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
@@ -2271,8 +2302,18 @@ def merge_scraped_and_enriched(
         "technology": bool(merged.get("tech_stack")),
         "mandatory_clauses": bool(merged.get("mandatory_clauses")),
     }
+    mandatory_structured_requirement_fields = (
+        "required_skills",
+        "tech_stack",
+        "qualifications",
+        "education",
+        "certifications",
+        "employment_constraints",
+        "mandatory_clauses",
+        "language_requirements",
+    )
     has_structured_requirement_signal = any(
-        bool(merged.get(field_name)) for field_name in structured_requirement_fields
+        bool(merged.get(field_name)) for field_name in mandatory_structured_requirement_fields
     )
     merged["enrichment_degraded"] = bool(merged.get("enrichment_degraded")) or (
         description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
