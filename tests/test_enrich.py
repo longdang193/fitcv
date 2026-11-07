@@ -45,6 +45,20 @@ def test_build_skill_entities_unions_valid_raw_multiword_skill_with_structured_e
     assert [entity["raw_text"] for entity in entities] == ["Python", "Apache Spark"]
 
 
+def test_build_skill_entities_unions_raw_multiword_skill_with_multiple_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "SQL", "Apache Spark"],
+        "required_skills",
+        {},
+        raw_entities=[
+            {"raw_text": "Python", "canonical": "python", "confidence": 0.99},
+            {"raw_text": "SQL", "canonical": "sql", "confidence": 0.99},
+        ],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == ["Python", "SQL", "Apache Spark"]
+
+
 def test_merge_scraped_and_enriched_keeps_preferred_only_signal_degraded() -> None:
     merged = merge_scraped_and_enriched(
         {

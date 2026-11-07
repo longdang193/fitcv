@@ -144,6 +144,31 @@ def test_missing_candidate_skill_is_not_reported_as_budget_omission() -> None:
     assert request["visibility_manifest"]["mandatory_core_complete"] is True
 
 
+def test_builder_empty_evidence_reaches_scorer_evidence_floor(monkeypatch) -> None:
+    provider_calls = []
+
+    def fail_provider(*_args, **_kwargs):
+        provider_calls.append(True)
+        raise AssertionError("provider scoring must not run without projected evidence")
+
+    monkeypatch.setattr("fitcv.ai_score.score_job", fail_provider)
+    ranking_input = build_ranking_job_input(
+        {"job_url": "https://example.com/no-projected-evidence", "required_skills": ["SQL"]},
+        {"skills": ["SQL"], "_projected_evidence_pool": []},
+        {},
+    )
+
+    result = run_ai_scoring(
+        [{"job_url": "https://example.com/no-projected-evidence", "ranking_input": ranking_input}],
+        "candidate",
+        {},
+    )[0]
+
+    assert provider_calls == []
+    assert result["failure_code"] == "evidence_limited"
+    assert result["score_status"] == "unscored"
+
+
 def test_run_ai_scoring_marks_explicit_empty_evidence_unavailable_without_provider_call(monkeypatch) -> None:
     def fail_provider(*_args, **_kwargs):
         raise AssertionError("provider scoring must not run without selected evidence")

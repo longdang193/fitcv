@@ -1348,14 +1348,16 @@ def run_vector_search(
         for row in production_rows:
             row["fallback_normalized_score"] = vector_normalized.get(str(row.get("job_url") or ""), 0.0)
             row["fallback_native_score"] = float(row.get("vector_similarity") or 0.0)
+            row["fallback_channel_rank"] = int(row.get("vector_rank") or 10**9)
         for row in fallback_candidates:
             row["fallback_normalized_score"] = lexical_normalized.get(str(row.get("job_url") or ""), 0.0)
             row["fallback_native_score"] = float(row.get("retrieval_score") or 0.0)
+            row["fallback_channel_rank"] = int(row.get("lexical_rank") or 10**9)
         combined_candidates = [*production_rows, *fallback_candidates]
         combined_candidates.sort(
             key=lambda row: (
                 -float(row.get("fallback_normalized_score") or 0.0),
-                -float(row.get("fallback_native_score") or 0.0),
+                int(row.get("fallback_channel_rank") or 10**9),
                 str(row.get("job_url") or ""),
             )
         )

@@ -1237,8 +1237,7 @@ def build_ranking_job_input(
         "candidate_summary": json.dumps(candidate, ensure_ascii=False, sort_keys=True),
         "contract_metadata": contract_metadata,
     }
-    if evidence:
-        ranking_input["candidate_evidence"] = evidence
+    ranking_input["candidate_evidence"] = evidence
     return ranking_input
 
 

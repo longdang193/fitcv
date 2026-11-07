@@ -1133,6 +1133,7 @@ def test_run_vector_search_removes_recovered_below_cutoff_job_from_audit(
         lambda *_args, **_kwargs: {
             "production_rows": [{
                 "job_url": "https://example.com/recovered",
+                "lexical_rank": 1,
                 "retrieval_score": 0.95,
                 "retrieval_components": {"required_skill_intersection": True},
             }],
@@ -1469,6 +1470,48 @@ def test_hybrid_fallback_compares_normalized_channel_scores() -> None:
     }
 
 
+def test_partial_fallback_ties_use_channel_rank_not_native_scale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+    _create_job_embedding_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO job_embeddings(job_url, chunk_type, chunk_text, embedding_json, created_at) VALUES (?, 'job_summary', '', ?, ?)",
+            ("https://example.com/vector", json.dumps([1.0, 0.0]), "2026-01-01T00:00:00Z"),
+        )
+    monkeypatch.setattr(
+        "fitcv.vector_search.resolve_candidate_query_embedding",
+        lambda *_args, **_kwargs: _candidate_query_record([1.0, 0.0]),
+    )
+    monkeypatch.setattr(
+        "fitcv.vector_search._lexical_search_result",
+        lambda *_args, **_kwargs: {
+            "production_rows": [{
+                "job_url": "https://example.com/lexical",
+                "lexical_rank": 1,
+                "retrieval_score": 0.01,
+                "retrieval_components": {"required_skill_intersection": True},
+            }],
+            "audit_rows": [],
+            "diagnostics": {"scored_jobs_total": 1},
+        },
+    )
+    result = run_vector_search(
+        {"skills": [{"name": "Python"}]},
+        ["https://example.com/vector", "https://example.com/lexical"],
+        {"pipeline": {"vector_search_top_n": 1, "shortlist_audit_sample_n": 0}},
+        structured_jobs=[
+            {"job_url": "https://example.com/vector", "title": "Data Engineer"},
+            {"job_url": "https://example.com/lexical", "title": "Data Engineer"},
+        ],
+    )
+
+    assert result["production_rows"][0]["job_url"] == "https://example.com/lexical"
+
+
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1554,11 +1597,11 @@ def test_run_vector_search_keeps_valid_vectors_and_fills_remaining_slots_lexical
     )
 
     assert [row["job_url"] for row in result["production_rows"]] == [
-        "https://example.com/vector",
         "https://example.com/fallback",
+        "https://example.com/vector",
     ]
-    assert result["production_rows"][0]["shortlist_origin"] == "vector_search"
-    assert result["production_rows"][1]["shortlist_origin"] == "lexical_fallback"
+    assert result["production_rows"][0]["shortlist_origin"] == "lexical_fallback"
+    assert result["production_rows"][1]["shortlist_origin"] == "vector_search"
     assert result["diagnostics"]["effective_strategy"] == "vector_cosine_v1_with_lexical_fallback"
     assert result["diagnostics"]["fallback_admitted_total"] == 1
     assert result["diagnostics"]["vector_admitted_total"] == 1
@@ -1589,11 +1632,13 @@ def test_run_vector_search_lets_all_strong_lexical_fallbacks_compete_with_vector
             "production_rows": [
                 {
                     "job_url": "https://example.com/lexical-a",
+                    "lexical_rank": 1,
                     "retrieval_score": 0.95,
                     "retrieval_components": {"required_skill_intersection": True},
                 },
                 {
                     "job_url": "https://example.com/lexical-b",
+                    "lexical_rank": 2,
                     "retrieval_score": 0.90,
                     "retrieval_components": {"required_skill_intersection": True},
                 },

@@ -311,7 +311,7 @@ class EnrichContractFingerprintResult(TypedDict):
 
 RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v2"
 ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v2"
-ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
+ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v2"
 ENRICH_CONTRACT_VERSION = "enrich_contract_v2"
 ENRICH_VALIDATION_POLICY_VERSION = "enrichment_validation_policy_v3"
 FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
@@ -526,8 +526,11 @@ def _is_raw_skill_union_candidate(raw_text: str, canonical: str) -> bool:
             "degree",
             "related field",
             "mandatory",
+            "support",
         )
     ):
+        return False
+    if re.search(r"\b\d{2,5}(?:[./-]\d{1,5})+\b", normalized):
         return False
     return True
 
@@ -620,7 +623,7 @@ def _build_skill_entities(
             continue
         can_use_alias_fallback = not raw_entities and _is_reusable_skill_alias(raw_value, canonical)
         can_use_raw_entity_union = (
-            len(normalized_entities) == 1
+            bool(normalized_entities)
             and len(raw_value.strip()) <= 120
             and len(raw_value.strip().split()) <= 3
             and _is_raw_skill_union_candidate(raw_value, canonical)

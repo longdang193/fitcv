@@ -438,7 +438,14 @@ def test_build_ranking_request_drops_optional_raw_description_before_budget_fail
             "required_skills": ["Python"],
             "description": "optional context " * 3000,
         },
-        {"skills": [{"name": "Python"}]},
+        {
+            "skills": [{"name": "Python"}],
+            "_projected_evidence_pool": [{
+                "evidence_id": "ev-python-budget",
+                "text": "Built Python data pipelines.",
+                "source_ref": "cv:project:python-budget",
+            }],
+        },
     )
 
     request = build_ranking_request(
@@ -547,7 +554,17 @@ def test_build_ranking_request_preserves_long_mandatory_clause_before_budgeting(
             "source_span": {"start": 0, "end": len(quote), "quote": quote},
         }],
     }
-    ranking_input = build_ranking_job_input(job, {"skills": []})
+    ranking_input = build_ranking_job_input(
+        job,
+        {
+            "skills": [],
+            "_projected_evidence_pool": [{
+                "evidence_id": "ev-degree",
+                "text": "Completed the required degree and language qualification.",
+                "source_ref": "cv:education:degree",
+            }],
+        },
+    )
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
         model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
@@ -576,7 +593,11 @@ def test_build_ranking_job_input_preserves_mandatory_skills_before_request_budge
 
     profile = {
         "skills": [{"name": f"Skill {index}"} for index in range(1, 10)],
-        "_projected_evidence_pool": [],
+        "_projected_evidence_pool": [{
+            "evidence_id": "ev-skills",
+            "text": "Built systems using the required skills.",
+            "source_ref": "cv:project:skills",
+        }],
     }
     job = {
         "required_skills": [f"Skill {index}" for index in range(1, 10)],
@@ -725,7 +746,14 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
 def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() -> None:
     required_skills = [f"Required Skill {index}" for index in range(1, 10)]
     job = {"job_url": "https://example.com/over-budget", "required_skills": required_skills}
-    profile = {"skills": [{"name": skill} for skill in required_skills]}
+    profile = {
+        "skills": [{"name": skill} for skill in required_skills],
+        "_projected_evidence_pool": [{
+            "evidence_id": "ev-required-skills",
+            "text": "Built systems using the required skills.",
+            "source_ref": "cv:project:required-skills",
+        }],
+    }
     ranking_input = build_ranking_job_input(job, profile)
 
     assert ranking_input["contract_metadata"]["mandatory_omissions"]["job_required_skills"] == 0
@@ -752,7 +780,17 @@ def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() 
 def test_ranking_request_preserves_full_mandatory_requirement_text() -> None:
     required_skill = "Kubernetes " + ("production-cluster " * 12)
     job = {"job_url": "https://example.com/kubernetes", "required_skills": [required_skill]}
-    ranking_input = build_ranking_job_input(job, {"skills": [{"name": required_skill}]})
+    ranking_input = build_ranking_job_input(
+        job,
+        {
+            "skills": [{"name": required_skill}],
+            "_projected_evidence_pool": [{
+                "evidence_id": "ev-kubernetes",
+                "text": "Operated Kubernetes production clusters.",
+                "source_ref": "cv:project:kubernetes",
+            }],
+        },
+    )
     route = SimpleNamespace(
         provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
         model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,

@@ -278,7 +278,7 @@ Phase 2 requests vector retrieval and preserves that requested strategy in diagn
 - one latest embedding row per job URL is selected by `created_at DESC, id DESC`
 - missing, invalid, stale, or contract-incompatible vectors use deterministic lexical ranking only when the caller supplies the eligible structured job batch
 - vector and lexical rows never mix in one shortlist
-- partial vector/lexical fallback normalizes each channel's native scores independently before applying the configured blend; native scores remain deterministic tie-breakers
+- partial vector/lexical fallback normalizes each channel's native scores independently before applying the configured blend; channel rank and stable URL provide scale-independent tie-breakers
 - diagnostics record `requested_strategy`, `effective_strategy`, `fallback_reason`, backend identity, model, dimension, contract fingerprint, and result counts
 - absent fallback data produces `effective_strategy: unavailable`; retrieval never changes silently
 - `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
