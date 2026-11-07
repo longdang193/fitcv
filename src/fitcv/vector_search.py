@@ -346,6 +346,11 @@ def _rank_profile_skills(profile: dict[str, Any], skills: list[str]) -> list[str
     support_weight: dict[str, int] = {skill.casefold(): 0 for skill in skills}
 
     def record(value: Any, support_status: Any = None) -> None:
+        if isinstance(value, dict):
+            support_status = value.get("support_status", support_status)
+            value = value.get("name")
+        if not _is_rankable_support_status(support_status):
+            return
         text = str(value or "").strip()
         key = text.casefold()
         if key not in counts:
@@ -366,12 +371,12 @@ def _rank_profile_skills(profile: dict[str, Any], skills: list[str]) -> list[str
             if not isinstance(bullet, dict):
                 continue
             for skill in bullet.get("skills") or []:
-                record(skill.get("name") if isinstance(skill, dict) else skill, bullet.get("support_status"))
+                record(skill, bullet.get("support_status"))
     for project in profile.get("projects") or []:
         if not isinstance(project, dict):
             continue
         for skill in project.get("skills") or []:
-            record(skill.get("name") if isinstance(skill, dict) else skill, project.get("support_status"))
+            record(skill, project.get("support_status"))
 
     return sorted(
         skills,

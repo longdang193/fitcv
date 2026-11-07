@@ -259,6 +259,28 @@ def test_build_candidate_query_components_filter_unsupported_technology_claims()
     assert _has_affirmative_lexical_relevance(row) is False
 
 
+def test_rank_profile_skills_ignores_rejected_child_claim_duplicates() -> None:
+    profile = {
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "experiences": [
+            {
+                "bullets": [
+                    {"skills": [{"name": "Python", "support_status": "rejected"}]},
+                    {"skills": [{"name": "Python", "support_status": "rejected"}]},
+                    {"skills": [{"name": "Python", "support_status": "rejected"}]},
+                ]
+            }
+        ],
+        "projects": [
+            {"skills": [{"name": "Python", "support_status": "claimed_only"}]},
+        ],
+    }
+
+    components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 1})
+
+    assert components["skills"] == ["SQL"]
+
+
 def test_lexical_retrieval_uses_supported_experience_and_top_level_technology() -> None:
     profile = {
         "preferences": {"target_role": "Data Analyst"},
