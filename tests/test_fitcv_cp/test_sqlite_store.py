@@ -53,6 +53,20 @@ def _canonical_job(name: str) -> dict[str, str]:
     }
 
 
+def test_list_runs_for_reconciliation_skips_large_compatibility_snapshots() -> None:
+    sqlite_store.insert_run(_make_run("run-reconciliation-fast"))
+
+    with patch.object(
+        sqlite_store,
+        "_pipeline_run_from_json",
+        side_effect=AssertionError("reconciliation must not decode compatibility_json"),
+    ):
+        runs = sqlite_store.list_runs_for_reconciliation()
+
+    assert [run.run_id for run in runs] == ["run-reconciliation-fast"]
+    assert runs[0].status is RunStatus.QUEUED
+
+
 def test_local_cancel_terminalizes_unclaimed_and_awaiting_runs() -> None:
     queued = _make_run("run-queued-cancel")
     awaiting = _make_run("run-awaiting-cancel")
@@ -2484,6 +2498,46 @@ def test_candidate_profile_lifecycle_preserves_revision_payload_and_run_snapshot
         restored_again["profile"]["checksum"],
     )
     assert json.loads(snapshot[4]) == canonical
+
+
+def test_candidate_profile_lifecycle_clears_default_when_archiving(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "fitcv.sqlite3"
+    ready, _ = _candidate_profile_ready_to_confirm(database_path)
+    confirmation = sqlite_store.get_candidate_profile_confirmation(
+        ready["attempt_id"], database_path=database_path
+    )
+    assert confirmation is not None
+    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
+        ready["attempt_id"],
+        expected_revision=ready["revision"],
+        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
+        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
+        expected_confirmation_fingerprint=confirmation["fingerprint"],
+        idempotency_key="confirm-default-archive",
+        database_path=database_path,
+    )
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            "UPDATE candidate_profiles SET is_default=1 WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        )
+        conn.commit()
+
+    archived = sqlite_store.transition_candidate_profile_lifecycle(
+        profile["profile_id"],
+        lifecycle="archived",
+        expected_revision=profile["revision"],
+        database_path=database_path,
+    )
+
+    assert archived["lifecycle"] == "archived"
+    with sqlite3.connect(database_path) as conn:
+        assert conn.execute(
+            "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        ).fetchone()[0] == 0
 
 
 def test_update_candidate_profile_preserves_existing_run_snapshot(tmp_path: Path) -> None:

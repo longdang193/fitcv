@@ -90,6 +90,45 @@ def test_runtime_loader_accepts_canonical_v2_preferences() -> None:
     assert converged["search_preferences"] == canonical["search_preferences"]
 
 
+def test_runtime_convergence_strips_legacy_language_metadata_from_v2_snapshot() -> None:
+    canonical = converge_candidate_profile_for_runtime(
+        {
+            **_VALID_PROFILE_DICT,
+            "name": "Candidate",
+            "languages": [{"id": "lang_en", "name": "English", "level": "C1"}],
+        }
+    )
+    canonical["languages"][0].update(
+        {
+            "candidate_profile_id": "candidate-1",
+            "native": False,
+            "read": "C1",
+            "speak": "C1",
+            "write": "C1",
+            "notes": "Professional working proficiency",
+            "evidence_refs": [],
+        }
+    )
+
+    converged = converge_candidate_profile_for_runtime(canonical)
+
+    assert converged["languages"] == [
+        {
+            "id": "lang_en",
+            "name": "English",
+            "level": "C1",
+            "native": False,
+            "read": "C1",
+            "speak": "C1",
+            "write": "C1",
+            "source_refs": canonical["languages"][0]["source_refs"],
+        }
+    ]
+    assert "candidate_profile_id" not in converged
+    assert "notes" not in converged["languages"][0]
+    assert "evidence_refs" not in converged["languages"][0]
+
+
 def test_runtime_convergence_rejects_non_boolean_language_native_value() -> None:
     profile = {
         **_VALID_PROFILE_DICT,

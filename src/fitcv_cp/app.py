@@ -1024,6 +1024,18 @@ def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, CanonicalJobs]:
         ) from exc
 
 
+def _canonicalize_candidate_profile_snapshot(profile: dict[str, Any]) -> dict[str, Any]:
+    from fitcv.candidate import converge_candidate_profile_for_runtime
+
+    try:
+        return converge_candidate_profile_for_runtime(profile)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Candidate profile validation failed: {exc}",
+        ) from exc
+
+
 def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
     from fitcv.candidate import load_profile_yaml as _load_profile_yaml, validate_profile as _validate_profile
 
@@ -1044,7 +1056,11 @@ def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
             status_code=422,
             detail=f"Candidate profile validation failed: {'; '.join(profile_errors)}",
         )
-    return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
+    return _json.dumps(
+        _canonicalize_candidate_profile_snapshot(resolved_profile),
+        ensure_ascii=False,
+        indent=2,
+    )
 
 def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
     from fitcv.candidate import load_profile_text as _load_profile_text
@@ -1053,7 +1069,11 @@ def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
         resolved_profile = _load_profile_text(raw_text, format_hint="auto")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
+    return _json.dumps(
+        _canonicalize_candidate_profile_snapshot(resolved_profile),
+        ensure_ascii=False,
+        indent=2,
+    )
 
 def _load_jobs_input_manifest(raw_manifest_json: str | None) -> dict[str, Any]:
     if not raw_manifest_json:
@@ -10183,6 +10203,7 @@ def create_app(
                     raise ApiError(422, "validation_failed", str(exc)) from exc
                 profile_snapshot = dict(profile.get("profile") or {})
                 profile_snapshot.setdefault("name", profile.get("name"))
+                profile_snapshot = _canonicalize_candidate_profile_snapshot(profile_snapshot)
                 source_kind = "combined" if upload_name else "scan"
                 result = _execute_trigger_with_inputs(
                     jobs_path=upload_name or scan_ids[0],
@@ -10261,6 +10282,7 @@ def create_app(
                 )
             profile_snapshot = dict(profile.get("profile") or {})
             profile_snapshot.setdefault("name", profile.get("name"))
+            profile_snapshot = _canonicalize_candidate_profile_snapshot(profile_snapshot)
             fingerprint_payload = {
                 "jobs_sha256": acquisition.artifact.sha256,
                 "candidate_profile_id": candidate_profile_id,
@@ -10480,6 +10502,7 @@ def create_app(
             ) from exc
         profile_snapshot = dict(profile.get("profile") or {})
         profile_snapshot.setdefault("name", profile.get("name"))
+        profile_snapshot = _canonicalize_candidate_profile_snapshot(profile_snapshot)
         fingerprint_payload = {
             "jobs_sha256": artifact.sha256,
             "candidate_profile_id": candidate_profile_id,
@@ -10687,8 +10710,7 @@ def create_app(
             )
         candidate_snapshot = dict(profile.get("profile") or {})
         candidate_snapshot.setdefault("name", profile.get("name"))
-        candidate_snapshot["revision"] = profile.get("revision")
-        candidate_snapshot["candidate_profile_id"] = candidate_profile_id
+        candidate_snapshot = _canonicalize_candidate_profile_snapshot(candidate_snapshot)
 
         return _execute_trigger_with_inputs(
             jobs_path=source_path,

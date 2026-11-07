@@ -3457,7 +3457,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     ]
     assert captured["run"].candidate_profile_source == "default_config"
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
-    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
+    assert profile_snapshot["search_preferences"]["domains"] == ["fintech"]
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
     assert "cv_generation_runtime_expectation" in effective["runtime_inputs"]
@@ -4104,6 +4104,35 @@ def test_candidate_profile_update_route_passes_cas_and_idempotency() -> None:
     assert client.post("/candidate-profiles").status_code == 405
     assert detail.status_code == 200 and detail.json()["data"]["overview"] == {"skills": []}
     assert archived.status_code == 200 and archived.json()["data"]["lifecycle"] == "archived"
+
+
+def test_candidate_profile_archive_route_clears_default_profile_ownership() -> None:
+    app = _app()
+    profile = app.state.run_store.create_candidate_profile_attempt(
+        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
+        original_filename="profile.yaml",
+        profile_name="Default Candidate",
+    )
+    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+        conn.execute(
+            "UPDATE candidate_profiles SET is_default=1 WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        )
+        conn.commit()
+
+    response = TestClient(app).post(
+        f"/candidate-profiles/{profile['profile_id']}/actions/archive",
+        headers={"Idempotency-Key": "archive-default-profile"},
+        json={"expected_revision": profile["revision"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["lifecycle"] == "archived"
+    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
+        assert conn.execute(
+            "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
+            (profile["profile_id"],),
+        ).fetchone()[0] == 0
 
 
 def test_candidate_profile_lifecycle_rejects_noop_and_stale_revision() -> None:
@@ -16718,8 +16747,8 @@ def test_admin_upload_trigger_stores_selected_profile_snapshot(tmp_path):
     assert "run_id" in resp.json()
     assert captured["run"].candidate_profile_source == "profile-1"
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
-    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
-    assert profile_snapshot["revision"] == 3
+    assert profile_snapshot["search_preferences"]["domains"] == ["fintech"]
+    assert "revision" not in profile_snapshot
 
 
 def test_admin_upload_trigger_keeps_profile_snapshot_after_source_mutation(tmp_path):
@@ -16754,7 +16783,7 @@ def test_admin_upload_trigger_keeps_profile_snapshot_after_source_mutation(tmp_p
     assert resp.status_code == 201, resp.text
     profile["profile"]["preferences"]["domains"].append("mutated-after-submit")
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
-    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
+    assert profile_snapshot["search_preferences"]["domains"] == ["fintech"]
 
 
 def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_path):
@@ -18048,8 +18077,58 @@ def test_post_runs_uses_schema_valid_canonical_profile_snapshot(
     deserialized_profile = json.loads(run.candidate_profile_json)
     assert "candidate_profile_id" not in deserialized_profile
     assert "revision" not in deserialized_profile
-    validation_errors = validate_candidate_profile_v2(deserialized_profile)
+    validation_errors = validate_candidate_profile_v2(
+        {
+            key: value
+            for key, value in deserialized_profile.items()
+            if not key.startswith("_runtime_")
+        }
+    )
     assert validation_errors == [], f"Candidate profile snapshot has validation errors: {validation_errors}"
+
+
+def test_default_run_profile_snapshot_canonicalizes_legacy_language_fields(tmp_path: Path) -> None:
+    from fitcv.candidate import validate_candidate_profile_v2
+    from fitcv_cp.app import _resolve_default_candidate_profile_snapshot
+
+    profile_path = tmp_path / "candidate-profile.yaml"
+    profile_path.write_text(
+        """name: Candidate
+experiences: []
+skills: []
+projects: []
+achievements: []
+preferences: {}
+languages:
+  - id: lang_vi
+    name: Vietnamese
+    level: native
+    native: true
+  - id: lang_en
+    name: English
+    level: C1
+    read: C1
+    speak: C1
+    write: C1
+    notes: Professional working proficiency
+    evidence_refs: []
+""",
+        encoding="utf-8",
+    )
+
+    with patch(
+        "fitcv_cp.app.load_config",
+        return_value={"paths": {"candidate_profile": str(profile_path)}},
+    ):
+        snapshot = json.loads(_resolve_default_candidate_profile_snapshot("config.yaml"))
+
+    assert validate_candidate_profile_v2(snapshot) == []
+    assert [item["level"] for item in snapshot["languages"]] == ["native", "C1"]
+    assert all(
+        set(item) <= {"id", "name", "level", "native", "read", "speak", "write", "source_refs"}
+        for item in snapshot["languages"]
+    )
+    assert all("notes" not in item and "evidence_refs" not in item for item in snapshot["languages"])
 
 
 def test_company_catalog_route_has_exact_envelope_and_openapi_paths() -> None:

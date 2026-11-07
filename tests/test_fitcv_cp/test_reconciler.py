@@ -32,6 +32,10 @@ class _FakeStore:
         _ = (limit, include_archived, archived_only)
         return list(self.runs)
 
+    def list_runs_for_reconciliation(self, *, limit: int = 200):
+        _ = limit
+        return list(self.runs)
+
     def get_events(self, run_id: str):
         return list(self.events_by_run_id.get(run_id, []))
 
@@ -58,6 +62,13 @@ def test_reconcile_abandoned_attempts_includes_candidate_profile_recovery() -> N
     assert store.candidate_reconciliations == [now]
     assert summary.candidate_profile_abandoned_attempts == 2
     assert summary.candidate_profile_purged_sources == 1
+
+
+def test_reconcile_abandoned_attempts_uses_lightweight_run_listing() -> None:
+    store = _FakeStore(runs=[], events_by_run_id={}, appended=[], status_updates=[])
+
+    with patch.object(store, "list_runs", side_effect=AssertionError("full run listing is too expensive")):
+        reconcile_abandoned_attempts(store)
 
 
 def test_reconcile_abandoned_attempts_marks_failed_when_retry_disabled() -> None:
