@@ -70,6 +70,101 @@ def test_build_skill_entities_keeps_support_vector_machines() -> None:
     assert [entity["canonical"] for entity in entities] == ["python", "support vector machines"]
 
 
+def test_build_skill_entities_unions_valid_four_word_skill_with_structured_entities() -> None:
+    entities = _build_skill_entities(
+        ["Python", "Machine Learning Model Deployment"],
+        "required_skills",
+        {},
+        raw_entities=[{"raw_text": "Python", "canonical": "python", "confidence": 0.99}],
+    )
+
+    assert [entity["raw_text"] for entity in entities] == [
+        "Python",
+        "Machine Learning Model Deployment",
+    ]
+    assert [entity["canonical"] for entity in entities] == [
+        "python",
+        "machine learning model deployment",
+    ]
+
+
+def test_build_skill_entities_rejects_compound_requirement_prose() -> None:
+    entities = _build_skill_entities(
+        ["Python", "SQL", "Python and SQL for data analysis"],
+        "required_skills",
+        {},
+        raw_entities=[
+            {"raw_text": "Python", "canonical": "python", "confidence": 0.99},
+            {"raw_text": "SQL", "canonical": "sql", "confidence": 0.99},
+        ],
+    )
+
+    assert [entity["canonical"] for entity in entities] == ["python", "sql"]
+
+
+@pytest.mark.parametrize("heading", ["Requirements:", "Qualifications:", "Technical Skills:"])
+def test_merge_scraped_and_enriched_recovers_common_requirement_headings(heading: str) -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": f"https://example.com/jobs/{heading.lower().replace(' ', '-')}",
+            "title": "Data Engineer",
+            "description": f"{heading}\n\u2022 Python\n\u2022 SQL\nPreferred:\n\u2022 Power BI",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+    assert "Power BI" not in result["required_skills"]
+
+
+@pytest.mark.parametrize("heading", ["Requirements", "Qualifications", "Technical Skills"])
+def test_merge_scraped_and_enriched_recovers_colonless_requirement_headings(heading: str) -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": f"https://example.com/jobs/colonless-{heading.lower().replace(' ', '-')}",
+            "title": "Data Engineer",
+            "description": f"{heading}\n- Python\n- SQL",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+
+
+def test_merge_scraped_and_enriched_stops_requirement_recovery_at_new_section() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/section-boundary",
+            "title": "Data Engineer",
+            "description": "Requirements:\n- Python\n- SQL\nBenefits:\n- Pension\n- Training Budget",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python", "SQL"]
+
+
+def test_merge_scraped_and_enriched_excludes_nice_to_have_section_from_required_skills() -> None:
+    result = merge_scraped_and_enriched(
+        {
+            "job_url": "https://example.com/jobs/nice-to-have",
+            "title": "Data Engineer",
+            "description": "Requirements:\n- Python\nNice-to-have:\n- Kubernetes",
+            "description_quality": "full",
+        },
+        {"required_skills": [], "preferred_skills": []},
+        {},
+    )
+
+    assert result["required_skills"] == ["Python"]
+
+
 def test_merge_scraped_and_enriched_treats_experience_as_requirement_signal() -> None:
     result = merge_scraped_and_enriched(
         {

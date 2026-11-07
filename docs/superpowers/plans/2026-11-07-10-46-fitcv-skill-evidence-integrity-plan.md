@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: proposed
+status: completed
 name: fitcv-skill-evidence-integrity
 targets:
   - src/fitcv/enrich.py
@@ -20,6 +20,7 @@ targets:
   - tests/test_agentic_cv_analysis.py
   - tests/test_pipeline.py
   - tests/test_pipeline_agentic_late_stage.py
+  - tests/test_evidence.py
   - docs/pipeline.md
 ---
 
@@ -29,7 +30,7 @@ targets:
 
 Restore end-to-end integrity for skill extraction, demonstrated-technology retrieval, compatibility-scoring inputs, evidence attribution, and reused CV-analysis records. The implementation must preserve valid requirement signals and supported candidate evidence from enrichment through retrieval, scoring, and analysis reuse without weakening the existing no-attributable-evidence scoring gate.
 
-The plan is based on the publicly reachable review revision `6fdfcc92f3119766c213bf82105c8e709201bdc8` on `longdang193/fitcv` and the completed read-only reviews from `GPT-5.6-Sol` and `GPT-6`, both at `High` effort.
+The implementation source base is the publicly reachable commit `6fdfcc92f3119766c213bf82105c8e709201bdc8` on `longdang193/fitcv`. The plan document itself is published in the follow-up commit `87bbf72cac878ae71b51ae7a122ebe0e48871d08`; that commit changes the plan artifact only. Execute from the plan commit (or from its parent source base with the plan carried forward) so the implementation tree and the reviewed source tree cannot drift silently. The plan incorporates the completed read-only reviews from `GPT-5.6-Sol` and `GPT-6`, both at `High` effort.
 
 ## Validated Scope
 
@@ -74,6 +75,7 @@ Focused tests cover enrichment, retrieval, scoring, evidence projection, and reu
 - Coordination: `none`
 - Required skills: `skill-code-standards`, `skill-test-driven-development`, `skill-backend-verification`, `skill-verification-before-completion`
 - Isolation: `task-specific isolated worktree` based on reviewed commit `6fdfcc92f3119766c213bf82105c8e709201bdc8`; preserve the current checkout's unrelated edits and untracked files
+- Source-base invariant: `6fdfcc92f3119766c213bf82105c8e709201bdc8` is the code baseline; `87bbf72cac878ae71b51ae7a122ebe0e48871d08` is the plan-bearing revision used for the isolated worktree. Confirm both SHAs and their parent relationship before editing.
 - Commit policy: `no commits during execution`
 - Preauthorized local actions: edit only the listed source, test, and documentation files; run the listed focused and broad verification commands in the isolated worktree
 - User-approval actions: commit, push, merge, publication, destructive cleanup, or changes outside the listed files
@@ -111,7 +113,7 @@ Focused tests cover enrichment, retrieval, scoring, evidence projection, and reu
 2. Add description fixtures for `Requirements:`, `Qualifications:`, and `Technical Skills:` followed by bullets, plus a preferred-only heading fixture. Assert required recovery and preferred-section isolation.
 3. Remove only the arbitrary `len(raw_value.strip().split()) <= 3` union gate in `_build_skill_entities`; retain length bounds, canonical deduplication, `_is_raw_skill_union_candidate`, and `_is_allowed_skill_entity` filtering so verbose qualification sentences remain excluded.
 4. Extend `_DESCRIPTION_REQUIREMENT_MARKERS` with anchored-heading-compatible English and German requirement headings, then verify `_required_skill_candidates_from_description` enters and exits bullet mode without treating preferred markers as mandatory.
-5. Confirm `_semantic_skill_values` and the merge reconstruction consume the reconciled entity union rather than treating a non-empty but partial entity list as authoritative.
+5. Confirm `_semantic_skill_values` and the merge reconstruction consume the reconciled entity union rather than treating a non-empty but partial entity list as authoritative. Preserve the existing `enrichment_degraded`, `enrichment_degraded_reason`, and `mandatory_core_complete` policy: this task repairs accepted-skill completeness only and must not broaden or narrow the separate degraded-enrichment scoring admission decision.
 6. Run `uv run pytest tests/test_enrich.py tests/test_scoring_input_integrity.py -q`.
 
 **Verification:**
@@ -172,7 +174,7 @@ Focused tests cover enrichment, retrieval, scoring, evidence projection, and reu
 **Required Skills:** `skill-code-standards`, `skill-test-driven-development`, `skill-backend-verification`
 
 **Files And Symbols:**
-- `src/fitcv/ai_score.py`: `bound_job_summary`, `bound_candidate_summary`, `build_ranking_request`, `build_ai_score_input_fingerprint`, and `build_ranking_input_diagnostics`.
+- `src/fitcv/ai_score.py`: `bound_job_summary`, `bound_candidate_summary`, `build_ranking_request`, `build_ranking_job_input`, `build_ai_score_input_fingerprint`, and `build_ranking_input_diagnostics`.
 - `tests/test_ai_score.py`: `test_ranking_input_diagnostics_are_bounded_and_track_the_final_request`, `test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting`, and final-prompt preservation tests.
 - `tests/test_scoring_input_integrity.py`: `test_final_scorer_request_retains_language_dimensions_and_ongoing_education` and evidence-limited scoring tests.
 - `src/fitcv/pipeline_stage_runner.py`: the ranking-stage persistence path that stores `ranking_input_diagnostics_by_identity`.
@@ -190,7 +192,7 @@ Focused tests cover enrichment, retrieval, scoring, evidence projection, and reu
 3. Update `bound_candidate_summary` and `bound_job_summary` to use the helper, preserving mandatory skill ordering and existing total request limits.
 4. Change `build_ranking_request` so `bounded_ranking_input` is assembled from `selected_job`, `selected_candidate`, and `selected_evidence`, not the pre-budget `source`. Preserve the existing key for compatibility with `build_ai_score_input_fingerprint` and current consumers.
 5. Update `build_ranking_input_diagnostics` to derive visible skills, counts, evidence IDs, omission counts, and visibility manifests from that final bounded payload. Add separate raw and model-visible counts rather than overloading `candidate_skill_count`.
-6. Keep the evidence-limited gate unchanged: no selected attributable evidence still produces `evidence_limited` without a provider call; budget trimming remains distinguishable from missing evidence.
+6. Keep the evidence-limited gate unchanged: no selected attributable evidence still produces `evidence_limited` without a provider call; budget trimming remains distinguishable from missing evidence. Do not change the existing `enrichment_degraded` admission policy while repairing the serialized payload.
 7. Update the ranking-stage diagnostic assertions and `docs/pipeline.md` to state that raw input and model-visible payload are separate and that visibility diagnostics describe the final request.
 8. Run `uv run pytest tests/test_ai_score.py tests/test_scoring_input_integrity.py tests/test_pipeline.py -q`.
 
@@ -253,7 +255,7 @@ Focused tests cover enrichment, retrieval, scoring, evidence projection, and reu
 **Required Skills:** `skill-backend-verification`, `skill-verification-before-completion`
 
 **Files And Symbols:**
-- `tests/test_enrich.py`, `tests/test_vector_search.py`, `tests/test_ai_score.py`, `tests/test_scoring_input_integrity.py`, `tests/test_agentic_cv_analysis.py`, `tests/test_pipeline.py`, and `tests/test_pipeline_agentic_late_stage.py`.
+- `tests/test_enrich.py`, `tests/test_vector_search.py`, `tests/test_ai_score.py`, `tests/test_scoring_input_integrity.py`, `tests/test_agentic_cv_analysis.py`, `tests/test_evidence.py`, `tests/test_pipeline.py`, and `tests/test_pipeline_agentic_late_stage.py`.
 - `docs/pipeline.md`: Stage Responsibilities, Candidate Evidence Projection, and Ranking-V2 Fixed Baseline sections.
 
 **Dependencies:** Tasks 1, 2, 3, and 4

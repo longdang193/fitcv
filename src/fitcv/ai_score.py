@@ -107,6 +107,29 @@ def _bounded_text(value: Any, limit: int) -> str:
     return str(value or "").strip()[:limit]
 
 
+def _bounded_json_value(value: Any, *, text_limit: int = RANKING_TERM_MAX_CHARS, max_items: int = 32) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        bounded = value.strip()[:text_limit]
+        return bounded if bounded else None
+    if isinstance(value, list):
+        bounded_items = [_bounded_json_value(item, text_limit=text_limit, max_items=max_items) for item in value[:max_items]]
+        return [item for item in bounded_items if item is not None]
+    if isinstance(value, dict):
+        bounded_mapping = {
+            str(key): bounded_value
+            for key, item in list(value.items())[:max_items]
+            if (bounded_value := _bounded_json_value(item, text_limit=text_limit, max_items=max_items)) is not None
+        }
+        return bounded_mapping
+    return _bounded_text(value, text_limit) or None
+
+
 def _bounded_values(values: Any, *, limit: int, item_chars: int = RANKING_TERM_MAX_CHARS) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
@@ -276,25 +299,16 @@ def build_ranking_request(
             values = bounded_payload.get(key)
             if isinstance(values, list):
                 bounded_payload[key] = [
-                    str(item).strip()
-                    if not isinstance(item, dict)
-                    else {
-                        field: str(field_value).strip()
-                        for field, field_value in item.items()
-                        if str(field_value or "").strip()
-                    }
+                    bounded_item
                     for item in values
                     if isinstance(item, (dict, str, int, float))
+                    and (bounded_item := _bounded_json_value(item, text_limit=RANKING_EVIDENCE_TEXT_MAX_CHARS)) is not None
                 ]
         for key in ("title", "seniority", "job_family", "domain"):
             if key in bounded_payload:
                 bounded_payload[key] = _bounded_text(bounded_payload[key], RANKING_TERM_MAX_CHARS)
         if isinstance(bounded_payload.get("location"), dict):
-            bounded_payload["location"] = {
-                key: _bounded_text(value, RANKING_TERM_MAX_CHARS)
-                for key, value in bounded_payload["location"].items()
-                if value not in (None, "")
-            }
+            bounded_payload["location"] = _bounded_json_value(bounded_payload["location"])
         selected_fields = [key for key in bounded_payload if key in payload]
         metadata = {
             "raw_fields": sorted(str(key) for key in payload),
@@ -358,15 +372,10 @@ def build_ranking_request(
             if not isinstance(values, list):
                 continue
             bounded_payload[key] = [
-                {
-                    field: str(field_value).strip()
-                    for field, field_value in value.items()
-                    if str(field_value or "").strip()
-                }
-                if isinstance(value, dict)
-                else str(value).strip()
+                bounded_value
                 for value in values
                 if isinstance(value, (dict, str, int, float))
+                and (bounded_value := _bounded_json_value(value, text_limit=RANKING_EVIDENCE_TEXT_MAX_CHARS)) is not None
             ]
         if isinstance(bounded_payload.get("skills"), list):
             mandatory_skills = [
@@ -643,9 +652,10 @@ def build_ranking_request(
     }
     route_payload = {key: getattr(route, key) for key in ("provider", "base_url", "wire_api", "model", "timeout_seconds", "request_start_interval_secs", "auth_mode", "temperature", "model_record_id", "configuration_revision")}
     bounded_ranking_input = {
-        key: value
-        for key, value in source.items()
-        if key in {"job_requirements", "candidate_summary", "candidate_evidence", "contract_metadata"}
+        "job_requirements": selected_job,
+        "candidate_summary": selected_candidate,
+        "candidate_evidence": list(selected_evidence),
+        "contract_metadata": dict(source.get("contract_metadata") or {}),
     }
     return {
         "request": request,
@@ -698,24 +708,31 @@ def build_ranking_input_diagnostics(
     metadata = dict(source.get("contract_metadata") or {})
     evidence = [item for item in list(source.get("candidate_evidence") or []) if isinstance(item, dict)]
     request_payload = dict((request_record or {}).get("request_payload") or {})
+    bounded_input = dict((request_record or {}).get("bounded_ranking_input") or {})
     candidate_skill_count = 0
+    model_visible_candidate_skill_count = 0
     visible_candidate_skills: list[str] = []
-    candidate_summary_value = (
-        dict((request_record or {}).get("bounded_ranking_input") or {}).get("candidate_summary")
-        or source.get("candidate_summary")
-    )
-    if isinstance(candidate_summary_value, str):
+    def summary_skills(value: Any) -> list[Any]:
+        if not isinstance(value, str):
+            return []
         try:
-            candidate_payload = json.loads(candidate_summary_value) or {}
-            candidate_skills = list(candidate_payload.get("skills") or [])
-            candidate_skill_count = len(candidate_skills)
-            visible_candidate_skills = [
-                _bounded_text(value, RANKING_TERM_MAX_CHARS)
-                for value in candidate_skills[:RANKING_MAX_SKILLS]
-                if _bounded_text(value, RANKING_TERM_MAX_CHARS)
-            ]
+            return list((json.loads(value) or {}).get("skills") or [])
         except (TypeError, ValueError, json.JSONDecodeError):
-            candidate_skill_count = 0
+            return []
+
+    raw_candidate_skills = summary_skills(source.get("candidate_summary"))
+    model_visible_candidate_skills = (
+        summary_skills(bounded_input.get("candidate_summary"))
+        if request_record is not None
+        else []
+    )
+    candidate_skill_count = len(raw_candidate_skills)
+    model_visible_candidate_skill_count = len(model_visible_candidate_skills)
+    visible_candidate_skills = [
+        _bounded_text(value, RANKING_TERM_MAX_CHARS)
+        for value in model_visible_candidate_skills[:RANKING_MAX_SKILLS]
+        if _bounded_text(value, RANKING_TERM_MAX_CHARS)
+    ]
     serialized_request = (
         len(json.dumps(request_payload, ensure_ascii=False, sort_keys=True))
         if request_payload
@@ -763,7 +780,10 @@ def build_ranking_input_diagnostics(
             if _bounded_text(item.get("parent_title") or item.get("title"), RANKING_TERM_MAX_CHARS)
         ],
         "selected_evidence_count": len(evidence[:RANKING_MAX_EVIDENCE]),
+        "raw_evidence_count": len(evidence),
+        "model_visible_evidence_count": len(list(bounded_input.get("candidate_evidence") or [])),
         "candidate_skill_count": candidate_skill_count,
+        "model_visible_candidate_skill_count": model_visible_candidate_skill_count,
         "visible_candidate_skills": visible_candidate_skills,
         "bounded_requirement_ids": [
             str(value)

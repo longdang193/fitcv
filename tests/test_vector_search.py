@@ -11,6 +11,7 @@ from fitcv.vector_search import (
     _lexical_search_result,
     _hybrid_search_result,
     _dedupe_shortlist_rows,
+    _has_affirmative_lexical_relevance,
     _technology_overlap,
     build_candidate_query_components,
     build_candidate_query_embedding_contract_fingerprint,
@@ -201,6 +202,107 @@ def test_build_candidate_query_components_bound_project_technology_hints() -> No
     assert signature["payload"]["technology_hints"] == components["technology_hints"]
     assert "Project Technology: OpenAI | Claude Code" in text
     assert "x" * 161 not in text
+
+
+def test_build_candidate_query_components_filter_unsupported_technology_claims() -> None:
+    profile = {
+        "preferences": {"target_role": "Data Engineer"},
+        "skills": [{"name": "Kafka", "support_status": "claimed_only"}, {"name": "Python"}],
+        "experiences": [
+            {
+                "support_status": "supported",
+                "bullets": [{"skills": [{"name": "Spark", "support_status": "claimed_only"}]}],
+            }
+        ],
+        "projects": [
+            {
+                "name": "Claimed",
+                "support_status": "claimed_only",
+                "tech_stack": ["Terraform"],
+                "skills": [{"name": "Kubernetes", "support_status": "claimed_only"}],
+            },
+            {
+                "name": "Supported",
+                "support_status": "supported",
+                "tech_stack": ["Airflow"],
+                "skills": [{"name": "dbt", "support_status": "unsupported"}],
+            },
+        ],
+    }
+
+    components = build_candidate_query_components(profile)
+
+    assert "Kafka" not in components["technology_hints"]
+    assert "Spark" not in components["technology_hints"]
+    assert "Kubernetes" not in components["technology_hints"]
+    assert "dbt" not in components["technology_hints"]
+    assert "Terraform" not in components["technology_hints"]
+    assert "Airflow" in components["technology_hints"]
+
+    lexical_result = _lexical_search_result(
+        profile,
+        ["job-claimed"],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
+        top_n=1,
+        structured_jobs=[
+            {
+                "job_url": "job-claimed",
+                "title": "Registered Nurse",
+                "tech_stack": ["Kafka", "Spark", "Kubernetes", "dbt"],
+            }
+        ],
+        requested_strategy="lexical_v1",
+    )
+
+    row = lexical_result["production_rows"][0]
+    assert row["retrieval_components"]["technology_overlap"] == 0.0
+    assert _has_affirmative_lexical_relevance(row) is False
+
+
+def test_rank_profile_skills_ignores_rejected_child_claim_duplicates() -> None:
+    profile = {
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "experiences": [
+            {
+                "bullets": [
+                    {"skills": [{"name": "Python", "support_status": "rejected"}]},
+                    {"skills": [{"name": "Python", "support_status": "rejected"}]},
+                    {"skills": [{"name": "Python", "support_status": "rejected"}]},
+                ]
+            }
+        ],
+        "projects": [
+            {"skills": [{"name": "Python", "support_status": "claimed_only"}]},
+        ],
+    }
+
+    components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 1})
+
+    assert components["skills"] == ["SQL"]
+
+
+def test_lexical_retrieval_uses_supported_experience_and_top_level_technology() -> None:
+    profile = {
+        "preferences": {"target_role": "Data Analyst"},
+        "skills": [{"name": "Python", "support_status": "supported"}],
+        "experiences": [{"bullets": [{"skills": [{"name": "Snowflake", "support_status": "supported"}]}]}],
+    }
+
+    components = build_candidate_query_components(profile)
+    assert "Python" in components["technology_hints"]
+    assert "Snowflake" in components["technology_hints"]
+
+    result = run_vector_search(
+        profile,
+        ["job-snowflake"],
+        {"ranking_policy": {"declared_preference_component_weights": {"domain": 0.5, "role_family": 0.3, "work_mode": 0.2}}},
+        top_n=1,
+        structured_jobs=[{"job_url": "job-snowflake", "title": "Data Analyst", "tech_stack": ["Snowflake"]}],
+        requested_strategy="lexical_v1",
+    )
+
+    assert result["production_rows"][0]["retrieval_components"]["technology_overlap"] == 1.0
+
 
 def test_build_candidate_query_components_uses_config_for_inferred_role_family() -> None:
     profile = {

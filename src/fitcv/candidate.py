@@ -1476,6 +1476,13 @@ def flatten_skills(profile: dict[str, Any]) -> list[str]:
     return result
 
 
+_NON_RANKABLE_SUPPORT_STATUSES = frozenset({"unsupported", "unverified", "rejected", "claimed_only"})
+
+
+def _is_rankable_support_status(value: Any) -> bool:
+    return str(value or "supported").strip().casefold() not in _NON_RANKABLE_SUPPORT_STATUSES
+
+
 def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
     """Return only supported, demonstrated skills for ranking and retrieval.
 
@@ -1492,8 +1499,7 @@ def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
             support_status = value.get("support_status", support_status)
             value = value.get("name")
         text = str(value or "").strip()
-        status = str(support_status or "supported").strip().casefold()
-        if not text or status in {"unsupported", "unverified", "rejected", "claimed_only"}:
+        if not text or not _is_rankable_support_status(support_status):
             return
         key = text.casefold()
         if key in seen:
@@ -1514,14 +1520,14 @@ def flatten_rankable_skills(profile: dict[str, Any]) -> list[str]:
             if isinstance(bullet, dict):
                 status = bullet.get("support_status")
                 for skill in bullet.get("skills") or []:
-                    _add(skill.get("name") if isinstance(skill, dict) else skill, status)
+                    _add(skill, status)
 
     for project in profile.get("projects") or []:
         if not isinstance(project, dict):
             continue
         status = project.get("support_status")
         for skill in project.get("skills") or []:
-            _add(skill.get("name") if isinstance(skill, dict) else skill, status)
+            _add(skill, status)
 
     return result
 
