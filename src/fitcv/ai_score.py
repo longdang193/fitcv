@@ -384,10 +384,9 @@ def build_ranking_request(
                 return False
             required_names, required_levels = language_requirement_parts(requirement)
             record_names = set(re.findall(r"[a-z]+", str(record.get("name") or "").casefold()))
-            record_levels = set(re.findall(r"[a-z0-9]+", str(record.get("level") or "").casefold()))
             if required_names and not required_names.intersection(record_names):
                 return False
-            return not required_levels or bool(required_levels.intersection(record_levels))
+            return True
 
         protected_language_records = [
             value

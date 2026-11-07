@@ -1294,6 +1294,36 @@ def test_hybrid_fusion_keeps_positive_partial_skill_overlap() -> None:
     assert {row["job_url"] for row in result["production_rows"]} == {"vector", "partial-skill"}
 
 
+def test_hybrid_fusion_keeps_genuine_half_skill_overlap() -> None:
+    result = _hybrid_search_result(
+        vector_result={
+            "production_rows": [{"job_url": "vector", "vector_rank": 1}],
+            "audit_rows": [],
+            "diagnostics": {},
+        },
+        lexical_result={
+            "production_rows": [{
+                "job_url": "half-skill",
+                "lexical_rank": 1,
+                "retrieval_components": {
+                    "skill_overlap": 0.5,
+                    "skill_overlap_has_signal": True,
+                    "technology_overlap": 0.0,
+                    "description_overlap": 0.0,
+                    "title_relevance": 0.5,
+                },
+            }],
+            "audit_rows": [],
+            "diagnostics": {},
+        },
+        eligible_job_urls=["vector", "half-skill"],
+        top_n=2,
+        channel_depth=1,
+    )
+
+    assert {row["job_url"] for row in result["production_rows"]} == {"vector", "half-skill"}
+
+
 def test_run_vector_search_falls_back_for_invalid_job_embeddings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

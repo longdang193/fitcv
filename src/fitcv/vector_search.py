@@ -761,6 +761,7 @@ def _lexical_search_result(
             "retrieval_score": retrieval_score,
             "retrieval_components": {
                 "skill_overlap": skill_score,
+                "skill_overlap_has_signal": bool(required) and skill_score > 0.0,
                 "title_relevance": title_score,
                 "domain": parts["domain"],
                 "role_family": parts["role_family"],
@@ -878,8 +879,11 @@ def _hybrid_search_result(
             return True
         skill_overlap = float(components.get("skill_overlap") or 0.0)
         title_relevance = float(components.get("title_relevance") or 0.0)
+        skill_overlap_has_signal = components.get("skill_overlap_has_signal")
+        if skill_overlap_has_signal is None:
+            skill_overlap_has_signal = skill_overlap > 0.0 and skill_overlap != 0.5
         return any((
-            skill_overlap > 0.0 and skill_overlap != 0.5,
+            bool(skill_overlap_has_signal),
             float(components.get("technology_overlap") or 0.0) > 0.0,
             float(components.get("description_overlap") or 0.0) > 0.0,
             title_relevance > 0.5,

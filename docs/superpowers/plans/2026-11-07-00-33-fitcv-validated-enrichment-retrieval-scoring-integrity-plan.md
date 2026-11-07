@@ -110,6 +110,13 @@ Focused regressions are required in `tests/test_vector_search.py`,
 `tests/test_scoring_input_integrity.py`, and `tests/test_enrich.py` before the
 next review cycle.
 
+The final review cycle also validated two boundary cases: scalar skill overlap
+`0.5` can be a genuine partial match rather than neutral unknown data, and a
+candidate's language identity must remain visible for compatibility assessment
+regardless of whether its recorded proficiency is above or below the job's
+requested level. Retrieval now carries explicit skill-match signal metadata;
+language compaction protects identity matches and retains the actual level.
+
 ## Implementation Outcomes
 
 ### Complete skill requirement contract
