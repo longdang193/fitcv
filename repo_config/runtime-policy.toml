@@ -1,0 +1,6 @@
+[runtime]
+native_subagents_enabled = true
+orca_enabled = true
+
+[policy]
+remote_side_effects = "ask"
