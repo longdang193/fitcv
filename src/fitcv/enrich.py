@@ -1823,15 +1823,24 @@ def build_enrich_request(
     *,
     resolved_route: LlmRouting | None = None,
 ) -> dict[str, Any]:
+    scraped_metadata = {
+        "title": job.get("title", ""),
+        "experienceLevel": job.get("experience_level", ""),
+        "contractType": job.get("contract_type", ""),
+        "sector": job.get("sector", ""),
+        "location": job.get("location", ""),
+    }
+    enrichment_metadata = job.get("enrichmentMetadata")
+    source_skills = (
+        enrichment_metadata.get("sourceSkills")
+        if isinstance(enrichment_metadata, dict)
+        else None
+    )
+    if isinstance(source_skills, list) and source_skills:
+        scraped_metadata["sourceSkills"] = source_skills
     prompt = build_extraction_prompt(
         description=str(job.get("description", "")),
-        scraped_metadata={
-            "title": job.get("title", ""),
-            "experienceLevel": job.get("experience_level", ""),
-            "contractType": job.get("contract_type", ""),
-            "sector": job.get("sector", ""),
-            "location": job.get("location", ""),
-        },
+        scraped_metadata=scraped_metadata,
         config=config,
     )
     route = resolved_route or resolve_llm_routing("enrich_extraction", runtime_config=config)

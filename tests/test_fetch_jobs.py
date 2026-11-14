@@ -113,6 +113,31 @@ def test_workingstudentjobs_detail_failure_is_excluded(monkeypatch: pytest.Monke
     assert failures == [{"sourceJobId": "wsj-1", "reason": "missing_full_description"}]
 
 
+def test_workingstudentjobs_full_description_projects_source_skills(monkeypatch: pytest.MonkeyPatch) -> None:
+    job = {
+        "id": "wsj-3",
+        "url": "https://workingstudentjobs.example/job-3",
+        "title": "Werkstudent BI",
+        "skills": ["Power BI", "Datenmodellierung"],
+    }
+    monkeypatch.setattr(fetcher.workingstudentjobs, "fetch_all_jobs", lambda *args, **kwargs: [job])
+    monkeypatch.setattr(fetcher.workingstudentjobs, "_request_bytes", lambda *args, **kwargs: b"<html></html>")
+    monkeypatch.setattr(
+        fetcher.workingstudentjobs,
+        "extract_job_posting_json_ld",
+        lambda value: {"description": "<p>Build dashboards</p>"},
+    )
+
+    records, failures = fetcher.fetch_workingstudentjobs_source(
+        {"request": {"ref": "fitcv", "pageSize": 5, "maxJobs": 1}, "details": {"require": True}},
+        max_records=5,
+    )
+
+    assert failures == []
+    assert records[0]["descriptionStatus"] == "full"
+    assert records[0]["enrichmentMetadata"] == {"sourceSkills": ["Power BI", "Datenmodellierung"]}
+
+
 def test_workingstudentjobs_summary_fallback_is_never_canonical(monkeypatch: pytest.MonkeyPatch) -> None:
     job = {"id": "wsj-2", "url": "https://workingstudentjobs.example/job-2", "title": "Intern"}
     monkeypatch.setattr(fetcher.workingstudentjobs, "fetch_all_jobs", lambda *args, **kwargs: [job])

@@ -21,6 +21,7 @@ from fitcv.enrich import (
     EnrichmentOutput,
     _build_skill_entities,
     _apply_structured_normalization,
+    build_enrich_request,
     build_extraction_prompt,
     build_enrich_contract_fingerprint,
     build_raw_job_fingerprint,
@@ -32,6 +33,7 @@ from fitcv.enrich import (
     parse_extraction_response,
 )
 from fitcv.prompts.models import PromptDefinition
+from fitcv.runtime_routing import LlmRouting
 
 
 def test_build_skill_entities_unions_valid_raw_multiword_skill_with_structured_entities() -> None:
@@ -227,6 +229,59 @@ def test_build_extraction_prompt_contains_description_text() -> None:
     description = "We need SQL and Python skills for this unique role."
     prompt = build_extraction_prompt(description=description, scraped_metadata={})
     assert "SQL" in prompt
+
+
+def test_build_enrich_request_projects_workingstudentjobs_source_skills() -> None:
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
+    job = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/job-1",
+        "source_provider": "workingstudentjobs",
+        "description": "Build dashboards and automate reporting.",
+        "enrichmentMetadata": {
+            "sourceSkills": ["Power BI", "Datenmodellierung", "Prozessautomatisierung"],
+        },
+    }
+
+    request = build_enrich_request(job, {}, resolved_route=route)
+
+    assert '"sourceSkills": [\n    "Power BI",\n    "Datenmodellierung",\n    "Prozessautomatisierung"\n  ]' in request["request"].prompt
+    assert request["fingerprint"]
+
+
+def test_build_enrich_request_source_skills_change_fingerprint_without_posthoc_merge() -> None:
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
+    base = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/job-1",
+        "source_provider": "workingstudentjobs",
+        "description": "Build dashboards and automate reporting.",
+    }
+    with_skills = {
+        **base,
+        "enrichmentMetadata": {"sourceSkills": ["Power BI"]},
+    }
+
+    without_request = build_enrich_request(base, {}, resolved_route=route)
+    with_request = build_enrich_request(with_skills, {}, resolved_route=route)
+    merged = merge_scraped_and_enriched(
+        with_skills,
+        {"required_skills": [], "tech_stack": []},
+    )
+
+    assert without_request["fingerprint"] != with_request["fingerprint"]
+    assert merged["required_skills"] == []
+    assert merged["tech_stack"] == []
 
 
 def test_build_extraction_prompt_requires_all_keys_present() -> None:

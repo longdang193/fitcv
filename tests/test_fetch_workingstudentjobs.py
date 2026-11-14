@@ -75,8 +75,43 @@ def test_job_to_fitcv_record_keeps_source_and_uses_page_description() -> None:
     assert record["applyUrl"] == "https://example.com/apply"
     assert record["source"] == "workingstudentjobs"
     assert record["sourceRecord"] == job
+    assert record["enrichmentMetadata"] == {"sourceSkills": ["Python"]}
     assert record["sourcePageRecord"] == page_record
     assert {"jobUrl", "title", "companyName", "description", "contractType", "experienceLevel"} <= record.keys()
+
+
+def test_job_to_fitcv_record_omits_empty_enrichment_source_skills() -> None:
+    record = job_to_fitcv_record(
+        {
+            "id": "job-2",
+            "url": "https://www.workingstudentjobs.de/jobs/job-2",
+            "title": "Working Student Data",
+            "company": {"name": "ACME"},
+            "location": {},
+            "types": [],
+            "details": {},
+        },
+        {"description": "<p>Build reports</p>"},
+    )
+
+    assert "enrichmentMetadata" not in record
+
+
+def test_job_to_fitcv_record_does_not_project_skills_without_page_description() -> None:
+    record = job_to_fitcv_record(
+        {
+            "id": "job-3",
+            "url": "https://www.workingstudentjobs.de/jobs/job-3",
+            "title": "Working Student Data",
+            "company": {"name": "ACME"},
+            "location": {},
+            "types": [],
+            "skills": ["Power BI"],
+            "details": {},
+        },
+    )
+
+    assert "enrichmentMetadata" not in record
 
 
 def test_structured_summary_is_available_when_page_details_fail() -> None:
