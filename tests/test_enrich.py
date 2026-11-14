@@ -399,6 +399,40 @@ def test_lookup_reusable_structured_jobs_rejects_new_source_skills_until_reenric
     assert changed_result == {}
 
 
+def test_lookup_reusable_structured_jobs_does_not_migrate_legacy_cache_with_source_skills(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    job = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/legacy-source-skills",
+        "title": "Werkstudent BI",
+        "description": "Build dashboards.",
+        "enrichmentMetadata": {"sourceSkills": ["Power BI"]},
+    }
+    load_structured_jobs(
+        enriched=[
+            {
+                **job,
+                "required_skills": ["SQL"],
+                "required_skills_canonical": ["sql"],
+                "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[job],
+        config={},
+        raw_job_fingerprints={job["job_url"]: build_raw_job_fingerprint(job)["fingerprint"]},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    assert reusable == {}
+
+
 def test_build_extraction_prompt_allows_source_skills_without_mandatory_proof() -> None:
     prompt = build_extraction_prompt(
         description="Build dashboards.",

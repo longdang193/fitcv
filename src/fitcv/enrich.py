@@ -2493,6 +2493,8 @@ def lookup_reusable_structured_jobs(
             normalized_job = normalized_by_url.get(job_url)
             if normalized_job is None:
                 continue
+            if legacy_fingerprintless and _source_skills_for_enrichment(normalized_job):
+                continue
             try:
                 cached_payload = json.loads(str(payload_json or "{}"))
             except json.JSONDecodeError:

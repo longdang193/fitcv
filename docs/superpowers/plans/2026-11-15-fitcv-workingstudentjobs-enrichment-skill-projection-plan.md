@@ -147,7 +147,9 @@ fallback behavior.
   other extracted fields after provider response parsing.
 - Include the source-skill input in the existing request fingerprint so stale
   enrichment requests cannot be reused as if the new input had been present;
-  do not add a migration or replay mechanism.
+  do not add a migration or replay mechanism. Fingerprintless legacy cache rows
+  must not be promoted when the current record contains source skills; they
+  require a fresh enrichment instead.
 - Preserve route provenance semantics for reuse and auditability.
 
 **Acceptance:**
@@ -163,6 +165,8 @@ fallback behavior.
 
 - Unit-test the request payload/prompt for representative skills including
   `Power BI`, `Datenmodellierung`, and `Prozessautomatisierung`.
+- Regression-test both fingerprinted and fingerprintless cache rows so newly
+  available source skills cannot reuse or migrate stale enrichment.
 - Assert that source skills are not post-hoc promoted into required skills by
   the merge path.
 - Run the focused enrichment test suite and inspect request fingerprint or
