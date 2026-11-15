@@ -25,7 +25,7 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 ## Stage Responsibilities
 
 - `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
-- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata; canonical skills are the deduplicated union of validated structured entities and accepted raw values, including valid multi-word skills
+- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, reuse-aware metadata, and use bounded provider-specific source skills as supporting prompt input when available; canonical skills remain the deduplicated union of validated structured entities and accepted raw values, including valid multi-word skills
 - `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
 - `shortlist`: relevance-aware hybrid retrieval over eligible jobs; production rows use real vector evidence when available, while partial vector/lexical fallback uses rank-normalized channel scores and lexical rescue requires affirmative component overlap
 - `ranking`: authoritative fit scoring and decision labels

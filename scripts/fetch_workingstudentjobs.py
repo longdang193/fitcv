@@ -22,6 +22,8 @@ import certifi
 
 API_URL = "https://www.workingstudentjobs.de/api/v1/jobs"
 USER_AGENT = "FitCV workingstudentjobs.de importer/1.0"
+# shortcut: 16 skills, increase only with a measured prompt-budget need.
+_MAX_ENRICHMENT_SOURCE_SKILLS = 16
 
 
 def _ssl_context() -> ssl.SSLContext:
@@ -42,6 +44,23 @@ def _join_values(values: Any, separator: str = ", ") -> str:
     if not isinstance(values, list):
         return ""
     return separator.join(_string(value) for value in values if _string(value))
+
+
+def _enrichment_source_skills(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    skills: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        skill = _string(item)
+        key = skill.casefold()
+        if not skill or key in seen:
+            continue
+        seen.add(key)
+        skills.append(skill)
+        if len(skills) >= _MAX_ENRICHMENT_SOURCE_SKILLS:
+            break
+    return skills
 
 
 def _label(value: Any) -> str:
@@ -244,6 +263,9 @@ def job_to_fitcv_record(job: dict[str, Any], page_record: dict[str, Any] | None 
         "sourceDescription": "job_page_json_ld" if details.get("description") else "api_structured_summary",
         "sourceRecord": job,
     }
+    source_skills = _enrichment_source_skills(job.get("skills"))
+    if page_record and _string(details.get("description")) and source_skills:
+        record["enrichmentMetadata"] = {"sourceSkills": source_skills}
     if page_record:
         record["sourcePageRecord"] = page_record
     return record

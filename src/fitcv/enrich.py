@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from numbers import Real
-from typing import Any, Callable, TypedDict
+from typing import Any, Callable, NotRequired, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
 from fitcv.config import (
@@ -282,6 +282,7 @@ class RawJobFingerprintPayload(TypedDict):
     experience_level: str | None
     source: str | None
     source_location: dict[str, str | None] | None
+    source_skills: NotRequired[list[str]]
 
 
 class RawJobFingerprintResult(TypedDict):
@@ -1743,6 +1744,25 @@ def _normalize_source_location_fingerprint(value: Any) -> dict[str, str | None] 
         for key in ("raw_text", "city_raw", "region_raw", "country_raw", "provider")
     }
 
+
+def _source_skills_for_enrichment(job: dict[str, Any]) -> list[str]:
+    metadata = job.get("enrichmentMetadata")
+    values = metadata.get("sourceSkills") if isinstance(metadata, dict) else None
+    if not isinstance(values, list):
+        return []
+    skills: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = _normalize_text_item(value)
+        key = text.casefold() if text else ""
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        skills.append(text)
+        if len(skills) >= 16:
+            break
+    return skills
+
 def build_raw_job_fingerprint(job: dict[str, Any]) -> RawJobFingerprintResult:
     payload: RawJobFingerprintPayload = {
         "fingerprint_version": RAW_JOB_FINGERPRINT_VERSION,
@@ -1760,6 +1780,9 @@ def build_raw_job_fingerprint(job: dict[str, Any]) -> RawJobFingerprintResult:
             job.get("source_location")
         ),
     }
+    source_skills = _source_skills_for_enrichment(job)
+    if source_skills:
+        payload["source_skills"] = source_skills
     return {
         "payload": payload,
         "fingerprint": _fingerprint_hash(payload),
@@ -1823,15 +1846,19 @@ def build_enrich_request(
     *,
     resolved_route: LlmRouting | None = None,
 ) -> dict[str, Any]:
+    scraped_metadata = {
+        "title": job.get("title", ""),
+        "experienceLevel": job.get("experience_level", ""),
+        "contractType": job.get("contract_type", ""),
+        "sector": job.get("sector", ""),
+        "location": job.get("location", ""),
+    }
+    source_skills = _source_skills_for_enrichment(job)
+    if source_skills:
+        scraped_metadata["sourceSkills"] = source_skills
     prompt = build_extraction_prompt(
         description=str(job.get("description", "")),
-        scraped_metadata={
-            "title": job.get("title", ""),
-            "experienceLevel": job.get("experience_level", ""),
-            "contractType": job.get("contract_type", ""),
-            "sector": job.get("sector", ""),
-            "location": job.get("location", ""),
-        },
+        scraped_metadata=scraped_metadata,
         config=config,
     )
     route = resolved_route or resolve_llm_routing("enrich_extraction", runtime_config=config)
@@ -2465,6 +2492,8 @@ def lookup_reusable_structured_jobs(
                 continue
             normalized_job = normalized_by_url.get(job_url)
             if normalized_job is None:
+                continue
+            if legacy_fingerprintless and _source_skills_for_enrichment(normalized_job):
                 continue
             try:
                 cached_payload = json.loads(str(payload_json or "{}"))

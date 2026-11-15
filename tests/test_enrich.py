@@ -21,6 +21,7 @@ from fitcv.enrich import (
     EnrichmentOutput,
     _build_skill_entities,
     _apply_structured_normalization,
+    build_enrich_request,
     build_extraction_prompt,
     build_enrich_contract_fingerprint,
     build_raw_job_fingerprint,
@@ -32,6 +33,7 @@ from fitcv.enrich import (
     parse_extraction_response,
 )
 from fitcv.prompts.models import PromptDefinition
+from fitcv.runtime_routing import LlmRouting
 
 
 def test_build_skill_entities_unions_valid_raw_multiword_skill_with_structured_entities() -> None:
@@ -229,6 +231,59 @@ def test_build_extraction_prompt_contains_description_text() -> None:
     assert "SQL" in prompt
 
 
+def test_build_enrich_request_projects_workingstudentjobs_source_skills() -> None:
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
+    job = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/job-1",
+        "source_provider": "workingstudentjobs",
+        "description": "Build dashboards and automate reporting.",
+        "enrichmentMetadata": {
+            "sourceSkills": ["Power BI", "Datenmodellierung", "Prozessautomatisierung"],
+        },
+    }
+
+    request = build_enrich_request(job, {}, resolved_route=route)
+
+    assert '"sourceSkills": [\n    "Power BI",\n    "Datenmodellierung",\n    "Prozessautomatisierung"\n  ]' in request["request"].prompt
+    assert request["fingerprint"]
+
+
+def test_build_enrich_request_source_skills_change_fingerprint_without_posthoc_merge() -> None:
+    route = LlmRouting(
+        provider="openai_compatible",
+        base_url="https://provider.example/v1",
+        wire_api="responses",
+        model="cx/test-model",
+        timeout_seconds=12.0,
+    )
+    base = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/job-1",
+        "source_provider": "workingstudentjobs",
+        "description": "Build dashboards and automate reporting.",
+    }
+    with_skills = {
+        **base,
+        "enrichmentMetadata": {"sourceSkills": ["Power BI"]},
+    }
+
+    without_request = build_enrich_request(base, {}, resolved_route=route)
+    with_request = build_enrich_request(with_skills, {}, resolved_route=route)
+    merged = merge_scraped_and_enriched(
+        with_skills,
+        {"required_skills": [], "tech_stack": []},
+    )
+
+    assert without_request["fingerprint"] != with_request["fingerprint"]
+    assert merged["required_skills"] == []
+    assert merged["tech_stack"] == []
+
+
 def test_build_extraction_prompt_requires_all_keys_present() -> None:
     prompt = build_extraction_prompt(description="Remote SQL role", scraped_metadata={})
     assert "Every schema key must be present" in prompt
@@ -275,6 +330,117 @@ def test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes() -
 
     assert "applications_count_int" not in result_a["payload"]
     assert result_a["fingerprint"] == result_b["fingerprint"]
+
+
+def test_build_raw_job_fingerprint_tracks_source_skills_for_reuse_invalidation() -> None:
+    base = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/job-1",
+        "title": "Werkstudent BI",
+        "description": "Build dashboards.",
+    }
+    power_bi = {
+        **base,
+        "enrichmentMetadata": {"sourceSkills": ["Power BI"]},
+    }
+    sql = {
+        **base,
+        "enrichmentMetadata": {"sourceSkills": ["SQL"]},
+    }
+
+    base_fingerprint = build_raw_job_fingerprint(base)
+    power_bi_fingerprint = build_raw_job_fingerprint(power_bi)
+    sql_fingerprint = build_raw_job_fingerprint(sql)
+
+    assert "source_skills" not in base_fingerprint["payload"]
+    assert power_bi_fingerprint["payload"]["source_skills"] == ["Power BI"]
+    assert base_fingerprint["fingerprint"] != power_bi_fingerprint["fingerprint"]
+    assert power_bi_fingerprint["fingerprint"] != sql_fingerprint["fingerprint"]
+
+
+def test_lookup_reusable_structured_jobs_rejects_new_source_skills_until_reenriched(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    base = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/source-skills-reuse",
+        "title": "Werkstudent BI",
+        "description": "Build dashboards.",
+    }
+    cached = {
+        **base,
+        "required_skills": ["SQL"],
+        "required_skills_canonical": ["sql"],
+        "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
+        "raw_job_fingerprint": build_raw_job_fingerprint(base)["fingerprint"],
+        "enrich_contract_fingerprint": "contract-1",
+    }
+    load_structured_jobs(enriched=[cached], config={})
+
+    unchanged = lookup_reusable_structured_jobs(
+        normalized_jobs=[base],
+        config={},
+        raw_job_fingerprints={base["job_url"]: build_raw_job_fingerprint(base)["fingerprint"]},
+        enrich_contract_fingerprint="contract-1",
+    )
+    changed = {
+        **base,
+        "enrichmentMetadata": {"sourceSkills": ["Power BI"]},
+    }
+    changed_result = lookup_reusable_structured_jobs(
+        normalized_jobs=[changed],
+        config={},
+        raw_job_fingerprints={changed["job_url"]: build_raw_job_fingerprint(changed)["fingerprint"]},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    assert list(unchanged) == [base["job_url"]]
+    assert changed_result == {}
+
+
+def test_lookup_reusable_structured_jobs_does_not_migrate_legacy_cache_with_source_skills(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    job = {
+        "job_url": "https://www.workingstudentjobs.de/jobs/legacy-source-skills",
+        "title": "Werkstudent BI",
+        "description": "Build dashboards.",
+        "enrichmentMetadata": {"sourceSkills": ["Power BI"]},
+    }
+    load_structured_jobs(
+        enriched=[
+            {
+                **job,
+                "required_skills": ["SQL"],
+                "required_skills_canonical": ["sql"],
+                "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[job],
+        config={},
+        raw_job_fingerprints={job["job_url"]: build_raw_job_fingerprint(job)["fingerprint"]},
+        enrich_contract_fingerprint="contract-1",
+    )
+
+    assert reusable == {}
+
+
+def test_build_extraction_prompt_allows_source_skills_without_mandatory_proof() -> None:
+    prompt = build_extraction_prompt(
+        description="Build dashboards.",
+        scraped_metadata={"sourceSkills": ["Power BI"]},
+    )
+
+    assert "sourceSkills alone are not proof of a mandatory requirement" in prompt
+    assert "exact source_text quotes" in prompt
 
 
 def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
