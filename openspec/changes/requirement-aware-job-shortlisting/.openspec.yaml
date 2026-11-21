@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-21
+goal: Improve shortlist recall and explainability without changing downstream
+  ranking, evidence, or CV-generation truth.
