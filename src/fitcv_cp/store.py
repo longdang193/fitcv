@@ -104,6 +104,7 @@ class RunStore(Protocol):
     def query_runs(self, **kwargs: Any) -> dict[str, Any]: ...
     def list_run_stages(self, run_id: str) -> list[dict[str, Any]]: ...
     def query_run_jobs(self, run_id: str, **kwargs: Any) -> dict[str, Any]: ...
+    def query_shortlist_admission_decisions(self, run_id: str, **kwargs: Any) -> dict[str, Any]: ...
     def get_run_job(self, run_id: str, run_job_id: str) -> dict[str, Any] | None: ...
     def iter_run_jobs_for_export(self, run_id: str, **kwargs: Any) -> Iterator[dict[str, Any]]: ...
     def get_run_detail(self, run_id: str) -> dict[str, Any] | None: ...
@@ -349,6 +350,7 @@ class ControlPlaneStore:
     query_runs_fn: Any | None = None
     list_run_stages_fn: Any | None = None
     query_run_jobs_fn: Any | None = None
+    query_shortlist_admission_decisions_fn: Any | None = None
     get_run_job_fn: Any | None = None
     set_bookmark_fn: Any | None = None
     clear_bookmark_fn: Any | None = None
@@ -918,6 +920,14 @@ class ControlPlaneStore:
 
     def query_run_jobs(self, run_id: str, **kwargs: Any) -> dict[str, Any]:
         return self._call_dict(self.query_run_jobs_fn, sqlite_store.query_run_jobs, run_id, **kwargs)
+
+    def query_shortlist_admission_decisions(self, run_id: str, **kwargs: Any) -> dict[str, Any]:
+        return self._call_dict(
+            self.query_shortlist_admission_decisions_fn,
+            sqlite_store.query_shortlist_admission_decisions,
+            run_id,
+            **kwargs,
+        )
 
     def get_run_job(self, run_id: str, run_job_id: str) -> dict[str, Any] | None:
         return cast(

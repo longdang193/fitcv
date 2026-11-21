@@ -27,7 +27,7 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 - `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
 - `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, reuse-aware metadata, and use bounded provider-specific source skills as supporting prompt input when available; canonical skills remain the deduplicated union of validated structured entities and accepted raw values, including valid multi-word skills
 - `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
-- `shortlist`: relevance-aware hybrid retrieval over eligible jobs; production rows use real vector evidence when available, while partial vector/lexical fallback uses rank-normalized channel scores and lexical rescue requires affirmative component overlap
+- `shortlist`: strategy-controlled admission; `legacy_retrieval_v1` keeps retrieval admission, while `core_pareto_evidence_v1` assesses job-specific requirement coverage, builds core Pareto fronts, and applies deterministic evidence tie-breaking
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract owns fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; pipeline persists canonical `accepted` results only
@@ -290,6 +290,19 @@ Phase 2 requests vector retrieval and preserves that requested strategy in diagn
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
 - audit rows never reach shortlist persistence, AI scoring, ranking, exports, or `strong | stretch | skip` labels
 - continuation preserves prior completed shortlist artifact block, including audit evidence, while current execution updates only stages in its execution segment
+
+## Requirement-Aware Shortlist Admission
+
+The requirement-aware selector runs after a shared recall-safe evaluation pool is
+constructed and before the downstream ranking stage:
+
+`evaluation pool -> requirement occurrences -> S/P/E/U coverage -> core Pareto fronts -> deterministic evidence tie-break -> capacity 50`
+
+- `pipeline.shortlist_strategy` selects `legacy_retrieval_v1` (default) or `core_pareto_evidence_v1`; retrieval strategy remains independent
+- requirement occurrences preserve duplicate clauses, source IDs/spans/wording, qualifiers, required/preferred flags, and compound child references
+- known configured eligibility mismatches remain hard exclusions; missing/uncertain fit context is retained as diagnostic input for requirement-aware evaluation
+- every admitted and non-admitted row carries the decision envelope, evaluation-pool ID, assessment fingerprint, Pareto front, admission rank, and reason; complete rows are queryable from `/runs/{run_id}/shortlist-admissions`
+- shadow comparison is non-authoritative and must not alter legacy downstream inputs; legacy checkpoints/config mismatches fail closed
 
 ## Ranking-V2 Fixed Baseline
 

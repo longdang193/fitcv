@@ -9294,6 +9294,12 @@ def create_app(
         entry = schema_by_key.get(key, {})
         if entry.get("type") == "list[str]":
             return form.getlist(key)
+        if key in {
+            "pipeline.shortlist_strategy",
+            "pipeline.shortlist_policy",
+            "pipeline.shortlist_shadow_enabled",
+        } and key not in form:
+            return entry.get("default")
         return form.get(key, "")
 
     def _run_max_runtime_minutes() -> int:
@@ -12038,6 +12044,54 @@ def create_app(
                 "job_title_include": job_title_include,
                 "job_title_exclude": job_title_exclude,
             },
+        )
+
+    @app.get("/runs/{run_id}/shortlist-admissions")
+    def get_shortlist_admission_decisions(
+        run_id: str,
+        page: int = 1,
+        page_size: int = 50,
+        search: str = "",
+    ) -> dict[str, Any]:
+        if page < 1 or page_size not in {10, 20, 50, 100}:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {
+                        "field": "page" if page < 1 else "page_size",
+                        "code": "invalid_value",
+                        "message": "Use 1 or greater." if page < 1 else "Use 10, 20, 50, or 100.",
+                    }
+                ],
+                action="Fix highlighted fields and retry.",
+            )
+        if not sqlite_store_module.run_exists(run_id):
+            raise ApiError(
+                404,
+                "run_not_found",
+                "Run not found.",
+                action="Return to Runs and select an existing Run.",
+            )
+        try:
+            result = _resolve_run_store().query_shortlist_admission_decisions(
+                run_id, page=page, page_size=page_size, search=search
+            )
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[{"field": "filters", "code": "invalid_value", "message": str(exc)}],
+                action="Fix highlighted fields and retry.",
+            ) from exc
+        return _collection_response(
+            list(result.get("items") or []),
+            page=int(result.get("page") or page),
+            page_size=int(result.get("page_size") or page_size),
+            total_items=int(result.get("total") or 0),
+            meta={"run_id": run_id, "search": search, "decision_envelope": True},
         )
 
     def _require_canonical_run_job(run_id: str, run_job_id: str) -> dict[str, Any]:

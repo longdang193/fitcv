@@ -79,14 +79,16 @@ def persist_shortlist_admission_ledger(
                   ranking_input_diagnostics_json, selected_evidence_ids_json,
                   mandatory_omissions_json, canonical_checksums_json,
                   request_char_count, request_within_budget, disposition, retry_eligible,
-                  mandatory_core_complete, model_visible_evidence_ids_json
+                  mandatory_core_complete, model_visible_evidence_ids_json,
+                  shortlist_strategy, eligibility_policy, policy_version, evaluation_pool_id,
+                  admission_capacity, pareto_front, admission_rank, decision_json
                 ) VALUES (
                   ?, ?, ?, ?, ?, ?, ?,
                   ?, ?, ?, ?, ?, ?, ?,
                   ?, ?, ?, ?, ?, ?, ?,
                   ?, ?, ?, ?, ?, ?, ?,
                   ?, ?, ?, ?, ?, ?, ?,
-                  ?, ?, ?, ?, ?, ?, ?
+                   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 """,
                 [
@@ -149,6 +151,14 @@ def persist_shortlist_admission_ledger(
                                 else (row.get("ranking_input_diagnostics") or {}).get("selected_evidence_ids") or []
                             ),
                         ),
+                        row.get("shortlist_strategy") or diagnostics.get("shortlist_strategy"),
+                        row.get("eligibility_policy") or diagnostics.get("eligibility_policy"),
+                        row.get("policy_version") or diagnostics.get("policy_version"),
+                        row.get("evaluation_pool_id") or diagnostics.get("evaluation_pool_id"),
+                        row.get("admission_capacity") or diagnostics.get("admission_capacity") or cutoff,
+                        row.get("pareto_front"),
+                        row.get("admission_rank"),
+                        _json_text(row.get("coverage") or row.get("decision") or {}),
                     )
                     for row in rows
                 ],
@@ -204,6 +214,14 @@ def _ensure_shortlist_admission_ledger(conn: Any) -> None:
           retry_eligible INTEGER,
           mandatory_core_complete INTEGER,
           model_visible_evidence_ids_json TEXT,
+          shortlist_strategy TEXT,
+          eligibility_policy TEXT,
+          policy_version TEXT,
+          evaluation_pool_id TEXT,
+          admission_capacity INTEGER,
+          pareto_front INTEGER,
+          admission_rank INTEGER,
+          decision_json TEXT,
           PRIMARY KEY (run_id, job_identity)
         )
         """
@@ -235,6 +253,14 @@ def _ensure_shortlist_admission_ledger(conn: Any) -> None:
         "retry_eligible": "INTEGER",
         "mandatory_core_complete": "INTEGER",
         "model_visible_evidence_ids_json": "TEXT",
+        "shortlist_strategy": "TEXT",
+        "eligibility_policy": "TEXT",
+        "policy_version": "TEXT",
+        "evaluation_pool_id": "TEXT",
+        "admission_capacity": "INTEGER",
+        "pareto_front": "INTEGER",
+        "admission_rank": "INTEGER",
+        "decision_json": "TEXT",
     }
     for name, sql_type in columns.items():
         if name not in existing:

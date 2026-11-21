@@ -18,6 +18,7 @@ lifecycle:
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from typing import Any, Mapping
@@ -26,6 +27,8 @@ from typing import Any, Mapping
 RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v2"
 STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
 CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v3"
+SHORTLIST_REQUIREMENT_CONTRACT_VERSION = "requirement_occurrence_v1"
+SHORTLIST_DECISION_ENVELOPE_VERSION = "shortlist_decision_envelope_v1"
 EVIDENCE_INTEGRITY_POLICY_VERSION = "evidence-integrity-v2"
 FINAL_ARTIFACT_CONTRACT_VERSION = "fitcv.final_artifact.v1"
 TRACE_CONTRACT_VERSION = "fitcv.trace.v1"
@@ -43,6 +46,148 @@ REQUIRED_SKILL_SUPPORT_CHANNEL = "required_skill_support"
 ROLE_ALIGNMENT_CHANNEL = "role_alignment"
 DOMAIN_ALIGNMENT_CHANNEL = "domain_alignment"
 RESPONSIBILITY_ALIGNMENT_CHANNEL = "responsibility_alignment"
+
+
+@dataclass(frozen=True)
+class RequirementOccurrence:
+    occurrence_id: str
+    category: str
+    required: bool
+    source_requirement_id: str | None
+    source_span: Any
+    source_wording: str
+    qualifiers: Mapping[str, Any]
+    compound_operator: str | None = None
+    child_occurrence_ids: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "occurrence_id": self.occurrence_id,
+            "category": self.category,
+            "required": self.required,
+            "source_requirement_id": self.source_requirement_id,
+            "source_span": self.source_span,
+            "source_wording": self.source_wording,
+            "qualifiers": dict(self.qualifiers),
+            "compound_operator": self.compound_operator,
+            "child_occurrence_ids": list(self.child_occurrence_ids),
+        }
+
+
+def _stable_requirement_occurrence_id(
+    *,
+    job_identity: str,
+    category: str,
+    index: int,
+    source_requirement_id: str | None,
+    source_span: Any,
+    source_wording: str,
+) -> str:
+    payload = json.dumps(
+        {
+            "job_identity": job_identity,
+            "category": category,
+            "index": index,
+            "source_requirement_id": source_requirement_id,
+            "source_span": source_span,
+            "source_wording": source_wording,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
+    )
+    return f"req-occ:{hashlib.sha256(payload.encode('utf-8')).hexdigest()[:20]}"
+
+
+def build_requirement_occurrences(
+    job: Mapping[str, Any],
+    *,
+    job_identity: str | None = None,
+) -> list[RequirementOccurrence]:
+    """Adapt job-specific requirements into one stable, duplicate-safe contract."""
+    identity = str(job_identity or job.get("job_url") or job.get("source_job_id") or "job").strip()
+    raw_items: list[dict[str, Any]] = []
+    explicit = job.get("requirement_occurrences")
+    if isinstance(explicit, list):
+        raw_items.extend(item for item in explicit if isinstance(item, Mapping))
+
+    def add_values(values: Any, category: str, default_source: str) -> None:
+        if not isinstance(values, list):
+            return
+        for value in values:
+            if isinstance(value, Mapping):
+                item = dict(value)
+                item.setdefault("category", category)
+                if default_source == "language" and str(item.get("requirement_type") or "").strip().lower() == "preferred":
+                    item["category"] = "preferred"
+                item.setdefault(
+                    "source_wording",
+                    item.get("value") or item.get("normalized_value") or item.get("language") or item.get("text") or "",
+                )
+                if item.get("source_span") is None and item.get("source_spans") is not None:
+                    item["source_span"] = item.get("source_spans")
+            else:
+                item = {"category": category, "source_wording": str(value)}
+            if not item.get("source_requirement_id"):
+                item["source_requirement_id"] = str(item.get("requirement_id") or item.get("clause_id") or "").strip()
+            if not item.get("source_requirement_id"):
+                wording = str(item.get("source_wording") or item.get("raw_text") or item.get("name") or "").strip()
+                if default_source in {"required_skill", "preferred_skill"} and wording:
+                    canonical = str(item.get("canonical") or wording).strip().casefold().replace("-", "_").replace(" ", "_")
+                    item["source_requirement_id"] = f"{default_source}:{canonical}"
+                else:
+                    item["source_requirement_id"] = default_source
+            raw_items.append(item)
+
+    add_values(job.get("required_skill_entities"), "required", "required_skill")
+    if not job.get("required_skill_entities"):
+        add_values(job.get("required_skills") or job.get("required_skills_canonical"), "required", "required_skill")
+    add_values(job.get("responsibility_entities") or job.get("responsibilities"), "duties", "responsibility")
+    add_values(job.get("mandatory_clauses"), "required", "mandatory_clause")
+    add_values(job.get("required_languages") or job.get("language_requirements"), "required", "language")
+    add_values(job.get("preferred_skill_entities"), "preferred", "preferred_skill")
+    if not job.get("preferred_skill_entities"):
+        add_values(job.get("preferred_skills") or job.get("preferred_skills_canonical"), "preferred", "preferred_skill")
+    add_values(job.get("other_requirements"), "required", "other_requirement")
+
+    occurrences: list[RequirementOccurrence] = []
+    for index, raw in enumerate(raw_items):
+        category = str(raw.get("category") or "required").strip().lower()
+        if category in {"must_have", "must-have", "required_skill", "mandatory"}:
+            category = "required"
+        elif category in {"responsibility", "responsibilities", "duty"}:
+            category = "duties"
+        elif category in {"nice_to_have", "nice-to-have", "preferred_skill"}:
+            category = "preferred"
+        wording = str(raw.get("source_wording") or raw.get("raw_text") or raw.get("requirement") or raw.get("name") or raw.get("text") or "").strip()
+        source_id = str(raw.get("source_requirement_id") or raw.get("requirement_id") or "").strip() or None
+        source_span = raw.get("source_span")
+        qualifiers = raw.get("qualifiers") if isinstance(raw.get("qualifiers"), Mapping) else {}
+        compound_operator = str(raw.get("compound_operator") or raw.get("operator") or "").strip().upper() or None
+        children = tuple(str(value).strip() for value in raw.get("child_occurrence_ids") or [] if str(value).strip())
+        occurrence_id = str(raw.get("occurrence_id") or "").strip() or _stable_requirement_occurrence_id(
+            job_identity=identity,
+            category=category,
+            index=index,
+            source_requirement_id=source_id,
+            source_span=source_span,
+            source_wording=wording,
+        )
+        occurrences.append(
+            RequirementOccurrence(
+                occurrence_id=occurrence_id,
+                category=category,
+                required=bool(raw.get("required", category != "preferred")),
+                source_requirement_id=source_id,
+                source_span=source_span,
+                source_wording=wording,
+                qualifiers=dict(qualifiers),
+                compound_operator=compound_operator,
+                child_occurrence_ids=children,
+            )
+        )
+    return occurrences
 
 
 @dataclass(frozen=True)

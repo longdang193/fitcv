@@ -12464,6 +12464,47 @@ def query_runs(
     }
 
 
+def query_shortlist_admission_decisions(
+    run_id: str,
+    *,
+    page: int = 1,
+    page_size: int = 50,
+    search: str = "",
+) -> dict[str, Any]:
+    """Return the complete shortlist decision envelope, including exclusions."""
+    if page_size not in {10, 20, 50, 100}:
+        raise ValueError("page_size must be 10, 20, 50, or 100")
+    page_number = max(1, int(page))
+    pattern = f"%{str(search or '').strip()}%"
+    with _sqlite_connection(Path(_local_sqlite_path()), read_only=True) as conn:
+        conn.row_factory = sqlite3.Row
+        _require_control_plane_schema(conn)
+        table_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='shortlist_admission_ledger'"
+        ).fetchone()
+        if table_exists is None:
+            return {"items": [], "total": 0, "page": page_number, "page_size": page_size}
+        where = "run_id = ? AND (job_url LIKE ? OR job_identity LIKE ?)"
+        params: list[Any] = [run_id, pattern, pattern]
+        total = int(conn.execute(f"SELECT COUNT(*) FROM shortlist_admission_ledger WHERE {where}", params).fetchone()[0])
+        offset = (page_number - 1) * page_size
+        rows = conn.execute(
+            f"SELECT * FROM shortlist_admission_ledger WHERE {where} ORDER BY admitted DESC, admission_rank ASC, job_identity ASC LIMIT ? OFFSET ?",
+            [*params, page_size, offset],
+        ).fetchall()
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        raw_decision = item.get("decision_json")
+        if raw_decision:
+            try:
+                item["coverage"] = json.loads(raw_decision)
+            except (TypeError, ValueError):
+                item["coverage"] = None
+        items.append(item)
+    return {"items": items, "total": total, "page": page_number, "page_size": page_size}
+
+
 def reserve_idempotent_action(scope: str, key: str, fingerprint: str) -> dict[str, Any]:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         _ensure_control_plane_schema(conn)
