@@ -613,6 +613,13 @@ def test_load_config_includes_cv_defaults() -> None:
     assert cfg["cv"]["generation"]["prompt_version"] == "v1"
 
 
+def test_load_config_uses_promoted_requirement_aware_shortlist() -> None:
+    cfg = load_config()
+
+    assert cfg["pipeline"]["shortlist_strategy"] == "core_pareto_evidence_v1"
+    assert cfg["pipeline"]["shortlist_policy"] == "requirement_aware_v1"
+
+
 def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:
     """A config without cv.yaml keys should raise ValueError after loader validation."""
     isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"

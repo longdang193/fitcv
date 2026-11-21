@@ -174,6 +174,12 @@ Promotion metrics are generated separately from runtime admission with
 frozen legacy baselines produce a blocked artifact; they are not treated as
 passing or zero-valued metrics.
 
+If production is switched while that artifact is blocked, record the explicit
+operator override in a promotion-decision artifact. The override changes the
+runtime selector only; it does not change the recorded gate results or close
+the evidence task. The rollback target is `legacy_retrieval_v1` with
+`legacy_production_v1`.
+
 Collector example:
 
 - local collector endpoint: `http://localhost:4318/v1/traces`
