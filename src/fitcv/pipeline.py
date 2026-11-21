@@ -4104,6 +4104,59 @@ def run_pipeline(
                 shortlist_urls = set(unique_job_urls(shortlist))
                 requirement_aware_admission = shortlist_diagnostics.get("shortlist_strategy") == "core_pareto_evidence_v1"
                 admission_rows = list((state.get("shortlist_admission_manifest") or {}).get("rows") or []) if requirement_aware_admission else []
+                if not requirement_aware_admission:
+                    normalized_by_url = {
+                        str(row.get("job_url") or "").strip(): row
+                        for row in normalized
+                        if str(row.get("job_url") or "").strip()
+                    }
+                    input_index_by_url = {
+                        str(row.get("job_url") or "").strip(): index
+                        for index, row in enumerate(normalized)
+                        if str(row.get("job_url") or "").strip()
+                    }
+                    enriched_by_url = {
+                        str(row.get("job_url") or "").strip(): row
+                        for row in enriched
+                        if str(row.get("job_url") or "").strip()
+                    }
+
+                    def admission_source_row(
+                        job_url: str,
+                        fallback: dict[str, Any] | None = None,
+                    ) -> dict[str, Any]:
+                        source_row = dict(normalized_by_url.get(job_url) or {})
+                        source_row.update(enriched_by_url.get(job_url) or {})
+                        source_row.update(fallback or {})
+                        if not source_row.get("raw_job_fingerprint") and source_row:
+                            source_row["raw_job_fingerprint"] = build_raw_job_fingerprint(source_row)["fingerprint"]
+                        return source_row
+
+                    provenance_fields = (
+                        "source_provider", "source_job_id", "raw_job_fingerprint",
+                        "description_quality", "description_source", "description_complete",
+                        "description_source_checksum", "description_source_length",
+                        "description_boundary", "enrich_reuse_status",
+                    )
+                    for rejected, status, prefix in (
+                        *[(item, "rejected_before_enrichment", "pre_enrichment_filter:") for item in pre_filter_rejected_jobs],
+                        *[(item, "rejected_before_shortlist", "candidate_filter:") for item in candidate_filter_rejected_jobs],
+                    ):
+                        job_url = str(rejected.get("job_url") or "").strip()
+                        source_row = admission_source_row(job_url, rejected)
+                        reasons = ",".join(str(reason) for reason in list(rejected.get("reasons") or []))
+                        admission_rows.append(
+                            {
+                                "identity": primary_job_identity_key(source_row) or job_url,
+                                "job_url": job_url,
+                                "input_index": input_index_by_url.get(job_url),
+                                "shortlist_status": status,
+                                "raw_hit_present": False,
+                                "admission_reason": None,
+                                "exclusion_reason": prefix + reasons,
+                                **{field_name: source_row.get(field_name) for field_name in provenance_fields},
+                            }
+                        )
                 for input_index, job in enumerate(passed_jobs):
                     if requirement_aware_admission:
                         continue
@@ -4160,6 +4213,9 @@ def run_pipeline(
                     "assessment_fingerprint": shortlist_diagnostics.get("assessment_fingerprint"),
                     "counts": {
                         "eligible": len(passed_jobs),
+                        "total_candidates": len(admission_rows),
+                        "rejected_before_enrichment": len(pre_filter_rejected_jobs) if not requirement_aware_admission else 0,
+                        "rejected_before_shortlist": len(candidate_filter_rejected_jobs) if not requirement_aware_admission else 0,
                         "raw_retrieved": len(raw_shortlist_urls),
                         "admitted": len(shortlist_urls),
                         "not_admitted": sum(

@@ -88,10 +88,15 @@ def _validate_checkpoint_shortlist_policy(
     if not config:
         return
     diagnostics = payload.get("shortlist_diagnostics")
-    if not isinstance(diagnostics, dict):
-        return
-    persisted_strategy = str(diagnostics.get("shortlist_strategy") or "").strip()
-    persisted_policy = str(diagnostics.get("eligibility_policy") or "").strip()
+    manifest = payload.get("shortlist_admission_manifest")
+    diagnostics = diagnostics if isinstance(diagnostics, dict) else {}
+    manifest = manifest if isinstance(manifest, dict) else {}
+    persisted_strategy = str(
+        diagnostics.get("shortlist_strategy") or manifest.get("strategy") or ""
+    ).strip()
+    persisted_policy = str(
+        diagnostics.get("eligibility_policy") or manifest.get("eligibility_policy") or ""
+    ).strip()
     if not persisted_strategy and not persisted_policy:
         return
     current_strategy = resolve_shortlist_strategy(config)

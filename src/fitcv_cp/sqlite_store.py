@@ -12488,8 +12488,18 @@ def query_shortlist_admission_decisions(
         params: list[Any] = [run_id, pattern, pattern]
         total = int(conn.execute(f"SELECT COUNT(*) FROM shortlist_admission_ledger WHERE {where}", params).fetchone()[0])
         offset = (page_number - 1) * page_size
+        columns = {
+            str(row[1])
+            for row in conn.execute("PRAGMA table_info(shortlist_admission_ledger)")
+        }
+        order_by = []
+        if "admitted" in columns:
+            order_by.append("admitted DESC")
+        if "admission_rank" in columns:
+            order_by.append("admission_rank ASC")
+        order_by.append("job_identity ASC" if "job_identity" in columns else "job_url ASC")
         rows = conn.execute(
-            f"SELECT * FROM shortlist_admission_ledger WHERE {where} ORDER BY admitted DESC, admission_rank ASC, job_identity ASC LIMIT ? OFFSET ?",
+            f"SELECT * FROM shortlist_admission_ledger WHERE {where} ORDER BY {', '.join(order_by)} LIMIT ? OFFSET ?",
             [*params, page_size, offset],
         ).fetchall()
     items: list[dict[str, Any]] = []

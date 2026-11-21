@@ -155,6 +155,11 @@ def assess_requirement_occurrences(
     occurrence_list = list(occurrences)
     evidence_list = list(evidence)
     by_id = {item.occurrence_id: item for item in occurrence_list}
+    compound_child_ids = {
+        child_id
+        for occurrence in occurrence_list
+        for child_id in occurrence.child_occurrence_ids
+    }
     results: dict[str, dict[str, Any]] = {}
 
     def assess(occurrence: RequirementOccurrence, stack: tuple[str, ...] = ()) -> dict[str, Any]:
@@ -177,6 +182,7 @@ def assess_requirement_occurrences(
                 "contradiction": contradiction,
                 "qualifier_failure": any(result["qualifier_failure"] for result in child_results),
                 "provenance": provenance,
+                "compound_child": occurrence.occurrence_id in compound_child_ids,
             }
             results[occurrence.occurrence_id] = result
             return result
@@ -191,6 +197,7 @@ def assess_requirement_occurrences(
             "contradiction": any(_is_contradiction(item) for item in matches),
             "qualifier_failure": any(_norm(item.get("qualifier_status")) in {"contradicted", "qualifier_failure", "failed"} for item in matches),
             "provenance": min((_provenance(item) for item in matches), default=0),
+            "compound_child": occurrence.occurrence_id in compound_child_ids,
         }
         results[occurrence.occurrence_id] = result
         return result
@@ -199,7 +206,12 @@ def assess_requirement_occurrences(
 
 
 def _category_summary(results: list[Mapping[str, Any]], category: str) -> dict[str, Any]:
-    values = [result for result in results if str(result.get("category") or "") == category]
+    values = [
+        result
+        for result in results
+        if str(result.get("category") or "") == category
+        and not result.get("compound_child")
+    ]
     counts = {"supported": 0, "partial": 0, "not_evidenced": 0, "unknown": 0}
     for result in values:
         state = str(result.get("state") or "U")
@@ -212,7 +224,12 @@ def build_coverage_summary(results: Iterable[Mapping[str, Any]]) -> dict[str, An
     rows = [dict(result) for result in results]
     categories = {category: _category_summary(rows, category) for category in ("required", "duties", "preferred")}
     active_core = [categories[category] for category in ("required", "duties") if categories[category]["active"]]
-    active_results = [result for result in rows if str(result.get("category") or "") in {"required", "duties", "preferred"}]
+    active_results = [
+        result
+        for result in rows
+        if str(result.get("category") or "") in {"required", "duties", "preferred"}
+        and not result.get("compound_child")
+    ]
     total = len(active_results)
     supported = sum(str(result.get("state")) == "S" for result in active_results)
     partial = sum(str(result.get("state")) == "P" for result in active_results)
@@ -371,20 +388,43 @@ def build_requirement_aware_rows(
         occurrences = build_requirement_occurrences(job, job_identity=identity)
         job_evidence = evidence_map.get(identity, [])
         if not job_evidence and isinstance(job.get("requirement_coverage"), list):
-            job_evidence = [
-                {
-                    "occurrence_id": item.get("occurrence_id") or item.get("requirement_id") or item.get("source_requirement_id"),
-                    "requirement_id": item.get("requirement_id"),
-                    "support_status": item.get("status") or item.get("support_status"),
-                    "qualifier_status": item.get("qualifier_status"),
-                    "evidence_id": evidence_id,
-                    "reviewed": item.get("reviewed", True),
-                    "contradiction": item.get("contradicted") or item.get("contradiction"),
-                }
-                for item in job.get("requirement_coverage")
-                if isinstance(item, Mapping)
-                for evidence_id in [item.get("evidence_id") or ((item.get("evidence_refs") or [None])[0])]
-            ]
+            job_evidence = []
+            for item in job.get("requirement_coverage"):
+                if not isinstance(item, Mapping):
+                    continue
+                requirement_id = (
+                    item.get("occurrence_id")
+                    or item.get("requirement_instance_id")
+                    or item.get("requirement_id")
+                    or item.get("source_requirement_id")
+                )
+                status = _norm(item.get("selected_support") or item.get("status") or item.get("support_status"))
+                if status in {"relevant_unverified", "qualifier_only"}:
+                    support_status = "partial"
+                else:
+                    support_status = status or "unknown"
+                evidence_ids = [
+                    str(evidence_id).strip()
+                    for evidence_id in (
+                        list(item.get("supporting_evidence_ids") or [])
+                        + list(item.get("pool_supporting_evidence_ids") or [])
+                        + list(item.get("evidence_refs") or [])
+                    )
+                    if str(evidence_id).strip()
+                ] or [str(item.get("evidence_id") or "").strip()]
+                for evidence_id in dict.fromkeys(evidence_ids):
+                    job_evidence.append(
+                        {
+                            "occurrence_id": requirement_id,
+                            "requirement_id": item.get("requirement_id"),
+                            "support_status": support_status,
+                            "qualifier_status": item.get("qualifier_status"),
+                            "evidence_id": evidence_id or None,
+                            "reviewed": item.get("reviewed", True),
+                            "verified": status in {"verified", "not_selected"},
+                            "contradiction": item.get("contradicted") or item.get("contradiction"),
+                        }
+                    )
         assessments = assess_requirement_occurrences(occurrences, job_evidence, assessment_complete=assessment_complete)
         rows.append({**dict(job), "canonical_job_identity": identity, "coverage": build_coverage_summary(assessments)})
     return rows

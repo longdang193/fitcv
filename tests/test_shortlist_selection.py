@@ -10,6 +10,7 @@ from fitcv.shortlist_selection import (
     assess_requirement_occurrences,
     build_coverage_summary,
     build_pareto_fronts,
+    build_requirement_aware_rows,
     select_requirement_aware_jobs,
 )
 
@@ -294,3 +295,64 @@ def test_requirement_aware_admission_fixture_exercises_capacity_overflow() -> No
     assert len(result["admitted"]) == 50
     assert len(result["non_admitted"]) == 1
     assert result["non_admitted"][0]["exclusion_reason"] == "capacity_exceeded"
+
+
+def test_nested_compound_children_are_not_counted_as_active_requirements() -> None:
+    occurrences = build_requirement_occurrences(
+        {
+            "job_url": "nested-compound",
+            "requirement_occurrences": [
+                {
+                    "occurrence_id": "outer",
+                    "category": "required",
+                    "source_wording": "A and (B or C)",
+                    "compound_operator": "AND",
+                    "child_occurrence_ids": ["leaf-a", "inner"],
+                },
+                {
+                    "occurrence_id": "inner",
+                    "category": "required",
+                    "source_wording": "B or C",
+                    "compound_operator": "OR",
+                    "child_occurrence_ids": ["leaf-b", "leaf-c"],
+                },
+                {"occurrence_id": "leaf-a", "category": "required", "source_wording": "A"},
+                {"occurrence_id": "leaf-b", "category": "required", "source_wording": "B"},
+                {"occurrence_id": "leaf-c", "category": "required", "source_wording": "C"},
+            ],
+        }
+    )
+    assessments = assess_requirement_occurrences(
+        occurrences,
+        [
+            {"occurrence_id": "leaf-a", "support_status": "supported", "evidence_id": "a"},
+            {"occurrence_id": "leaf-b", "support_status": "supported", "evidence_id": "b"},
+        ],
+    )
+
+    summary = build_coverage_summary(assessments)
+    assert summary["required"]["total"] == 1
+    assert summary["required"]["ratio"] == 1.0
+
+
+def test_legacy_requirement_coverage_preserves_all_support_evidence_ids() -> None:
+    rows = build_requirement_aware_rows(
+        [
+            {
+                "job_url": "legacy-coverage",
+                "requirement_occurrences": [
+                    {"occurrence_id": "req-1", "category": "duties", "source_wording": "Coordinate stakeholders"}
+                ],
+                "requirement_coverage": [
+                    {
+                        "requirement_id": "req-1",
+                        "selected_support": "verified",
+                        "supporting_evidence_ids": ["ev-a", "ev-b"],
+                    }
+                ],
+            }
+        ]
+    )
+
+    assert rows[0]["coverage"]["duties"]["ratio"] == 1.0
+    assert rows[0]["coverage"]["evidence_validity_provenance"] == 1

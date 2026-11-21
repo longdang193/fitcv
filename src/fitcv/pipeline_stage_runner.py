@@ -244,6 +244,11 @@ def execute_rule_filter_stage(
             reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
         state["passed_jobs"] = passed_jobs
         state["candidate_filter_rejected_jobs"] = candidate_filter_rejected_jobs
+        state["recall_safe_evaluation_pool"] = build_recall_safe_evaluation_pool(
+            enriched,
+            passed_jobs,
+            candidate_filter_rejected_jobs,
+        )
         set_span_attributes(
             {
                 "candidate_skills": len(candidate_skill_names),
@@ -276,7 +281,7 @@ def execute_shortlist_stage(
             run_id=run_id,
             state=state,
             profile=profile,
-            passed_jobs=passed_jobs,
+            passed_jobs=list(state.get("recall_safe_evaluation_pool") or passed_jobs),
             config=config,
             reporter=reporter,
             pipeline_store=pipeline_store,
@@ -1053,6 +1058,26 @@ def _execute_requirement_aware_shortlist_stage(
                             "provenance_grade": 2,
                         }
                     )
+            responsibility_support = dict(
+                (bundle.get("requirement_support") or {}).get("responsibility") or {}
+            )
+            for support_scope in ("pool", "selected"):
+                for requirement_id, evidence_ids in dict(
+                    responsibility_support.get(support_scope) or {}
+                ).items():
+                    for evidence_id in evidence_ids:
+                        rows.append(
+                            {
+                                "requirement_id": requirement_id,
+                                "supported_requirement_ids": [requirement_id],
+                                "support_status": "supported",
+                                "qualifier_status": "supported",
+                                "evidence_id": evidence_id,
+                                "reviewed": True,
+                                "verified": True,
+                                "provenance_grade": 2,
+                            }
+                        )
             evidence_by_job[identity] = rows
         except Exception:
             assessment_failures += 1

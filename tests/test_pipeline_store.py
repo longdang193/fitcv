@@ -1,6 +1,7 @@
 import json
 import sqlite3
 
+from fitcv_cp import sqlite_store
 from fitcv.pipeline_store import (
     PipelineStore,
     persist_shortlist_admission_ledger,
@@ -337,3 +338,31 @@ def test_shortlist_score_updates_skip_ambiguous_url_only_ranked_rows(
         ).fetchall()
 
     assert stored == [("run:job-1", None), ("run:job-2", None)]
+
+
+def test_admission_query_works_without_admission_rank_column(monkeypatch, tmp_path) -> None:
+    sqlite_path = tmp_path / "pipeline.sqlite3"
+    with sqlite3.connect(sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE shortlist_admission_ledger (
+                run_id TEXT NOT NULL,
+                job_identity TEXT NOT NULL,
+                job_url TEXT NOT NULL,
+                admitted INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO shortlist_admission_ledger VALUES (?, ?, ?, ?)",
+            ("run-1", "job-1", "https://example.com/job-1", 1),
+        )
+        conn.commit()
+
+    monkeypatch.setattr(sqlite_store, "_local_sqlite_path", lambda: str(sqlite_path))
+    monkeypatch.setattr(sqlite_store, "_require_control_plane_schema", lambda _conn: None)
+
+    result = sqlite_store.query_shortlist_admission_decisions("run-1")
+
+    assert result["total"] == 1
+    assert result["items"][0]["job_identity"] == "job-1"
