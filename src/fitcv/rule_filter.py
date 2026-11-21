@@ -53,6 +53,18 @@ DEFAULT_SELECTED_RULE_FILTERS: list[str] = [
     str(item["code"]) for item in RULE_FILTER_SIGNALS if bool(item["default_selected"])
 ]
 KNOWN_RULE_FILTER_SIGNAL_CODES: set[str] = set(RULE_FILTER_SIGNAL_LABELS)
+SHORTLIST_ELIGIBILITY_POLICY_VERSION = "shortlist_eligibility_matrix_v1"
+SHORTLIST_SOFT_FILTER_REASONS = frozenset(
+    {"missing_fit_context", "must_have_skill_missing", "domain_not_preferred"}
+)
+
+
+def shortlist_filter_disposition(reasons: list[str] | tuple[str, ...] | set[str]) -> str:
+    """Classify rule-filter reasons for requirement-aware evaluation pooling."""
+    normalized = {str(reason).strip() for reason in reasons if str(reason).strip()}
+    if normalized and normalized.issubset(SHORTLIST_SOFT_FILTER_REASONS):
+        return "soft_exclusion"
+    return "hard_exclusion"
 
 
 # ── built-in fallbacks (used when config is not passed) ───────────────────────

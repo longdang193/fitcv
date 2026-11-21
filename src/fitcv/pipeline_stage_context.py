@@ -24,6 +24,8 @@ from fitcv.ranking_contract import adapt_legacy_ranking_row, resolve_fit_label_f
 from fitcv.config import (
     CHECKPOINT_RETRIEVAL_STRATEGIES,
     MIXED_FALLBACK_RETRIEVAL_STRATEGY,
+    resolve_shortlist_policy,
+    resolve_shortlist_strategy,
 )
 
 
@@ -79,6 +81,38 @@ def _validate_checkpoint_retrieval_strategy(payload: dict[str, Any]) -> None:
         )
 
 
+def _validate_checkpoint_shortlist_policy(
+    payload: dict[str, Any],
+    config: dict[str, Any] | None,
+) -> None:
+    if not config:
+        return
+    diagnostics = payload.get("shortlist_diagnostics")
+    manifest = payload.get("shortlist_admission_manifest")
+    diagnostics = diagnostics if isinstance(diagnostics, dict) else {}
+    manifest = manifest if isinstance(manifest, dict) else {}
+    persisted_strategy = str(
+        diagnostics.get("shortlist_strategy") or manifest.get("strategy") or ""
+    ).strip()
+    persisted_policy = str(
+        diagnostics.get("eligibility_policy") or manifest.get("eligibility_policy") or ""
+    ).strip()
+    if not persisted_strategy and not persisted_policy:
+        return
+    current_strategy = resolve_shortlist_strategy(config)
+    current_policy = resolve_shortlist_policy(config, strategy=current_strategy)
+    if persisted_strategy and persisted_strategy != current_strategy:
+        raise ValueError(
+            "Checkpoint shortlist strategy mismatch: "
+            f"persisted={persisted_strategy!r}, configured={current_strategy!r}"
+        )
+    if persisted_policy and persisted_policy != current_policy:
+        raise ValueError(
+            "Checkpoint shortlist eligibility policy mismatch: "
+            f"persisted={persisted_policy!r}, configured={current_policy!r}"
+        )
+
+
 @dataclass
 class PipelineState:
     CHECKPOINT_SCHEMA_VERSION: ClassVar[int] = 1
@@ -91,6 +125,7 @@ class PipelineState:
     enrich_llm_runtime_observations: list[dict[str, Any]] = field(default_factory=list)
     passed_jobs: list[dict[str, Any]] = field(default_factory=list)
     candidate_filter_rejected_jobs: list[dict[str, Any]] = field(default_factory=list)
+    recall_safe_evaluation_pool: list[dict[str, Any]] = field(default_factory=list)
     raw_shortlist: list[dict[str, Any]] = field(default_factory=list)
     shortlist: list[dict[str, Any]] = field(default_factory=list)
     shortlist_diagnostics: dict[str, Any] = field(default_factory=dict)
@@ -122,6 +157,7 @@ class PipelineState:
         if isinstance(root_payload.get("checkpoint_payload"), dict):
             payload = dict(root_payload["checkpoint_payload"])
         _validate_checkpoint_retrieval_strategy(payload)
+        _validate_checkpoint_shortlist_policy(payload, ranking_config)
 
         schema_version = root_payload.get("schema_version", payload.get("schema_version"))
         if schema_version is not None:
@@ -198,6 +234,7 @@ class PipelineState:
             "enrich_llm_runtime_observations",
             "passed_jobs",
             "candidate_filter_rejected_jobs",
+            "recall_safe_evaluation_pool",
             "raw_shortlist",
             "shortlist",
             "shortlist_diagnostics",
@@ -227,6 +264,7 @@ class PipelineState:
             "enrich_llm_runtime_observations": list(self.enrich_llm_runtime_observations),
             "passed_jobs": list(self.passed_jobs),
             "candidate_filter_rejected_jobs": list(self.candidate_filter_rejected_jobs),
+            "recall_safe_evaluation_pool": list(self.recall_safe_evaluation_pool),
             "raw_shortlist": list(self.raw_shortlist),
             "shortlist": list(self.shortlist),
             "shortlist_diagnostics": dict(self.shortlist_diagnostics),

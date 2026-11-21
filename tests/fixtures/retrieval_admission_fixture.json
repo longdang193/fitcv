@@ -7,6 +7,28 @@
     "ai_score_top_n": 50,
     "scorer_request_limit_chars": 12000
   },
+  "shortlist_policy_matrix": {
+    "policy_version": "shortlist_eligibility_matrix_v1",
+    "legacy_production_v1": {
+      "missing_fit_context": "hard",
+      "unknown_metadata": "retain_with_diagnostic"
+    },
+    "requirement_aware_v1": {
+      "missing_fit_context": "soft_exclusion_for_evaluation_pool",
+      "unknown_metadata": "retain_with_diagnostic"
+    },
+    "shadow": {
+      "legacy_production_v1": "authoritative_downstream_input",
+      "requirement_aware_v1": "non_authoritative_comparison"
+    }
+  },
+  "regression_cases": {
+    "missing_fit_context_and_unknown_metadata": {
+      "legacy_production_v1": "hard_filter_or_diagnostic",
+      "requirement_aware_v1": "retain_in_recall_safe_pool",
+      "shadow": "compare_without_changing_legacy_downstream_input"
+    }
+  },
   "profiles": {
     "data_platform": {
       "profile": {

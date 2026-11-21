@@ -160,6 +160,20 @@ Runtime toggles:
 - `control_plane.observability.emit_model_routing_diagnostics` (runtime routing event toggle)
 - `control_plane.observability.emit_backend_capability_diagnostics` (backend diagnostics event toggle)
 
+Shortlist admission diagnostics are persisted per run. The durable ledger keeps
+both admitted and non-admitted rows with the selector strategy, eligibility
+policy, policy version, evaluation-pool and assessment fingerprints, coverage
+states, Pareto front, admission rank, and decision reason. `shortlist_diagnostics`
+and checkpoint manifests may contain bounded samples for fast inspection; use
+`GET /runs/{run_id}/shortlist-admissions` (or the store
+`query_shortlist_admission_decisions()` API) for complete results. Shadow comparison is
+non-authoritative and must not change legacy downstream inputs.
+
+Promotion metrics are generated separately from runtime admission with
+`scripts/evaluate_requirement_aware_shortlisting.py`. Missing reviewed labels or
+frozen legacy baselines produce a blocked artifact; they are not treated as
+passing or zero-valued metrics.
+
 Collector example:
 
 - local collector endpoint: `http://localhost:4318/v1/traces`

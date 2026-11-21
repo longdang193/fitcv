@@ -18,14 +18,22 @@ lifecycle:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from copy import deepcopy
 from typing import Any, Callable
 
 from fitcv.fit_factors import build_candidate_fit_context
-from fitcv.config import resolve_retrieval_strategy
+from fitcv.config import (
+    resolve_retrieval_strategy,
+    resolve_shortlist_policy,
+    resolve_shortlist_shadow_enabled,
+    resolve_shortlist_strategy,
+)
 from fitcv.ai_score import build_ranking_input_diagnostics, build_ranking_job_input
-from fitcv.evidence import build_evidence_projection, select_ranking_evidence
+from fitcv.evidence import build_evidence_projection, retrieve_evidence_bundle, select_ranking_evidence
+from fitcv.rule_filter import SHORTLIST_ELIGIBILITY_POLICY_VERSION, shortlist_filter_disposition
 from fitcv.semantic_snapshot import compile_semantic_policy
 from fitcv.pipeline_stages.common import primary_job_identity_key
 from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
@@ -236,6 +244,11 @@ def execute_rule_filter_stage(
             reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
         state["passed_jobs"] = passed_jobs
         state["candidate_filter_rejected_jobs"] = candidate_filter_rejected_jobs
+        state["recall_safe_evaluation_pool"] = build_recall_safe_evaluation_pool(
+            enriched,
+            passed_jobs,
+            candidate_filter_rejected_jobs,
+        )
         set_span_attributes(
             {
                 "candidate_skills": len(candidate_skill_names),
@@ -263,6 +276,17 @@ def execute_shortlist_stage(
     unique_job_urls: Callable[[list[dict[str, Any]]], list[str]],
     raw_shortlist_anomaly_urls: Callable[[list[dict[str, Any]], list[dict[str, Any]]], list[str]],
 ) -> tuple[list[dict[str, Any]], str, dict[str, Any], dict[str, Any]]:
+    if resolve_shortlist_strategy(config) == "core_pareto_evidence_v1":
+        return _execute_requirement_aware_shortlist_stage(
+            run_id=run_id,
+            state=state,
+            profile=profile,
+            passed_jobs=list(state.get("recall_safe_evaluation_pool") or passed_jobs),
+            config=config,
+            reporter=reporter,
+            pipeline_store=pipeline_store,
+            set_span_attributes=set_span_attributes,
+        )
     with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
         effective_strategy = resolve_retrieval_strategy(config)
         if effective_strategy != "lexical_v1":
@@ -985,3 +1009,210 @@ def emit_cv_generation_result_event(
             cost=cost,
         ),
     )  # type: ignore[union-attr]
+def _execute_requirement_aware_shortlist_stage(
+    *,
+    run_id: str,
+    state: dict[str, Any],
+    profile: dict[str, Any],
+    passed_jobs: list[dict[str, Any]],
+    config: dict[str, Any],
+    reporter: Any | None,
+    pipeline_store: Any,
+    set_span_attributes: Callable[[dict[str, Any]], None],
+    persist: bool = True,
+) -> tuple[list[dict[str, Any]], str, dict[str, Any], dict[str, Any]]:
+    from fitcv.shortlist_selection import build_requirement_aware_rows, select_requirement_aware_jobs
+
+    evidence_by_job: dict[str, list[dict[str, Any]]] = {}
+    evidence_projection = build_evidence_projection(profile)
+    assessment_failures = 0
+    for job in passed_jobs:
+        identity = str(job.get("canonical_job_identity") or job.get("job_url") or "").strip()
+        if isinstance(job.get("requirement_coverage"), list) and job.get("requirement_coverage"):
+            evidence_by_job[identity] = []
+            continue
+        try:
+            bundle = retrieve_evidence_bundle(
+                profile,
+                job,
+                max(3, len(evidence_projection.get("items") or [])),
+                config=config,
+                evidence_projection=evidence_projection,
+            )
+            assessment_items = [
+                *(bundle.get("selected_evidence") or []),
+                *(bundle.get("unselected_top_candidates") or []),
+            ]
+            rows: list[dict[str, Any]] = []
+            for item in assessment_items:
+                evidence_id = str(item.get("evidence_id") or "").strip()
+                for requirement_id, assessment in dict(item.get("requirement_assessments") or {}).items():
+                    rows.append(
+                        {
+                            "requirement_id": requirement_id,
+                            "support_status": "supported" if assessment.get("qualified_support") else "partial" if assessment.get("canonical_match") else "unsupported",
+                            "qualifier_status": assessment.get("qualifier_status"),
+                            "evidence_id": evidence_id,
+                            "reviewed": True,
+                            "contradiction": assessment.get("qualifier_status") == "contradicted",
+                            "provenance_grade": 2,
+                        }
+                    )
+            responsibility_support = dict(
+                (bundle.get("requirement_support") or {}).get("responsibility") or {}
+            )
+            for support_scope in ("pool", "selected"):
+                for requirement_id, evidence_ids in dict(
+                    responsibility_support.get(support_scope) or {}
+                ).items():
+                    for evidence_id in evidence_ids:
+                        rows.append(
+                            {
+                                "requirement_id": requirement_id,
+                                "supported_requirement_ids": [requirement_id],
+                                "support_status": "supported",
+                                "qualifier_status": "supported",
+                                "evidence_id": evidence_id,
+                                "reviewed": True,
+                                "verified": True,
+                                "provenance_grade": 2,
+                            }
+                        )
+            evidence_by_job[identity] = rows
+        except Exception:
+            assessment_failures += 1
+            evidence_by_job[identity] = []
+
+    rows = build_requirement_aware_rows(
+        passed_jobs,
+        evidence_by_job,
+        assessment_complete=assessment_failures == 0,
+    )
+    decision = select_requirement_aware_jobs(rows)
+    assessment_input = {
+        "profile_revision": str(profile.get("revision") or ""),
+        "evidence_projection_fingerprint": str(evidence_projection.get("fingerprint") or ""),
+        "requirement_contract_version": decision["requirement_contract_version"],
+        "retrieval_strategy": resolve_retrieval_strategy(config),
+        "eligibility_policy": resolve_shortlist_policy(config, strategy="core_pareto_evidence_v1"),
+        "eligibility_policy_version": SHORTLIST_ELIGIBILITY_POLICY_VERSION,
+        "policy_version": decision["policy_version"],
+    }
+    assessment_input_fingerprint = hashlib.sha256(
+        json.dumps(assessment_input, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    admitted = []
+    for row in decision["admitted"]:
+        admitted.append(
+            {
+                **row,
+                "shortlist_origin": "requirement_aware",
+                "shortlist_status": "shortlist_admitted",
+                "admission_capacity": decision["admission_capacity"],
+                "shortlist_strategy": "core_pareto_evidence_v1",
+                "eligibility_policy": resolve_shortlist_policy(config, strategy="core_pareto_evidence_v1"),
+            }
+        )
+    if persist:
+        pipeline_store.store_shortlist(admitted, config)
+    ledger_rows = [
+        {
+            **row,
+            "identity": row.get("canonical_job_identity") or row.get("job_url"),
+            "job_url": row.get("job_url"),
+            "shortlist_status": "shortlist_admitted" if row.get("admitted") else "not_admitted",
+            "raw_hit_present": False,
+            "admission_reason": row.get("admission_reason"),
+            "exclusion_reason": row.get("exclusion_reason"),
+            "shortlist_strategy": "core_pareto_evidence_v1",
+            "eligibility_policy": resolve_shortlist_policy(config, strategy="core_pareto_evidence_v1"),
+            "policy_version": decision["policy_version"],
+            "evaluation_pool_id": decision["evaluation_pool_id"],
+            "admission_capacity": decision["admission_capacity"],
+        }
+        for row in decision["rows"]
+    ]
+    diagnostics = {
+        "shortlist_strategy": "core_pareto_evidence_v1",
+        "eligibility_policy": resolve_shortlist_policy(config, strategy="core_pareto_evidence_v1"),
+        "eligibility_policy_version": SHORTLIST_ELIGIBILITY_POLICY_VERSION,
+        "policy_version": decision["policy_version"],
+        "requirement_contract_version": decision["requirement_contract_version"],
+        "admission_capacity": decision["admission_capacity"],
+        "evaluation_pool_size": len(rows),
+        "evaluation_pool_id": decision["evaluation_pool_id"],
+        "decision_fingerprint": decision["decision_fingerprint"],
+        "assessment_fingerprint": decision["assessment_fingerprint"],
+        "assessment_input": assessment_input,
+        "assessment_input_fingerprint": assessment_input_fingerprint,
+        "assessment_failures": assessment_failures,
+    }
+    persist_ledger = getattr(pipeline_store, "store_shortlist_admission_ledger", None)
+    if persist and persist_ledger is not None:
+        persist_ledger(ledger_rows, diagnostics, run_id, config)
+    state["raw_shortlist"] = admitted
+    state["shortlist"] = admitted
+    state["shortlist_diagnostics"] = diagnostics
+    state["shortlist_admission_manifest"] = {
+        "contract_version": "shortlist_admission_manifest_v2",
+        "strategy": "core_pareto_evidence_v1",
+        "eligibility_policy": diagnostics["eligibility_policy"],
+        "evaluation_pool_id": decision["evaluation_pool_id"],
+        "assessment_fingerprint": decision["assessment_fingerprint"],
+        "assessment_input_fingerprint": assessment_input_fingerprint,
+        "counts": {"eligible": len(rows), "admitted": len(admitted), "not_admitted": len(rows) - len(admitted)},
+        "rows": ledger_rows,
+    }
+    if reporter is not None:
+        reporter.emit("layer3_shortlist", "info", f"Requirement-aware shortlist: {len(admitted)} admitted")  # type: ignore[union-attr]
+    set_span_attributes({"passed_jobs": len(passed_jobs), "shortlist_jobs": len(admitted), "evaluation_pool_jobs": len(rows)})
+    return admitted, "", {}, {}
+
+def build_recall_safe_evaluation_pool(
+    enriched_jobs: list[dict[str, Any]],
+    passed_jobs: list[dict[str, Any]],
+    rejected_jobs: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Retain passed jobs and only soft-filter exclusions for requirement assessment."""
+    passed_by_url = {
+        str(job.get("job_url") or "").strip(): dict(job)
+        for job in passed_jobs
+        if str(job.get("job_url") or "").strip()
+    }
+    rejected_by_url = {
+        str(item.get("job_url") or "").strip(): dict(item)
+        for item in rejected_jobs
+        if str(item.get("job_url") or "").strip()
+    }
+    pool: list[dict[str, Any]] = []
+    for source_job in enriched_jobs:
+        job_url = str(source_job.get("job_url") or "").strip()
+        if not job_url:
+            continue
+        if job_url in passed_by_url:
+            pool.append(
+                {
+                    **passed_by_url[job_url],
+                    "legacy_eligibility": "passed",
+                    "legacy_exclusion_reasons": [],
+                    "evaluation_pool_reason": "legacy_passed",
+                    "eligibility_policy_version": SHORTLIST_ELIGIBILITY_POLICY_VERSION,
+                }
+            )
+            continue
+        rejection = rejected_by_url.get(job_url)
+        reasons = [str(reason) for reason in (rejection or {}).get("reasons", []) if str(reason)]
+        if not reasons or shortlist_filter_disposition(reasons) != "soft_exclusion":
+            continue
+        pool.append(
+            {
+                **dict(source_job),
+                "marks": list((rejection or {}).get("marks") or []),
+                "legacy_eligibility": "excluded",
+                "legacy_exclusion_reasons": reasons,
+                "legacy_excluded": True,
+                "evaluation_pool_reason": "soft_filter_exclusion",
+                "eligibility_policy_version": SHORTLIST_ELIGIBILITY_POLICY_VERSION,
+            }
+        )
+    return pool

@@ -54,6 +54,7 @@ import uuid
 import datetime
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import Any, Callable, cast
 
 from fitcv.ai_score import build_ai_score_input_fingerprint, build_ranking_job_input, run_ai_scoring
@@ -87,6 +88,9 @@ from fitcv.config import (
     get_stage_runtime_concurrency,
     load_config,
     resolve_retrieval_strategy,
+    resolve_shortlist_policy,
+    resolve_shortlist_shadow_enabled,
+    resolve_shortlist_strategy,
     resolve_model_routing_part,
     CHECKPOINT_RETRIEVAL_STRATEGIES,
     MIXED_FALLBACK_RETRIEVAL_STRATEGY,
@@ -144,7 +148,12 @@ from fitcv.enrich import (
 from fitcv.evidence import build_evidence_projection, select_ranking_evidence
 from fitcv.fit_factors import build_candidate_fit_context
 from fitcv.ingest import load_raw_jobs, parse_jobs_file, prepare_raw_rows
-from fitcv.pipeline_stage_runner import execute_ranking_stage, merge_passed_filter_records
+from fitcv.pipeline_stage_runner import (
+    _execute_requirement_aware_shortlist_stage,
+    build_recall_safe_evaluation_pool,
+    execute_ranking_stage,
+    merge_passed_filter_records,
+)
 from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
@@ -3922,6 +3931,11 @@ def run_pipeline(
                     reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
                 state["passed_jobs"] = passed_jobs
                 state["candidate_filter_rejected_jobs"] = candidate_filter_rejected_jobs
+                state["recall_safe_evaluation_pool"] = build_recall_safe_evaluation_pool(
+                    enriched,
+                    passed_jobs,
+                    candidate_filter_rejected_jobs,
+                )
                 set_span_attributes(
                     {
                         "candidate_skills": len(candidate_skill_names),
@@ -3962,21 +3976,89 @@ def run_pipeline(
 
         if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
             with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
-                effective_strategy = resolve_retrieval_strategy(config)
-                if effective_strategy != "lexical_v1":
-                    pipeline_store.embed_and_store_jobs(passed_jobs, config)
-                raw_shortlist_result = run_vector_search(
-                    profile,
-                    [str(job.get("job_url") or "") for job in passed_jobs],
-                    config,
-                    top_n=vector_top_n,
-                    structured_jobs=passed_jobs,
-                    requested_strategy=effective_strategy,
-                )
-                raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
-                shortlist_audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
-                shortlist_diagnostics = dict(raw_shortlist_result.get("diagnostics") or {})
-                candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
+                if resolve_shortlist_strategy(config) == "core_pareto_evidence_v1":
+                    raw_shortlist, _, _, _ = _execute_requirement_aware_shortlist_stage(
+                        run_id=run_id,
+                        state=state,
+                        profile=profile,
+                        passed_jobs=list(state.get("recall_safe_evaluation_pool") or passed_jobs),
+                        config=config,
+                        reporter=reporter,
+                        pipeline_store=pipeline_store,
+                        set_span_attributes=set_span_attributes,
+                    )
+                    shortlist = list(state.get("shortlist") or raw_shortlist)
+                    shortlist_audit_rows = []
+                    shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})
+                    candidate_query_record = {}
+                else:
+                    effective_strategy = resolve_retrieval_strategy(config)
+                    if effective_strategy != "lexical_v1":
+                        pipeline_store.embed_and_store_jobs(passed_jobs, config)
+                    raw_shortlist_result = run_vector_search(
+                        profile,
+                        [str(job.get("job_url") or "") for job in passed_jobs],
+                        config,
+                        top_n=vector_top_n,
+                        structured_jobs=passed_jobs,
+                        requested_strategy=effective_strategy,
+                    )
+                    raw_shortlist = list(raw_shortlist_result.get("production_rows") or [])
+                    shortlist_audit_rows = list(raw_shortlist_result.get("audit_rows") or [])
+                    shortlist_diagnostics = dict(raw_shortlist_result.get("diagnostics") or {})
+                    candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
+                    if resolve_shortlist_shadow_enabled(config):
+                        evaluation_pool = list(state.get("recall_safe_evaluation_pool") or passed_jobs)
+                        if effective_strategy != "lexical_v1":
+                            pipeline_store.embed_and_store_jobs(evaluation_pool, config)
+                        shadow_legacy_result = run_vector_search(
+                            profile,
+                            [str(job.get("job_url") or "") for job in evaluation_pool],
+                            config,
+                            top_n=vector_top_n,
+                            structured_jobs=evaluation_pool,
+                            requested_strategy=effective_strategy,
+                        )
+                        shadow_state: dict[str, Any] = {}
+                        _execute_requirement_aware_shortlist_stage(
+                            run_id=run_id,
+                            state=shadow_state,
+                            profile=profile,
+                            passed_jobs=evaluation_pool,
+                            config={
+                                "pipeline": {
+                                    **dict(config.get("pipeline") or {}),
+                                    "shortlist_strategy": "core_pareto_evidence_v1",
+                                }
+                            },
+                            reporter=None,
+                            pipeline_store=SimpleNamespace(store_shortlist=lambda rows, config: None),
+                            set_span_attributes=lambda attributes: None,
+                            persist=False,
+                        )
+                        shadow_manifest = dict(shadow_state.get("shortlist_admission_manifest") or {})
+                        legacy_shadow_ids = {
+                            str(row.get("job_url") or "")
+                            for row in shadow_legacy_result.get("production_rows") or []
+                        }
+                        requirement_shadow_ids = {
+                            str(row.get("job_url") or "")
+                            for row in shadow_state.get("shortlist") or []
+                        }
+                        shortlist_diagnostics["shadow"] = {
+                            "authoritative": False,
+                            "evaluation_pool_source": "state.recall_safe_evaluation_pool"
+                            if state.get("recall_safe_evaluation_pool")
+                            else "legacy_passed_jobs",
+                            "evaluation_pool_id": shadow_manifest.get("evaluation_pool_id"),
+                            "assessment_fingerprint": (shadow_state.get("shortlist_diagnostics") or {}).get(
+                                "assessment_fingerprint"
+                            ),
+                            "legacy_admitted": len(legacy_shadow_ids),
+                            "requirement_aware_admitted": len(requirement_shadow_ids),
+                            "disagreement_count": len(legacy_shadow_ids ^ requirement_shadow_ids),
+                            "legacy_excluded": sum(1 for row in evaluation_pool if row.get("legacy_excluded")),
+                        }
                 from fitcv.vector_search import (
                     build_candidate_query_components,
                     build_candidate_query_embedding_contract_fingerprint,
@@ -4015,89 +4097,69 @@ def run_pipeline(
                     raise RuntimeError(
                         "Vector shortlist returned zero raw hits for non-empty passed jobs; fail-fast guard active"
                     )
-                shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs)
-                pipeline_store.store_shortlist(shortlist, config)
+                if resolve_shortlist_strategy(config) != "core_pareto_evidence_v1":
+                    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs)
+                    pipeline_store.store_shortlist(shortlist, config)
                 raw_shortlist_urls = set(unique_job_urls(raw_shortlist))
                 shortlist_urls = set(unique_job_urls(shortlist))
-                normalized_by_url = {
-                    str(row.get("job_url") or "").strip(): row
-                    for row in normalized
-                    if str(row.get("job_url") or "").strip()
-                }
-                input_index_by_url = {
-                    str(row.get("job_url") or "").strip(): index
-                    for index, row in enumerate(normalized)
-                    if str(row.get("job_url") or "").strip()
-                }
-                enriched_by_url = {
-                    str(row.get("job_url") or "").strip(): row
-                    for row in enriched
-                    if str(row.get("job_url") or "").strip()
-                }
+                requirement_aware_admission = shortlist_diagnostics.get("shortlist_strategy") == "core_pareto_evidence_v1"
+                admission_rows = list((state.get("shortlist_admission_manifest") or {}).get("rows") or []) if requirement_aware_admission else []
+                if not requirement_aware_admission:
+                    normalized_by_url = {
+                        str(row.get("job_url") or "").strip(): row
+                        for row in normalized
+                        if str(row.get("job_url") or "").strip()
+                    }
+                    input_index_by_url = {
+                        str(row.get("job_url") or "").strip(): index
+                        for index, row in enumerate(normalized)
+                        if str(row.get("job_url") or "").strip()
+                    }
+                    enriched_by_url = {
+                        str(row.get("job_url") or "").strip(): row
+                        for row in enriched
+                        if str(row.get("job_url") or "").strip()
+                    }
 
-                def admission_source_row(
-                    job_url: str,
-                    fallback: dict[str, Any] | None = None,
-                ) -> dict[str, Any]:
-                    source_row = dict(normalized_by_url.get(job_url) or {})
-                    source_row.update(enriched_by_url.get(job_url) or {})
-                    source_row.update(fallback or {})
-                    if not source_row.get("raw_job_fingerprint") and source_row:
-                        source_row["raw_job_fingerprint"] = build_raw_job_fingerprint(source_row)["fingerprint"]
-                    return source_row
+                    def admission_source_row(
+                        job_url: str,
+                        fallback: dict[str, Any] | None = None,
+                    ) -> dict[str, Any]:
+                        source_row = dict(normalized_by_url.get(job_url) or {})
+                        source_row.update(enriched_by_url.get(job_url) or {})
+                        source_row.update(fallback or {})
+                        if not source_row.get("raw_job_fingerprint") and source_row:
+                            source_row["raw_job_fingerprint"] = build_raw_job_fingerprint(source_row)["fingerprint"]
+                        return source_row
 
-                admission_rows = []
-                for rejected in pre_filter_rejected_jobs:
-                    job_url = str(rejected.get("job_url") or "").strip()
-                    source_row = admission_source_row(job_url, rejected)
-                    admission_rows.append(
-                        {
-                            "identity": primary_job_identity_key(source_row) or job_url,
-                            "job_url": job_url,
-                            "input_index": input_index_by_url.get(job_url),
-                            "shortlist_status": "rejected_before_enrichment",
-                            "raw_hit_present": False,
-                            "admission_reason": None,
-                            "exclusion_reason": "pre_enrichment_filter:" + ",".join(
-                                str(reason) for reason in list(rejected.get("reasons") or [])
-                            ),
-                            **{
-                                field_name: source_row.get(field_name)
-                                for field_name in (
-                                    "source_provider", "source_job_id", "raw_job_fingerprint",
-                                    "description_quality", "description_source", "description_complete",
-                                    "description_source_checksum", "description_source_length",
-                                    "description_boundary", "enrich_reuse_status",
-                                )
-                            },
-                        }
+                    provenance_fields = (
+                        "source_provider", "source_job_id", "raw_job_fingerprint",
+                        "description_quality", "description_source", "description_complete",
+                        "description_source_checksum", "description_source_length",
+                        "description_boundary", "enrich_reuse_status",
                     )
-                for rejected in candidate_filter_rejected_jobs:
-                    job_url = str(rejected.get("job_url") or "").strip()
-                    source_row = admission_source_row(job_url, rejected)
-                    admission_rows.append(
-                        {
-                            "identity": primary_job_identity_key(source_row) or job_url,
-                            "job_url": job_url,
-                            "input_index": input_index_by_url.get(job_url),
-                            "shortlist_status": "rejected_before_shortlist",
-                            "raw_hit_present": False,
-                            "admission_reason": None,
-                            "exclusion_reason": "candidate_filter:" + ",".join(
-                                str(reason) for reason in list(rejected.get("reasons") or [])
-                            ),
-                            **{
-                                field_name: source_row.get(field_name)
-                                for field_name in (
-                                    "source_provider", "source_job_id", "raw_job_fingerprint",
-                                    "description_quality", "description_source", "description_complete",
-                                    "description_source_checksum", "description_source_length",
-                                    "description_boundary", "enrich_reuse_status",
-                                )
-                            },
-                        }
-                    )
+                    for rejected, status, prefix in (
+                        *[(item, "rejected_before_enrichment", "pre_enrichment_filter:") for item in pre_filter_rejected_jobs],
+                        *[(item, "rejected_before_shortlist", "candidate_filter:") for item in candidate_filter_rejected_jobs],
+                    ):
+                        job_url = str(rejected.get("job_url") or "").strip()
+                        source_row = admission_source_row(job_url, rejected)
+                        reasons = ",".join(str(reason) for reason in list(rejected.get("reasons") or []))
+                        admission_rows.append(
+                            {
+                                "identity": primary_job_identity_key(source_row) or job_url,
+                                "job_url": job_url,
+                                "input_index": input_index_by_url.get(job_url),
+                                "shortlist_status": status,
+                                "raw_hit_present": False,
+                                "admission_reason": None,
+                                "exclusion_reason": prefix + reasons,
+                                **{field_name: source_row.get(field_name) for field_name in provenance_fields},
+                            }
+                        )
                 for input_index, job in enumerate(passed_jobs):
+                    if requirement_aware_admission:
+                        continue
                     job_url = str(job.get("job_url") or "").strip()
                     shortlist_row = next(
                         (row for row in shortlist if str(row.get("job_url") or "").strip() == job_url),
@@ -4108,7 +4170,7 @@ def run_pipeline(
                             "identity": primary_job_identity_key(job) or job_url,
                             "job_url": job_url,
                             "input_index": input_index,
-                            "shortlist_status": "shortlist_admitted" if job_url in shortlist_urls else "not_returned_in_raw_hits",
+                            "shortlist_status": "shortlist_admitted" if job_url in shortlist_urls else "not_admitted" if requirement_aware_admission else "not_returned_in_raw_hits",
                             "raw_hit_present": job_url in raw_shortlist_urls,
                             "admission_order": next(
                                 (index for index, row in enumerate(shortlist) if str(row.get("job_url") or "").strip() == job_url),
@@ -4123,20 +4185,17 @@ def run_pipeline(
                             "requested_strategy": shortlist_diagnostics.get("requested_strategy"),
                             "effective_strategy": shortlist_diagnostics.get("effective_strategy"),
                             "fusion_fingerprint": shortlist_diagnostics.get("fusion_fingerprint"),
-                            "admission_reason": "within_fused_cutoff" if job_url in shortlist_urls else None,
+                            "admission_reason": str((shortlist_row or {}).get("admission_reason") or ("within_fused_cutoff" if job_url in shortlist_urls else "")) or None,
                             "exclusion_reason": (
-                                "after_fused_cutoff" if job_url in raw_shortlist_urls else "not_returned_in_raw_hits"
+                                str((shortlist_row or {}).get("exclusion_reason") or "capacity_exceeded") if requirement_aware_admission else "after_fused_cutoff" if job_url in raw_shortlist_urls else "not_returned_in_raw_hits"
                             ) if job_url not in shortlist_urls else None,
-                            "source_provider": job.get("source_provider"),
-                            "source_job_id": job.get("source_job_id"),
-                            "raw_job_fingerprint": job.get("raw_job_fingerprint"),
-                            "description_quality": job.get("description_quality"),
-                            "description_source": job.get("description_source"),
-                            "description_complete": job.get("description_complete"),
-                            "description_source_checksum": job.get("description_source_checksum"),
-                            "description_source_length": job.get("description_source_length"),
-                            "description_boundary": job.get("description_boundary"),
-                            "enrich_reuse_status": job.get("enrich_reuse_status"),
+                            "shortlist_strategy": shortlist_diagnostics.get("shortlist_strategy") or "legacy_retrieval_v1",
+                            "eligibility_policy": shortlist_diagnostics.get("eligibility_policy") or "legacy_production_v1",
+                            "evaluation_pool_id": shortlist_diagnostics.get("evaluation_pool_id") or shortlist_diagnostics.get("decision_fingerprint"),
+                            "admission_capacity": shortlist_diagnostics.get("admission_capacity") or 50,
+                            "pareto_front": (shortlist_row or {}).get("pareto_front"),
+                            "admission_rank": (shortlist_row or {}).get("admission_rank"),
+                            "coverage": (shortlist_row or {}).get("coverage"),
                         }
                     )
                 pipeline_store.store_shortlist_admission_ledger(
@@ -4146,14 +4205,22 @@ def run_pipeline(
                     config,
                 )
                 state["shortlist_admission_manifest"] = {
-                    "contract_version": "shortlist_admission_manifest_v1",
+                    "contract_version": "shortlist_admission_manifest_v2" if requirement_aware_admission else "shortlist_admission_manifest_v1",
+                    "strategy": shortlist_diagnostics.get("shortlist_strategy") or "legacy_retrieval_v1",
+                    "eligibility_policy": shortlist_diagnostics.get("eligibility_policy") or "legacy_production_v1",
+                    "evaluation_pool_id": shortlist_diagnostics.get("evaluation_pool_id") or shortlist_diagnostics.get("decision_fingerprint"),
+                    "admission_capacity": shortlist_diagnostics.get("admission_capacity") or 50,
+                    "assessment_fingerprint": shortlist_diagnostics.get("assessment_fingerprint"),
                     "counts": {
                         "eligible": len(passed_jobs),
                         "total_candidates": len(admission_rows),
-                        "rejected_before_enrichment": len(pre_filter_rejected_jobs),
-                        "rejected_before_shortlist": len(candidate_filter_rejected_jobs),
+                        "rejected_before_enrichment": len(pre_filter_rejected_jobs) if not requirement_aware_admission else 0,
+                        "rejected_before_shortlist": len(candidate_filter_rejected_jobs) if not requirement_aware_admission else 0,
                         "raw_retrieved": len(raw_shortlist_urls),
                         "admitted": len(shortlist_urls),
+                        "not_admitted": sum(
+                            1 for row in admission_rows if row["shortlist_status"] == "not_admitted"
+                        ) if requirement_aware_admission else 0,
                         "not_returned": sum(
                             1 for row in admission_rows if row["shortlist_status"] != "shortlist_admitted"
                         ),
@@ -4167,7 +4234,11 @@ def run_pipeline(
                     "rows": admission_rows,
                 }
                 if reporter is not None:
-                    shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
+                    shortlist_message = (
+                        f"Requirement-aware shortlist: {len(shortlist_urls)} admitted"
+                        if requirement_aware_admission
+                        else f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
+                    )
                     reporter.emit("layer3_shortlist", "info", shortlist_message)  # type: ignore[union-attr]
                 state["raw_shortlist"] = raw_shortlist
                 state["shortlist"] = shortlist

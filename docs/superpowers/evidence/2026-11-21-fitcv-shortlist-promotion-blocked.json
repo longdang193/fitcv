@@ -1,0 +1,46 @@
+{
+  "schema_version": "fitcv.shortlist_promotion_evaluation.v1",
+  "generated_at_utc": "2026-11-21T21:05:46Z",
+  "fixture_path": "tests/fixtures/requirement_aware_admission_pool.json",
+  "fixture_sha256": "43028f24bffae0957db11e9afebe05634144655d82b79b138f9f295409b13feb",
+  "profile_revision": "profile-r7",
+  "as_of": "2026-11-21T21:05:46Z",
+  "split_id": "heldout-2026-11-21",
+  "requirement_contract_fingerprint": "requirements-v1",
+  "eligibility_policy_fingerprint": "shortlist-eligibility-v1",
+  "cache_condition": "warm",
+  "metrics": {
+    "recall_at_50": 0.9090909090909091,
+    "legacy_recall_at_50": 0.45454545454545453,
+    "disagreement_count": 5,
+    "determinism": 1,
+    "labeled_occurrences": 0,
+    "evidence_correctness": null,
+    "unknown_rate": null,
+    "observed_wall_clock_ms": 7.334,
+    "p95_latency_ms": null,
+    "retrieval_cost": null
+  },
+  "gates": {
+    "evidence_correctness": false,
+    "unknown_rate": false,
+    "determinism": true,
+    "recall_at_50": false,
+    "latency": false,
+    "cost": false
+  },
+  "blocked_reasons": [
+    "evidence_correctness",
+    "unknown_rate",
+    "recall_at_50",
+    "latency",
+    "cost"
+  ],
+  "promotion_eligible": false,
+  "decision_fingerprint": "747fb85acbc9784ea40c305cdea806491d6a6206e7fd9e1a8cff3b16355b25c9",
+  "assessment_fingerprint": "25493a2d9b9793bd2a5bd190ebb5566b037870e3229c64c0e442e4bd9bf5e364",
+  "notes": [
+    "The evaluator failed closed because no independently reviewed occurrence labels, frozen legacy baseline, latency samples, or retrieval-cost artifact were supplied.",
+    "The recall comparison is diagnostic only until the matching frozen legacy baseline is supplied."
+  ]
+}
