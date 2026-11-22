@@ -4279,3 +4279,56 @@ def test_verify_jobs_input_projection_fails_closed_for_incomplete_managed_run() 
 
     with pytest.raises(JobsInputIntegrityError, match="managed run input snapshot"):
         _verify_jobs_input_projection(run, "missing.json")
+
+
+def test_load_ranking_cv_handoff_rebuilds_fingerprint_from_persisted_source_job() -> None:
+    from fitcv.enrich import build_raw_job_fingerprint
+    from fitcv.ranking_contract import build_ranking_cv_handoff
+    from fitcv_cp import worker_job
+
+    source_job = {
+        "job_url": "https://example.com/job-fingerprint",
+        "title": "Data Engineer",
+        "company_name": "Example",
+        "location": "Remote",
+        "description": "Build data products.",
+        "source": "fixture",
+    }
+    raw_fingerprint = build_raw_job_fingerprint(source_job)["fingerprint"]
+    handoff = build_ranking_cv_handoff(
+        {
+            "canonical_job_identity": raw_fingerprint,
+            "job_qualifiers": {"title": "Data Engineer"},
+            "baseline_rank": 1,
+            "baseline_score": 0.8,
+            "evidence_ids": [],
+            "confirmed_gaps": [],
+            "confirmed_unknowns": [],
+            "score_status": "valid",
+            "disposition": "admitted",
+            "retry_eligible": False,
+            "ranking_order_version": "order-v1",
+            "ranking_policy_version": "policy-v1",
+            "ranking_contract_version": "ranking_score_v1",
+        },
+        candidate_profile_revision="profile-v1",
+        source_provenance={"source": "test"},
+    )
+    run = MagicMock(
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "ranking": {
+                            "ranking_cv_handoff": {
+                                "status": "complete",
+                                "items": [handoff],
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    )
+
+    assert worker_job._load_ranking_cv_handoff_for_job(run, source_job) == handoff

@@ -22,7 +22,12 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from fitcv import agentic_cv_generation as generation_module
-from fitcv.pipeline import _is_persistable_cv_generation_result, run_pipeline
+from fitcv.candidate import converge_candidate_profile_for_runtime
+from fitcv.pipeline import (
+    _build_ranking_cv_handoff_for_analysis,
+    _is_persistable_cv_generation_result,
+    run_pipeline,
+)
 from fitcv.pipeline_stages.common import primary_job_identity_key
 from fitcv.agentic_cv_generation import (
     _LIVE_TRACE_DEBUG_ENV_KEYS,
@@ -843,6 +848,28 @@ def _minimal_job(url: str = "https://example.com/1") -> dict:
         "location_type": "remote",
         "preferences": {},
     }
+
+
+def test_ranking_handoff_uses_revision_after_runtime_profile_convergence() -> None:
+    profile = converge_candidate_profile_for_runtime(
+        {**_minimal_profile(), "revision": "profile-v1"}
+    )
+    job = {
+        **_minimal_job(),
+        "raw_job_fingerprint": "job-fingerprint",
+        "baseline_rank": 1,
+        "baseline_fit": 0.85,
+        "score_status": "valid",
+        "job_qualifiers": {"title": "Data Engineer"},
+        "ranking_order_version": "order-v1",
+        "ranking_policy_version": "policy-v1",
+        "ranking_contract_version": "ranking_score_v1",
+    }
+
+    handoff = _build_ranking_cv_handoff_for_analysis(job, profile)
+
+    assert handoff is not None
+    assert handoff["candidate_profile_revision"] == "profile-v1"
 
 
 def _minimal_analysis_record() -> dict:

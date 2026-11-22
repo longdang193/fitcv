@@ -99,6 +99,7 @@ def test_ranking_stage_marks_incomplete_handoff_closed() -> None:
         extract_job_url=lambda current: current["job_url"],
         ai_score_model_resolver=lambda config: "model",
         effective_preferences_resolver=lambda profile, config: {},
+        ranking_cv_handoffs_by_identity={"job-1": {}},
     )
 
     assert block["ranking_cv_handoff"]["status"] == "incomplete"

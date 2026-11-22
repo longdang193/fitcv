@@ -27,6 +27,8 @@ from fitcv.ranking_contract import (
     SCORE_STATUS_VALID,
     build_ranking_cv_handoff,
     normalize_score_state,
+    ranking_cv_handoff_sha256,
+    validate_ranking_cv_handoff,
 )
 
 
@@ -654,7 +656,24 @@ def build_ranking_stage_block(
         ).strip()
         provided_handoff = (ranking_cv_handoffs_by_identity or {}).get(identity)
         if isinstance(provided_handoff, dict):
-            handoff = {**provided_handoff, "handoff_status": "complete"}
+            try:
+                canonical_handoff = validate_ranking_cv_handoff(provided_handoff)
+                handoff_fingerprint = str(provided_handoff.get("handoff_fingerprint") or "")
+                if handoff_fingerprint != ranking_cv_handoff_sha256(canonical_handoff):
+                    raise ValueError("ranking_cv_handoff_fingerprint_mismatch")
+                handoff = {
+                    **canonical_handoff,
+                    "handoff_fingerprint": handoff_fingerprint,
+                    "handoff_status": "complete",
+                }
+            except (TypeError, ValueError) as exc:
+                handoff = {
+                    "schema_version": RANKING_CV_HANDOFF_VERSION,
+                    "handoff_status": "incomplete",
+                    "canonical_job_identity": identity or None,
+                    "missing_fields": [str(exc)],
+                    "handoff_fingerprint": None,
+                }
             handoff_references[identity] = handoff.get("handoff_fingerprint")
             handoff_items.append(handoff)
             continue

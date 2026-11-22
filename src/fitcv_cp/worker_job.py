@@ -31,6 +31,7 @@ from fitcv.decision_feedback import build_decision_feedback_source
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
 from fitcv.cv_generator import final_artifact_acceptance_passes
+from fitcv.enrich import build_raw_job_fingerprint
 from fitcv.evidence import (
     EXPERIENCE_EVIDENCE_POLICY_VERSION,
     build_evidence_projection,
@@ -501,6 +502,10 @@ def _load_ranking_cv_handoff_for_job(run: Any, job: dict[str, Any]) -> dict[str,
         for key in ("canonical_job_identity", "job_identity", "raw_job_fingerprint", "job_url", "url")
         if str(job.get(key) or "").strip()
     }
+    if not str(job.get("raw_job_fingerprint") or "").strip():
+        job_url = str(job.get("job_url") or job.get("jobUrl") or job.get("url") or "").strip()
+        if job_url:
+            identity_values.add(build_raw_job_fingerprint(job)["fingerprint"])
     for item in list(handoff_block.get("items") or []):
         if not isinstance(item, dict):
             continue
