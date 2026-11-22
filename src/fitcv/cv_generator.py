@@ -17,7 +17,6 @@ lifecycle:
 
 import hashlib
 import json
-import hashlib
 import re
 import shutil
 import subprocess
@@ -27,6 +26,7 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from urllib.parse import urlsplit
 
 from jinja2 import BaseLoader, Environment, TemplateError
 
@@ -40,6 +40,7 @@ from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
     get_cv_generation_structured_prompt_id,
+    get_cv_renderer_strategy,
     get_prompt_replacement,
     get_required_structured_section_keys,
 )
@@ -99,6 +100,11 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
+MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
+_MYCVS_V1_HEADINGS = ("Summary", "Skills", "Experience", "Education", "Evidence and Fit Notes", "Sources")
+_MYCVS_V1_METADATA_RE = re.compile(
+    r"^<!-- mycvs_v1: schema=mycvs_v1; content_sha256=([0-9a-f]{64}); handoff=([^;\r\n]+) -->$"
+)
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -108,13 +114,18 @@ def _stable_render_fingerprint(value: Any) -> str:
 
 
 def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    return {
+    proof = {
         "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
         "artifact_content_sha256": _stable_render_fingerprint(structured_cv),
         "template_sha256": _template_sha256(config) or "",
         "render_config_fingerprint": _render_config_fingerprint(config),
         "renderer_contract_version": _RENDER_CONTRACT_VERSION,
+        "renderer_strategy": get_cv_renderer_strategy(config),
     }
+    if proof["renderer_strategy"] == "mycvs_v1":
+        _, handoff = _mycvs_handoff_context(structured_cv)
+        proof["handoff_fingerprint"] = handoff
+    return proof
 
 
 def _trim_item_identity(item: Any) -> str:
@@ -1764,6 +1775,252 @@ def _normalize_cv_markdown(markdown: str) -> str:
     return text.strip() + "\n"
 
 
+def _normalize_mycvs_v1_text(value: Any) -> str:
+    text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join(line.rstrip() for line in text.split("\n")).strip() + "\n"
+
+
+def _mycvs_line(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").replace("\r", " ").replace("\n", " ")).strip()
+
+
+def _mycvs_list(value: Any) -> list[str]:
+    if isinstance(value, (str, int, float)):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    return list(dict.fromkeys(_mycvs_line(item) for item in value if _mycvs_line(item)))
+
+
+def _mycvs_handoff_context(structured_cv: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    handoff = next(
+        (
+            structured_cv.get(key)
+            for key in ("handoff", "ranking_handoff", "ranking_cv_handoff")
+            if structured_cv.get(key) not in (None, "")
+        ),
+        {},
+    )
+    handoff_mapping = handoff if isinstance(handoff, dict) else {}
+
+    def first_value(*keys: str) -> Any:
+        for key in keys:
+            if structured_cv.get(key) not in (None, ""):
+                return structured_cv[key]
+            if handoff_mapping.get(key) not in (None, ""):
+                return handoff_mapping[key]
+        return None
+
+    fingerprint = first_value("handoff_fingerprint", "fingerprint", "identity", "checksum")
+    if isinstance(fingerprint, dict):
+        fingerprint = fingerprint.get("sha256") or fingerprint.get("value")
+    if not str(fingerprint or "").strip() and handoff_mapping:
+        fingerprint = _stable_render_fingerprint(handoff_mapping)
+    fingerprint = _mycvs_line(fingerprint)
+    if not fingerprint or ";" in fingerprint or "-->" in fingerprint:
+        raise ValueError("mycvs_v1 requires a safe ranking handoff identity")
+    context = {
+        "job_id": first_value("job_id", "job_identifier", "job_url"),
+        "profile_revision": first_value("profile_revision", "candidate_profile_revision"),
+        "score_status": first_value("score_status"),
+        "gaps": first_value("confirmed_gaps", "gaps"),
+        "unknowns": first_value("unknowns", "confirmed_unknowns"),
+    }
+    return context, fingerprint
+
+
+def _mycvs_source_ids(item: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for key in ("source_ids", "evidence_ids", "source_refs", "evidence_refs"):
+        raw = item.get(key)
+        if isinstance(raw, dict):
+            raw = list(raw.keys())
+        values.extend(_mycvs_list(raw))
+    return list(dict.fromkeys(values))
+
+
+def _mycvs_sources(structured_cv: dict[str, Any], experience: list[dict[str, Any]]) -> list[dict[str, str]]:
+    raw_sources = structured_cv.get("sources")
+    if raw_sources is None:
+        raw_sources = structured_cv.get("source_references")
+    if isinstance(raw_sources, dict):
+        raw_sources = [{"source_id": key, "url": value} for key, value in raw_sources.items()]
+    sources: list[dict[str, str]] = []
+    for raw in list(raw_sources or []):
+        if isinstance(raw, str):
+            source_id, url, title = _mycvs_line(raw), "", ""
+        elif isinstance(raw, dict):
+            source_id = _mycvs_line(raw.get("source_id") or raw.get("evidence_id") or raw.get("id"))
+            url = _mycvs_line(raw.get("url") or raw.get("link") or raw.get("source_url"))
+            title = _mycvs_line(raw.get("title") or raw.get("label"))
+        else:
+            continue
+        if not source_id:
+            raise ValueError("mycvs_v1 sources require stable source identifiers")
+        sources.append({"source_id": source_id, "url": url, "title": title})
+    known_ids = {item["source_id"] for item in sources}
+    for item in experience:
+        for source_id in _mycvs_source_ids(item):
+            if source_id not in known_ids:
+                sources.append({"source_id": source_id, "url": "", "title": ""})
+                known_ids.add(source_id)
+    return sources
+
+
+def _mycvs_url_is_valid(url: str) -> bool:
+    parsed = urlsplit(url)
+    return bool(
+        url
+        and "\n" not in url
+        and "\r" not in url
+        and parsed.scheme in {"http", "https"}
+        and parsed.netloc
+        and not parsed.username
+        and not parsed.password
+    )
+
+
+def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
+    """Serialize the canonical intermediate CV model into deterministic myCVs Markdown."""
+    validate_structured_cv(structured_cv)
+    sections = structured_cv["sections"]
+    header = sections["header"]
+    candidate_name = _mycvs_line(header.get("name"))
+    if not candidate_name:
+        raise ValueError("mycvs_v1 requires a canonical candidate name")
+    context, handoff = _mycvs_handoff_context(structured_cv)
+    experience = [item for item in sections.get("experience", []) if isinstance(item, dict)]
+    sources = _mycvs_sources(structured_cv, experience)
+    source_ids = {item["source_id"] for item in sources}
+    lines = [f"# {candidate_name}", "", "## Summary"]
+    lines.append(_mycvs_line((sections.get("summary") or {}).get("text")) or "Not provided.")
+    lines.extend(["", "## Skills"])
+    skill_groups = list((sections.get("skills") or {}).get("groups") or [])
+    if skill_groups:
+        for group in skill_groups:
+            label = _mycvs_line(group.get("label"))
+            items = _mycvs_list(group.get("items"))
+            if label and items:
+                lines.append(f"- **{label}:** {', '.join(items)}")
+    else:
+        lines.append("Not provided.")
+    lines.extend(["", "## Experience"])
+    if experience:
+        for item in experience:
+            role = _mycvs_line(item.get("role")) or "Not provided"
+            company = _mycvs_line(item.get("company"))
+            period = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
+            title = " — ".join(part for part in (role, company) if part)
+            lines.append(f"- **{title}**" + (f" ({period})" if period else ""))
+            bullets = _mycvs_list(item.get("bullets"))
+            lines.extend(f"  - {bullet}" for bullet in bullets)
+            refs = _mycvs_source_ids(item)
+            if refs:
+                lines.append(f"  - Evidence: {', '.join(refs)}")
+            elif source_ids:
+                raise ValueError(f"mycvs_v1 experience item lacks source evidence: {title}")
+    else:
+        lines.append("Not provided.")
+    lines.extend(["", "## Education"])
+    education = [item for item in sections.get("education", []) if isinstance(item, dict)]
+    if education:
+        for item in education:
+            parts = [_mycvs_line(item.get("degree")), _mycvs_line(item.get("institution")), _mycvs_line(item.get("field"))]
+            detail = " — ".join(part for part in parts if part)
+            dates = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
+            lines.append(f"- {detail or 'Not provided'}" + (f" ({dates})" if dates else ""))
+    else:
+        lines.append("Not provided.")
+    lines.extend(["", "## Evidence and Fit Notes"])
+    for label, value in (
+        ("Job ID", context["job_id"]),
+        ("Ranking handoff", handoff),
+        ("Profile revision", context["profile_revision"]),
+        ("Score status", context["score_status"]),
+        ("Gaps", ", ".join(_mycvs_list(context["gaps"]))),
+        ("Unknowns", ", ".join(_mycvs_list(context["unknowns"]))),
+    ):
+        lines.append(f"- **{label}:** {_mycvs_line(value) or 'Not provided.'}")
+    lines.extend(["", "## Sources"])
+    if sources:
+        for source in sources:
+            source_id = source["source_id"]
+            title = source["title"] or source_id
+            url = source["url"]
+            if url:
+                if not _mycvs_url_is_valid(url):
+                    raise ValueError(f"mycvs_v1 source URL is not validated: {url!r}")
+                lines.append(f"- [{title}](<{url}>)")
+            else:
+                lines.append(f"- {source_id}")
+    else:
+        lines.append("Not provided.")
+    payload = _normalize_mycvs_v1_text("\n".join(lines))
+    checksum = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return payload + f"<!-- mycvs_v1: schema=mycvs_v1; content_sha256={checksum}; handoff={handoff} -->\n"
+
+
+def validate_mycvs_v1_markdown(
+    markdown: str,
+    *,
+    expected_handoff: str | None = None,
+) -> dict[str, Any]:
+    """Validate myCVs Markdown and return its normalized checksum metadata."""
+    text = str(markdown or "")
+    errors: list[str] = []
+    if "\r" in text:
+        errors.append("line endings must be LF")
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        errors.append("content must be UTF-8")
+    if any(line != line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")):
+        errors.append("trailing whitespace is not allowed")
+    metadata_matches = list(re.finditer(r"^<!-- mycvs_v1:.* -->$", text, re.MULTILINE))
+    if len(metadata_matches) != 1:
+        errors.append("exactly one mycvs_v1 metadata block is required")
+        metadata_match = None
+        metadata_span = None
+    else:
+        metadata_span = metadata_matches[0]
+        metadata_match = _MYCVS_V1_METADATA_RE.fullmatch(metadata_span.group(0))
+        if metadata_match is None:
+            errors.append("invalid mycvs_v1 metadata block")
+    if metadata_match is not None:
+        if text[metadata_span.end():].strip():
+            errors.append("metadata block must be final")
+        payload = _normalize_mycvs_v1_text(text[:metadata_span.start()])
+        checksum = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        if checksum != metadata_match.group(1):
+            errors.append("content checksum mismatch")
+        handoff = metadata_match.group(2).strip()
+        if expected_handoff is not None and handoff != _mycvs_line(expected_handoff):
+            errors.append("handoff identity mismatch")
+    else:
+        payload, handoff = text, ""
+    payload_lines = payload.splitlines()
+    headings = [(match.group(1), match.group(2).strip()) for line in payload_lines if (match := re.match(r"^(#{1,6})[ \t]+(.+?)\s*$", line))]
+    expected_headings = [("#", payload_lines[0][2:].strip() if payload_lines and payload_lines[0].startswith("# ") else ""), *[("##", heading) for heading in _MYCVS_V1_HEADINGS]]
+    if headings != expected_headings or not expected_headings[0][1]:
+        errors.append("headings must match the fixed mycvs_v1 order")
+    for link in re.findall(r"\[[^\]]+\]\((?:<([^>\r\n]+)>|([^\)\r\n]+))\)", payload):
+        url = link[0] or link[1]
+        if not _mycvs_url_is_valid(url):
+            errors.append(f"unsupported source URL: {url!r}")
+    required_labels = ("Job ID", "Ranking handoff", "Profile revision", "Score status", "Gaps", "Unknowns")
+    if not all(f"- **{label}:**" in payload for label in required_labels):
+        errors.append("fit notes must include job, handoff, profile, score, gaps, and unknowns")
+    if not handoff:
+        errors.append("handoff identity is required")
+    if errors:
+        raise ValueError("mycvs_v1 validation failed: " + "; ".join(dict.fromkeys(errors)))
+    return {"valid": True, "content_sha256": metadata_match.group(1), "handoff": handoff}
+
+
+render_mycvs_v1_markdown = serialize_mycvs_v1
+validate_mycvs_v1 = validate_mycvs_v1_markdown
+
+
 # ── LLM generation (integration) ─────────────────────────────────────────────
 
 def _resolve_template_path(config: dict[str, Any]) -> str:
@@ -1787,6 +2044,8 @@ def _resolve_template_path(config: dict[str, Any]) -> str:
 
 def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) -> str:
     """Render markdown from a validated structured CV document."""
+    if get_cv_renderer_strategy(config) == "mycvs_v1":
+        return serialize_mycvs_v1(structured_cv)
     import pathlib
 
     structured_cv = deepcopy(structured_cv)
@@ -1924,6 +2183,8 @@ def render_cv_native_acceptance(
     """Render exact markdown through native tools and return final proof."""
     structured_cv = content if isinstance(content, dict) else None
     markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
+    if get_cv_renderer_strategy(config) == "mycvs_v1":
+        validate_mycvs_v1_markdown(markdown)
     required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
     missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     base = Path(output_dir) if output_dir is not None else None

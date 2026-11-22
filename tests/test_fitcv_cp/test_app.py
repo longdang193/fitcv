@@ -5326,7 +5326,12 @@ def test_cv_history_download_and_regenerate_contract() -> None:
         "source_url": "https://example.com/job-1",
     }
     app.state.run_store.list_cv_versions_fn = lambda _run_job_id: [
-        {"version_id": "cv-1", "generation_status": "generated"}
+        {
+            "version_id": "cv-1",
+            "generation_status": "generated",
+            "pdf_status": "failed",
+            "submission_clearance": "blocked",
+        }
     ]
     app.state.run_store.get_cv_download_fn = lambda _version_id: {
         "content": b"# CV\n",
@@ -5358,6 +5363,8 @@ def test_cv_history_download_and_regenerate_contract() -> None:
 
     assert history.status_code == 200
     assert history.json()["data"][0]["version_id"] == "cv-1"
+    assert history.json()["data"][0]["pdf_status"] == "failed"
+    assert history.json()["data"][0]["submission_clearance"] == "blocked"
     assert download.status_code == 200
     assert download.headers["etag"] == '"checksum-1"'
     assert download.headers["content-length"] == "5"

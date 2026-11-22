@@ -17,7 +17,17 @@ lifecycle:
 
 from typing import Any, Callable, Protocol, cast
 
-from fitcv.ranking_contract import SCORE_STATUS_INVALID, SCORE_STATUS_UNSCORED, SCORE_STATUS_VALID, normalize_score_state
+from fitcv.ranking_contract import (
+    RANKING_CV_HANDOFF_VERSION,
+    RANKING_DECISION_ENVELOPE_VERSION,
+    RANKING_ORDER_VERSION,
+    RANKING_SCORE_CONTRACT_VERSION,
+    SCORE_STATUS_INVALID,
+    SCORE_STATUS_UNSCORED,
+    SCORE_STATUS_VALID,
+    build_ranking_cv_handoff,
+    normalize_score_state,
+)
 
 
 def truncate_stage_text(value: str, *, limit: int) -> str:
@@ -604,6 +614,79 @@ def build_ranking_stage_block(
         if score_status_counts["unscored_count"] or score_status_counts["invalid_count"]
         else "completed"
     )
+    ranking_order_version = str(
+        ranking_contract.get("ranking_order_version")
+        or next(
+            (
+                row.get("ranking_order_version")
+                for row in ranked
+                if row.get("ranking_order_version")
+            ),
+            "",
+        )
+    ).strip() or RANKING_ORDER_VERSION
+    ranking_policy_version = str(
+        ranking_policy.get("policy_version")
+        or next(
+            (
+                row.get("ranking_policy_version")
+                for row in ranked
+                if row.get("ranking_policy_version")
+            ),
+            "",
+        )
+    ).strip() or None
+    ranking_contract_version = str(
+        ranking_contract.get("ranking_score_contract_version")
+        or RANKING_SCORE_CONTRACT_VERSION
+    ).strip()
+    profile_revision = profile.get("revision") if isinstance(profile, dict) else None
+    handoff_items: list[dict[str, Any]] = []
+    handoff_references: dict[str, str | None] = {}
+    for row in ranked:
+        identity = str(
+            row.get("canonical_job_identity")
+            or row.get("job_identity")
+            or row.get("raw_job_fingerprint")
+            or extract_job_url(row)
+            or ""
+        ).strip()
+        provenance = row.get("source_provenance") or row.get("provenance")
+        if not isinstance(provenance, dict):
+            provenance = {
+                "ranking_prompt": dict(ranking_prompt_provenance),
+                "ranking_contract_fingerprint": ranking_contract.get(
+                    "ranking_contract_fingerprint"
+                ),
+            }
+        try:
+            handoff = build_ranking_cv_handoff(
+                row,
+                candidate_profile_revision=profile_revision,
+                ranking_order_version=ranking_order_version,
+                ranking_policy_version=ranking_policy_version,
+                ranking_contract_version=ranking_contract_version,
+                source_provenance=provenance,
+            )
+            handoff["handoff_status"] = "complete"
+            handoff_references[identity] = handoff["handoff_fingerprint"]
+        except (TypeError, ValueError) as exc:
+            handoff = {
+                "schema_version": RANKING_CV_HANDOFF_VERSION,
+                "handoff_status": "incomplete",
+                "canonical_job_identity": identity or None,
+                "missing_fields": [str(exc)],
+                "handoff_fingerprint": None,
+            }
+            handoff_references[identity] = None
+        handoff_items.append(handoff)
+    handoff_status = (
+        "complete"
+        if handoff_items and all(item.get("handoff_status") == "complete" for item in handoff_items)
+        else "incomplete"
+        if handoff_items
+        else "not_available"
+    )
     block = stage_block_builder(
         stage_id="ranking",
         status=ranking_status,
@@ -636,6 +719,14 @@ def build_ranking_stage_block(
             "ai_score_model": ai_score_model_resolver(config),
             "ranking_policy": ranking_policy,
             "ranking_contract_fingerprint": ranking_contract.get("ranking_contract_fingerprint"),
+            "ranking_order_version": ranking_order_version,
+            "ranking_policy_version": ranking_policy_version,
+            "ranking_score_contract_version": ranking_contract_version,
+            "ranking_decision_envelope_version": ranking_contract.get(
+                "ranking_decision_envelope_version", RANKING_DECISION_ENVELOPE_VERSION
+            ),
+            "ranking_cv_handoff_version": RANKING_CV_HANDOFF_VERSION,
+            "ranking_cv_handoff_status": handoff_status,
             "effective_structured_factor_weights": ranking_contract.get(
                 "effective_structured_factor_weights"
             ),
@@ -667,6 +758,12 @@ def build_ranking_stage_block(
     )
     block["scorer_input_diagnostics"] = scorer_input_diagnostics
     block["admission_manifest"] = dict(ranking_admission_manifest or {})
+    block["ranking_cv_handoff"] = {
+        "schema_version": RANKING_CV_HANDOFF_VERSION,
+        "status": handoff_status,
+        "items": handoff_items,
+        "references": handoff_references,
+    }
     evidence_personalization = (
         block.get("stage_result", {})
         .get("evidence", {})

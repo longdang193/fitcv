@@ -497,6 +497,27 @@ Backfill command behavior:
 - idempotent: existing mirror folders are skipped
 - summary output reports `created`, `skipped_existing`, `missing_payload`, `errors`
 
+## Ranking and CV Artifact Evidence
+
+Inspect `stage-artifacts.json` first for the ranking-owned
+`stages.ranking.ranking_cv_handoff` block. Each complete item carries the
+`handoff_fingerprint` plus rank, score state, qualifiers, evidence IDs,
+confirmed gaps/unknowns, profile revision, ranking versions, and source
+provenance. The CV analysis record echoes that handoff so worker-boundary
+regeneration can be checked against the persisted ranking decision.
+
+CV lifecycle triage must keep these outcomes separate:
+
+- `generation_status`: generation and validation result
+- `pdf_status`: native or external render proof result
+- `submission_clearance`: final submission gate
+
+`pdf_status=generated` requires recognized renderer identity, matching content
+checksum, complete render proof, and one-page acceptance. Missing or unpinned
+external converter provenance is a blocked release-gate condition, not a
+successful PDF. `submission_clearance=blocked` is expected while review, PDF,
+or generation prerequisites remain incomplete.
+
 ## Related Docs
 
 - [api.md](api.md)

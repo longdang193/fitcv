@@ -6,6 +6,22 @@ Defines the authoritative, auditable ranking contract used after shortlist admis
 
 ## ADDED Requirements
 
+### Requirement: Ranking order is explicitly versioned
+
+The system SHALL persist `ranking_order_version`, the active ranking-policy version, and the score contract version with every ranking decision envelope. Existing checkpoints SHALL resume their persisted order; retiring personalization SHALL use a new order version and run/checkpoint identity.
+
+#### Scenario: Existing personalized run resumes
+- **WHEN** a checkpoint persists the current personalized order or its active preference-policy snapshot
+- **THEN** resume SHALL use those persisted versions and inputs, even if current configuration defaults differ.
+
+#### Scenario: New order retires personalization
+- **WHEN** a new ranking order version is explicitly selected for a fresh run
+- **THEN** the decision SHALL use its documented authoritative value and tie-break sequence, and SHALL not silently mix personalized ordering with the new order.
+
+#### Scenario: New order records compatibility fields
+- **WHEN** the new order version retires personalization
+- **THEN** personalized rank, residual, and preference-policy fields SHALL remain readable as non-authoritative compatibility data and SHALL not influence the new order.
+
 ### Requirement: New-run ranking uses authoritative AI compatibility
 
 The system SHALL use the finite AI compatibility score in the existing normalized domain `[0, 1]` as the authoritative ranking value for new runs, with the score contract version and source provenance persisted with the result. The ranking request SHALL preserve mandatory job facts, mandatory candidate facts, validated shortlist evidence, and the existing serialized request budget of at most 12,000 characters.
@@ -28,7 +44,7 @@ The system SHALL use the finite AI compatibility score in the existing normalize
 
 #### Scenario: Retryable evaluation remains retryable
 - **WHEN** evaluation fails for a retryable provider, transport, or budget reason
-- **THEN** the system SHALL persist a retryable failure outcome with diagnostics and SHALL distinguish it from a valid low score and from confirmed incompatibility.
+- **THEN** the system SHALL persist `score_status=unscored` with the existing `failure_code`, `disposition=retryable_failure`, and `retry_eligible=true` fields, plus diagnostics, and SHALL distinguish it from a valid low score and from confirmed incompatibility. The system SHALL NOT introduce a fourth `score_status` value for retryability.
 
 ### Requirement: Ranking remains deterministic and inspectable
 
@@ -54,9 +70,11 @@ The system SHALL pass each final ranking item to CV analysis with job qualifiers
 - **WHEN** any required qualifier, score status, profile revision, or provenance field is unavailable
 - **THEN** the system SHALL mark the handoff incomplete and SHALL NOT present it as a fully grounded ranking result.
 
+The ranking-to-CV handoff fingerprint SHALL be `ranking_cv_handoff_v1`: SHA-256 over the specified canonical UTF-8 JSON handoff object, including the schema version, canonical job identity/qualifiers, baseline rank/score, score state, ordered evidence IDs, gaps/unknowns, profile revision, ranking order/policy/contract versions, and provenance references. Object keys SHALL be sorted, separators compact, optional absent values represented as `null`, and field arrays emitted in deterministic contract order. The persisted owner is the ranking stage artifact at `stage_transition_artifacts_json.stages.ranking`, with per-job ledger references where available.
+
 ### Requirement: Historic ranking artifacts remain readable
 
-The system SHALL continue to read historic personalized rank, residual, and related fields while preventing those fields from influencing new-run authoritative ranking decisions. New runs SHALL NOT compute or write personalized rank, preference residual, or preference-policy fields.
+The system SHALL continue to read historic personalized rank, residual, and related fields. For a fresh run using the new order version, those fields SHALL NOT influence authoritative ranking decisions; for an existing persisted personalized order, they remain active until that run is explicitly migrated to a new order version. New runs under the new order SHALL NOT compute or write personalized rank, preference residual, or preference-policy fields as authoritative outputs.
 
 #### Scenario: Legacy artifact is inspected
 - **WHEN** an operator opens a historic artifact containing personalized ranking fields
@@ -66,18 +84,14 @@ The system SHALL continue to read historic personalized rank, residual, and rela
 - **WHEN** a new ranking run processes an input that contains historic personalized fields
 - **THEN** the new decision SHALL use only the authoritative AI score contract and current tie-break policy.
 
-#### Scenario: New run stops legacy personalization
-- **WHEN** a new ranking run processes a job with preference policy or embedding data available
-- **THEN** the run SHALL not activate personalized ranking computation and SHALL not emit new personalized rank, residual, or preference-policy fields.
+#### Scenario: New order stops legacy personalization
+- **WHEN** a fresh run explicitly selects the new non-personalized ranking order
+- **THEN** the run SHALL not activate personalized ranking computation and SHALL not emit new personalized rank, residual, or preference-policy fields as authoritative outputs.
 
-### Requirement: Pareto promotion remains evidence-gated
+### Requirement: Ranking does not own shortlist promotion
 
-The system SHALL treat Pareto promotion or strategy switching as a separately evaluated, versioned, and auditable decision; a completed evaluation SHALL NOT imply promotion eligibility unless every configured gate passes.
+The ranking stage SHALL consume the admitted shortlist and SHALL NOT promote, override, or duplicate Pareto admission or `pipeline.shortlist_strategy` promotion gates. Pareto promotion remains owned by the shortlist capability; a future ranking-strategy promotion requires a separately named ranking strategy and contract.
 
-#### Scenario: Gate failure blocks promotion
-- **WHEN** any required evidence-quality, completeness, determinism, latency, cost, or baseline comparison gate fails or is unavailable
-- **THEN** the system SHALL report `promotion_eligible: false` and SHALL retain the current production strategy.
-
-#### Scenario: Explicit override is auditable
-- **WHEN** an authorized operator overrides a failed or unavailable promotion gate
-- **THEN** the system SHALL persist the override actor, reason, timestamp, source evaluation, and effective strategy version.
+#### Scenario: Shortlist promotion is unresolved
+- **WHEN** shortlist promotion evidence is missing or fails a configured gate
+- **THEN** the ranking stage SHALL preserve the shortlist decision and SHALL not report that its own ranking evaluation promoted the shortlist strategy.

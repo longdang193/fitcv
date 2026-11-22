@@ -1113,8 +1113,6 @@ def _execute_requirement_aware_shortlist_stage(
                 "eligibility_policy": resolve_shortlist_policy(config, strategy="core_pareto_evidence_v1"),
             }
         )
-    if persist:
-        pipeline_store.store_shortlist(admitted, config)
     ledger_rows = [
         {
             **row,

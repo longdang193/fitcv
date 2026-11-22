@@ -6,7 +6,7 @@ FitCV needs a maintained contract for the post-shortlist Ranking and CV Analysis
 
 ## What Changes
 
-- Define AI compatibility score as the authoritative ranking value for new runs; keep historic personalized fields readable but do not use them for new decisions.
+- Define a versioned ranking-order contract whose new order uses AI compatibility as the authoritative ranking value; keep the currently active personalized order authoritative for existing checkpoints until an explicit order-version migration, and keep its fields readable throughout.
 - Preserve the existing bounded ranking-input contract: mandatory job/candidate facts, validated shortlist evidence, and the 12,000-character request budget.
 - Preserve explicit invalid, unscored, and retryable ranking outcomes instead of converting them to fabricated zero scores.
 - Require a versioned ranking-to-CV handoff containing the job qualifiers, baseline rank/score, canonical evidence, gaps, profile revision, and provenance.
@@ -16,6 +16,7 @@ FitCV needs a maintained contract for the post-shortlist Ranking and CV Analysis
 - Separate CV generation status, review status, and PDF status; review-required output still attempts PDF generation, and converter failure remains a technical failure.
 - Block submission while review is required, even when PDF generation succeeds.
 - Preserve historical personalized ranking and CV artifacts; do not rewrite or delete them as part of migration.
+- Keep Pareto admission and promotion owned by the shortlist capability; this stage consumes the admitted shortlist and does not duplicate shortlist gates.
 
 ## Capabilities
 

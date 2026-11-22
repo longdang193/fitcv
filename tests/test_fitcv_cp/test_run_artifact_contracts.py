@@ -30,6 +30,7 @@ from fitcv_cp.run_artifact_contracts import (
     build_final_cv_evidence_envelope,
     accepted_cv_artifact_event_v1 as _accepted_cv_artifact_event_v1,
     collect_normalized_generation_traces,
+    render_proof_is_verified,
 )
 
 
@@ -107,6 +108,29 @@ def test_final_cv_evidence_envelope_rejects_stale_or_invalid_proof(
     )
 
     assert envelope["evidence_state"] == expected_state
+
+
+def test_external_render_contract_requires_complete_sha256_proof() -> None:
+    proof = _native_render_proof()
+    proof["renderer_contract_version"] = "mycvs_external_render_v1"
+
+    assert render_proof_is_verified(proof) is True
+    assert render_proof_is_verified(proof, content_checksum="b" * 64) is True
+
+    incomplete = dict(proof)
+    incomplete["template_sha256"] = ""
+    assert render_proof_is_verified(incomplete) is False
+
+    mismatched = dict(proof)
+    mismatched["content_sha256"] = "e" * 64
+    assert render_proof_is_verified(mismatched, content_checksum="b" * 64) is False
+
+
+def test_unrecognized_renderer_contract_is_not_verified() -> None:
+    proof = _native_render_proof()
+    proof["renderer_contract_version"] = "unknown_renderer_v1"
+
+    assert render_proof_is_verified(proof) is False
 
 
 def test_normalized_run_mode_defaults_unknown_values_to_run_all() -> None:

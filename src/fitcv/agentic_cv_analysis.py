@@ -59,9 +59,11 @@ from fitcv.late_stage_contract import (
     validation_status_for_cv_status,
 )
 from fitcv.ranking_contract import (
+    RANKING_CV_HANDOFF_VERSION,
     SCORE_STATUS_VALID,
     normalize_score_state,
     resolve_fit_label_for_row,
+    validate_ranking_cv_handoff,
 )
 
 _FIT_LABEL_ORDER = {"strong", "stretch", "skip"}
@@ -677,6 +679,7 @@ def build_cv_analysis_record(
     candidate_profile_id: str = "",
     candidate_profile_revision: str = "",
     requirement_resolutions: list[dict[str, Any]] | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     cv_status = cv_generation_status_for_analysis_status(status)
     resolved_reuse_decision = reuse_decision or build_reuse_decision(
@@ -755,6 +758,7 @@ def build_cv_analysis_record(
         "experience_evidence_summary": resolved_experience_evidence_summary,
         "candidate_profile_id": candidate_profile_id,
         "candidate_profile_revision": candidate_profile_revision,
+        "ranking_cv_handoff": dict(ranking_cv_handoff or {}),
         "gap_summary": gap_summary,
         "requirement_coverage": list(requirement_coverage or []),
         "section_confidence_hints": dict(section_confidence_hints or {}),
@@ -1458,6 +1462,7 @@ def _rebuild_reused_record(
     analysis_input_fingerprint: str,
     analysis_input_components: dict[str, Any],
     ranking_fit_label: FitClassification | None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     status = cast(AnalysisStatus, str(reusable_record["status"]))
     fit_value = str(ranking_fit_label or reusable_record.get("fit_classification") or "")
@@ -1492,6 +1497,7 @@ def _rebuild_reused_record(
         candidate_profile_id=str(reusable_record.get("candidate_profile_id") or ""),
         candidate_profile_revision=str(reusable_record.get("candidate_profile_revision") or ""),
         error=cast(ErrorPayload | None, prior_error),
+        ranking_cv_handoff=ranking_cv_handoff,
     )
 
 
@@ -1504,8 +1510,18 @@ def analyze_ranked_job(
     reusable_record: dict[str, Any] | None = None,
     fit_classification_override: FitClassification | None = None,
     evidence_projection: dict[str, Any] | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
+    if ranking_cv_handoff is not None:
+        ranking_cv_handoff = validate_ranking_cv_handoff(ranking_cv_handoff)
+        if ranking_cv_handoff["schema_version"] != RANKING_CV_HANDOFF_VERSION:
+            raise ValueError("unsupported ranking_cv_handoff schema")
+        job = dict(job)
+        job["ranking_cv_handoff_fingerprint"] = ranking_cv_handoff["handoff_fingerprint"]
+        if ranking_cv_handoff["baseline_score"] is not None:
+            job["baseline_fit"] = ranking_cv_handoff["baseline_score"]
+        job["score_status"] = ranking_cv_handoff["score_status"]
     candidate_profile_id = str(profile.get("candidate_profile_id") or "").strip()
     candidate_profile_revision = str(profile.get("revision") or "").strip()
     raw_requirement_resolutions = [
@@ -1571,6 +1587,7 @@ def analyze_ranked_job(
                     "stage": "ranking",
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
                 },
+                ranking_cv_handoff=ranking_cv_handoff,
             )
         resolved_evidence_projection = evidence_projection or build_evidence_projection(profile)
         loose_experience_review = should_route_loose_experience_review(
@@ -1605,6 +1622,7 @@ def analyze_ranked_job(
                     "stage": "reranker_fit",
                     "message": f"Blocked {extract_job_url(job)} before CV analysis (reranker fit=skip)",
                 },
+                ranking_cv_handoff=ranking_cv_handoff,
             )
 
         fingerprint_record = build_cv_analysis_input_fingerprint(
@@ -1630,6 +1648,7 @@ def analyze_ranked_job(
                 analysis_input_fingerprint=analysis_input_fingerprint,
                 analysis_input_components=analysis_input_components,
                 ranking_fit_label=ranking_fit_label,
+                ranking_cv_handoff=ranking_cv_handoff,
             )
         reuse_reason = rejection_reason
         reuse_decision = build_reuse_decision(
@@ -1776,6 +1795,7 @@ def analyze_ranked_job(
                         else f"Skipped {extract_job_url(job)} (fit=skip)"
                     ),
                 },
+                ranking_cv_handoff=ranking_cv_handoff,
             )
 
         return build_cv_analysis_record(
@@ -1798,6 +1818,7 @@ def analyze_ranked_job(
             candidate_profile_revision=candidate_profile_revision,
             requirement_resolutions=requirement_resolutions,
             error=None,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
     except Exception as exc:
         return build_cv_analysis_record(
@@ -1826,4 +1847,5 @@ def analyze_ranked_job(
                 "stage": "analysis",
                 "message": str(exc),
             },
+            ranking_cv_handoff=ranking_cv_handoff,
         )

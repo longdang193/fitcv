@@ -40,19 +40,23 @@ The system SHALL perform the Stage 7 sequence in order: evidence planning, initi
 
 ### Requirement: CV status dimensions are independent
 
-The system SHALL persist generation status, review status, and PDF status as independent fields with the allowed values `running|completed|failed`, `optional|required`, and `pending|generated|failed` respectively.
+The system SHALL persist generation, review, PDF, and submission-clearance outcomes independently without replacing existing persisted/public lifecycle fields. A new additive `pdf_status` MAY use `pending|generated|failed`, and a new additive submission-clearance field MAY use `blocked|eligible`.
 
 #### Scenario: Review-required CV still attempts PDF
 - **WHEN** analysis identifies unresolved factual or critical concerns
-- **THEN** the system SHALL set review status to `required`, still attempt PDF generation, and SHALL not treat review-required status as a PDF success.
+- **THEN** the system SHALL set `generation_status=review_required` and `review_state=manual_required` (or the applicable existing `stretch` policy state), still attempt PDF generation, and SHALL not treat review-required status as a PDF success.
+
+#### Scenario: Existing status values remain readable
+- **WHEN** a reader loads a historical or current CV record
+- **THEN** `generation_status` SHALL accept `pending|running|generated|review_required|validation_failed|generation_failed|persistence_failed|cancelled`, and `review_state` SHALL accept `none|stretch|manual_required|approved|rejected`. A new read model MAY map `generated` to `completed` and a specific failure to `failed`, but storage and public compatibility values SHALL not be renamed.
 
 #### Scenario: PDF conversion fails
 - **WHEN** the converter fails after the Markdown artifact is valid
-- **THEN** the system SHALL set PDF status to `failed`, preserve diagnostics and the valid Markdown artifact, and SHALL classify the result as a technical failure requiring recovery or operator action.
+- **THEN** the system SHALL set additive `pdf_status=failed`, preserve diagnostics and the valid Markdown artifact, and SHALL classify the result as a technical failure requiring recovery or operator action without rewriting the generation lifecycle state into a generic value.
 
 #### Scenario: Fully valid CV completes
 - **WHEN** hard factual/provenance and template checks pass and PDF generation succeeds
-- **THEN** generation status SHALL be `completed`, PDF status SHALL be `generated`, and review status SHALL be `optional` unless an explicit policy requires review.
+- **THEN** `generation_status` SHALL be `generated`, `pdf_status` SHALL be `generated`, and `review_state` SHALL be `none` unless policy requires `stretch` or `manual_required` review. An explicit clearance changes `manual_required` or `stretch` to `approved`; rejection changes it to `rejected`.
 
 #### Scenario: Page-fit acceptance is required
 - **WHEN** PDF conversion exits successfully
@@ -60,7 +64,7 @@ The system SHALL persist generation status, review status, and PDF status as ind
 
 #### Scenario: Review blocks submission
 - **WHEN** review status is `required`, regardless of PDF status
-- **THEN** submission eligibility SHALL be `blocked` until an explicit review-clearance decision is recorded.
+- **THEN** submission clearance SHALL be `blocked` until an explicit review event records `review_state=approved`; `rejected` remains blocked. A `none` review state is eligible only when generation and PDF acceptance also pass.
 
 ### Requirement: Generated CV uses deterministic `mycvs_v1` Markdown
 
@@ -84,11 +88,17 @@ The system SHALL preserve historic CV artifacts, their original preset/schema an
 
 ### Requirement: External conversion is a pinned integration boundary
 
-The system SHALL identify the converter version/commit, stylesheet or template revision, input checksum, and output checksum for every generated PDF.
+The system SHALL identify the converter version/commit, stylesheet or template revision, input checksum, and output checksum for every generated PDF, and SHALL bind external conversion to the existing render-proof contract.
+
+Before an external `myCVs` PDF is accepted, its adapter SHALL emit the existing render-proof fields and the registered `renderer_contract_version=mycvs_external_render_v1`. Converter commit and stylesheet/template revision SHALL be recorded separately as provenance.
 
 #### Scenario: Converter provenance is complete
 - **WHEN** PDF generation completes or fails
-- **THEN** the artifact SHALL include converter provenance and an input checksum sufficient to reproduce or diagnose the conversion; an output checksum SHALL be present only when a complete PDF artifact exists, with absent or partial output represented explicitly.
+- **THEN** the artifact SHALL include converter provenance, render-proof fields sufficient to reproduce or diagnose the attempt, and an input checksum; the render proof SHALL be verified only when all required identity fields pass, and an output checksum SHALL be present only when a complete PDF artifact exists.
+
+#### Scenario: External renderer contract is recognized
+- **WHEN** an external adapter returns a candidate PDF
+- **THEN** the existing final-artifact predicate SHALL recognize `mycvs_external_render_v1` only when `render_status=pass`, `page_count=1`, `page_fit_status=pass`, valid artifact/content/template checksums, and a render-config fingerprint are present; an unrecognized renderer contract SHALL remain unaccepted.
 
 #### Scenario: Converter is not pinned
 - **WHEN** a release attempts to enable the external converter without a pinned revision and deterministic stylesheet/template

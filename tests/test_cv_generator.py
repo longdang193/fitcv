@@ -18,6 +18,7 @@ tags:
 import sys
 import types
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,8 @@ from fitcv.cv_generator import (
     render_cv_markdown,
     render_cv_native_acceptance,
     render_proof_matches,
+    serialize_mycvs_v1,
+    validate_mycvs_v1_markdown,
     trim_structured_cv_for_page_fit,
     _normalize_structured_cv,
     render_cv_template,
@@ -1802,6 +1805,63 @@ def test_render_proof_matches_native_acceptance_with_full_render_config() -> Non
     acceptance = render_cv_native_acceptance(document, config)
 
     assert render_proof_matches(document, config, acceptance)
+
+
+def test_mycvs_v1_serializer_is_deterministic_and_validates_checksum() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    document.update(
+        {
+            "job_id": "job-1",
+            "profile_revision": "profile-2",
+            "score_status": "valid",
+            "confirmed_gaps": ["dbt"],
+            "unknowns": ["salary range"],
+            "handoff": {"handoff_fingerprint": "handoff-1"},
+            "sources": [{"source_id": "ev-1", "url": "https://example.com/evidence/1"}],
+        }
+    )
+    document["sections"]["summary"] = {"text": "Grounded summary."}
+    document["sections"]["experience"] = [
+        {
+            "role": "Data Analyst",
+            "company": "Acme",
+            "start": "2022",
+            "end": "2025",
+            "bullets": ["Built reporting."],
+            "evidence_ids": ["ev-1"],
+        }
+    ]
+    rendered = serialize_mycvs_v1(document)
+    assert rendered == serialize_mycvs_v1(document)
+    assert "\r" not in rendered
+    assert rendered.endswith("\n")
+    assert rendered.index("# Test Candidate") < rendered.index("## Summary") < rendered.index("## Sources")
+    assert "content_sha256=" in rendered
+    assert validate_mycvs_v1_markdown(rendered)["handoff"] == "handoff-1"
+
+
+def test_mycvs_v1_rejects_checksum_and_grounding_failures() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    document.update({"job_id": "job-1", "handoff_fingerprint": "handoff-1", "sources": ["ev-1"]})
+    document["sections"]["experience"] = [{"role": "Analyst", "company": "Acme", "bullets": ["Claim"]}]
+    with pytest.raises(ValueError, match="lacks source evidence"):
+        serialize_mycvs_v1(document)
+
+    valid_document = deepcopy(document)
+    valid_document["sections"]["experience"][0]["evidence_ids"] = ["ev-1"]
+    rendered = serialize_mycvs_v1(valid_document)
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        validate_mycvs_v1_markdown(rendered.replace("Claim", "Changed", 1))
 
 
 def test_page_fit_trim_preserves_unique_project_and_required_language_evidence() -> None:

@@ -120,6 +120,8 @@ CHECKPOINT_RETRIEVAL_STRATEGIES = SUPPORTED_RETRIEVAL_STRATEGIES | {
 DEFAULT_RETRIEVAL_STRATEGY = "hybrid_rrf_v1"
 DEFAULT_SHORTLIST_STRATEGY = "legacy_retrieval_v1"
 DEFAULT_SHORTLIST_POLICY = "legacy_production_v1"
+SUPPORTED_CV_RENDERER_STRATEGIES = frozenset({"europass", "mycvs_v1"})
+DEFAULT_CV_RENDERER_STRATEGY = "europass"
 
 
 def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:
@@ -1597,6 +1599,17 @@ def _validate_nested_cv_config(cfg: dict[str, Any]) -> None:
             f"cv.preset must be one of {sorted(SUPPORTED_PRESETS)}, got: {preset!r}"
         )
 
+    renderer = cv_cfg.setdefault("renderer", {})
+    if not isinstance(renderer, dict):
+        raise ValueError("cv.renderer must be a dict")
+    strategy = str(renderer.get("strategy") or DEFAULT_CV_RENDERER_STRATEGY).strip()
+    if strategy not in SUPPORTED_CV_RENDERER_STRATEGIES:
+        raise ValueError(
+            "cv.renderer.strategy must be one of "
+            f"{sorted(SUPPORTED_CV_RENDERER_STRATEGIES)}, got: {strategy!r}"
+        )
+    renderer["strategy"] = strategy
+
     # generation block
     if "generation" not in cv_cfg:
         raise ValueError("cv.generation is required")
@@ -1838,6 +1851,18 @@ def get_cv_generation_structured_prompt_id(config: dict[str, Any]) -> str:
         or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
     ).strip()
     return prompt_id or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
+
+
+def get_cv_renderer_strategy(config: dict[str, Any] | None) -> str:
+    """Return the validated additive CV renderer strategy."""
+    renderer = dict(((config or {}).get("cv") or {}).get("renderer") or {})
+    strategy = str(renderer.get("strategy") or DEFAULT_CV_RENDERER_STRATEGY).strip()
+    if strategy not in SUPPORTED_CV_RENDERER_STRATEGIES:
+        raise ValueError(
+            "cv.renderer.strategy must be one of "
+            f"{sorted(SUPPORTED_CV_RENDERER_STRATEGIES)}, got: {strategy!r}"
+        )
+    return strategy
 
 
 def get_cv_generation_model(config: dict[str, Any]) -> str:

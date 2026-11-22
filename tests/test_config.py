@@ -25,6 +25,7 @@ from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     get_cv_acceptance_policy,
     get_cv_generation_structured_prompt_id,
+    get_cv_renderer_strategy,
     get_ranking_ai_score_model,
     get_ranking_prompt_id,
     get_system_initial_backoff_seconds,
@@ -1154,6 +1155,41 @@ def test_load_config_returns_nested_cv_object() -> None:
 def test_load_config_nested_cv_has_preset() -> None:
     cfg = load_config()
     assert "preset" in cfg["cv"]
+
+
+def test_load_config_nested_cv_defaults_renderer_strategy_without_changing_preset() -> None:
+    cfg = load_config()
+    assert cfg["cv"]["preset"] == "europass"
+    assert cfg["cv"]["renderer"]["strategy"] == "europass"
+    assert get_cv_renderer_strategy(cfg) == "europass"
+
+
+def test_nested_cv_accepts_explicit_mycvs_renderer_strategy() -> None:
+    cfg = {
+        "cv": {
+            "preset": "europass",
+            "renderer": {"strategy": "mycvs_v1"},
+            "generation": {"model": "model", "prompt_version": "v1"},
+            "composition": {},
+            "validation": {"max_pages": 1},
+        }
+    }
+    config_module._validate_nested_cv_config(cfg)
+    assert get_cv_renderer_strategy(cfg) == "mycvs_v1"
+
+
+def test_nested_cv_rejects_unknown_renderer_strategy() -> None:
+    cfg = {
+        "cv": {
+            "preset": "europass",
+            "renderer": {"strategy": "unknown"},
+            "generation": {"model": "model", "prompt_version": "v1"},
+            "composition": {},
+            "validation": {"max_pages": 1},
+        }
+    }
+    with pytest.raises(ValueError, match=r"cv\.renderer\.strategy"):
+        config_module._validate_nested_cv_config(cfg)
 
 
 def test_load_config_nested_cv_generation_has_model_and_prompt_version() -> None:

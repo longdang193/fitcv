@@ -16,6 +16,8 @@ The document SHALL contain exactly these top-level headings, in this order, with
 
 The renderer SHALL preserve the candidate's canonical display name, use only grounded profile facts, and keep job-specific fit notes separate from canonical experience claims.
 
+`mycvs_v1` is a renderer/output strategy, not a replacement for the existing `cv.preset`. The configuration owner is `config/policy/cv.yaml`: the existing `cv.preset: europass` and its historic artifacts remain unchanged, while an additive renderer strategy selects `mycvs_v1` for new writes. The strategy consumes the canonical intermediate CV model and SHALL preserve the ranking handoff identity defined by `ranking_cv_handoff_v1`.
+
 ## Required content rules
 
 - `Summary`, `Skills`, `Experience`, and `Education` SHALL be present even when a section is empty; an empty section SHALL contain `Not provided.` rather than an invented claim.
@@ -34,3 +36,5 @@ The renderer SHALL append exactly one metadata block after the final section:
 ```
 
 Validation SHALL reject missing or duplicate headings, invalid metadata, checksum mismatch, non-LF line endings, unsupported links, missing handoff identity, and unsupported factual claims. Valid and invalid fixtures SHALL be added with the implementation task before the new converter path is enabled.
+
+The Markdown payload is the converter input. Converter provenance and render proof are artifact-envelope fields, not substitutes for this schema: an external adapter SHALL record the converter commit, stylesheet/template revision, input checksum, and the registered render-proof identity `mycvs_external_render_v1` (`render_status`, one-page `page_count`, `page_fit_status`, `artifact_checksum`, `content_sha256`, `template_sha256`, and `render_config_fingerprint`) before the PDF is submission-eligible.
