@@ -17,6 +17,7 @@ lifecycle:
 
 from typing import Any, Callable, Protocol, cast
 
+from fitcv.candidate import runtime_profile_value
 from fitcv.ranking_contract import (
     RANKING_CV_HANDOFF_VERSION,
     RANKING_DECISION_ENVELOPE_VERSION,
@@ -643,7 +644,7 @@ def build_ranking_stage_block(
         ranking_contract.get("ranking_score_contract_version")
         or RANKING_SCORE_CONTRACT_VERSION
     ).strip()
-    profile_revision = profile.get("revision") if isinstance(profile, dict) else None
+    profile_revision = runtime_profile_value(profile, "revision") if isinstance(profile, dict) else None
     handoff_items: list[dict[str, Any]] = []
     handoff_references: dict[str, str | None] = {}
     for row in ranked:
