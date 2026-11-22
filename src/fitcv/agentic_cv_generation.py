@@ -2081,6 +2081,38 @@ def _finalize_generation_result(
     reused_cv_version_id: str | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
+    ranking_cv_handoff = analysis_record.get("ranking_cv_handoff")
+    if isinstance(ranking_cv_handoff, dict):
+        for field in ("structured_cv_initial", "structured_cv_final"):
+            structured_cv = finalized.get(field)
+            if isinstance(structured_cv, dict):
+                structured_cv = deepcopy(structured_cv)
+                structured_cv["ranking_cv_handoff"] = dict(ranking_cv_handoff)
+                finalized[field] = structured_cv
+        structured_cv_final = finalized.get("structured_cv_final")
+        if isinstance(structured_cv_final, dict):
+            finalized["markdown_final"] = render_cv_markdown(structured_cv_final, config)
+            job = dict(analysis_record.get("job_snapshot") or {})
+            evidence_payload = [
+                item for item in list(analysis_record.get("evidence_payload") or [])
+                if isinstance(item, dict)
+            ]
+            evidence_used = [
+                item for item in list(analysis_record.get("evidence_used") or [])
+                if isinstance(item, dict)
+            ]
+            finalized["validation"] = _run_generation_validations(
+                finalized["markdown_final"],
+                profile=profile,
+                config=config,
+                structured_cv=structured_cv_final,
+                analysis_grounding=_build_validation_grounding_payload(
+                    analysis_record,
+                    job,
+                    evidence_payload,
+                    evidence_used,
+                ),
+            )
     finalized = _apply_final_artifact_contract(
         finalized,
         analysis_record=analysis_record,

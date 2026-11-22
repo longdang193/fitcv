@@ -21,6 +21,7 @@ from typing import Any
 from fitcv.candidate import canonicalize_role_title, infer_role_family
 from fitcv.preference_policy import ResolvedPreferencePolicy, project_personalized_score
 from fitcv.ranking_contract import (
+    AI_COMPATIBILITY_RANKING_ORDER_VERSION,
     RANKING_DECISION_ENVELOPE_VERSION,
     RANKING_ORDER_VERSION,
     RANKING_SCORE_CONTRACT_VERSION,
@@ -359,6 +360,7 @@ def rank_jobs(
         if ranking_order_version == RANKING_ORDER_VERSION
         else None
     )
+    uses_ai_compatibility_order = ranking_order_version == AI_COMPATIBILITY_RANKING_ORDER_VERSION
     scored_jobs: list[dict[str, Any]] = []
     for job in jobs:
         if not str(job.get("raw_job_fingerprint") or "").strip():
@@ -401,7 +403,7 @@ def rank_jobs(
     sorted_jobs = sorted(
         scored_jobs,
         key=lambda j: (
-            -float(j["baseline_fit"]),
+            -float(j["ai_score"] if uses_ai_compatibility_order else j["baseline_fit"]),
             str(j["raw_job_fingerprint"]),
             str(j.get("canonical_job_identity") or j.get("job_identity") or ""),
             str(j.get("job_url") or ""),
@@ -410,10 +412,11 @@ def rank_jobs(
 
     for index, job in enumerate(sorted_jobs, start=1):
         job["baseline_rank"] = index
+        ranking_score = float(job["ai_score"] if uses_ai_compatibility_order else job["baseline_fit"])
         baseline_fit = float(job["baseline_fit"])
         residual = 0.0
-        raw_score = baseline_fit
-        display_score = baseline_fit
+        raw_score = ranking_score
+        display_score = ranking_score
         clipped = False
         if active_preference_policy is not None:
             embedding = job.get("normalized_embedding")

@@ -64,6 +64,7 @@ NORMALIZER_IDS = {
     "language_fit": "eligibility-language-projection-v1",
 }
 RANKING_ORDER_VERSION = "baseline-all-eligible-personalized-fingerprint-url-v1"
+AI_COMPATIBILITY_RANKING_ORDER_VERSION = "ai-compatibility-v1"
 RANKING_SCORE_CONTRACT_VERSION = "ranking_score_v1"
 RANKING_DECISION_ENVELOPE_VERSION = "ranking_decision_envelope_v1"
 RANKING_CV_HANDOFF_VERSION = "ranking_cv_handoff_v1"

@@ -62,6 +62,7 @@ from fitcv.ranking_contract import (
     RANKING_CV_HANDOFF_VERSION,
     SCORE_STATUS_VALID,
     normalize_score_state,
+    ranking_cv_handoff_sha256,
     resolve_fit_label_for_row,
     validate_ranking_cv_handoff,
 )
@@ -1514,7 +1515,17 @@ def analyze_ranked_job(
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
     if ranking_cv_handoff is not None:
-        ranking_cv_handoff = validate_ranking_cv_handoff(ranking_cv_handoff)
+        provided_handoff_fingerprint = str(
+            ranking_cv_handoff.get("handoff_fingerprint") or ""
+        ).strip()
+        canonical_handoff = validate_ranking_cv_handoff(ranking_cv_handoff)
+        expected_handoff_fingerprint = ranking_cv_handoff_sha256(canonical_handoff)
+        if provided_handoff_fingerprint and provided_handoff_fingerprint != expected_handoff_fingerprint:
+            raise ValueError("ranking_cv_handoff_fingerprint_mismatch")
+        ranking_cv_handoff = {
+            **canonical_handoff,
+            "handoff_fingerprint": provided_handoff_fingerprint or expected_handoff_fingerprint,
+        }
         if ranking_cv_handoff["schema_version"] != RANKING_CV_HANDOFF_VERSION:
             raise ValueError("unsupported ranking_cv_handoff schema")
         job = dict(job)

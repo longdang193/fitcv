@@ -568,6 +568,33 @@ def test_rank_jobs_uses_ai_score_and_does_not_mix_persisted_order_with_personali
     assert all(row["score_status"] == "valid" for row in ranked)
 
 
+def test_ai_compatibility_order_uses_ai_score_when_baseline_fit_is_stale() -> None:
+    jobs = [
+        {
+            "raw_job_fingerprint": "a",
+            "job_url": "a",
+            "ai_score": 0.9,
+            "baseline_fit": 0.2,
+            "score_status": "valid",
+            "ranking_order_version": "ai-compatibility-v1",
+        },
+        {
+            "raw_job_fingerprint": "b",
+            "job_url": "b",
+            "ai_score": 0.6,
+            "baseline_fit": 0.8,
+            "score_status": "valid",
+            "ranking_order_version": "ai-compatibility-v1",
+        },
+    ]
+
+    ranked = rank_jobs(jobs, top_n=2)
+
+    assert [row["job_url"] for row in ranked] == ["a", "b"]
+    assert [row["personalized_rank_score"] for row in ranked] == [0.9, 0.6]
+    assert [row["baseline_fit"] for row in ranked] == [0.2, 0.8]
+
+
 def test_legacy_adapter_normalizes_equivalent_values_and_rejects_conflicts() -> None:
     adapted = ranking_contract.adapt_legacy_ranking_row(
         {
