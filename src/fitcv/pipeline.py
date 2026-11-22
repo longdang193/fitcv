@@ -224,6 +224,9 @@ from fitcv.pipeline_observability import build_bounded_event_payload as _build_b
 from fitcv.pipeline_observability import render_cv_analysis_item_output as _render_cv_analysis_item_output_observability
 from fitcv.pipeline_observability import render_cv_generation_item_output as _render_cv_generation_item_output_observability
 from fitcv.pipeline_stage_artifacts import build_stage_block as _build_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import (
+    build_ranking_score_state_diagnostics as _build_ranking_score_state_diagnostics,
+)
 from fitcv.pipeline_stage_artifacts import build_stage_block_not_reached as _build_stage_block_not_reached_artifacts
 from fitcv.pipeline_stage_artifacts import build_normalize_stage_block as _build_normalize_stage_block_artifacts
 from fitcv.pipeline_stage_artifacts import build_enrich_stage_block as _build_enrich_stage_block_artifacts
@@ -2102,6 +2105,8 @@ def _build_ranking_cv_handoff_for_analysis(
         not str(profile_revision or "").strip()
         or job.get("baseline_rank") is None
         or job.get("baseline_fit") is None
+        or not str(job.get("ranking_order_version") or "").strip()
+        or not str(job.get("ranking_policy_version") or "").strip()
     ):
         return None
     handoff_input = {
@@ -4395,6 +4400,10 @@ def run_pipeline(
                             "ai_scored_jobs": len(ai_scores),
                             "configured_concurrency": ranking_concurrency,
                             "ranking_concurrency_effective": ranking_effective_concurrency,
+                            "score_state_diagnostics": _build_ranking_score_state_diagnostics(
+                                ai_scores,
+                                max_items=100,
+                            ),
                         },
                         artifact_refs={"stage_id": "ranking"},
                     ),
@@ -4414,6 +4423,10 @@ def run_pipeline(
                             "ranking_concurrency_effective": ranking_effective_concurrency,
                             "reused_ai_scores": reused_ai_count,
                             "fresh_ai_scores": fresh_ai_count,
+                            "score_state_diagnostics": _build_ranking_score_state_diagnostics(
+                                ai_scores,
+                                max_items=100,
+                            ),
                         },
                         artifact_refs={"stage_id": "ranking"},
                     ),

@@ -12,7 +12,7 @@ The FigJam flow places Ranking before the final Top 15 CV handoff. Ranking input
 
 - Make new ranking decisions and their handoff versioned, reproducible, and evidence-backed.
 - Reuse existing evidence, stage, checkpoint, and persistence boundaries.
-- Add deterministic `mycvs_v1` rendering/validation without making converter details implicit.
+- Add deterministic `mycvs_v1` rendering/validation without making converter details implicit. The visible output follows the maintained candidate format: contact/Iconify metadata, then `Summary`, `Education`, `Experience`, `Projects`, `Certificates`, and `Skills`; audit fields remain in a deterministic HTML comment outside the visible headings.
 - Preserve the existing one-page render acceptance and make submission clearance explicit.
 - Preserve historical artifacts and a rollback-safe migration path.
 

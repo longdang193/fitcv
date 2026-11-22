@@ -1175,10 +1175,12 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     assert ai_score_event[3] is not None
     assert ai_score_event[3]["output_snapshot"]["configured_concurrency"] == 3
     assert ai_score_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 1
+    assert ai_score_event[3]["output_snapshot"]["score_state_diagnostics"] == []
     ranking_event = next(event for event in reporter.events if event[0] == "layer3_ranking")
     assert ranking_event[3] is not None
     assert ranking_event[3]["output_snapshot"]["configured_concurrency"] == 3
     assert ranking_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 1
+    assert ranking_event[3]["output_snapshot"]["score_state_diagnostics"] == []
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.agentic_cv_generation.run_all_validations")

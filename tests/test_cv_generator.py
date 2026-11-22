@@ -79,6 +79,7 @@ def test_production_normalization_drops_unsupported_provenance_fields() -> None:
         {
             "name": "SQL Platform",
             "context": "Built data platform",
+            "url": None,
             "bullets": ["Reduced reporting time."],
         }
     ]
@@ -1829,7 +1830,16 @@ def test_render_proof_matches_native_acceptance_with_full_render_config() -> Non
 def test_mycvs_v1_serializer_is_deterministic_and_validates_checksum() -> None:
     document = build_empty_structured_cv(
         jd={"title": "Analyst"},
-        profile={"name": "Test Candidate"},
+        profile={
+            "name": "Test Candidate",
+            "contact": {
+                "email": "candidate@example.test",
+                "phone": "+49 123",
+                "linkedin": "https://www.linkedin.com/in/candidate",
+                "github": "https://github.com/candidate",
+                "location": "Germany",
+            },
+        },
         config={"cv": {"preset": "europass"}},
         fit_classification="strong",
     )
@@ -1855,11 +1865,23 @@ def test_mycvs_v1_serializer_is_deterministic_and_validates_checksum() -> None:
             "evidence_ids": ["ev-1"],
         }
     ]
+    document["sections"]["projects"] = [
+        {"name": "Project", "url": "https://github.com/candidate/project", "bullets": ["Built it."]}
+    ]
+    document["sections"]["certifications"] = [
+        {"name": "Certificate", "issuer": "Issuer", "year": "2026", "url": "https://example.test/certificate"}
+    ]
     rendered = serialize_mycvs_v1(document)
     assert rendered == serialize_mycvs_v1(document)
     assert "\r" not in rendered
     assert rendered.endswith("\n")
-    assert rendered.index("# Test Candidate") < rendered.index("## Summary") < rendered.index("## Sources")
+    assert 'data-icon="tabler:mail"' in rendered
+    assert 'data-icon="tabler:brand-github"' in rendered
+    assert 'data-icon="ic:outline-location-on"' in rendered
+    assert rendered.index("# Test Candidate") < rendered.index("## Summary") < rendered.index("## Education")
+    assert rendered.index("## Education") < rendered.index("## Experience") < rendered.index("## Projects")
+    assert rendered.index("## Projects") < rendered.index("## Certificates") < rendered.index("## Skills")
+    assert "mycvs_v1_audit:" in rendered
     assert "content_sha256=" in rendered
     assert validate_mycvs_v1_markdown(rendered)["handoff"] == "handoff-1"
 

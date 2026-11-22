@@ -78,6 +78,60 @@ def sample_strings(values: list[str], *, limit: int, text_limit: int) -> list[st
     ]
 
 
+def build_ranking_score_state_diagnostics(
+    rows: list[dict[str, Any]],
+    *,
+    max_items: int | None = None,
+) -> list[dict[str, Any]]:
+    """Build bounded, redacted diagnostics for non-valid ranking score rows."""
+    diagnostics: list[dict[str, Any]] = []
+    for row in rows:
+        score_state = normalize_score_state(row)
+        if score_state["score_status"] == SCORE_STATUS_VALID:
+            continue
+        job_key = next(
+            (
+                str(row.get(field_name)).strip()
+                for field_name in (
+                    "canonical_job_identity",
+                    "job_identity",
+                    "run_job_id",
+                    "raw_job_fingerprint",
+                )
+                if row.get(field_name) not in (None, "")
+            ),
+            None,
+        )
+        input_index = row.get("_input_index", row.get("input_index"))
+        diagnostic: dict[str, Any] = {
+            "schema_version": "ranking_score_state_diagnostic_v1",
+            "job_key": job_key,
+            "score_status": score_state["score_status"],
+            "failure_code": score_state["failure_code"],
+            "disposition": score_state["disposition"],
+            "retry_eligible": score_state["retry_eligible"],
+        }
+        if isinstance(input_index, int) and not isinstance(input_index, bool):
+            diagnostic["input_index"] = input_index
+        raw_fingerprint = row.get("raw_job_fingerprint")
+        if raw_fingerprint not in (None, ""):
+            diagnostic["raw_job_fingerprint"] = str(raw_fingerprint)
+        diagnostics.append(diagnostic)
+
+    diagnostics.sort(
+        key=lambda item: (
+            int(item.get("input_index"))
+            if isinstance(item.get("input_index"), int)
+            else 2**31 - 1,
+            str(item.get("job_key") or ""),
+            str(item.get("raw_job_fingerprint") or ""),
+        )
+    )
+    if max_items is not None:
+        return diagnostics[: max(0, int(max_items))]
+    return diagnostics
+
+
 def build_llm_runtime_summary(
     observations: list[dict[str, Any]],
     *,
@@ -611,6 +665,7 @@ def build_ranking_stage_block(
     for row in ai_scores:
         status = normalize_score_state(row)["score_status"]
         score_status_counts[f"{status}_count"] += 1
+    score_state_diagnostics = build_ranking_score_state_diagnostics(ai_scores)
     ranking_status = (
         "failed"
         if ai_scores and score_status_counts["valid_count"] == 0
@@ -754,6 +809,8 @@ def build_ranking_stage_block(
             ),
             "ranking_cv_handoff_version": RANKING_CV_HANDOFF_VERSION,
             "ranking_cv_handoff_status": handoff_status,
+            "score_state_diagnostics_count": len(score_state_diagnostics),
+            "score_state_diagnostics_truncated": False,
             "effective_structured_factor_weights": ranking_contract.get(
                 "effective_structured_factor_weights"
             ),
@@ -784,6 +841,7 @@ def build_ranking_stage_block(
         llm_runtime_observations=llm_runtime_observations,
     )
     block["scorer_input_diagnostics"] = scorer_input_diagnostics
+    block["score_state_diagnostics"] = score_state_diagnostics
     block["admission_manifest"] = dict(ranking_admission_manifest or {})
     block["ranking_cv_handoff"] = {
         "schema_version": RANKING_CV_HANDOFF_VERSION,

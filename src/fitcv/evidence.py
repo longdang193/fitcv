@@ -949,7 +949,6 @@ def build_cv_analysis_input_fingerprint(
         "baseline_fit": job_context.get("baseline_fit") if isinstance(job_context, dict) else None,
         "baseline_fit_label": str(job_context.get("baseline_fit_label") or "") if isinstance(job_context, dict) else "",
         "score_status": str(job_context.get("score_status") or "") if isinstance(job_context, dict) else "",
-        "ranking_cv_handoff_fingerprint": str(job_context.get("ranking_cv_handoff_fingerprint") or "") if isinstance(job_context, dict) else "",
         "requirement_descriptors": [
             {
                 key: value

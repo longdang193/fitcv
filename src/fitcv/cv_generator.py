@@ -101,10 +101,11 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
-_MYCVS_V1_HEADINGS = ("Summary", "Skills", "Experience", "Education", "Evidence and Fit Notes", "Sources")
+_MYCVS_V1_HEADINGS = ("Summary", "Education", "Experience", "Projects", "Certificates", "Skills")
 _MYCVS_V1_METADATA_RE = re.compile(
     r"^<!-- mycvs_v1: schema=mycvs_v1; content_sha256=([0-9a-f]{64}); handoff=([^;\r\n]+) -->$"
 )
+_MYCVS_V1_AUDIT_RE = re.compile(r"^<!-- mycvs_v1_audit: (.+) -->$")
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -563,7 +564,7 @@ def project_authorized_profile(
     }
     projected: dict[str, Any] = {}
     for key, value in profile.items():
-        if key in {"name", "contact", "email", "phone", "linkedin", "location"}:
+        if key in {"name", "contact", "email", "phone", "linkedin", "github", "location"}:
             projected[key] = deepcopy(value)
             continue
         if not isinstance(value, list):
@@ -983,6 +984,7 @@ def _build_default_sections(
                 "email": _profile_contact_value(profile, "email"),
                 "phone": _profile_contact_value(profile, "phone"),
                 "linkedin": _profile_contact_value(profile, "linkedin"),
+                "github": _profile_contact_value(profile, "github"),
             },
         },
         "summary": {"text": ""},
@@ -1060,11 +1062,12 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                             "contact": {
                                 "type": "object",
                                 "additionalProperties": False,
-                                "required": ["email", "phone", "linkedin"],
+                            "required": ["email", "phone", "linkedin"],
                                 "properties": {
                                     "email": nullable_string_schema,
                                     "phone": nullable_string_schema,
                                     "linkedin": nullable_string_schema,
+                                    "github": nullable_string_schema,
                                 },
                             },
                         },
@@ -1102,6 +1105,7 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                             "properties": {
                                 "name": {"type": "string"},
                                 "context": nullable_string_schema,
+                                "url": nullable_string_schema,
                                 "bullets": {"type": "array", "items": bullet_schema},
                             },
                         },
@@ -1150,6 +1154,7 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                                 "name": {"type": "string"},
                                 "issuer": nullable_string_schema,
                                 "year": nullable_string_schema,
+                                "url": nullable_string_schema,
                             },
                         },
                     },
@@ -1272,6 +1277,7 @@ def _normalize_contact(raw_header: dict[str, Any], default_header: dict[str, Any
         "email": str(raw_contact.get("email") or default_contact.get("email") or "").strip() or None,
         "phone": str(raw_contact.get("phone") or default_contact.get("phone") or "").strip() or None,
         "linkedin": str(raw_contact.get("linkedin") or default_contact.get("linkedin") or "").strip() or None,
+        "github": str(raw_contact.get("github") or default_contact.get("github") or "").strip() or None,
     }
 
 
@@ -1436,6 +1442,7 @@ def _normalize_projects_section(raw_sections: dict[str, Any], *, config: dict[st
             {
                 "name": str(item.get("name") or "").strip(),
                 "context": str(item.get("context") or "").strip() or None,
+                "url": str(item.get("url") or item.get("link") or "").strip() or None,
                 "bullets": _normalize_bullets(item.get("bullets")),
             }
         )
@@ -1493,6 +1500,7 @@ def _normalize_certifications_section(raw_sections: dict[str, Any], *, config: d
                 "name": str(item.get("name") or "").strip(),
                 "issuer": str(item.get("issuer") or "").strip() or None,
                 "year": str(item.get("year") or "").strip() or None,
+                "url": str(item.get("url") or item.get("link") or "").strip() or None,
             }
         )
     return _sanitize_section_entries("certifications", certification_entries, config=config)
@@ -1883,6 +1891,17 @@ def _mycvs_url_is_valid(url: str) -> bool:
     )
 
 
+def _mycvs_link_is_valid(url: str) -> bool:
+    parsed = urlsplit(url)
+    if parsed.scheme in {"mailto", "tel"}:
+        return bool(parsed.path) and "\r" not in url and "\n" not in url
+    return _mycvs_url_is_valid(url)
+
+
+def _mycvs_contact_link(icon: str, label: str, target: str) -> str:
+    return f'<span class="iconify" data-icon="{icon}"></span> [{label}](<{target}>)'
+
+
 def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
     """Serialize the canonical intermediate CV model into deterministic myCVs Markdown."""
     validate_structured_cv(structured_cv)
@@ -1895,26 +1914,66 @@ def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
     experience = [item for item in sections.get("experience", []) if isinstance(item, dict)]
     sources = _mycvs_sources(structured_cv, experience)
     source_ids = {item["source_id"] for item in sources}
-    lines = [f"# {candidate_name}", "", "## Summary"]
+    contact = header.get("contact") if isinstance(header.get("contact"), dict) else {}
+    contact_lines: list[str] = []
+    email = _mycvs_line(contact.get("email"))
+    phone = _mycvs_line(contact.get("phone"))
+    linkedin = _mycvs_line(contact.get("linkedin"))
+    github = _mycvs_line(contact.get("github"))
+    location = _mycvs_line(header.get("location"))
+    if email or phone or linkedin:
+        contact_items: list[str] = []
+        if email:
+            contact_items.append(_mycvs_contact_link("tabler:mail", email, f"mailto:{email}"))
+        if phone:
+            phone_target = re.sub(r"[^+0-9]", "", phone)
+            contact_items.append(_mycvs_contact_link("tabler:phone", phone, f"tel:{phone_target}"))
+        if linkedin:
+            linkedin_target = linkedin if _mycvs_url_is_valid(linkedin) else f"https://{linkedin}"
+            if not _mycvs_url_is_valid(linkedin_target):
+                raise ValueError("mycvs_v1 LinkedIn URL is not validated")
+            contact_items.append(_mycvs_contact_link("tabler:brand-linkedin", linkedin, linkedin_target))
+        contact_lines.append("\n  : ".join(contact_items))
+    if github or location:
+        contact_items = []
+        if github:
+            github_target = github if _mycvs_url_is_valid(github) else f"https://{github}"
+            if not _mycvs_url_is_valid(github_target):
+                raise ValueError("mycvs_v1 GitHub URL is not validated")
+            contact_items.append(_mycvs_contact_link("tabler:brand-github", github, github_target))
+        if location:
+            contact_items.append(f'<span class="iconify" data-icon="ic:outline-location-on"></span> {location}')
+        contact_lines.append("\n  : ".join(contact_items))
+
+    lines = [f"# {candidate_name}"]
+    if contact_lines:
+        lines.extend(["", *contact_lines])
+    lines.extend(["", "## Summary"])
     lines.append(_mycvs_line((sections.get("summary") or {}).get("text")) or "Not provided.")
-    lines.extend(["", "## Skills"])
-    skill_groups = list((sections.get("skills") or {}).get("groups") or [])
-    if skill_groups:
-        for group in skill_groups:
-            label = _mycvs_line(group.get("label"))
-            items = _mycvs_list(group.get("items"))
-            if label and items:
-                lines.append(f"- **{label}:** {', '.join(items)}")
+    lines.extend(["", "## Education"])
+    education = [item for item in sections.get("education", []) if isinstance(item, dict)]
+    if education:
+        for item in education:
+            degree = _mycvs_line(item.get("degree")) or "Not provided"
+            institution = _mycvs_line(item.get("institution"))
+            field = _mycvs_line(item.get("field"))
+            dates = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
+            detail = " — ".join(part for part in (degree, institution, field) if part)
+            lines.append(f"- **{detail}**" + (f" ({dates})" if dates else ""))
     else:
         lines.append("Not provided.")
+
     lines.extend(["", "## Experience"])
     if experience:
         for item in experience:
             role = _mycvs_line(item.get("role")) or "Not provided"
             company = _mycvs_line(item.get("company"))
+            location = _mycvs_line(item.get("location"))
             period = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
             title = " — ".join(part for part in (role, company) if part)
             lines.append(f"- **{title}**" + (f" ({period})" if period else ""))
+            if location:
+                lines.append(f"  : **{location}**")
             bullets = _mycvs_list(item.get("bullets"))
             lines.extend(f"  - {bullet}" for bullet in bullets)
             refs = _mycvs_source_ids(item)
@@ -1924,40 +1983,68 @@ def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
                 raise ValueError(f"mycvs_v1 experience item lacks source evidence: {title}")
     else:
         lines.append("Not provided.")
-    lines.extend(["", "## Education"])
-    education = [item for item in sections.get("education", []) if isinstance(item, dict)]
-    if education:
-        for item in education:
-            parts = [_mycvs_line(item.get("degree")), _mycvs_line(item.get("institution")), _mycvs_line(item.get("field"))]
-            detail = " — ".join(part for part in parts if part)
-            dates = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
-            lines.append(f"- {detail or 'Not provided'}" + (f" ({dates})" if dates else ""))
-    else:
-        lines.append("Not provided.")
-    lines.extend(["", "## Evidence and Fit Notes"])
-    for label, value in (
-        ("Job ID", context["job_id"]),
-        ("Ranking handoff", handoff),
-        ("Profile revision", context["profile_revision"]),
-        ("Score status", context["score_status"]),
-        ("Gaps", ", ".join(_mycvs_list(context["gaps"]))),
-        ("Unknowns", ", ".join(_mycvs_list(context["unknowns"]))),
-    ):
-        lines.append(f"- **{label}:** {_mycvs_line(value) or 'Not provided.'}")
-    lines.extend(["", "## Sources"])
-    if sources:
-        for source in sources:
-            source_id = source["source_id"]
-            title = source["title"] or source_id
-            url = source["url"]
+
+    lines.extend(["", "## Projects"])
+    projects = [item for item in sections.get("projects", []) if isinstance(item, dict)]
+    if projects:
+        for item in projects:
+            name = _mycvs_line(item.get("name")) or "Not provided"
+            url = _mycvs_line(item.get("url"))
             if url:
                 if not _mycvs_url_is_valid(url):
-                    raise ValueError(f"mycvs_v1 source URL is not validated: {url!r}")
-                lines.append(f"- [{title}](<{url}>)")
-            else:
-                lines.append(f"- {source_id}")
+                    raise ValueError(f"mycvs_v1 project URL is not validated: {url!r}")
+                name = f"[{name}](<{url}>)"
+            lines.append(f"- **{name}**")
+            context_text = _mycvs_line(item.get("context"))
+            if context_text:
+                lines.append(f"  : **{context_text}**")
+            lines.extend(f"  - {bullet}" for bullet in _mycvs_list(item.get("bullets")))
     else:
         lines.append("Not provided.")
+
+    lines.extend(["", "## Certificates"])
+    certificates = [item for item in sections.get("certifications", []) if isinstance(item, dict)]
+    if certificates:
+        for item in certificates:
+            name = _mycvs_line(item.get("name")) or "Not provided"
+            url = _mycvs_line(item.get("url"))
+            if url:
+                if not _mycvs_url_is_valid(url):
+                    raise ValueError(f"mycvs_v1 certificate URL is not validated: {url!r}")
+                name = f"[{name}](<{url}>)"
+            issuer = _mycvs_line(item.get("issuer"))
+            year = _mycvs_line(item.get("year"))
+            lines.append(f"- **{name}**" + (f" — {issuer}" if issuer else "") + (f" ({year})" if year else ""))
+    else:
+        lines.append("Not provided.")
+
+    lines.extend(["", "## Skills"])
+    skill_groups = list((sections.get("skills") or {}).get("groups") or [])
+    if skill_groups:
+        for group in skill_groups:
+            label = _mycvs_line(group.get("label"))
+            items = _mycvs_list(group.get("items"))
+            if label and items:
+                lines.append(f"**{label}:** {', '.join(items)}")
+    else:
+        lines.append("Not provided.")
+
+    audit_payload = {
+        "job_id": _mycvs_line(context["job_id"]),
+        "profile_revision": _mycvs_line(context["profile_revision"]),
+        "score_status": _mycvs_line(context["score_status"]),
+        "gaps": _mycvs_list(context["gaps"]),
+        "unknowns": _mycvs_list(context["unknowns"]),
+        "sources": sources,
+    }
+    for source in sources:
+        source_url = source["url"]
+        if source_url and not _mycvs_url_is_valid(source_url):
+            raise ValueError(f"mycvs_v1 source URL is not validated: {source_url!r}")
+    audit_json = json.dumps(audit_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if "-->" in audit_json:
+        raise ValueError("mycvs_v1 audit metadata contains an unsafe comment delimiter")
+    lines.extend(["", f"<!-- mycvs_v1_audit: {audit_json} -->"])
     payload = _normalize_mycvs_v1_text("\n".join(lines))
     checksum = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     return payload + f"<!-- mycvs_v1: schema=mycvs_v1; content_sha256={checksum}; handoff={handoff} -->\n"
@@ -2008,11 +2095,31 @@ def validate_mycvs_v1_markdown(
         errors.append("headings must match the fixed mycvs_v1 order")
     for link in re.findall(r"\[[^\]]+\]\((?:<([^>\r\n]+)>|([^\)\r\n]+))\)", payload):
         url = link[0] or link[1]
-        if not _mycvs_url_is_valid(url):
+        if not _mycvs_link_is_valid(url):
             errors.append(f"unsupported source URL: {url!r}")
-    required_labels = ("Job ID", "Ranking handoff", "Profile revision", "Score status", "Gaps", "Unknowns")
-    if not all(f"- **{label}:**" in payload for label in required_labels):
-        errors.append("fit notes must include job, handoff, profile, score, gaps, and unknowns")
+    audit_matches = [match for line in payload_lines if (match := _MYCVS_V1_AUDIT_RE.fullmatch(line))]
+    audit_payload: dict[str, Any] | None = None
+    if len(audit_matches) != 1:
+        errors.append("exactly one mycvs_v1 audit block is required")
+    else:
+        try:
+            parsed_audit = json.loads(audit_matches[0].group(1))
+            if not isinstance(parsed_audit, dict):
+                raise ValueError
+            audit_payload = parsed_audit
+        except (TypeError, ValueError, json.JSONDecodeError):
+            errors.append("invalid mycvs_v1 audit block")
+    required_audit_keys = ("job_id", "profile_revision", "score_status", "gaps", "unknowns", "sources")
+    if audit_payload is not None and not all(key in audit_payload for key in required_audit_keys):
+        errors.append("audit block must include job, profile, score, gaps, unknowns, and sources")
+    if audit_payload is not None:
+        for source in audit_payload.get("sources") or []:
+            if not isinstance(source, dict) or not str(source.get("source_id") or "").strip():
+                errors.append("audit sources require stable source identifiers")
+                continue
+            source_url = str(source.get("url") or "").strip()
+            if source_url and not _mycvs_url_is_valid(source_url):
+                errors.append(f"unsupported audit source URL: {source_url!r}")
     if not handoff:
         errors.append("handoff identity is required")
     if errors:

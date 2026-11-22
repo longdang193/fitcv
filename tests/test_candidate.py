@@ -98,6 +98,17 @@ def test_runtime_convergence_preserves_profile_revision_for_stage_handoffs() -> 
     assert converged["_runtime_compatibility"]["revision"] == "profile-v1"
 
 
+def test_runtime_convergence_assigns_deterministic_revision_when_missing() -> None:
+    profile = {**_VALID_PROFILE_DICT, "name": "Candidate"}
+
+    first = converge_candidate_profile_for_runtime(profile)
+    second = converge_candidate_profile_for_runtime(profile)
+
+    first_revision = first["_runtime_compatibility"]["revision"]
+    assert first_revision == second["_runtime_compatibility"]["revision"]
+    assert first_revision.startswith("sha256:")
+
+
 def test_runtime_convergence_strips_legacy_language_metadata_from_v2_snapshot() -> None:
     canonical = converge_candidate_profile_for_runtime(
         {
