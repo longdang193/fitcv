@@ -1,0 +1,35 @@
+{
+  "schema_version": "fitcv.shortlist_promotion_decision.v1",
+  "decided_at_utc": "2026-11-21T23:44:27Z",
+  "decision": "promote_and_switch",
+  "target_strategy": "core_pareto_evidence_v1",
+  "target_policy": "requirement_aware_v1",
+  "source_evaluation_artifact": "docs/superpowers/evidence/2026-11-21-fitcv-shortlist-promotion-blocked.json",
+  "source_promotion_eligible": false,
+  "operator_override": true,
+  "authority": "explicit user instruction",
+  "requirements_alignment": {
+    "board_file_key": "AVBliUlkUeVGZD917wc0T0",
+    "board_node_id": "0:1",
+    "flow": [
+      "normalize and validate enriched requirements",
+      "resolve atomic concepts and preserve qualifiers",
+      "reuse or search cached evidence candidates",
+      "validate job-specific support",
+      "select complementary evidence",
+      "compute shortlist coverage"
+    ]
+  },
+  "blocked_gates_preserved": [
+    "occurrence-level evidence correctness",
+    "unknown-rate",
+    "frozen legacy Recall@50 baseline",
+    "cold/warm latency baseline",
+    "retrieval-cost baseline"
+  ],
+  "rollback": {
+    "shortlist_strategy": "legacy_retrieval_v1",
+    "shortlist_policy": "legacy_production_v1",
+    "destructive_persistence_migration_required": false
+  }
+}

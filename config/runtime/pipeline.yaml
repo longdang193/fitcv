@@ -29,8 +29,8 @@ embedding_batch_size: 100
 # ── Semantic retrieval (Task 8) ────────────────────────────────────────────────
 pipeline:
   retrieval_strategy: hybrid_rrf_v1        # vector_cosine_v1, lexical_v1, or hybrid_rrf_v1
-  shortlist_strategy: legacy_retrieval_v1  # legacy_retrieval_v1 or core_pareto_evidence_v1
-  shortlist_policy: legacy_production_v1   # legacy_production_v1, requirement_aware_v1, or shadow
+  shortlist_strategy: core_pareto_evidence_v1  # promoted 2026-11-22; rollback to legacy_retrieval_v1
+  shortlist_policy: requirement_aware_v1       # promoted with core_pareto_evidence_v1
   shortlist_shadow_enabled: false          # compare selectors without changing downstream inputs
   vector_search_top_n: 50              # canonical shortlist top-N for vector search
   shortlist_audit_sample_n: 5          # deterministic below-cutoff retrieval audit sample

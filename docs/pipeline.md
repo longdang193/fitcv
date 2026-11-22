@@ -298,11 +298,20 @@ constructed and before the downstream ranking stage:
 
 `evaluation pool -> requirement occurrences -> S/P/E/U coverage -> core Pareto fronts -> deterministic evidence tie-break -> capacity 50`
 
-- `pipeline.shortlist_strategy` selects `legacy_retrieval_v1` (default) or `core_pareto_evidence_v1`; retrieval strategy remains independent
+- `pipeline.shortlist_strategy` selects `core_pareto_evidence_v1` in production, with `legacy_retrieval_v1` as the rollback selector; retrieval strategy remains independent
 - requirement occurrences preserve duplicate clauses, source IDs/spans/wording, qualifiers, required/preferred flags, and compound child references
 - known configured eligibility mismatches remain hard exclusions; missing/uncertain fit context is retained as diagnostic input for requirement-aware evaluation
 - every admitted and non-admitted row carries the decision envelope, evaluation-pool ID, assessment fingerprint, Pareto front, admission rank, and reason; complete rows are queryable from `/runs/{run_id}/shortlist-admissions`
 - shadow comparison is non-authoritative and must not alter legacy downstream inputs; legacy checkpoints/config mismatches fail closed
+
+The strategy was explicitly promoted on 2026-11-22 against the recorded
+blocked evaluation artifact at
+`docs/superpowers/evidence/2026-11-21-fitcv-shortlist-promotion-blocked.json`.
+That artifact remains `promotion_eligible: false`; the switch is an operator
+override, not a claim that the missing occurrence labels, frozen legacy
+baseline, and cold/warm latency-cost gates passed. Roll back by setting
+`pipeline.shortlist_strategy` to `legacy_retrieval_v1` and
+`pipeline.shortlist_policy` to `legacy_production_v1`.
 
 ## Ranking-V2 Fixed Baseline
 
