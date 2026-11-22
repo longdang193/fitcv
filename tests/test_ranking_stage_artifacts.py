@@ -1,3 +1,4 @@
+from fitcv.candidate import converge_candidate_profile_for_runtime
 from fitcv.pipeline_stage_artifacts import build_ranking_stage_block
 from fitcv.ranking_contract import RANKING_CV_HANDOFF_VERSION, build_ranking_cv_handoff
 
@@ -50,7 +51,15 @@ def test_ranking_stage_persists_handoff_without_promoting_shortlist() -> None:
         legacy_checkpoint_adaptation_count=0,
         zero_weight_features=[],
         contributing_features=["holistic_ai_fit"],
-        profile={"revision": "profile-1"},
+        profile=converge_candidate_profile_for_runtime(
+            {
+                "name": "Candidate",
+                "experiences": [],
+                "projects": [],
+                "skills": [],
+                "revision": "profile-1",
+            }
+        ),
         config={},
         stage_block_builder=_stage_block,
         stage_block_not_reached_builder=lambda stage: {"stage": stage},
@@ -99,6 +108,7 @@ def test_ranking_stage_marks_incomplete_handoff_closed() -> None:
         extract_job_url=lambda current: current["job_url"],
         ai_score_model_resolver=lambda config: "model",
         effective_preferences_resolver=lambda profile, config: {},
+        ranking_cv_handoffs_by_identity={"job-1": {}},
     )
 
     assert block["ranking_cv_handoff"]["status"] == "incomplete"

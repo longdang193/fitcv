@@ -79,6 +79,7 @@ from fitcv.candidate import (
     load_candidate_profile,
     load_profile_json_text,
     load_profile_yaml,
+    runtime_profile_value,
 )
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
@@ -2096,8 +2097,9 @@ def _build_ranking_cv_handoff_for_analysis(
     job: dict[str, Any],
     profile: dict[str, Any],
 ) -> dict[str, Any] | None:
+    profile_revision = runtime_profile_value(profile, "revision")
     if (
-        not str(profile.get("revision") or "").strip()
+        not str(profile_revision or "").strip()
         or job.get("baseline_rank") is None
         or job.get("baseline_fit") is None
     ):
@@ -2116,7 +2118,7 @@ def _build_ranking_cv_handoff_for_analysis(
     }
     return build_ranking_cv_handoff(
         handoff_input,
-        candidate_profile_revision=profile.get("revision"),
+        candidate_profile_revision=profile_revision,
     )
 
 

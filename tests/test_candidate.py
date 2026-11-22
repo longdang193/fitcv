@@ -90,6 +90,14 @@ def test_runtime_loader_accepts_canonical_v2_preferences() -> None:
     assert converged["search_preferences"] == canonical["search_preferences"]
 
 
+def test_runtime_convergence_preserves_profile_revision_for_stage_handoffs() -> None:
+    converged = converge_candidate_profile_for_runtime(
+        {**_VALID_PROFILE_DICT, "name": "Candidate", "revision": "profile-v1"}
+    )
+
+    assert converged["_runtime_compatibility"]["revision"] == "profile-v1"
+
+
 def test_runtime_convergence_strips_legacy_language_metadata_from_v2_snapshot() -> None:
     canonical = converge_candidate_profile_for_runtime(
         {

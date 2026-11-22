@@ -852,6 +852,7 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
     """Return one validated v2-compatible runtime snapshot without mutating input."""
     runtime_evidence_admission: dict[str, dict[str, str]] = {}
     runtime_compatibility: dict[str, Any] = {}
+    profile_revision = profile.get("revision")
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
         if "search_preferences" not in normalized and "preferences" in normalized:
@@ -863,6 +864,8 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
             runtime_evidence_admission.update(copy.deepcopy(supplied_admission))
         if isinstance(supplied_compatibility, dict):
             runtime_compatibility.update(copy.deepcopy(supplied_compatibility))
+        if profile_revision is not None:
+            runtime_compatibility["revision"] = copy.deepcopy(profile_revision)
         allowed_top_level = {
             "schema_version",
             "source_documents",
@@ -921,6 +924,8 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
                 if isinstance(value, dict)
             ]
     else:
+        if profile_revision is not None:
+            runtime_compatibility["revision"] = copy.deepcopy(profile_revision)
         if profile.get("years_experience") is not None:
             runtime_compatibility["years_experience"] = copy.deepcopy(profile["years_experience"])
         checksum = canonical_candidate_checksum(profile)
