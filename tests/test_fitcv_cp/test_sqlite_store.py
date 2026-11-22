@@ -7089,6 +7089,59 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
         sqlite_store.get_cv_download("cv-1")
 
 
+def test_cv_lifecycle_persists_pdf_failure_without_losing_markdown() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-lifecycle", [{"title": "CV Job"}])[0]
+    content = b"# Generated CV\n"
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-lifecycle-1",
+            "run_job_id": run_job_id,
+            "generation_status": "generated",
+            "content_blob": content,
+            "pdf_status": "failed",
+            "pdf_error_code": "render_proof_incomplete",
+            "pdf_error_message": "missing proof",
+            "submission_clearance": "blocked",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["generation_status"] == "generated"
+    assert version["pdf_status"] == "failed"
+    assert version["pdf_error_code"] == "render_proof_incomplete"
+    assert version["submission_clearance"] == "blocked"
+    assert sqlite_store.get_cv_download("cv-lifecycle-1")["content"] == content
+
+
+def test_cv_review_approval_can_clear_submission_after_pdf_acceptance() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-clearance", [{"title": "CV Job"}])[0]
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-clearance-1",
+            "run_job_id": run_job_id,
+            "generation_status": "generated",
+            "content_blob": b"# Generated CV\n",
+            "pdf_status": "generated",
+        }
+    )
+    sqlite_store.insert_cv_review_event(
+        {
+            "review_event_id": "review-clearance-1",
+            "cv_version_id": "cv-clearance-1",
+            "from_state": "manual_required",
+            "to_state": "approved",
+            "actor": "operator",
+            "created_at": "2026-07-20T10:01:00+00:00",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["review_state"] == "approved"
+    assert version["submission_clearance"] == "eligible"
+
+
 def test_cv_version_requires_unique_run_job_binding_when_pipeline_omits_id() -> None:
     run_id = "run-cv-boundary"
     job_url = "https://jobs.example.test/cv-boundary"

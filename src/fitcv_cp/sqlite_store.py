@@ -139,6 +139,8 @@ _DEGRADATION_REASON_NONE = "none"
 _SQLITE_OPEN_RETRY_ATTEMPTS = 3
 _SQLITE_OPEN_RETRY_DELAY_SECONDS = 0.2
 CONTROL_PLANE_SCHEMA_VERSION = 7
+_CV_PDF_STATUSES = {"pending", "generated", "failed"}
+_CV_SUBMISSION_CLEARANCES = {"blocked", "eligible"}
 SCAN_PROVIDER_CATALOG_MIGRATION = "fitcv_scan_provider_catalog_v1"
 LEGACY_EXAMPLE_COMPANIES_MIGRATION = "fitcv_legacy_example_companies_v1"
 RUN_HISTORY_MIGRATION_ID = "fitcv_run_history_v1"
@@ -165,6 +167,25 @@ class CandidateProfileUnavailableError(RuntimeError):
 
 class ProviderPersistenceRevisionConflict(RuntimeError):
     pass
+
+
+def _ensure_cv_lifecycle_columns(conn: sqlite3.Connection) -> None:
+    columns = {
+        str(row[1] or "")
+        for row in conn.execute("PRAGMA table_info(cv_versions)").fetchall()
+    }
+    if "pdf_status" not in columns:
+        conn.execute(
+            "ALTER TABLE cv_versions ADD COLUMN pdf_status TEXT NOT NULL DEFAULT 'pending'"
+        )
+    if "pdf_error_code" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_error_code TEXT")
+    if "pdf_error_message" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_error_message TEXT")
+    if "submission_clearance" not in columns:
+        conn.execute(
+            "ALTER TABLE cv_versions ADD COLUMN submission_clearance TEXT NOT NULL DEFAULT 'blocked'"
+        )
 
 
 def _legacy_profile_name(profile_name: Any, original_filename: Any) -> str:
@@ -1008,6 +1029,10 @@ def _ensure_control_plane_schema(
         cv_generation_input_fingerprint TEXT,
         cv_generation_reuse_status TEXT,
         quality_warnings_json TEXT CHECK (quality_warnings_json IS NULL OR json_valid(quality_warnings_json)),
+        pdf_status TEXT NOT NULL DEFAULT 'pending' CHECK (pdf_status IN ('pending', 'generated', 'failed')),
+        pdf_error_code TEXT,
+        pdf_error_message TEXT,
+        submission_clearance TEXT NOT NULL DEFAULT 'blocked' CHECK (submission_clearance IN ('blocked', 'eligible')),
         UNIQUE (run_job_id, ordinal),
         CHECK (generation_status NOT IN ('generated', 'review_required') OR (content_blob IS NOT NULL AND content_checksum IS NOT NULL AND content_length IS NOT NULL))
     );
@@ -1355,6 +1380,7 @@ def _ensure_control_plane_schema(
                     "UPDATE cv_versions SET quality_warnings_json=warning_envelope_json "
                     "WHERE quality_warnings_json IS NULL"
                 )
+        _ensure_cv_lifecycle_columns(conn)
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
         _ensure_run_history_migration_tables(conn)
@@ -8894,7 +8920,11 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
             cv_markdown TEXT,
             cv_generation_input_fingerprint TEXT,
             cv_generation_reuse_status TEXT,
-            quality_warnings_json TEXT CHECK (quality_warnings_json IS NULL OR json_valid(quality_warnings_json))
+            quality_warnings_json TEXT CHECK (quality_warnings_json IS NULL OR json_valid(quality_warnings_json)),
+            pdf_status TEXT NOT NULL DEFAULT 'pending',
+            pdf_error_code TEXT,
+            pdf_error_message TEXT,
+            submission_clearance TEXT NOT NULL DEFAULT 'blocked'
         )
         """
     )
@@ -8917,6 +8947,16 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
                 "UPDATE cv_versions SET quality_warnings_json=warning_envelope_json "
                 "WHERE quality_warnings_json IS NULL"
             )
+    if "pdf_status" not in existing_columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_status TEXT NOT NULL DEFAULT 'pending'")
+    if "pdf_error_code" not in existing_columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_error_code TEXT")
+    if "pdf_error_message" not in existing_columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_error_message TEXT")
+    if "submission_clearance" not in existing_columns:
+        conn.execute(
+            "ALTER TABLE cv_versions ADD COLUMN submission_clearance TEXT NOT NULL DEFAULT 'blocked'"
+        )
 
 def _ensure_local_rule_filter_results_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -14714,7 +14754,8 @@ _CV_VERSION_PROJECTION_COLUMNS = (
     "idempotency_key, run_id, job_url, fit_classification, generated_at, "
     "cv_generation_model, cv_prompt_version, cv_schema_version, cv_structured_json, "
     "cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, "
-    "quality_warnings_json"
+    "quality_warnings_json, pdf_status, pdf_error_code, pdf_error_message, "
+    "submission_clearance"
 )
 _CV_EVALUATION_PROJECTION_COLUMNS = (
     "cv_evaluation_id, cv_version_id, status, fit_classification, score, reason, "
@@ -14799,6 +14840,16 @@ def _cv_projection(
     item["evidence_state"] = evidence_state
     item["evaluation"] = dict(evaluation_row) if evaluation_row is not None else None
     item["review_state"] = str(review_row["to_state"]) if review_row is not None else "none"
+    item["pdf_status"] = str(item.get("pdf_status") or "pending")
+    item["submission_clearance"] = (
+        "eligible"
+        if (
+            native_status == "generated"
+            and item["pdf_status"] == "generated"
+            and item["review_state"] in {"none", "approved"}
+        )
+        else "blocked"
+    )
     item["capabilities"] = {
         "download": (
             item.get("generation_status") in {"generated", "review_required"}
@@ -14970,7 +15021,7 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
             ):
                 return []
             raise sqlite3.IntegrityError("UNIQUE constraint failed: cv_versions.version_id")
-        placeholders = ", ".join("?" for _ in range(39))
+        placeholders = ", ".join("?" for _ in range(43))
         conn.execute(
             f"""INSERT INTO cv_versions (
                 version_id, run_job_id, parent_cv_version_id, ordinal, generation_status,
@@ -14980,7 +15031,8 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 content_checksum, content_blob, storage_path, error_code, error_message,
                 action_id, idempotency_key, run_id, job_url, fit_classification, generated_at,
                 cv_generation_model, cv_prompt_version, cv_schema_version, cv_structured_json,
-                cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, quality_warnings_json
+                cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, quality_warnings_json,
+                pdf_status, pdf_error_code, pdf_error_message, submission_clearance
             ) VALUES ({placeholders})""",
             (
                 version_id, run_job_id, row.get("parent_cv_version_id"), ordinal, generation_status,
@@ -15001,7 +15053,9 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 row.get("cv_generation_model"), row.get("cv_prompt_version"),
                 row.get("cv_schema_version"), row.get("cv_structured_json"), markdown or None,
                 row.get("cv_generation_input_fingerprint"), row.get("cv_generation_reuse_status"),
-                row.get("quality_warnings_json"),
+                 row.get("quality_warnings_json"), row.get("pdf_status") or "pending",
+                 row.get("pdf_error_code"), row.get("pdf_error_message"),
+                 row.get("submission_clearance") or "blocked",
             ),
         )
         if run_job_id is not None:
@@ -15128,6 +15182,12 @@ def update_cv_version(
     content_bytes = bytes(content) if content is not None else None
     if normalized_status in {"generated", "review_required"} and not content_bytes:
         raise ValueError("generated_content_required")
+    pdf_status = metadata.get("pdf_status")
+    if pdf_status is not None and str(pdf_status).strip() not in _CV_PDF_STATUSES:
+        raise ValueError("pdf_status_invalid")
+    submission_clearance = metadata.get("submission_clearance")
+    if submission_clearance is not None and str(submission_clearance).strip() not in _CV_SUBMISSION_CLEARANCES:
+        raise ValueError("submission_clearance_invalid")
     now = datetime.datetime.now(datetime.timezone.utc)
     now_iso = now.isoformat()
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
@@ -15166,7 +15226,11 @@ def update_cv_version(
                        cv_structured_json=COALESCE(?, cv_structured_json), cv_markdown=COALESCE(?, cv_markdown),
                        cv_generation_input_fingerprint=COALESCE(?, cv_generation_input_fingerprint),
                        cv_generation_reuse_status=COALESCE(?, cv_generation_reuse_status),
-                       quality_warnings_json=COALESCE(?, quality_warnings_json)
+                       quality_warnings_json=COALESCE(?, quality_warnings_json),
+                       pdf_status=COALESCE(?, pdf_status),
+                       pdf_error_code=COALESCE(?, pdf_error_code),
+                       pdf_error_message=COALESCE(?, pdf_error_message),
+                       submission_clearance=COALESCE(?, submission_clearance)
                    WHERE version_id=?""",
                 (
                     normalized_status,
@@ -15189,6 +15253,9 @@ def update_cv_version(
                     json.dumps(metadata.get("quality_warnings_json"), sort_keys=True)
                     if isinstance(metadata.get("quality_warnings_json"), dict)
                     else metadata.get("quality_warnings_json"),
+                    str(pdf_status).strip() if pdf_status is not None else None,
+                    metadata.get("pdf_error_code"), metadata.get("pdf_error_message"),
+                    str(submission_clearance).strip() if submission_clearance is not None else None,
                     version_id,
                 ),
             )
@@ -15290,6 +15357,7 @@ def update_cv_evaluation(
 
 def insert_cv_review_event(row: dict[str, Any]) -> dict[str, Any]:
     created_at = str(row.get("created_at") or datetime.datetime.now(datetime.timezone.utc).isoformat())
+    to_state = str(row.get("to_state") or "").strip()
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.execute(
             """INSERT INTO cv_review_events (
@@ -15302,6 +15370,14 @@ def insert_cv_review_event(row: dict[str, Any]) -> dict[str, Any]:
                 row.get("actor"), row.get("note"), row.get("action_id"),
                 row.get("idempotency_key"), created_at,
             ),
+        )
+        conn.execute(
+            """UPDATE cv_versions
+               SET submission_clearance=CASE
+                   WHEN generation_status='generated' AND pdf_status='generated' AND ? IN ('none', 'approved')
+                   THEN 'eligible' ELSE 'blocked' END
+               WHERE version_id=?""",
+            (to_state, row.get("cv_version_id")),
         )
         conn.commit()
     return {**row, "created_at": created_at}

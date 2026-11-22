@@ -53,7 +53,11 @@ from fitcv.contracts import (
     SETTINGS_USED_SCHEMA_VERSION,
 )
 from fitcv.pipeline import PipelineCancelled, run_pipeline
-from fitcv.ranking_contract import normalize_score_state_for_export
+from fitcv.ranking_contract import (
+    normalize_score_state_for_export,
+    ranking_cv_handoff_sha256,
+    validate_ranking_cv_handoff,
+)
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,
@@ -131,6 +135,7 @@ from fitcv_cp.run_artifact_contracts import (
     run_attempt_payload_v1,
     run_mode_label,
     require_payload_keys,
+    render_proof_is_verified,
     stable_json_dumps,
     stable_sha256_fingerprint,
     string_or_none,
@@ -479,6 +484,34 @@ def _bounded_markdown_preview(markdown_text: str) -> str:
         return preview[:_MAX_DEBUG_MARKDOWN_CHARS] + "\n...[truncated]"
     return preview
 
+
+def _load_ranking_cv_handoff_for_job(run: Any, job: dict[str, Any]) -> dict[str, Any] | None:
+    raw_payload = str(getattr(run, "stage_transition_artifacts_json", "") or "").strip()
+    if not raw_payload:
+        return None
+    payload = decode_json_object_or_none(raw_payload) or {}
+    artifacts = payload.get("artifacts") if isinstance(payload.get("artifacts"), dict) else payload
+    stages = artifacts.get("stages") if isinstance(artifacts, dict) else None
+    ranking = stages.get("ranking") if isinstance(stages, dict) else None
+    handoff_block = ranking.get("ranking_cv_handoff") if isinstance(ranking, dict) else None
+    if not isinstance(handoff_block, dict):
+        return None
+    identity_values = {
+        str(job.get(key) or "").strip()
+        for key in ("canonical_job_identity", "job_identity", "raw_job_fingerprint", "job_url", "url")
+        if str(job.get(key) or "").strip()
+    }
+    for item in list(handoff_block.get("items") or []):
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("canonical_job_identity") or "").strip() not in identity_values:
+            continue
+        canonical = validate_ranking_cv_handoff(item)
+        if str(item.get("handoff_fingerprint") or "") != ranking_cv_handoff_sha256(canonical):
+            raise ValueError("ranking_cv_handoff_fingerprint_mismatch")
+        return {**canonical, "handoff_fingerprint": item["handoff_fingerprint"]}
+    return None
+
 def execute_cv_regenerate_once(
     *,
     run_id: str,
@@ -566,6 +599,7 @@ def execute_cv_regenerate_once(
         resolutions = _load_requirement_resolutions(run, profile)
         if resolutions:
             config["_requirement_resolutions"] = resolutions
+        ranking_cv_handoff = _load_ranking_cv_handoff_for_job(run, job)
         input_snapshot = {"job": job, "profile": profile, "settings": config}
         normalized_key = str(idempotency_key or "").strip() or f"legacy:{run_id}:{normalized_job_url}"
         normalized_action_id = str(action_id or "").strip() or str(uuid.uuid4())
@@ -609,18 +643,16 @@ def execute_cv_regenerate_once(
             and analysis_job.get("baseline_fit") is None
         ):
             analysis_job["baseline_fit_label"] = prior_fit_classification
-        analysis = dict(
-            analyze_ranked_job(
-                analysis_job,
-                profile,
-                config,
-                fit_classification_override=(
-                    prior_fit_classification
-                    if prior_fit_classification in {"strong", "stretch", "skip"}
-                    else None
-                ),
-            )
-        )
+        analysis_kwargs: dict[str, Any] = {
+            "fit_classification_override": (
+                prior_fit_classification
+                if prior_fit_classification in {"strong", "stretch", "skip"}
+                else None
+            ),
+        }
+        if ranking_cv_handoff is not None:
+            analysis_kwargs["ranking_cv_handoff"] = ranking_cv_handoff
+        analysis = dict(analyze_ranked_job(analysis_job, profile, config, **analysis_kwargs))
         generation = dict(generate_from_analysis(analysis, profile, config))
         fit_classification = str(
             analysis.get("fit_classification") or generation.get("fit_classification") or ""
@@ -649,15 +681,38 @@ def execute_cv_regenerate_once(
             "generation_failed": "generation_failed",
             "persistence_failed": "persistence_failed",
         }.get(str(generation.get("status") or ""), "generation_failed")
-        if generation_status == "generated" and not final_artifact_acceptance_passes(
-            content_acceptance=True,
-            page_fit_status=generation.get("page_fit_status"),
-            render_acceptance=generation.get("render_acceptance"),
-        ):
-            generation_status = "review_required"
         markdown = str(generation.get("markdown_final") or "")
         content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
         content_checksum = hashlib.sha256(content).hexdigest() if content is not None else None
+        pdf_verified = render_proof_is_verified(
+            generation.get("render_acceptance"),
+            content_checksum=content_checksum,
+        )
+        pdf_status = (
+            "generated"
+            if pdf_verified
+            else "failed"
+            if content is not None
+            else "pending"
+        )
+        pdf_error_code = None if pdf_verified or content is None else "render_proof_incomplete"
+        pdf_error_message = (
+            None
+            if pdf_verified or content is None
+            else "PDF render proof is missing, incomplete, or does not match the Markdown artifact."
+        )
+        review_state = _cv_review_state(
+            fit_classification=fit_classification or None,
+            generation_status=generation_status,
+            has_content=content is not None,
+        )
+        submission_clearance = (
+            "eligible"
+            if generation_status == "generated"
+            and pdf_status == "generated"
+            and review_state in {"none", "approved"}
+            else "blocked"
+        )
         final_cv_evidence = build_final_cv_evidence_envelope(
             artifact_version_id=reserved_version_id,
             content_checksum=content_checksum,
@@ -685,14 +740,13 @@ def execute_cv_regenerate_once(
                 "cv_generation_input_fingerprint": generation.get("cv_generation_input_fingerprint"),
                 "cv_generation_reuse_status": generation.get("cv_generation_reuse_status"),
                 "quality_warnings_json": final_cv_evidence,
+                "pdf_status": pdf_status,
+                "pdf_error_code": pdf_error_code,
+                "pdf_error_message": pdf_error_message,
+                "submission_clearance": submission_clearance,
             },
             error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
             error_message=(str((generation.get("error") or {}).get("message") or "") or None),
-        )
-        review_state = _cv_review_state(
-            fit_classification=fit_classification or None,
-            generation_status=generation_status,
-            has_content=content is not None,
         )
         if review_state != "none":
             insert_cv_review_event(
@@ -1174,6 +1228,7 @@ def _build_cv_generation_debug_payload(
             page_fit_status=record.get("page_fit_status"),
             render_acceptance=record.get("render_acceptance"),
         )
+        and render_proof_is_verified(record.get("render_acceptance"), content_checksum=record.get("content_checksum"))
     ]
     existing_events = [
         item for item in list(summary.get("accepted_artifact_events") or [])

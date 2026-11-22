@@ -502,3 +502,20 @@ the non-secret routing overlay.
 - Activation config is exact: `activation_version: ranking-policy-lifecycle-v1` and `minimum_fold_vector_stability: 0.0`. Existing `numeric_equivalence_absolute` owns metric tolerance and vector no-op equivalence; no CLI override exists.
 - Pure commands remain `train --domain <id> --input <bundle>` and `evaluate ... [--parent <path>]`. Lifecycle commands are `candidate`, `reject`, `activate`, `rollback`, and `inspect`; all emit canonical JSON and use atomic file replacement when `--output` is supplied. `/admin/optimization` adapts stored SQLite evidence into the same shared candidate operation and exposes no numeric optimizer settings.
 - Exit codes are `0` for valid terminal/action results, `2` for invalid input or unknown identity, `3` for solver/dependency/storage failure, and `4` for promotion rejection, stale/conflicting lifecycle state, or incompatibility.
+
+## Ranking-to-CV and Renderer Configuration
+
+- `config/policy/cv.yaml` is the canonical owner of `cv.renderer.strategy`.
+- The default remains `europass`; existing Europass artifacts and resume behavior
+  are preserved when the setting is absent.
+- `mycvs_v1` is an explicit opt-in deterministic Markdown renderer. Its output is
+  normalized to UTF-8/LF, validated against the canonical intermediate CV model,
+  and bound to the ranking handoff identity and content checksum.
+- The ranking stage persists the immutable `ranking_cv_handoff_v1` under
+  `stage_transition_artifacts_json.artifacts.stages.ranking.ranking_cv_handoff`.
+  Resume and regenerate paths use the persisted handoff when present; they do not
+  silently replace its rank, score, evidence, gaps, qualifiers, or provenance
+  with current defaults.
+- The external `mycvs_external_render_v1` converter remains disabled until its
+  converter revision and stylesheet/template revision are pinned and reproducible.
+  Without that evidence, the native Europass path remains the safe default.

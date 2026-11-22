@@ -250,6 +250,17 @@ class CvReviewState(str, Enum):
     REJECTED = "rejected"
 
 
+class CvPdfStatus(str, Enum):
+    PENDING = "pending"
+    GENERATED = "generated"
+    FAILED = "failed"
+
+
+class CvSubmissionClearance(str, Enum):
+    BLOCKED = "blocked"
+    ELIGIBLE = "eligible"
+
+
 class EventLevel(str, Enum):
     INFO = "info"
     WARNING = "warning"

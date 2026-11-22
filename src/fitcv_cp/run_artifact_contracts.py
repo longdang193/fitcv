@@ -43,6 +43,15 @@ ACCEPTED_CV_FAILURE_CATEGORIES = (
     "provider_failure",
     "other",
 )
+MYCVS_EXTERNAL_RENDER_CONTRACT_VERSION = "mycvs_external_render_v1"
+_RECOGNIZED_RENDER_CONTRACT_VERSIONS = frozenset(
+    {
+        "fitcv_native_render_v1",
+        "cv_native_render_v2",
+        MYCVS_EXTERNAL_RENDER_CONTRACT_VERSION,
+    }
+)
+_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _LINEAGE_FIELDS = ("run_id", "run_job_id", "artifact_id", "generation_input_fingerprint", "attempt_id", "trace_id")
 _TRACE_IDENTITY_FIELDS = (
     "trace_id",
@@ -103,11 +112,21 @@ def accepted_cv_artifact_event_v1(
         ).strip() or None
     if not normalized_render_acceptance:
         raise ValueError("accepted_cv_artifact final artifact render proof required")
+    renderer_contract_version = str(
+        normalized_render_acceptance.get("renderer_contract_version") or ""
+    ).strip()
+    if renderer_contract_version and renderer_contract_version not in _RECOGNIZED_RENDER_CONTRACT_VERSIONS:
+        raise ValueError("accepted_cv_artifact renderer contract unrecognized")
     render_page_fit_status = str(
         normalized_render_acceptance.get("page_fit_status") or normalized_page_fit_status or ""
     ).strip().lower()
     if normalized_render_acceptance.get("page_count") != 1 or render_page_fit_status != "pass":
         raise ValueError("accepted_cv_artifact final artifact acceptance failed")
+    if (
+        renderer_contract_version == MYCVS_EXTERNAL_RENDER_CONTRACT_VERSION
+        and not _render_acceptance_is_verified(normalized_render_acceptance)
+    ):
+        raise ValueError("accepted_cv_artifact final artifact render proof incomplete")
     return {
         "schema_version": ACCEPTED_CV_ARTIFACT_SCHEMA_VERSION,
         "final_artifact_contract_version": (
@@ -144,16 +163,38 @@ def accepted_cv_artifact_event_v1(
 def _render_acceptance_is_verified(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
+    renderer_contract_version = str(value.get("renderer_contract_version") or "").strip()
+    if renderer_contract_version not in _RECOGNIZED_RENDER_CONTRACT_VERSIONS:
+        return False
+    if (
+        str(value.get("render_status") or "").strip().lower() != "pass"
+        or int(value.get("page_count") or 0) != 1
+        or str(value.get("page_fit_status") or "").strip().lower() != "pass"
+        or not _SHA256_PATTERN.fullmatch(str(value.get("artifact_checksum") or "").strip().lower())
+    ):
+        return False
+    if renderer_contract_version == MYCVS_EXTERNAL_RENDER_CONTRACT_VERSION:
+        return all(
+            bool(_SHA256_PATTERN.fullmatch(str(value.get(field) or "").strip().lower()))
+            for field in ("content_sha256", "template_sha256", "render_config_fingerprint")
+        )
     return (
-        str(value.get("render_status") or "").strip() == "pass"
-        and int(value.get("page_count") or 0) == 1
-        and str(value.get("page_fit_status") or "").strip() == "pass"
-        and bool(re.fullmatch(r"[0-9a-f]{64}", str(value.get("artifact_checksum") or "")))
-        and bool(str(value.get("content_sha256") or "").strip())
+        bool(str(value.get("content_sha256") or "").strip())
         and bool(str(value.get("template_sha256") or "").strip())
         and bool(str(value.get("render_config_fingerprint") or "").strip())
-        and bool(str(value.get("renderer_contract_version") or "").strip())
     )
+
+
+def render_proof_is_verified(
+    value: dict[str, Any] | None,
+    *,
+    content_checksum: str | None = None,
+) -> bool:
+    if not _render_acceptance_is_verified(value):
+        return False
+    if content_checksum is None:
+        return True
+    return str(value.get("content_sha256") or "").strip().lower() == str(content_checksum).strip().lower()
 
 
 def build_final_cv_evidence_envelope(

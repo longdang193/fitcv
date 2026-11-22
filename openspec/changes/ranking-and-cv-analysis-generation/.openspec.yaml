@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-22
+goal: Define authoritative ranking, CV analysis, deterministic myCVs generation,
+  PDF handling, and auditable handoff behavior.

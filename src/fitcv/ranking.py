@@ -20,7 +20,17 @@ from typing import Any
 
 from fitcv.candidate import canonicalize_role_title, infer_role_family
 from fitcv.preference_policy import ResolvedPreferencePolicy, project_personalized_score
-from fitcv.ranking_contract import SCORE_STATUS_VALID, STRUCTURED_FACTOR_IDS, normalize_score_state
+from fitcv.ranking_contract import (
+    AI_COMPATIBILITY_RANKING_ORDER_VERSION,
+    RANKING_DECISION_ENVELOPE_VERSION,
+    RANKING_ORDER_VERSION,
+    RANKING_SCORE_CONTRACT_VERSION,
+    SCORE_STATUS_INVALID,
+    SCORE_STATUS_VALID,
+    STRUCTURED_FACTOR_IDS,
+    is_finite_score,
+    normalize_score_state,
+)
 from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 
 SUPPORTED_RANKING_FEATURES = STRUCTURED_FACTOR_IDS
@@ -328,45 +338,95 @@ def rank_jobs(
     top_n: int,
     *,
     resolved_preference_policy: ResolvedPreferencePolicy | None = None,
+    ranking_order_version: str | None = None,
+    ranking_policy_version: str | None = None,
+    ranking_contract_version: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Assign global baseline rank, then optional personalized order."""
+    """Assign the persisted authoritative order, then optional personalization."""
+    persisted_order_versions = {
+        str(job.get("ranking_order_version")).strip()
+        for job in jobs
+        if str(job.get("ranking_order_version") or "").strip()
+    }
+    if ranking_order_version is None:
+        if len(persisted_order_versions) > 1:
+            raise ValueError("ranking rows contain conflicting ranking_order_version values")
+        ranking_order_version = next(iter(persisted_order_versions), RANKING_ORDER_VERSION)
+    ranking_order_version = str(ranking_order_version).strip()
+    if not ranking_order_version:
+        raise ValueError("ranking_order_version is required")
+    active_preference_policy = (
+        resolved_preference_policy
+        if ranking_order_version == RANKING_ORDER_VERSION
+        else None
+    )
+    uses_ai_compatibility_order = ranking_order_version == AI_COMPATIBILITY_RANKING_ORDER_VERSION
     scored_jobs: list[dict[str, Any]] = []
     for job in jobs:
         if not str(job.get("raw_job_fingerprint") or "").strip():
             raise ValueError("ranking row requires raw_job_fingerprint")
         score_state = normalize_score_state(job)
+        if score_state["score_status"] == SCORE_STATUS_VALID and job.get("baseline_fit") is None:
+            job["baseline_fit"] = score_state["ai_score"]
+        if score_state["score_status"] == SCORE_STATUS_VALID and not is_finite_score(
+            job.get("baseline_fit")
+        ):
+            score_state = {
+                **score_state,
+                "score_status": SCORE_STATUS_INVALID,
+                "failure_code": score_state["failure_code"] or "invalid_baseline_score",
+                "disposition": "invalid_score",
+                "retry_eligible": False,
+            }
         job["score_status"] = score_state["score_status"]
         job["failure_code"] = score_state["failure_code"]
         job["disposition"] = score_state["disposition"]
         job["retry_eligible"] = score_state["retry_eligible"]
+        job["ranking_order_version"] = ranking_order_version
+        job["ranking_policy_version"] = (
+            str(ranking_policy_version).strip()
+            if ranking_policy_version is not None
+            else job.get("ranking_policy_version")
+        )
+        job["ranking_contract_version"] = (
+            str(ranking_contract_version).strip()
+            if ranking_contract_version is not None
+            else job.get("ranking_contract_version", RANKING_SCORE_CONTRACT_VERSION)
+        )
+        job["ranking_decision_envelope_version"] = job.get(
+            "ranking_decision_envelope_version", RANKING_DECISION_ENVELOPE_VERSION
+        )
+        job["ranking_personalization_authoritative"] = active_preference_policy is not None
         if score_state["score_status"] != SCORE_STATUS_VALID or job.get("baseline_fit") is None:
             continue
         scored_jobs.append(job)
     sorted_jobs = sorted(
         scored_jobs,
         key=lambda j: (
-            -float(j["baseline_fit"]),
+            -float(j["ai_score"] if uses_ai_compatibility_order else j["baseline_fit"]),
             str(j["raw_job_fingerprint"]),
+            str(j.get("canonical_job_identity") or j.get("job_identity") or ""),
             str(j.get("job_url") or ""),
         ),
     )
 
     for index, job in enumerate(sorted_jobs, start=1):
         job["baseline_rank"] = index
+        ranking_score = float(job["ai_score"] if uses_ai_compatibility_order else job["baseline_fit"])
         baseline_fit = float(job["baseline_fit"])
         residual = 0.0
-        raw_score = baseline_fit
-        display_score = baseline_fit
+        raw_score = ranking_score
+        display_score = ranking_score
         clipped = False
-        if resolved_preference_policy is not None:
+        if active_preference_policy is not None:
             embedding = job.get("normalized_embedding")
-            if not isinstance(embedding, list) and any(resolved_preference_policy.preference_vector):
+            if not isinstance(embedding, list) and any(active_preference_policy.preference_vector):
                 raise ValueError("ranking row requires normalized_embedding for personalization")
             if isinstance(embedding, list):
                 projection = project_personalized_score(
-                    runtime_contract=resolved_preference_policy.runtime_contract,
+                    runtime_contract=active_preference_policy.runtime_contract,
                     baseline_fit=baseline_fit,
-                    preference_vector=resolved_preference_policy.preference_vector,
+                    preference_vector=active_preference_policy.preference_vector,
                     normalized_embedding=tuple(float(value) for value in embedding),
                 )
                 residual = projection.preference_residual
@@ -378,21 +438,21 @@ def rank_jobs(
         job["personalized_display_score"] = display_score
         job["score_was_clipped"] = clipped
         job["preference_policy_snapshot_id"] = (
-            resolved_preference_policy.policy_snapshot_id if resolved_preference_policy else None
+            active_preference_policy.policy_snapshot_id if active_preference_policy else None
         )
         job["preference_vector_fingerprint"] = (
-            resolved_preference_policy.preference_vector_fingerprint
-            if resolved_preference_policy
+            active_preference_policy.preference_vector_fingerprint
+            if active_preference_policy
             else None
         )
         job["preference_runtime_contract_fingerprint"] = (
-            resolved_preference_policy.runtime_contract.runtime_contract_fingerprint
-            if resolved_preference_policy
+            active_preference_policy.runtime_contract.runtime_contract_fingerprint
+            if active_preference_policy
             else None
         )
         job["preference_policy_resolution_status"] = (
-            resolved_preference_policy.resolution_status
-            if resolved_preference_policy
+            active_preference_policy.resolution_status
+            if active_preference_policy
             else "zero_residual_no_active"
         )
 
@@ -401,6 +461,7 @@ def rank_jobs(
         key=lambda job: (
             -float(job["personalized_rank_score"]),
             str(job["raw_job_fingerprint"]),
+            str(job.get("canonical_job_identity") or job.get("job_identity") or ""),
             str(job.get("job_url") or ""),
         ),
     )

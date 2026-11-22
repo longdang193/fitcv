@@ -1709,6 +1709,7 @@ def _build_fallback_provider_generator(
     fit: str,
     evidence_selection_summary: dict[str, Any],
     content_plan: dict[str, Any],
+    ranking_cv_handoff: dict[str, Any] | None,
 ) -> Callable[[list[str] | None], Any]:
     provider_profile = {
         key: value
@@ -1728,6 +1729,7 @@ def _build_fallback_provider_generator(
             repair_missing_sections=repair_missing_sections,
             content_plan=content_plan,
             target_sections=repair_missing_sections,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
 
     return _call
@@ -2081,6 +2083,38 @@ def _finalize_generation_result(
     reused_cv_version_id: str | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
+    ranking_cv_handoff = analysis_record.get("ranking_cv_handoff")
+    if isinstance(ranking_cv_handoff, dict):
+        for field in ("structured_cv_initial", "structured_cv_final"):
+            structured_cv = finalized.get(field)
+            if isinstance(structured_cv, dict):
+                structured_cv = deepcopy(structured_cv)
+                structured_cv["ranking_cv_handoff"] = dict(ranking_cv_handoff)
+                finalized[field] = structured_cv
+        structured_cv_final = finalized.get("structured_cv_final")
+        if isinstance(structured_cv_final, dict):
+            finalized["markdown_final"] = render_cv_markdown(structured_cv_final, config)
+            job = dict(analysis_record.get("job_snapshot") or {})
+            evidence_payload = [
+                item for item in list(analysis_record.get("evidence_payload") or [])
+                if isinstance(item, dict)
+            ]
+            evidence_used = [
+                item for item in list(analysis_record.get("evidence_used") or [])
+                if isinstance(item, dict)
+            ]
+            finalized["validation"] = _run_generation_validations(
+                finalized["markdown_final"],
+                profile=profile,
+                config=config,
+                structured_cv=structured_cv_final,
+                analysis_grounding=_build_validation_grounding_payload(
+                    analysis_record,
+                    job,
+                    evidence_payload,
+                    evidence_used,
+                ),
+            )
     finalized = _apply_final_artifact_contract(
         finalized,
         analysis_record=analysis_record,
@@ -2563,6 +2597,7 @@ def _generate_fresh_from_analysis(
         fit=fit,
         evidence_selection_summary=evidence_selection_summary,
         content_plan=content_plan,
+        ranking_cv_handoff=analysis_record.get("ranking_cv_handoff"),
     )
 
     def _call_provider(

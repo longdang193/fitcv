@@ -64,7 +64,31 @@ NORMALIZER_IDS = {
     "language_fit": "eligibility-language-projection-v1",
 }
 RANKING_ORDER_VERSION = "baseline-all-eligible-personalized-fingerprint-url-v1"
+AI_COMPATIBILITY_RANKING_ORDER_VERSION = "ai-compatibility-v1"
+RANKING_SCORE_CONTRACT_VERSION = "ranking_score_v1"
+RANKING_DECISION_ENVELOPE_VERSION = "ranking_decision_envelope_v1"
+RANKING_CV_HANDOFF_VERSION = "ranking_cv_handoff_v1"
 LEGACY_ADAPTER_VERSION = "ranking-row-legacy-v1"
+
+_RANKING_CV_HANDOFF_FIELDS = (
+    "schema_version",
+    "canonical_job_identity",
+    "job_qualifiers",
+    "baseline_rank",
+    "baseline_score",
+    "score_status",
+    "failure_code",
+    "disposition",
+    "retry_eligible",
+    "evidence_ids",
+    "confirmed_gaps",
+    "confirmed_unknowns",
+    "candidate_profile_revision",
+    "ranking_order_version",
+    "ranking_policy_version",
+    "ranking_contract_version",
+    "source_provenance",
+)
 
 def _fit_label_from_thresholds(score: float, thresholds: Mapping[str, Any]) -> str:
     exact_thresholds = _mapping(thresholds, "ranking_policy.fit_label_thresholds")
@@ -400,6 +424,196 @@ def _canonical_fingerprint(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def _normalized_handoff_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _canonical_handoff_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {
+            str(key).strip(): _canonical_handoff_value(inner)
+            for key, inner in sorted(value.items(), key=lambda item: str(item[0]))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_handoff_value(item) for item in value]
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def _ordered_handoff_strings(value: Any, field: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple, set, frozenset)):
+        raise ValueError(f"ranking_cv_handoff.{field} must be an array")
+    return sorted(
+        {
+            normalized
+            for item in value
+            if (normalized := _normalized_handoff_string(item)) is not None
+        }
+    )
+
+
+def canonicalize_ranking_cv_handoff(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the exact object covered by the ranking-to-CV fingerprint."""
+    if not isinstance(payload, Mapping):
+        raise ValueError("ranking_cv_handoff must be an object")
+    canonical = {
+        "schema_version": _normalized_handoff_string(payload.get("schema_version")),
+        "canonical_job_identity": _canonical_handoff_value(
+            payload.get("canonical_job_identity")
+        ),
+        "job_qualifiers": _canonical_handoff_value(payload.get("job_qualifiers")),
+        "baseline_rank": payload.get("baseline_rank"),
+        "baseline_score": payload.get(
+            "baseline_score",
+            payload.get("baseline_fit", payload.get("final_score")),
+        ),
+        "score_status": _normalized_handoff_string(payload.get("score_status")),
+        "failure_code": _normalized_handoff_string(payload.get("failure_code")),
+        "disposition": _normalized_handoff_string(payload.get("disposition")),
+        "retry_eligible": payload.get("retry_eligible"),
+        "evidence_ids": _ordered_handoff_strings(
+            payload.get("evidence_ids", payload.get("canonical_evidence_ids")),
+            "evidence_ids",
+        ),
+        "confirmed_gaps": _ordered_handoff_strings(
+            payload.get("confirmed_gaps", payload.get("gaps")),
+            "confirmed_gaps",
+        ),
+        "confirmed_unknowns": _ordered_handoff_strings(
+            payload.get("confirmed_unknowns", payload.get("unknowns")),
+            "confirmed_unknowns",
+        ),
+        "candidate_profile_revision": _normalized_handoff_string(
+            payload.get("candidate_profile_revision", payload.get("profile_revision"))
+        ),
+        "ranking_order_version": _normalized_handoff_string(
+            payload.get("ranking_order_version")
+        ),
+        "ranking_policy_version": _normalized_handoff_string(
+            payload.get("ranking_policy_version")
+        ),
+        "ranking_contract_version": _normalized_handoff_string(
+            payload.get("ranking_contract_version", RANKING_SCORE_CONTRACT_VERSION)
+        ),
+        "source_provenance": _canonical_handoff_value(
+            payload.get("source_provenance", payload.get("provenance"))
+        ),
+    }
+    return canonical
+
+
+def validate_ranking_cv_handoff(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate and return the canonical ranking-to-CV handoff object."""
+    canonical = canonicalize_ranking_cv_handoff(payload)
+    if canonical["schema_version"] != RANKING_CV_HANDOFF_VERSION:
+        raise ValueError(
+            f"ranking_cv_handoff.schema_version must be {RANKING_CV_HANDOFF_VERSION}"
+        )
+    if canonical["canonical_job_identity"] in (None, "", {}):
+        raise ValueError("ranking_cv_handoff.canonical_job_identity is required")
+    if canonical["job_qualifiers"] is None:
+        raise ValueError("ranking_cv_handoff.job_qualifiers is required")
+    rank = canonical["baseline_rank"]
+    if rank is not None and (isinstance(rank, bool) or not isinstance(rank, int) or rank < 1):
+        raise ValueError("ranking_cv_handoff.baseline_rank must be a positive integer or null")
+    score = canonical["baseline_score"]
+    if score is not None and not is_finite_score(score):
+        raise ValueError("ranking_cv_handoff.baseline_score must be a finite score or null")
+    if canonical["score_status"] not in SCORE_STATUSES:
+        raise ValueError("ranking_cv_handoff.score_status is invalid")
+    if canonical["score_status"] == SCORE_STATUS_VALID and (score is None or rank is None):
+        raise ValueError("valid ranking_cv_handoff rows require baseline rank and score")
+    if canonical["disposition"] is None:
+        raise ValueError("ranking_cv_handoff.disposition is required")
+    if not isinstance(canonical["retry_eligible"], bool):
+        raise ValueError("ranking_cv_handoff.retry_eligible must be boolean")
+    for field in (
+        "candidate_profile_revision",
+        "ranking_order_version",
+        "ranking_policy_version",
+        "ranking_contract_version",
+    ):
+        if canonical[field] is None:
+            raise ValueError(f"ranking_cv_handoff.{field} is required")
+    if not isinstance(canonical["source_provenance"], Mapping) or not canonical["source_provenance"]:
+        raise ValueError("ranking_cv_handoff.source_provenance is required")
+    return canonical
+
+
+def ranking_cv_handoff_sha256(payload: Mapping[str, Any]) -> str:
+    canonical = validate_ranking_cv_handoff(payload)
+    encoded = json.dumps(
+        canonical,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def build_ranking_cv_handoff(
+    row: Mapping[str, Any],
+    *,
+    candidate_profile_revision: Any = None,
+    ranking_order_version: Any = None,
+    ranking_policy_version: Any = None,
+    ranking_contract_version: Any = RANKING_SCORE_CONTRACT_VERSION,
+    source_provenance: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build one immutable, fingerprinted ranking-to-CV handoff."""
+    score_state = normalize_score_state(row)
+    canonical = validate_ranking_cv_handoff(
+        {
+            "schema_version": RANKING_CV_HANDOFF_VERSION,
+            "canonical_job_identity": row.get(
+                "canonical_job_identity",
+                row.get("job_identity", row.get("raw_job_fingerprint")),
+            ),
+            "job_qualifiers": row.get(
+                "job_qualifiers",
+                row.get("qualifiers", row.get("job", {}).get("qualifiers") if isinstance(row.get("job"), Mapping) else None),
+            ),
+            "baseline_rank": row.get("baseline_rank"),
+            "baseline_score": row.get("baseline_score", row.get("baseline_fit")),
+            "score_status": score_state["score_status"],
+            "failure_code": score_state["failure_code"],
+            "disposition": score_state["disposition"],
+            "retry_eligible": score_state["retry_eligible"],
+            "evidence_ids": row.get(
+                "evidence_ids",
+                row.get("canonical_evidence_ids", row.get("selected_evidence_ids")),
+            ),
+            "confirmed_gaps": row.get("confirmed_gaps", row.get("gaps")),
+            "confirmed_unknowns": row.get("confirmed_unknowns", row.get("unknowns")),
+            "candidate_profile_revision": candidate_profile_revision
+            if candidate_profile_revision is not None
+            else row.get("candidate_profile_revision", row.get("profile_revision")),
+            "ranking_order_version": ranking_order_version
+            if ranking_order_version is not None
+            else row.get("ranking_order_version"),
+            "ranking_policy_version": ranking_policy_version
+            if ranking_policy_version is not None
+            else row.get("ranking_policy_version"),
+            "ranking_contract_version": ranking_contract_version
+            if ranking_contract_version is not None
+            else row.get("ranking_contract_version"),
+            "source_provenance": source_provenance
+            if source_provenance is not None
+            else row.get("source_provenance", row.get("provenance")),
+        }
+    )
+    return {
+        **canonical,
+        "handoff_fingerprint": ranking_cv_handoff_sha256(canonical),
+    }
+
+
 def build_ranking_contract_context(
     policy: Mapping[str, Any],
     *,
@@ -431,6 +645,8 @@ def build_ranking_contract_context(
         "normalizer_ids": NORMALIZER_IDS,
         "eligibility_policy_fingerprint": str(eligibility_policy_fingerprint),
         "ranking_order_version": RANKING_ORDER_VERSION,
+        "ranking_score_contract_version": RANKING_SCORE_CONTRACT_VERSION,
+        "ranking_decision_envelope_version": RANKING_DECISION_ENVELOPE_VERSION,
         "legacy_adapter_version": LEGACY_ADAPTER_VERSION,
     }
     return {
@@ -438,6 +654,8 @@ def build_ranking_contract_context(
         "effective_structured_factor_weights": effective,
         "ranking_contract_fingerprint": _canonical_fingerprint(fingerprint_payload),
         "ranking_order_version": RANKING_ORDER_VERSION,
+        "ranking_score_contract_version": RANKING_SCORE_CONTRACT_VERSION,
+        "ranking_decision_envelope_version": RANKING_DECISION_ENVELOPE_VERSION,
         "legacy_adapter_version": LEGACY_ADAPTER_VERSION,
     }
 
@@ -511,6 +729,13 @@ def build_baseline_result(
         "normalized_factors": normalized_factors,
         "ranking_policy_version": policy["policy_version"],
         "normalizer_version": policy["normalizer_version"],
+        "ranking_order_version": context.get("ranking_order_version", RANKING_ORDER_VERSION),
+        "ranking_score_contract_version": context.get(
+            "ranking_score_contract_version", RANKING_SCORE_CONTRACT_VERSION
+        ),
+        "ranking_decision_envelope_version": context.get(
+            "ranking_decision_envelope_version", RANKING_DECISION_ENVELOPE_VERSION
+        ),
         "ranking_contract_fingerprint": context["ranking_contract_fingerprint"],
     }
 

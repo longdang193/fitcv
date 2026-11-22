@@ -17,10 +17,14 @@ from fitcv.pipeline import _resolve_layer4_fit
 from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.ranking import rank_jobs
 from fitcv.ranking_contract import (
+    RANKING_CV_HANDOFF_VERSION,
     build_baseline_result,
+    build_ranking_cv_handoff,
+    canonicalize_ranking_cv_handoff,
     fit_label_from_score,
     normalize_score_state,
     normalize_score_state_for_export,
+    ranking_cv_handoff_sha256,
     resolve_fit_label_for_row,
     validate_weight_contract,
 )
@@ -47,6 +51,51 @@ def test_valid_zero_score_remains_rankable_and_failures_do_not() -> None:
     ranked = rank_jobs(jobs, top_n=10)
     assert [row["job_url"] for row in ranked] == ["zero"]
     assert jobs[1]["score_status"] == "unscored"
+
+
+def test_ranking_cv_handoff_digest_is_canonical_and_changes_with_input() -> None:
+    payload = {
+        "schema_version": RANKING_CV_HANDOFF_VERSION,
+        "canonical_job_identity": "job-1",
+        "job_qualifiers": {"level": "senior", "work_mode": "remote"},
+        "baseline_rank": 2,
+        "baseline_score": 0.75,
+        "score_status": "valid",
+        "failure_code": None,
+        "disposition": "scored",
+        "retry_eligible": False,
+        "evidence_ids": ["ev-2", " ev-1"],
+        "confirmed_gaps": ["missing-go", "missing-go"],
+        "confirmed_unknowns": None,
+        "candidate_profile_revision": "profile-7",
+        "ranking_order_version": "order-v1",
+        "ranking_policy_version": "ranking-v2",
+        "ranking_contract_version": "ranking_score_v1",
+        "source_provenance": {"source": "fixture", "revision": "r1"},
+    }
+
+    assert canonicalize_ranking_cv_handoff(payload)["evidence_ids"] == ["ev-1", "ev-2"]
+    assert ranking_cv_handoff_sha256(payload) == (
+        "035bebc426a2b0fa12c67542424a85de527dccb10d518bab52108abd7f801860"
+    )
+    changed = {**payload, "baseline_score": 0.76}
+    assert ranking_cv_handoff_sha256(changed) != ranking_cv_handoff_sha256(payload)
+
+
+def test_build_ranking_cv_handoff_rejects_missing_grounding_context() -> None:
+    with pytest.raises(ValueError, match="job_qualifiers"):
+        build_ranking_cv_handoff(
+            {
+                "raw_job_fingerprint": "job-1",
+                "baseline_rank": 1,
+                "baseline_fit": 0.8,
+                "score_status": "valid",
+            },
+            candidate_profile_revision="profile-1",
+            ranking_order_version="order-v1",
+            ranking_policy_version="ranking-v2",
+            source_provenance={"source": "fixture"},
+        )
 
 
 def test_export_score_state_keeps_stage_disposition_unscored_without_failure() -> None:

@@ -36,6 +36,7 @@ from fitcv.evidence import (
     build_cv_analysis_input_fingerprint,
     build_required_skill_descriptors,
 )
+from fitcv.ranking_contract import build_ranking_cv_handoff, ranking_cv_handoff_sha256
 
 
 def _job() -> dict:
@@ -65,6 +66,27 @@ def _config() -> dict:
         "pipeline": {"evidence_top_k": 3},
         "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
     }
+
+
+def test_analyze_ranked_job_rehydrates_valid_handoff_fingerprint() -> None:
+    job = {
+        **_job(),
+        "raw_job_fingerprint": "job-fingerprint",
+        "baseline_rank": 1,
+        "score_status": "valid",
+        "ai_score": 0.8,
+        "job_qualifiers": {"title": "Data Analyst"},
+        "ranking_order_version": "order-v1",
+        "ranking_policy_version": "ranking-v1",
+        "ranking_contract_version": "ranking_score_v1",
+        "source_provenance": {"stage": "test"},
+    }
+    profile = {**_profile(), "revision": "profile-v1"}
+    handoff = build_ranking_cv_handoff(job, candidate_profile_revision="profile-v1")
+
+    result = analyze_ranked_job(job, profile, _config(), ranking_cv_handoff=handoff)
+
+    assert result["ranking_cv_handoff"]["handoff_fingerprint"] == ranking_cv_handoff_sha256(handoff)
 
 
 def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
