@@ -1529,6 +1529,7 @@ def _normalize_structured_cv(
     profile: dict[str, Any] | None,
     config: dict[str, Any],
     fit_classification: str,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized = build_empty_structured_cv(
         jd=jd,
@@ -1556,6 +1557,8 @@ def _normalize_structured_cv(
     normalized["sections"]["certifications"] = _normalize_certifications_section(raw_sections, config=config)
     normalized["sections"]["publications"] = _normalize_publications_section(raw_sections, config=config)
     normalized["sections"]["languages"] = _normalize_languages_section(raw_sections, config=config)
+    if isinstance(ranking_cv_handoff, dict):
+        normalized["ranking_cv_handoff"] = deepcopy(ranking_cv_handoff)
 
     validate_structured_cv(normalized, config=config)
     return normalized
@@ -2433,6 +2436,7 @@ def _execute_cv_generation_runtime(
     target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
     adapter: LlmAdapter | None = None,
     validator: Any | None = None,
 ) -> LlmRuntimeResult:
@@ -2483,6 +2487,7 @@ def _execute_cv_generation_runtime(
             profile=provider_profile,
             config=config,
             fit_classification=fit_classification,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
         return {
             "structured_cv": structured_cv,
@@ -2532,6 +2537,7 @@ def generate_structured_cv(
     target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Call the LLM to generate a structured CV document."""
     value = _runtime_value_or_raise(
@@ -2548,6 +2554,7 @@ def generate_structured_cv(
             target_sections=target_sections,
             authorized_profile=authorized_profile,
             max_output_tokens=max_output_tokens,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
     )
     return dict(value["structured_cv"])
@@ -2567,6 +2574,7 @@ def generate_cv(
     target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate structured CV content and render markdown from it."""
     return _runtime_value_or_raise(
@@ -2583,5 +2591,6 @@ def generate_cv(
             target_sections=target_sections,
             authorized_profile=authorized_profile,
             max_output_tokens=max_output_tokens,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
     )

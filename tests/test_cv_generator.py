@@ -46,6 +46,7 @@ from fitcv.cv_generator import (
     select_template_variant,
     validate_structured_cv,
 )
+from fitcv.ranking_contract import build_ranking_cv_handoff
 
 
 def test_production_normalization_drops_unsupported_provenance_fields() -> None:
@@ -1269,6 +1270,20 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
+    ranking_cv_handoff = build_ranking_cv_handoff(
+        {
+            "raw_job_fingerprint": "job-1",
+            "job_qualifiers": {"title": "Data Engineer"},
+            "baseline_rank": 1,
+            "baseline_fit": 0.9,
+            "score_status": "valid",
+            "source_provenance": {"stage": "ranking"},
+            "ranking_order_version": "order-v1",
+            "ranking_policy_version": "policy-v1",
+        },
+        candidate_profile_revision="profile-v1",
+    )
+
     result = generate_cv(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
         evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
@@ -1279,6 +1294,7 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
             "location": "us-central1",
             "cv": {
                 "generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"},
+                "renderer": {"strategy": "mycvs_v1"},
                 "preset": "europass",
                 "composition": {"summary": {"enabled": True}},
                 "content_rules": {"evidence_grounded_only": True},
@@ -1287,9 +1303,12 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
             "_template_path": str(template_path),
         },
         fit_classification="strong",
+        ranking_cv_handoff=ranking_cv_handoff,
     )
 
     assert result["structured_cv"]["sections"]["header"]["name"] == "Jane Doe"
+    assert result["structured_cv"]["ranking_cv_handoff"] == ranking_cv_handoff
+    assert "handoff=" + ranking_cv_handoff["handoff_fingerprint"] in result["markdown"]
     assert "Grounded summary." in result["markdown"]
 
 

@@ -3130,6 +3130,18 @@ def _build_stage_transition_artifacts(
     enrich_llm_runtime_observations = list(enrich_llm_runtime_observations or [])
     ranking_llm_runtime_observations = list(ranking_llm_runtime_observations or [])
     cv_analysis_results = list(cv_analysis_results or [])
+    ranking_cv_handoffs_by_identity: dict[str, dict[str, Any]] = {}
+    for analysis_record in cv_analysis_results:
+        handoff = analysis_record.get("ranking_cv_handoff")
+        if not isinstance(handoff, dict):
+            continue
+        job_snapshot = analysis_record.get("job_snapshot")
+        if isinstance(job_snapshot, dict):
+            for identity_key in job_identity_keys(job_snapshot):
+                ranking_cv_handoffs_by_identity[identity_key.split(":", 1)[-1]] = handoff
+        canonical_identity = str(handoff.get("canonical_job_identity") or "").strip()
+        if canonical_identity:
+            ranking_cv_handoffs_by_identity[canonical_identity] = handoff
     enrichment_reached = reached_stage_ids is None or "enrich" in reached_stage_ids
     screening_reached = reached_stage_ids is None or "rule_filter" in reached_stage_ids
     shortlist_reached = (
@@ -3444,6 +3456,7 @@ def _build_stage_transition_artifacts(
                 ranking_inputs=ranking_inputs,
                 ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
                 ranking_admission_manifest=ranking_admission_manifest,
+                ranking_cv_handoffs_by_identity=ranking_cv_handoffs_by_identity,
                 ranked=ranked,
                 ranked_urls=ranked_urls,
                 final_top_n=final_top_n,

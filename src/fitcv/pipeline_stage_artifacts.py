@@ -563,6 +563,7 @@ def build_ranking_stage_block(
     llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
     ranking_admission_manifest: dict[str, Any] | None = None,
+    ranking_cv_handoffs_by_identity: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not ranking_reached:
         return stage_block_not_reached_builder("ranking")
@@ -651,6 +652,12 @@ def build_ranking_stage_block(
             or extract_job_url(row)
             or ""
         ).strip()
+        provided_handoff = (ranking_cv_handoffs_by_identity or {}).get(identity)
+        if isinstance(provided_handoff, dict):
+            handoff = {**provided_handoff, "handoff_status": "complete"}
+            handoff_references[identity] = handoff.get("handoff_fingerprint")
+            handoff_items.append(handoff)
+            continue
         provenance = row.get("source_provenance") or row.get("provenance")
         if not isinstance(provenance, dict):
             provenance = {

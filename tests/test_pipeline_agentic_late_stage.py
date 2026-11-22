@@ -240,6 +240,53 @@ def test_finalization_propagates_ranking_handoff_into_structured_cv() -> None:
     assert result["structured_cv_final"]["ranking_cv_handoff"] == analysis_record["ranking_cv_handoff"]
 
 
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generation_passes_ranking_handoff_before_first_render(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    from fitcv.ranking_contract import build_ranking_cv_handoff
+
+    analysis_record = _minimal_analysis_record()
+    analysis_record["job_snapshot"] = {
+        **analysis_record["job_snapshot"],
+        "raw_job_fingerprint": "job-fingerprint",
+        "baseline_rank": 1,
+        "baseline_fit": 0.85,
+        "score_status": "valid",
+        "job_qualifiers": {"title": "Data Engineer"},
+        "source_provenance": {"stage": "ranking"},
+        "ranking_order_version": "order-v1",
+        "ranking_policy_version": "policy-v1",
+    }
+    handoff = build_ranking_cv_handoff(
+        analysis_record["job_snapshot"],
+        candidate_profile_revision="profile-v1",
+    )
+    analysis_record["ranking_cv_handoff"] = handoff
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\nBuilt grounded reporting workflows.",
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    generate_from_analysis(analysis_record, _minimal_profile(), _minimal_config())
+
+    assert mock_generate_cv.call_args.kwargs["ranking_cv_handoff"] == handoff
+
+
 def test_render_item_provenance_preserves_one_character_requirement_tokens() -> None:
     content_plan = {
         "approved_claims": [

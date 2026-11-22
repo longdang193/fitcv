@@ -1709,6 +1709,7 @@ def _build_fallback_provider_generator(
     fit: str,
     evidence_selection_summary: dict[str, Any],
     content_plan: dict[str, Any],
+    ranking_cv_handoff: dict[str, Any] | None,
 ) -> Callable[[list[str] | None], Any]:
     provider_profile = {
         key: value
@@ -1728,6 +1729,7 @@ def _build_fallback_provider_generator(
             repair_missing_sections=repair_missing_sections,
             content_plan=content_plan,
             target_sections=repair_missing_sections,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
 
     return _call
@@ -2595,6 +2597,7 @@ def _generate_fresh_from_analysis(
         fit=fit,
         evidence_selection_summary=evidence_selection_summary,
         content_plan=content_plan,
+        ranking_cv_handoff=analysis_record.get("ranking_cv_handoff"),
     )
 
     def _call_provider(
