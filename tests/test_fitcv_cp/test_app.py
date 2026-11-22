@@ -5373,6 +5373,27 @@ def test_cv_history_download_and_regenerate_contract() -> None:
     assert regenerate.json()["data"]["status"] == "queued"
 
 
+def test_cv_pdf_download_contract() -> None:
+    app = _app()
+    app.state.run_store.get_cv_pdf_download_fn = lambda version_id: {
+        "version_id": version_id,
+        "content": b"%PDF-1.7\npersisted\n",
+        "content_length": 19,
+        "content_checksum": "pdf-checksum-1",
+        "media_type": "application/pdf",
+        "filename": "fitcv-cv-1.pdf",
+    }
+
+    response = TestClient(app).get("/cv-versions/cv-1/pdf")
+
+    assert response.status_code == 200
+    assert response.content == b"%PDF-1.7\npersisted\n"
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == 'attachment; filename="fitcv-cv-1.pdf"'
+    assert response.headers["content-length"] == "19"
+    assert response.headers["etag"] == '"pdf-checksum-1"'
+
+
 def test_cv_preview_preserves_version_identity_and_pending_state() -> None:
     app = _app()
     app.state.run_store.get_cv_preview_fn = lambda version_id: (

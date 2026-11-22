@@ -739,6 +739,25 @@ def test_generation_failure_preserves_repair_history_when_provider_retry_raises(
         "_run_generation_validations",
         lambda *args, **kwargs: invalid_validation,
     )
+    provider_error = RuntimeError("provider unavailable")
+    provider_error.llm_runtime_evidence = {
+        "contract_version": "llm_runtime_evidence_v1",
+        "status": "failed",
+        "provenance": {"model": "cx/test-model", "response_id": None},
+        "failure": {
+            "stage": "adapter",
+            "code": "adapter_http_error",
+            "provider_diagnostics": {
+                "status": 400,
+                "error_body": '{"code":"invalid_input"}',
+                "request_id": "trace-http",
+                "model": "cx/test-model",
+                "endpoint": "http://127.0.0.1:20128/v1/responses",
+                "response_mode": "json_schema",
+                "payload_fingerprint": "a" * 64,
+            },
+        },
+    }
     with patch.object(
         generation_module,
         "_build_fallback_provider_generator",
@@ -748,7 +767,7 @@ def test_generation_failure_preserves_repair_history_when_provider_retry_raises(
         "_execute_generation_attempt",
         side_effect=[
             (structured_cv, "# CV", invalid_validation, _minimal_runtime_evidence()),
-            RuntimeError("provider unavailable"),
+            provider_error,
         ],
     ):
         result = generation_module._generate_fresh_from_analysis(
@@ -764,6 +783,10 @@ def test_generation_failure_preserves_repair_history_when_provider_retry_raises(
     assert repair_summary["local_repair_succeeded"] is False
     assert repair_summary["provider_retry_attempted"] is True
     assert repair_summary["provider_retry_succeeded"] is False
+    failed_attempt = result["cv_generation_trace"]["attempts"][-1]
+    assert failed_attempt["provider_status"] == "error"
+    assert failed_attempt["provider_diagnostics"]["request_id"] == "trace-http"
+    assert failed_attempt["provider_diagnostics"]["payload_fingerprint"] == "a" * 64
     savings = result["cv_generation_trace"]["efficiency_summary"]["savings"]
     assert savings["local_repair_attempted"] is True
     assert savings["local_repair_failed"] is True
@@ -1175,10 +1198,12 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     assert ai_score_event[3] is not None
     assert ai_score_event[3]["output_snapshot"]["configured_concurrency"] == 3
     assert ai_score_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 1
+    assert ai_score_event[3]["output_snapshot"]["score_state_diagnostics"] == []
     ranking_event = next(event for event in reporter.events if event[0] == "layer3_ranking")
     assert ranking_event[3] is not None
     assert ranking_event[3]["output_snapshot"]["configured_concurrency"] == 3
     assert ranking_event[3]["output_snapshot"]["ranking_concurrency_effective"] == 1
+    assert ranking_event[3]["output_snapshot"]["score_state_diagnostics"] == []
 
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.agentic_cv_generation.run_all_validations")

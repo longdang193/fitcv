@@ -348,6 +348,30 @@ def test_check_skill_provenance_ignores_parenthesized_placeholder_tokens() -> No
     assert violations == []
 
 
+def test_check_skill_provenance_ignores_punctuated_placeholder_tokens() -> None:
+    cv_text = "## Skills\nNot provided."
+
+    assert check_skill_provenance(cv_text, candidate_skills=["SQL"]) == []
+
+
+def test_check_skill_provenance_ignores_mycvs_metadata_comments() -> None:
+    cv_text = (
+        "# Jane Doe\n"
+        "## Skills\n"
+        "SQL\n"
+        '<!-- mycvs_v1_audit: {"job_id":"job-1"} -->\n'
+        "<!-- mycvs_v1: schema=mycvs_v1; content_sha256="
+        + "0" * 64
+        + "; handoff=handoff-1 -->\n"
+    )
+
+    assert check_skill_provenance(
+        cv_text,
+        candidate_skills=["SQL"],
+        config={"cv": {"renderer": {"strategy": "mycvs_v1"}}},
+    ) == []
+
+
 # ── run_all_validations ───────────────────────────────────────────────────────
 
 # Minimal CV config satisfying the centralized cv.yaml contract.
@@ -640,6 +664,101 @@ def test_run_all_validations_flags_empty_required_summary_from_structured_cv() -
 
     assert result["valid"] is False
     assert "Summary" in result["missing_sections"]
+
+
+def test_run_all_validations_accepts_empty_mycvs_sections_with_not_provided() -> None:
+    profile = {
+        "name": "Jane Doe",
+        "experiences": [{"role": "Analyst", "company": "ACME"}],
+        "projects": [],
+        "languages": [],
+        "skills": [],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nNot provided.\n"
+        "## Education\nNot provided.\n"
+        "## Experience\n- Analyst — ACME\n"
+        "## Projects\nNot provided.\n"
+        "## Certificates\nNot provided.\n"
+        "## Skills\nNot provided.\n"
+    )
+    structured_cv = {
+        "sections": {
+            "summary": {"text": "Not provided."},
+            "experience": [{"role": "Analyst", "company": "ACME"}],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "languages": [],
+        }
+    }
+    config = {
+        "required_cv_sections": [
+            "Summary",
+            "Education",
+            "Experience",
+            "Projects",
+            "Certifications",
+            "Skills",
+        ],
+        "cv_max_pages": 2,
+        "cv": {"renderer": {"strategy": "mycvs_v1"}},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=config,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is True
+    assert result["missing_sections"] == []
+
+
+def test_run_all_validations_uses_mycvs_headings_over_legacy_config_sections() -> None:
+    profile = {
+        "name": "Jane Doe",
+        "experiences": [{"role": "Analyst", "company": "ACME"}],
+        "projects": [],
+        "languages": [],
+        "skills": ["SQL"],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nNot provided.\n"
+        "## Education\nNot provided.\n"
+        "## Experience\n- Analyst — ACME\n"
+        "## Projects\nNot provided.\n"
+        "## Certificates\nNot provided.\n"
+        "## Skills\nSQL\n"
+        '<!-- mycvs_v1_audit: {"job_id":"job-1","profile_revision":"profile-1",'
+        '"score_status":"complete","gaps":[],"unknowns":[],"sources":[]} -->\n'
+        "<!-- mycvs_v1: schema=mycvs_v1; content_sha256="
+        + "0" * 64
+        + "; handoff=handoff-1 -->\n"
+    )
+    config = {
+        "required_cv_sections": [
+            "Summary",
+            "Education",
+            "Experience",
+            "Projects",
+            "Certifications",
+            "Languages",
+            "Skills",
+        ],
+        "cv_max_pages": 2,
+        "cv": {"renderer": {"strategy": "mycvs_v1"}},
+    }
+
+    result = run_all_validations(cv_text, profile=profile, config=config)
+
+    assert result["valid"] is True
+    assert result["missing_sections"] == []
+    assert result["skill_violations"] == []
 
 
 def test_run_all_validations_reads_max_pages_from_nested_cv() -> None:

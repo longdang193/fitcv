@@ -1,5 +1,10 @@
 from fitcv.candidate import converge_candidate_profile_for_runtime
-from fitcv.pipeline_stage_artifacts import build_ranking_stage_block
+import pytest
+
+from fitcv.pipeline_stage_artifacts import (
+    build_ranking_score_state_diagnostics,
+    build_ranking_stage_block,
+)
 from fitcv.ranking_contract import RANKING_CV_HANDOFF_VERSION, build_ranking_cv_handoff
 
 
@@ -8,6 +13,72 @@ def _stage_block(**kwargs):
         "stage_result": {"evidence": {"decision_summary": {}}},
         **kwargs,
     }
+
+
+@pytest.mark.parametrize(
+    ("row", "expected_status", "expected_failure"),
+    [
+        ({"ai_score": 0.8}, None, None),
+        ({"parser_status": "malformed_json"}, "invalid", "malformed_json"),
+        ({"reranker_parser_status": "runtime_exception"}, "unscored", "provider_failure"),
+        ({"failure_code": "timeout"}, "unscored", "timeout"),
+        ({"ai_score": None}, "unscored", "legacy_ambiguous_score_state"),
+    ],
+)
+def test_ranking_score_state_diagnostics_classifies_only_non_valid_rows(
+    row: dict[str, object],
+    expected_status: str | None,
+    expected_failure: str | None,
+) -> None:
+    diagnostics = build_ranking_score_state_diagnostics(
+        [
+            {
+                **row,
+                "_input_index": 7,
+                "canonical_job_identity": "job-key-7",
+                "raw_job_fingerprint": "fingerprint-7",
+                "job_url": "https://private.example/job",
+                "title": "Private title",
+                "description": "Private description",
+                "prompt": "Private prompt",
+                "model_output": "Private model output",
+            }
+        ]
+    )
+
+    if expected_status is None:
+        assert diagnostics == []
+        return
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic["score_status"] == expected_status
+    assert diagnostic["failure_code"] == expected_failure
+    assert diagnostic["job_key"] == "job-key-7"
+    assert diagnostic["input_index"] == 7
+    assert diagnostic["raw_job_fingerprint"] == "fingerprint-7"
+    assert set(diagnostic) == {
+        "schema_version",
+        "job_key",
+        "score_status",
+        "failure_code",
+        "disposition",
+        "retry_eligible",
+        "input_index",
+        "raw_job_fingerprint",
+    }
+
+
+def test_ranking_score_state_diagnostics_are_bounded_and_deterministic() -> None:
+    rows = [
+        {"_input_index": 2, "canonical_job_identity": "b", "failure_code": "timeout"},
+        {"_input_index": 1, "canonical_job_identity": "a", "failure_code": "provider_failure"},
+        {"_input_index": 3, "canonical_job_identity": "c", "failure_code": "missing_ai_score"},
+    ]
+
+    diagnostics = build_ranking_score_state_diagnostics(rows, max_items=2)
+
+    assert [item["job_key"] for item in diagnostics] == ["a", "b"]
+    assert all("job_url" not in item and "title" not in item for item in diagnostics)
 
 
 def test_ranking_stage_persists_handoff_without_promoting_shortlist() -> None:

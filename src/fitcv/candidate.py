@@ -963,6 +963,8 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
     errors = validate_candidate_profile_v2(normalized)
     if errors:
         raise ValueError("; ".join(errors))
+    if not str(runtime_compatibility.get("revision") or "").strip():
+        runtime_compatibility["revision"] = f"sha256:{canonical_candidate_checksum(normalized)}"
     if runtime_evidence_admission:
         normalized["_runtime_evidence_admission"] = runtime_evidence_admission
     if runtime_compatibility:
@@ -990,6 +992,8 @@ def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
     allowed_top_level = {
         "schema_version",
         "source_documents",
+        "_runtime_evidence_admission",
+        "_runtime_compatibility",
         *section_registry["identity"]["fields"],
         "contact",
         *(section_id for section_id in section_registry if section_id not in {"identity", "contact"}),

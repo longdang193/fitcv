@@ -17,7 +17,7 @@
 ## 3. Add the gated deterministic CV renderer
 
 - [x] 3.1 Add an additive renderer-strategy setting owned by `config/policy/cv.yaml`, keeping `cv.preset: europass` as the default and making `mycvs_v1` explicit opt-in; verify configuration parsing, validation, default behavior, and resume precedence in `tests/test_config.py` and `tests/test_pipeline_config_access.py`.
-- [x] 3.2 Implement deterministic `mycvs_v1` Markdown serialization and validation at the existing CV-generation boundary, including fixed headings, grounded content, source references, LF/UTF-8 normalization, handoff identity, and checksum scope; add valid/invalid fixtures and verify them in `tests/test_cv_generator.py`.
+- [x] 3.2 Implement deterministic `mycvs_v1` Markdown serialization and validation at the existing CV-generation boundary, including the maintained contact/Iconify header, visible `Summary → Education → Experience → Projects → Certificates → Skills` order, grounded content, deterministic audit metadata, source references, LF/UTF-8 normalization, handoff identity, and checksum scope; add valid/invalid fixtures and verify them in `tests/test_cv_generator.py`.
 - [ ] 3.3 Add the external converter adapter at the existing render-proof boundary, recording converter revision, stylesheet/template revision, input checksum, optional output checksum, and `mycvs_external_render_v1`; verify unpinned, incomplete, wrong-contract, multi-page, and successful render-proof cases in `tests/test_cv_render_acceptance.py` and `tests/test_fitcv_cp/test_run_artifact_contracts.py`.
 - [x] 3.4 Preserve the existing Europass/native path while making the new renderer strategy consume the canonical intermediate CV model; verify existing Europass composition and render-proof tests remain green in `tests/test_cv_generator.py` and `tests/test_config.py`.
 
@@ -27,6 +27,7 @@
 - [x] 4.2 Require one-page render acceptance and recognized renderer identity before PDF status becomes generated; verify checksum mismatch, missing proof, review blocking, explicit approval, rejection, and historic status compatibility in `tests/test_cv_render_acceptance.py`, `tests/test_fitcv_cp/test_run_artifact_contracts.py`, and `tests/test_fitcv_cp/test_app.py`.
 - [x] 4.3 Verify historic personalized ranking and Europass artifacts remain readable and are not rewritten during migration; add compatibility fixtures or assertions at the existing read paths and run the focused persistence/read tests.
 - [x] 4.4 Update `docs/configuration.md`, `docs/pipeline.md`, and `docs/observability.md` with renderer strategy, lifecycle fields, rollback behavior, converter provenance, and the disabled-until-pinned release gate; verify documented defaults and field names against configuration and artifact tests.
+- [x] 4.5 Persist accepted PDF bytes and integrity metadata alongside the Markdown CV artifact, expose a PDF download boundary, and fail closed unless stored bytes match the accepted render checksum; verify with `tests/test_fitcv_cp/test_sqlite_store.py` and `tests/test_fitcv_cp/test_worker_job.py`.
 
 ## 5. Prove readiness before enablement
 

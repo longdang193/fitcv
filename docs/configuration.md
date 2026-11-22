@@ -516,6 +516,11 @@ the non-secret routing overlay.
   Resume and regenerate paths use the persisted handoff when present; they do not
   silently replace its rank, score, evidence, gaps, qualifiers, or provenance
   with current defaults.
+- Non-valid ranking score rows also persist redacted `score_state_diagnostics`
+  with stable job identifiers, normalized failure state, disposition, and retry
+  eligibility; prompts, model output, job text, and profile content are excluded.
+- Runtime profiles without an explicit revision receive a deterministic
+  checksum-backed revision so ranking-to-CV handoffs remain identity-safe.
 - The external `mycvs_external_render_v1` converter remains disabled until its
   converter revision and stylesheet/template revision are pinned and reproducible.
   Without that evidence, the native Europass path remains the safe default.

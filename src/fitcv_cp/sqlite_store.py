@@ -186,6 +186,16 @@ def _ensure_cv_lifecycle_columns(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE cv_versions ADD COLUMN submission_clearance TEXT NOT NULL DEFAULT 'blocked'"
         )
+    if "pdf_filename" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_filename TEXT")
+    if "pdf_media_type" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_media_type TEXT")
+    if "pdf_content_length" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_content_length INTEGER")
+    if "pdf_content_checksum" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_content_checksum TEXT")
+    if "pdf_content_blob" not in columns:
+        conn.execute("ALTER TABLE cv_versions ADD COLUMN pdf_content_blob BLOB")
 
 
 def _legacy_profile_name(profile_name: Any, original_filename: Any) -> str:
@@ -1033,6 +1043,11 @@ def _ensure_control_plane_schema(
         pdf_error_code TEXT,
         pdf_error_message TEXT,
         submission_clearance TEXT NOT NULL DEFAULT 'blocked' CHECK (submission_clearance IN ('blocked', 'eligible')),
+        pdf_filename TEXT,
+        pdf_media_type TEXT,
+        pdf_content_length INTEGER CHECK (pdf_content_length IS NULL OR pdf_content_length >= 0),
+        pdf_content_checksum TEXT,
+        pdf_content_blob BLOB,
         UNIQUE (run_job_id, ordinal),
         CHECK (generation_status NOT IN ('generated', 'review_required') OR (content_blob IS NOT NULL AND content_checksum IS NOT NULL AND content_length IS NOT NULL))
     );
@@ -14755,7 +14770,8 @@ _CV_VERSION_PROJECTION_COLUMNS = (
     "cv_generation_model, cv_prompt_version, cv_schema_version, cv_structured_json, "
     "cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, "
     "quality_warnings_json, pdf_status, pdf_error_code, pdf_error_message, "
-    "submission_clearance"
+    "submission_clearance, pdf_filename, pdf_media_type, pdf_content_length, "
+    "pdf_content_checksum, pdf_content_blob"
 )
 _CV_EVALUATION_PROJECTION_COLUMNS = (
     "cv_evaluation_id, cv_version_id, status, fit_classification, score, reason, "
@@ -14790,6 +14806,7 @@ def _cv_projection(
         ).fetchone()
     item = dict(row)
     item.pop("content_blob", None)
+    item.pop("pdf_content_blob", None)
     item["cv_structured"] = _decode_json_or_none(item.get("cv_structured_json"))
     raw_quality_warnings = _decode_json_or_none(item.get("quality_warnings_json"))
     quality_warnings = build_final_cv_evidence_envelope(
@@ -15021,7 +15038,7 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
             ):
                 return []
             raise sqlite3.IntegrityError("UNIQUE constraint failed: cv_versions.version_id")
-        placeholders = ", ".join("?" for _ in range(43))
+        placeholders = ", ".join("?" for _ in range(48))
         conn.execute(
             f"""INSERT INTO cv_versions (
                 version_id, run_job_id, parent_cv_version_id, ordinal, generation_status,
@@ -15032,7 +15049,8 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 action_id, idempotency_key, run_id, job_url, fit_classification, generated_at,
                 cv_generation_model, cv_prompt_version, cv_schema_version, cv_structured_json,
                 cv_markdown, cv_generation_input_fingerprint, cv_generation_reuse_status, quality_warnings_json,
-                pdf_status, pdf_error_code, pdf_error_message, submission_clearance
+                pdf_status, pdf_error_code, pdf_error_message, submission_clearance,
+                pdf_filename, pdf_media_type, pdf_content_length, pdf_content_checksum, pdf_content_blob
             ) VALUES ({placeholders})""",
             (
                 version_id, run_job_id, row.get("parent_cv_version_id"), ordinal, generation_status,
@@ -15056,6 +15074,8 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                  row.get("quality_warnings_json"), row.get("pdf_status") or "pending",
                  row.get("pdf_error_code"), row.get("pdf_error_message"),
                  row.get("submission_clearance") or "blocked",
+                 row.get("pdf_filename"), row.get("pdf_media_type"),
+                 row.get("pdf_content_length"), row.get("pdf_content_checksum"), row.get("pdf_content_blob"),
             ),
         )
         if run_job_id is not None:
@@ -15180,6 +15200,8 @@ def update_cv_version(
         raise ValueError("generation_status_invalid")
     metadata = dict(metadata or {})
     content_bytes = bytes(content) if content is not None else None
+    pdf_content = metadata.get("pdf_content_blob")
+    pdf_bytes = bytes(pdf_content) if pdf_content is not None else None
     if normalized_status in {"generated", "review_required"} and not content_bytes:
         raise ValueError("generated_content_required")
     pdf_status = metadata.get("pdf_status")
@@ -15230,7 +15252,12 @@ def update_cv_version(
                        pdf_status=COALESCE(?, pdf_status),
                        pdf_error_code=COALESCE(?, pdf_error_code),
                        pdf_error_message=COALESCE(?, pdf_error_message),
-                       submission_clearance=COALESCE(?, submission_clearance)
+                       submission_clearance=COALESCE(?, submission_clearance),
+                       pdf_filename=COALESCE(?, pdf_filename),
+                       pdf_media_type=COALESCE(?, pdf_media_type),
+                       pdf_content_length=COALESCE(?, pdf_content_length),
+                       pdf_content_checksum=COALESCE(?, pdf_content_checksum),
+                       pdf_content_blob=COALESCE(?, pdf_content_blob)
                    WHERE version_id=?""",
                 (
                     normalized_status,
@@ -15256,6 +15283,10 @@ def update_cv_version(
                     str(pdf_status).strip() if pdf_status is not None else None,
                     metadata.get("pdf_error_code"), metadata.get("pdf_error_message"),
                     str(submission_clearance).strip() if submission_clearance is not None else None,
+                    metadata.get("pdf_filename"), metadata.get("pdf_media_type"),
+                    len(pdf_bytes) if pdf_bytes is not None else None,
+                    hashlib.sha256(pdf_bytes).hexdigest() if pdf_bytes is not None else None,
+                    pdf_bytes,
                     version_id,
                 ),
             )
@@ -15695,6 +15726,31 @@ def get_cv_download(version_id: str, *_args: Any, **_kwargs: Any) -> dict[str, A
         "filename": str(row["filename"] or f"{version_id}.md"),
     }
 
+
+
+def get_cv_pdf_download(version_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] | None:
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM cv_versions WHERE version_id=?", (version_id,)
+        ).fetchone()
+    if row is None or str(row["generation_status"]) not in {"generated", "review_required"}:
+        return None
+    content = bytes(row["pdf_content_blob"] or b"")
+    if (
+        not content
+        or int(row["pdf_content_length"] or -1) != len(content)
+        or str(row["pdf_content_checksum"] or "") != hashlib.sha256(content).hexdigest()
+    ):
+        raise ValueError("pdf_artifact_integrity_mismatch")
+    return {
+        "version_id": version_id,
+        "content": content,
+        "content_length": len(content),
+        "content_checksum": str(row["pdf_content_checksum"]),
+        "media_type": str(row["pdf_media_type"] or "application/pdf"),
+        "filename": str(row["pdf_filename"] or f"{version_id}.pdf"),
+    }
 
 def get_cv_preview(version_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] | None:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:

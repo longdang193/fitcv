@@ -12958,6 +12958,31 @@ def create_app(
             },
         )
 
+    @app.get("/cv-versions/{cv_version_id}/pdf")
+    def download_canonical_cv_pdf(cv_version_id: str) -> Response:
+        try:
+            download = _resolve_run_store().get_cv_pdf_download(cv_version_id)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "pdf_artifact_not_available",
+                "PDF artifact failed integrity verification.",
+                action="Regenerate CV or inspect Console.",
+            ) from exc
+        if download is None:
+            raise ApiError(404, "pdf_not_found", "PDF artifact not found.", action="Regenerate CV.")
+        filename = re.sub(r"[^A-Za-z0-9._-]+", "-", str(download.get("filename") or f"{cv_version_id}.pdf"))
+        return Response(
+            content=bytes(download["content"]),
+            media_type=str(download["media_type"]),
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(download["content_length"]),
+                "ETag": f'"{download["content_checksum"]}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
     @app.get("/cv-versions/{cv_version_id}/preview")
     def preview_canonical_cv(cv_version_id: str) -> Response:
         try:
