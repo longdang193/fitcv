@@ -14806,6 +14806,7 @@ def _cv_projection(
         ).fetchone()
     item = dict(row)
     item.pop("content_blob", None)
+    item.pop("pdf_content_blob", None)
     item["cv_structured"] = _decode_json_or_none(item.get("cv_structured_json"))
     raw_quality_warnings = _decode_json_or_none(item.get("quality_warnings_json"))
     quality_warnings = build_final_cv_evidence_envelope(

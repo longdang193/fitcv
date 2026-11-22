@@ -7093,7 +7093,7 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
 def test_cv_pdf_artifact_is_persisted_and_integrity_checked() -> None:
     run_job_id = _create_normalized_run_with_jobs("run-cv-pdf", [{"title": "CV Job"}])[0]
     markdown = b"# Generated CV\n"
-    pdf = b"%PDF-1.7\npersisted\n"
+    pdf = b"%PDF-1.7\n\xffpersisted\x00\n"
     sqlite_store.insert_cv_version_row(
         {
             "version_id": "cv-pdf-1",
@@ -7112,11 +7112,13 @@ def test_cv_pdf_artifact_is_persisted_and_integrity_checked() -> None:
     )
 
     download = sqlite_store.get_cv_pdf_download("cv-pdf-1")
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
 
     assert download is not None
     assert download["content"] == pdf
     assert download["media_type"] == "application/pdf"
     assert download["filename"] == "cv-pdf-1.pdf"
+    assert "pdf_content_blob" not in version
 
     with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
         conn.execute("UPDATE cv_versions SET pdf_content_blob=? WHERE version_id='cv-pdf-1'", (b"tampered",))
