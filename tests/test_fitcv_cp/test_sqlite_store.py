@@ -7089,6 +7089,41 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
         sqlite_store.get_cv_download("cv-1")
 
 
+
+def test_cv_pdf_artifact_is_persisted_and_integrity_checked() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-pdf", [{"title": "CV Job"}])[0]
+    markdown = b"# Generated CV\n"
+    pdf = b"%PDF-1.7\npersisted\n"
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-pdf-1",
+            "run_job_id": run_job_id,
+            "ordinal": 1,
+            "generation_status": "generated",
+            "filename": "cv.md",
+            "media_type": "text/markdown; charset=utf-8",
+            "content_blob": markdown,
+            "pdf_filename": "cv-pdf-1.pdf",
+            "pdf_media_type": "application/pdf",
+            "pdf_content_blob": pdf,
+            "pdf_content_length": len(pdf),
+            "pdf_content_checksum": hashlib.sha256(pdf).hexdigest(),
+        }
+    )
+
+    download = sqlite_store.get_cv_pdf_download("cv-pdf-1")
+
+    assert download is not None
+    assert download["content"] == pdf
+    assert download["media_type"] == "application/pdf"
+    assert download["filename"] == "cv-pdf-1.pdf"
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute("UPDATE cv_versions SET pdf_content_blob=? WHERE version_id='cv-pdf-1'", (b"tampered",))
+        conn.commit()
+    with pytest.raises(ValueError, match="pdf_artifact_integrity_mismatch"):
+        sqlite_store.get_cv_pdf_download("cv-pdf-1")
+
 def test_cv_lifecycle_persists_pdf_failure_without_losing_markdown() -> None:
     run_job_id = _create_normalized_run_with_jobs("run-cv-lifecycle", [{"title": "CV Job"}])[0]
     content = b"# Generated CV\n"

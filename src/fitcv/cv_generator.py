@@ -39,6 +39,9 @@ from fitcv.placeholder_policy import (
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
+    MYCVS_V1_AUDIT_LINE_RE,
+    MYCVS_V1_HEADINGS,
+    MYCVS_V1_METADATA_LINE_RE,
     get_cv_generation_structured_prompt_id,
     get_cv_renderer_strategy,
     get_prompt_replacement,
@@ -101,11 +104,6 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
-_MYCVS_V1_HEADINGS = ("Summary", "Education", "Experience", "Projects", "Certificates", "Skills")
-_MYCVS_V1_METADATA_RE = re.compile(
-    r"^<!-- mycvs_v1: schema=mycvs_v1; content_sha256=([0-9a-f]{64}); handoff=([^;\r\n]+) -->$"
-)
-_MYCVS_V1_AUDIT_RE = re.compile(r"^<!-- mycvs_v1_audit: (.+) -->$")
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -1062,7 +1060,7 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                             "contact": {
                                 "type": "object",
                                 "additionalProperties": False,
-                            "required": ["email", "phone", "linkedin"],
+                                "required": ["email", "phone", "linkedin", "github"],
                                 "properties": {
                                     "email": nullable_string_schema,
                                     "phone": nullable_string_schema,
@@ -1101,7 +1099,7 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                         "items": {
                             "type": "object",
                             "additionalProperties": False,
-                            "required": ["name", "context", "bullets"],
+                            "required": ["name", "context", "url", "bullets"],
                             "properties": {
                                 "name": {"type": "string"},
                                 "context": nullable_string_schema,
@@ -1149,7 +1147,7 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                         "items": {
                             "type": "object",
                             "additionalProperties": False,
-                            "required": ["name", "issuer", "year"],
+                            "required": ["name", "issuer", "year", "url"],
                             "properties": {
                                 "name": {"type": "string"},
                                 "issuer": nullable_string_schema,
@@ -2073,7 +2071,7 @@ def validate_mycvs_v1_markdown(
         metadata_span = None
     else:
         metadata_span = metadata_matches[0]
-        metadata_match = _MYCVS_V1_METADATA_RE.fullmatch(metadata_span.group(0))
+        metadata_match = MYCVS_V1_METADATA_LINE_RE.fullmatch(metadata_span.group(0))
         if metadata_match is None:
             errors.append("invalid mycvs_v1 metadata block")
     if metadata_match is not None:
@@ -2090,14 +2088,14 @@ def validate_mycvs_v1_markdown(
         payload, handoff = text, ""
     payload_lines = payload.splitlines()
     headings = [(match.group(1), match.group(2).strip()) for line in payload_lines if (match := re.match(r"^(#{1,6})[ \t]+(.+?)\s*$", line))]
-    expected_headings = [("#", payload_lines[0][2:].strip() if payload_lines and payload_lines[0].startswith("# ") else ""), *[("##", heading) for heading in _MYCVS_V1_HEADINGS]]
+    expected_headings = [("#", payload_lines[0][2:].strip() if payload_lines and payload_lines[0].startswith("# ") else ""), *[("##", heading) for heading in MYCVS_V1_HEADINGS]]
     if headings != expected_headings or not expected_headings[0][1]:
         errors.append("headings must match the fixed mycvs_v1 order")
     for link in re.findall(r"\[[^\]]+\]\((?:<([^>\r\n]+)>|([^\)\r\n]+))\)", payload):
         url = link[0] or link[1]
         if not _mycvs_link_is_valid(url):
             errors.append(f"unsupported source URL: {url!r}")
-    audit_matches = [match for line in payload_lines if (match := _MYCVS_V1_AUDIT_RE.fullmatch(line))]
+    audit_matches = [match for line in payload_lines if (match := MYCVS_V1_AUDIT_LINE_RE.fullmatch(line))]
     audit_payload: dict[str, Any] | None = None
     if len(audit_matches) != 1:
         errors.append("exactly one mycvs_v1 audit block is required")

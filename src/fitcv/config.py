@@ -122,6 +122,11 @@ DEFAULT_SHORTLIST_STRATEGY = "legacy_retrieval_v1"
 DEFAULT_SHORTLIST_POLICY = "legacy_production_v1"
 SUPPORTED_CV_RENDERER_STRATEGIES = frozenset({"europass", "mycvs_v1"})
 DEFAULT_CV_RENDERER_STRATEGY = "europass"
+MYCVS_V1_HEADINGS = ("Summary", "Education", "Experience", "Projects", "Certificates", "Skills")
+MYCVS_V1_METADATA_LINE_RE = re.compile(
+    r"^<!-- mycvs_v1: schema=mycvs_v1; content_sha256=([0-9a-f]{64}); handoff=([^;\r\n]+) -->$"
+)
+MYCVS_V1_AUDIT_LINE_RE = re.compile(r"^<!-- mycvs_v1_audit: (.+) -->$")
 
 
 def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:

@@ -2081,6 +2081,7 @@ def _finalize_generation_result(
     trace_id: str,
     profile: dict[str, Any],
     reused_cv_version_id: str | None = None,
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
     ranking_cv_handoff = analysis_record.get("ranking_cv_handoff")
@@ -2120,6 +2121,7 @@ def _finalize_generation_result(
         analysis_record=analysis_record,
         profile=profile,
         config=config,
+        artifact_dir=artifact_dir,
     )
     finalized["result_contract_version"] = _CV_GENERATION_RESULT_CONTRACT_VERSION
     finalized["raw_job_fingerprint"] = str(analysis_record.get("raw_job_fingerprint") or "")
@@ -2200,6 +2202,7 @@ def _apply_final_artifact_contract(
     analysis_record: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult:
     finalized = cast(CvGenerationResult, deepcopy(result))
     structured_cv = finalized.get("structured_cv_final")
@@ -2226,13 +2229,13 @@ def _apply_final_artifact_contract(
         return finalized
 
     render_acceptance = finalized.get("render_acceptance")
-    if not isinstance(render_acceptance, dict) or not _render_acceptance_matches_final_content(
+    if artifact_dir is not None or not isinstance(render_acceptance, dict) or not _render_acceptance_matches_final_content(
         structured_cv,
         markdown,
         config,
         render_acceptance,
     ):
-        render_acceptance = render_cv_native_acceptance(markdown, config)
+        render_acceptance = render_cv_native_acceptance(markdown, config, output_dir=artifact_dir)
     final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
     if not final_ok and content_valid and str(render_acceptance.get("page_fit_status") or "") == "fail":
         before_support = render_item_requirement_support(structured_cv, provenance)
@@ -2253,7 +2256,7 @@ def _apply_final_artifact_contract(
         )
         after_support = render_item_requirement_support(trimmed, provenance)
         if trimmed_validation.get("valid") and before_support == after_support and trimmed != structured_cv:
-            trimmed_render = render_cv_native_acceptance(trimmed_markdown, config)
+            trimmed_render = render_cv_native_acceptance(trimmed_markdown, config, output_dir=artifact_dir)
             finalized["trim_attempt_count"] = 1
             if final_artifact_acceptance_passes(content_valid=True, render_acceptance=trimmed_render):
                 structured_cv = trimmed
@@ -2309,6 +2312,7 @@ def _reusable_result_or_none(
     config: dict[str, Any],
     reusable_record: dict[str, Any] | None,
     fingerprint_result: dict[str, Any],
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult | None:
     if not isinstance(reusable_record, dict):
         return None
@@ -2338,8 +2342,8 @@ def _reusable_result_or_none(
         return None
     render_acceptance = reusable_record.get("render_acceptance")
     page_fit_status = reusable_record.get("page_fit_status")
-    if not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
-        render_acceptance = render_cv_native_acceptance(structured_cv, config)
+    if artifact_dir is not None or not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
+        render_acceptance = render_cv_native_acceptance(structured_cv, config, output_dir=artifact_dir)
         page_fit_status = render_acceptance.get("page_fit_status")
     if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
         content_acceptance=bool(validation.get("valid")),
@@ -2513,6 +2517,7 @@ def _generate_fresh_from_analysis(
     config: dict[str, Any],
     *,
     trace_id: str | None = None,
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult:
     started_at = time.monotonic()
     trace_id = str(trace_id or uuid.uuid4())
@@ -2765,6 +2770,15 @@ def _generate_fresh_from_analysis(
             if not trace_payload["attempts"]:
                 trace_payload["attempts"].append({"attempt_index": 1, "attempt_type": "initial_generation"})
             latest_attempt = trace_payload["attempts"][-1]
+            if isinstance(runtime_failure_evidence, dict):
+                latest_attempt.setdefault("llm_runtime_evidence", dict(runtime_failure_evidence))
+                failure_evidence = runtime_failure_evidence.get("failure")
+                if isinstance(failure_evidence, dict):
+                    latest_attempt.setdefault("error_stage", failure_evidence.get("stage"))
+                    latest_attempt.setdefault("error_code", failure_evidence.get("code"))
+                    provider_diagnostics = failure_evidence.get("provider_diagnostics")
+                    if isinstance(provider_diagnostics, dict):
+                        latest_attempt.setdefault("provider_diagnostics", dict(provider_diagnostics))
             latest_attempt.setdefault("provider_status", "error")
             latest_attempt.setdefault("accepted_output_present", False)
             latest_attempt.setdefault("error_stage", failure_stage)
@@ -2831,6 +2845,7 @@ def generate_from_analysis(
     config: dict[str, Any],
     *,
     reusable_record: dict[str, Any] | None = None,
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult:
     if not isinstance(analysis_record, dict) or not isinstance(profile, dict) or not isinstance(config, dict):
         raise TypeError("analysis_record, profile, and config must be mappings")
@@ -2849,6 +2864,7 @@ def generate_from_analysis(
             config=config,
             reusable_record=reusable_record,
             fingerprint_result=fingerprint_result,
+            artifact_dir=artifact_dir,
         )
         if reused is not None:
             return _finalize_generation_result(
@@ -2861,8 +2877,15 @@ def generate_from_analysis(
                 trace_id=trace_id,
                 profile=profile,
                 reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
+                artifact_dir=artifact_dir,
             )
-    fresh = _generate_fresh_from_analysis(analysis_record, profile, config, trace_id=trace_id)
+    fresh = _generate_fresh_from_analysis(
+        analysis_record,
+        profile,
+        config,
+        trace_id=trace_id,
+        artifact_dir=artifact_dir,
+    )
     reuse_reason = "candidate_rejected" if reusable_record is not None else "fresh_compute_required"
     return _finalize_generation_result(
         fresh,
@@ -2873,4 +2896,5 @@ def generate_from_analysis(
         reuse_reason_code=reuse_reason,
         trace_id=trace_id,
         profile=profile,
+        artifact_dir=artifact_dir,
     )

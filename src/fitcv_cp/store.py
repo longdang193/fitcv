@@ -164,6 +164,7 @@ class RunStore(Protocol):
     def get_requirement_resolution(self, **kwargs: Any) -> dict[str, Any] | None: ...
     def list_requirement_resolutions(self, **kwargs: Any) -> list[dict[str, Any]]: ...
     def get_cv_download(self, version_id: str) -> dict[str, Any] | None: ...
+    def get_cv_pdf_download(self, version_id: str) -> dict[str, Any] | None: ...
     def get_cv_preview(self, version_id: str) -> dict[str, Any] | None: ...
     def get_cv_markdown(self, version_id: str) -> str | None: ...
     def get_debug_bundle_availability(self, run_id: str) -> dict[str, Any]: ...
@@ -317,6 +318,7 @@ class ControlPlaneStore:
     get_requirement_resolution_fn: Any | None = None
     list_requirement_resolutions_fn: Any | None = None
     get_cv_download_fn: Any | None = None
+    get_cv_pdf_download_fn: Any | None = None
     get_cv_preview_fn: Any | None = None
     get_cv_markdown_fn: Any | None = None
     get_debug_bundle_availability_fn: Any | None = None
@@ -1273,6 +1275,12 @@ class ControlPlaneStore:
         return cast(
             dict[str, Any] | None,
             self._call(self.get_cv_download_fn, sqlite_store.get_cv_download, version_id),
+        )
+
+    def get_cv_pdf_download(self, version_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            self._call(self.get_cv_pdf_download_fn, sqlite_store.get_cv_pdf_download, version_id),
         )
 
     def get_cv_preview(self, version_id: str) -> dict[str, Any] | None:

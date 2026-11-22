@@ -414,6 +414,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
         "gap_summary": {"summary": "Close fit"},
         "requirement_coverage": [{"requirement": "Python", "status": "covered"}],
     }
+    pdf_bytes = b"%PDF-1.7\nprobe\n"
     generation = {
         "status": "review_required",
         "fit_classification": "stretch",
@@ -428,13 +429,17 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
             "renderer_status": "rendered",
             "page_count": 1,
             "page_fit_status": "pass",
-            "artifact_checksum": "a" * 64,
+            "artifact_checksum": hashlib.sha256(pdf_bytes).hexdigest(),
             "content_sha256": hashlib.sha256(b"# Fresh generated CV").hexdigest(),
             "template_sha256": "c" * 64,
             "render_config_fingerprint": "d" * 64,
             "renderer_contract_version": "fitcv_native_render_v1",
         },
     }
+    def generate_with_pdf(*_args, **kwargs):
+        Path(kwargs["artifact_dir"], "cv.pdf").write_bytes(pdf_bytes)
+        return generation
+
     with patch("fitcv_cp.worker_job.get_run", return_value=run), \
          patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
              "run_job_id": "run-job-1", "job_url": "https://example.com/job-1", "canonical_job_identity": "https://example.com/job-1", "title": "Role"
@@ -449,7 +454,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
          patch("fitcv_cp.worker_job.update_cv_evaluation") as update_evaluation, \
          patch("fitcv_cp.worker_job.insert_cv_review_event") as insert_review, \
          patch("fitcv_cp.worker_job.analyze_ranked_job", return_value=analysis) as analyze_job, \
-         patch("fitcv_cp.worker_job.generate_from_analysis", return_value=generation) as generate_cv, \
+         patch("fitcv_cp.worker_job.generate_from_analysis", side_effect=generate_with_pdf) as generate_cv, \
          patch("fitcv_cp.worker_job.append_event") as mock_append:
         execute_cv_regenerate_once(
             run_id="run-regen-1",
@@ -463,7 +468,9 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
     analyze_job.assert_called_once()
     assert analyze_job.call_args.args[0]["baseline_fit_label"] == "stretch"
     assert analyze_job.call_args.kwargs["ranking_cv_handoff"] == ranking_handoff
-    generate_cv.assert_called_once_with(analysis, {"name": "Candidate"}, {})
+    generate_cv.assert_called_once()
+    assert generate_cv.call_args.args == (analysis, {"name": "Candidate"}, {})
+    assert Path(generate_cv.call_args.kwargs["artifact_dir"]).name.startswith("fitcv-cv-artifact-")
     assert update_version.call_args_list[-1].kwargs["generation_status"] == "review_required"
     assert update_version.call_args_list[-1].kwargs["content"] == b"# Fresh generated CV"
     persisted_evidence = update_version.call_args_list[-1].kwargs["metadata"]["quality_warnings_json"]

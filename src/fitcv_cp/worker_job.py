@@ -658,7 +658,10 @@ def execute_cv_regenerate_once(
         if ranking_cv_handoff is not None:
             analysis_kwargs["ranking_cv_handoff"] = ranking_cv_handoff
         analysis = dict(analyze_ranked_job(analysis_job, profile, config, **analysis_kwargs))
-        generation = dict(generate_from_analysis(analysis, profile, config))
+        with tempfile.TemporaryDirectory(prefix="fitcv-cv-artifact-") as artifact_dir:
+            generation = dict(generate_from_analysis(analysis, profile, config, artifact_dir=artifact_dir))
+            pdf_path = Path(artifact_dir) / "cv.pdf"
+            pdf_content = pdf_path.read_bytes() if pdf_path.is_file() else None
         fit_classification = str(
             analysis.get("fit_classification") or generation.get("fit_classification") or ""
         ).strip().lower()
@@ -689,9 +692,15 @@ def execute_cv_regenerate_once(
         markdown = str(generation.get("markdown_final") or "")
         content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
         content_checksum = hashlib.sha256(content).hexdigest() if content is not None else None
-        pdf_verified = render_proof_is_verified(
-            generation.get("render_acceptance"),
-            content_checksum=content_checksum,
+        pdf_verified = bool(
+            pdf_content
+            and render_proof_is_verified(
+                generation.get("render_acceptance"),
+                content_checksum=content_checksum,
+            )
+            and hashlib.sha256(pdf_content).hexdigest() == str(
+                (generation.get("render_acceptance") or {}).get("artifact_checksum") or ""
+            )
         )
         pdf_status = (
             "generated"
@@ -749,6 +758,9 @@ def execute_cv_regenerate_once(
                 "pdf_error_code": pdf_error_code,
                 "pdf_error_message": pdf_error_message,
                 "submission_clearance": submission_clearance,
+                "pdf_filename": f"fitcv-cv-{reserved_version_id}.pdf" if pdf_content else None,
+                "pdf_media_type": "application/pdf" if pdf_content else None,
+                "pdf_content_blob": pdf_content,
             },
             error_code=(str((generation.get("error") or {}).get("stage") or "") or None),
             error_message=(str((generation.get("error") or {}).get("message") or "") or None),

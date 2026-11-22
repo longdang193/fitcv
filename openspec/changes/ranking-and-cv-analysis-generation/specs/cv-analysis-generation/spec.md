@@ -78,6 +78,18 @@ The system SHALL render and validate the canonical `mycvs_v1` Markdown schema de
 - **WHEN** required content, links, provenance, or checksum constraints fail
 - **THEN** the system SHALL not invoke PDF conversion and SHALL persist a generation failure with actionable validation diagnostics.
 
+### Requirement: Accepted PDF artifacts remain durable and downloadable
+
+The system SHALL persist a complete accepted PDF artifact and its media type, length, and checksum separately from the Markdown artifact, and SHALL expose the persisted bytes through the existing CV artifact boundary without accepting missing or checksum-mismatched PDF content.
+
+#### Scenario: Accepted PDF survives the generation boundary
+- **WHEN** Markdown validation and one-page render proof pass
+- **THEN** the worker SHALL persist the PDF bytes and matching checksum, and a PDF download SHALL return the same bytes with `application/pdf` media type.
+
+#### Scenario: PDF persistence is incomplete
+- **WHEN** render proof passes but the PDF bytes are absent or their checksum does not match
+- **THEN** `pdf_status` SHALL remain failed and submission clearance SHALL remain blocked.
+
 ### Requirement: Historic CV artifacts are preserved
 
 The system SHALL preserve historic CV artifacts, their original preset/schema and status fields, and SHALL not rewrite them during migration to the new contract.

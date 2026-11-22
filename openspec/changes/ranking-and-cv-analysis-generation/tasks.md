@@ -27,6 +27,7 @@
 - [x] 4.2 Require one-page render acceptance and recognized renderer identity before PDF status becomes generated; verify checksum mismatch, missing proof, review blocking, explicit approval, rejection, and historic status compatibility in `tests/test_cv_render_acceptance.py`, `tests/test_fitcv_cp/test_run_artifact_contracts.py`, and `tests/test_fitcv_cp/test_app.py`.
 - [x] 4.3 Verify historic personalized ranking and Europass artifacts remain readable and are not rewritten during migration; add compatibility fixtures or assertions at the existing read paths and run the focused persistence/read tests.
 - [x] 4.4 Update `docs/configuration.md`, `docs/pipeline.md`, and `docs/observability.md` with renderer strategy, lifecycle fields, rollback behavior, converter provenance, and the disabled-until-pinned release gate; verify documented defaults and field names against configuration and artifact tests.
+- [x] 4.5 Persist accepted PDF bytes and integrity metadata alongside the Markdown CV artifact, expose a PDF download boundary, and fail closed unless stored bytes match the accepted render checksum; verify with `tests/test_fitcv_cp/test_sqlite_store.py` and `tests/test_fitcv_cp/test_worker_job.py`.
 
 ## 5. Prove readiness before enablement
 

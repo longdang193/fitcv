@@ -773,6 +773,29 @@ def test_live_schema_config_properties_match_required_sections_for_strict_json_s
         assert ("publications" in sections_schema["properties"]) is publications_enabled
 
 
+def test_live_schema_contact_properties_are_all_required_for_strict_provider_schema() -> None:
+    contact_schema = build_live_structured_cv_response_schema()["properties"]["sections"]["properties"]["header"]["properties"]["contact"]
+
+    assert set(contact_schema["properties"]) == set(contact_schema["required"])
+
+
+def test_live_schema_all_closed_objects_require_every_declared_property() -> None:
+    schema = build_live_structured_cv_response_schema()
+
+    def assert_closed_objects_are_strict(node: object) -> None:
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if node.get("additionalProperties") is False and isinstance(properties, dict):
+                assert set(properties) == set(node.get("required") or [])
+            for value in node.values():
+                assert_closed_objects_are_strict(value)
+        elif isinstance(node, list):
+            for value in node:
+                assert_closed_objects_are_strict(value)
+
+    assert_closed_objects_are_strict(schema)
+
+
 def test_validate_structured_cv_rejects_malformed_skills_groups() -> None:
     doc = build_empty_structured_cv(
         jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
