@@ -1755,9 +1755,23 @@ def _build_fallback_provider_generator(
     provider_profile = {
         key: value
         for key, value in profile.items()
-        if key not in {"candidate_profile_id", "revision"}
+        if key not in {"candidate_profile_id", "revision"} and not str(key).startswith("_")
     }
-    authorized_profile = project_authorized_profile(profile, evidence_payload)
+    approved_claims = [
+        item for item in list(content_plan.get("approved_claims") or []) if isinstance(item, dict)
+    ]
+    allow_baseline_profile = (
+        isinstance(content_plan, dict)
+        and "approved_claims" in content_plan
+        and not approved_claims
+    )
+    authorized_profile = project_authorized_profile(
+        profile,
+        None if allow_baseline_profile else evidence_payload,
+    )
+    authorized_profile = {
+        key: value for key, value in authorized_profile.items() if not str(key).startswith("_")
+    }
 
     def _call(repair_missing_sections: list[str] | None) -> Any:
         return generate_cv(
@@ -2159,6 +2173,43 @@ def _finalize_generation_result(
                     evidence_used,
                 ),
             )
+    status = str(finalized.get("status") or "")
+    review_reason: tuple[str, str] | None = None
+    if status == ACCEPTED_STATUS:
+        review_reason = _review_required_reason(analysis_record, finalized, config)
+        if review_reason is not None:
+            reason_code, message = review_reason
+            finalized["review_required_reason_code"] = reason_code
+            finalized["status"] = REVIEW_REQUIRED_STATUS
+            warnings = list(finalized.get("quality_warnings") or [])
+            warnings.append(message)
+            finalized["quality_warnings"] = sorted(set(warnings))
+    elif status == VALIDATION_FAILED_STATUS:
+        has_grounded_output = (
+            isinstance(finalized.get("structured_cv_final"), dict)
+            and bool(str(finalized.get("markdown_final") or "").strip())
+        )
+        if has_grounded_output:
+            finalized["status"] = REVIEW_REQUIRED_STATUS
+            finalized["review_required_reason_code"] = ReviewRequiredReasonCode.POST_VALIDATION_FAILED.value
+
+    if str(finalized.get("status") or "") == REVIEW_REQUIRED_STATUS:
+        structured_cv_final = finalized.get("structured_cv_final")
+        if isinstance(structured_cv_final, dict):
+            structured_cv_final = deepcopy(structured_cv_final)
+            review_message = (
+                (review_reason[1] if review_reason else None)
+                or str((finalized.get("error") or {}).get("message") or "").strip()
+                or "Evidence or validation requires human follow-up."
+            )
+            structured_cv_final["artifact_review"] = {
+                "required": True,
+                "reason": review_message,
+                "reason_code": str(finalized.get("review_required_reason_code") or "manual_review_other"),
+            }
+            finalized["structured_cv_final"] = structured_cv_final
+            finalized["markdown_final"] = render_cv_markdown(structured_cv_final, config)
+
     finalized = _apply_final_artifact_contract(
         finalized,
         analysis_record=analysis_record,
@@ -2186,15 +2237,6 @@ def _finalize_generation_result(
             "trace_id": str(trace_id),
         }
     status = str(finalized.get("status") or "")
-    if status == ACCEPTED_STATUS:
-        review_reason = _review_required_reason(analysis_record, finalized, config)
-        if review_reason is not None:
-            reason_code, message = review_reason
-            finalized["review_required_reason_code"] = reason_code
-            finalized["status"] = REVIEW_REQUIRED_STATUS
-            warnings = list(finalized.get("quality_warnings") or [])
-            warnings.append(message)
-            finalized["quality_warnings"] = sorted(set(warnings))
     reason = finalized.get("outcome_reason") or finalized.get("error")
     validation_snapshot = finalized.get("validation") or finalized.get("validation_initial")
     if not finalized.get("review_required_reason_code"):
@@ -2662,12 +2704,16 @@ def _generate_fresh_from_analysis(
         for item in list(content_plan.get("approved_evidence_ids") or [])
         if str(item).strip()
     }
-    writer_evidence_payload = [
-        item
-        for item in evidence_payload
-        if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
-        in approved_evidence_ids
-    ]
+    if approved_evidence_ids:
+        writer_evidence_payload = [
+            item
+            for item in evidence_payload
+            if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+            in approved_evidence_ids
+        ]
+    else:
+        # No verified job claim is not the same as no candidate profile evidence.
+        writer_evidence_payload = evidence_payload
     full_input_character_count = len(json.dumps(evidence_payload, ensure_ascii=False, sort_keys=True))
     writer_input_character_count = len(json.dumps(writer_evidence_payload, ensure_ascii=False, sort_keys=True))
     input_metrics = {
@@ -2769,15 +2815,15 @@ def _generate_fresh_from_analysis(
             repair_arm=_coerce_repair_arm(config.get("cv_generation_repair_arm")),
             adjust_executor=lambda: _writer_attempt([], attempt_type="adjustment"),
         )
+        error: ErrorPayload | None = None
+        has_grounded_output = isinstance(structured_cv, dict) and bool(str(markdown or "").strip())
         result_status: GenerationStatus = (
             ACCEPTED_STATUS
             if validation.get("valid")
             else REVIEW_REQUIRED_STATUS
-            if repair_attempt.get("review_required")
+            if has_grounded_output or repair_attempt.get("review_required")
             else VALIDATION_FAILED_STATUS
         )
-        error: ErrorPayload | None = None
-        has_grounded_output = isinstance(structured_cv, dict) and bool(str(markdown or "").strip())
         structured_cv_final = structured_cv if has_grounded_output else None
         markdown_final = markdown if has_grounded_output else None
         page_fit_status: str | None = None

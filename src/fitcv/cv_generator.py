@@ -17,9 +17,11 @@ lifecycle:
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
+import sys
 import textwrap
 import tempfile
 from copy import deepcopy
@@ -104,6 +106,12 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
+def _runtime_project_root() -> Path:
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    return Path(frozen_root) if frozen_root else Path(__file__).resolve().parents[2]
+
+
+_BUNDLED_MYCVS_RENDERER_DIR = _runtime_project_root() / "scripts" / "renderers" / "mycvs_v1"
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -787,11 +795,26 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "Do not leave required sections empty. Each required section must contain at least one grounded line or bullet."
         )
+    approved_claims = [
+        item for item in list((content_plan or {}).get("approved_claims") or []) if isinstance(item, dict)
+    ]
+    has_approved_job_claims = bool(approved_claims)
+    allow_baseline_profile = (
+        isinstance(content_plan, dict)
+        and "approved_claims" in content_plan
+        and not approved_claims
+    )
     if content_plan:
-        constraint_lines.append(
-            "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
-            + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
-        )
+        if has_approved_job_claims:
+            constraint_lines.append(
+                "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
+                + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
+            )
+        elif allow_baseline_profile:
+            constraint_lines.append(
+                "No verified job-specific claims were approved. Use factual baseline records from the authorized candidate profile "
+                "for the enabled sections; do not leave sections empty solely because approved_claims is empty."
+            )
         space_budget = dict(content_plan.get("space_budget") or {})
         max_summary_lines = space_budget.get("max_summary_lines")
         section_limits = dict(space_budget.get("section_claim_limits") or {})
@@ -896,9 +919,18 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
         )
-        constraint_lines.append(
-            "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
-        )
+        if has_approved_job_claims:
+            constraint_lines.append(
+                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+            )
+        elif allow_baseline_profile:
+            constraint_lines.append(
+                "Use baseline profile records for factual sections, and use the selected evidence bundle only to tailor job-specific positioning; do not invent facts."
+            )
+        else:
+            constraint_lines.append(
+                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+            )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
@@ -1946,6 +1978,16 @@ def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
     lines = [f"# {candidate_name}"]
     if contact_lines:
         lines.extend(["", *contact_lines])
+    review_notice = structured_cv.get("artifact_review")
+    if isinstance(review_notice, dict) and review_notice.get("required") is True:
+        reason = _mycvs_line(review_notice.get("reason")) or "Evidence or validation requires human follow-up."
+        lines.extend(
+            [
+                "",
+                "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**",
+                f"> {reason}",
+            ]
+        )
     lines.extend(["", "## Summary"])
     lines.append(_mycvs_line((sections.get("summary") or {}).get("text")) or "Not provided.")
     lines.extend(["", "## Education"])
@@ -2034,6 +2076,10 @@ def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
         "gaps": _mycvs_list(context["gaps"]),
         "unknowns": _mycvs_list(context["unknowns"]),
         "sources": sources,
+        "artifact_review": {
+            "required": bool(isinstance(review_notice, dict) and review_notice.get("required") is True),
+            "reason": _mycvs_line(review_notice.get("reason")) if isinstance(review_notice, dict) else "",
+        },
     }
     for source in sources:
         source_url = source["url"]
@@ -2150,6 +2196,19 @@ def _resolve_template_path(config: dict[str, Any]) -> str:
     return str(config.get("cv_template_path", "templates/cv_template.md"))
 
 
+def _inject_review_notice(markdown: str, structured_cv: dict[str, Any]) -> str:
+    review_notice = structured_cv.get("artifact_review")
+    if not isinstance(review_notice, dict) or review_notice.get("required") is not True:
+        return markdown
+    if "REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION" in markdown:
+        return markdown
+    reason = str(review_notice.get("reason") or "Evidence or validation requires human follow-up.").strip()
+    lines = markdown.splitlines()
+    insert_at = next((index + 1 for index, line in enumerate(lines) if line.startswith("# ")), 0)
+    lines[insert_at:insert_at] = ["", "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**", f"> {reason}", ""]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) -> str:
     """Render markdown from a validated structured CV document."""
     if get_cv_renderer_strategy(config) == "mycvs_v1":
@@ -2241,7 +2300,7 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
         headline=str(header.get("title") or ""),
         summary=str(sections["summary"].get("text") or ""),
     )
-    return _normalize_cv_markdown(rendered)
+    return _inject_review_notice(_normalize_cv_markdown(rendered), structured_cv)
 
 
 def _canonical_render_item_key(section: str, item: dict[str, Any]) -> str:
@@ -2268,6 +2327,7 @@ def _render_config_fingerprint(config: dict[str, Any]) -> str:
         "cv": dict(config.get("cv") or {}),
         "cv_template_path": str(config.get("cv_template_path") or ""),
         "template_path": str(config.get("_template_path") or ""),
+        "external_renderer": _external_renderer_config(config),
     }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -2278,6 +2338,69 @@ def _template_sha256(config: dict[str, Any]) -> str | None:
     try:
         return hashlib.sha256(Path(_resolve_template_path(config)).read_bytes()).hexdigest()
     except (OSError, TypeError, ValueError):
+        return None
+
+
+def _external_renderer_config(config: dict[str, Any]) -> dict[str, str]:
+    renderer = ((config.get("cv") or {}).get("renderer") or {})
+    external = renderer.get("external") if isinstance(renderer, dict) else {}
+    if not isinstance(external, dict):
+        external = {}
+    enabled = external.get("enabled") or os.environ.get("FITCV_MYCVS_EXTERNAL_RENDER_ENABLED")
+    bundled = {
+        "converter_path": _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py",
+        "stylesheet_path": _BUNDLED_MYCVS_RENDERER_DIR / "long-dang-template.css",
+        "font_regular_path": _BUNDLED_MYCVS_RENDERER_DIR / "fonts" / "Inter-Regular.ttf",
+        "font_bold_path": _BUNDLED_MYCVS_RENDERER_DIR / "fonts" / "Inter-Bold.ttf",
+    }
+    use_bundled = str(enabled or "").strip().lower() in {"1", "true", "yes", "on"}
+
+    def bundled_path(key: str) -> str | None:
+        path = bundled[key]
+        return str(path) if use_bundled and path.is_file() else None
+
+    values = {
+        "enabled": enabled,
+        "converter_path": external.get("converter_path")
+        or os.environ.get("FITCV_MYCVS_CONVERTER_PATH")
+        or bundled_path("converter_path"),
+        "stylesheet_path": external.get("stylesheet_path")
+        or os.environ.get("FITCV_MYCVS_STYLESHEET_PATH")
+        or bundled_path("stylesheet_path"),
+        "font_regular_path": external.get("font_regular_path")
+        or os.environ.get("FITCV_MYCVS_INTER_REGULAR_PATH")
+        or bundled_path("font_regular_path"),
+        "font_bold_path": external.get("font_bold_path")
+        or os.environ.get("FITCV_MYCVS_INTER_BOLD_PATH")
+        or bundled_path("font_bold_path"),
+        "python_path": external.get("python_path")
+        or os.environ.get("FITCV_MYCVS_PYTHON"),
+        "converter_revision": external.get("converter_revision")
+        or os.environ.get("FITCV_MYCVS_CONVERTER_REVISION"),
+        "stylesheet_revision": external.get("stylesheet_revision")
+        or os.environ.get("FITCV_MYCVS_STYLESHEET_REVISION"),
+    }
+    return {key: str(value).strip() for key, value in values.items() if str(value or "").strip()}
+
+def _external_renderer_command(
+    external: dict[str, str],
+    markdown_path: Path,
+    output_path: Path,
+) -> list[str] | None:
+    converter_path = str(external.get("converter_path") or "")
+    if not converter_path:
+        return None
+    runtime = sys.executable
+    if getattr(sys, "frozen", False):
+        runtime = str(external.get("python_path") or shutil.which("python") or shutil.which("py") or "")
+        if not runtime:
+            return None
+    return [runtime, converter_path, str(markdown_path), str(external["stylesheet_path"]), str(output_path)]
+
+def _sha256_file(path: str) -> str | None:
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
         return None
 
 
@@ -2293,8 +2416,23 @@ def render_cv_native_acceptance(
     markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
     if get_cv_renderer_strategy(config) == "mycvs_v1":
         validate_mycvs_v1_markdown(markdown)
-    required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
-    missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
+    external = _external_renderer_config(config)
+    external_enabled = external.get("enabled", "").lower() in {"1", "true", "yes", "on"}
+    if external_enabled:
+        required_tools = ("pdfinfo", "pdftotext")
+        missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
+        for key in ("converter_path", "stylesheet_path"):
+            if not external.get(key) or not Path(external[key]).is_file():
+                missing_tools.append(key)
+        if (
+            getattr(sys, "frozen", False)
+            and external.get("converter_path")
+            and not (external.get("python_path") or shutil.which("python") or shutil.which("py"))
+        ):
+            missing_tools.append("python_runtime")
+    else:
+        required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
+        missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     base = Path(output_dir) if output_dir is not None else None
     with TemporaryDirectory(dir=str(base) if base else None) as temporary_dir:
         work_dir = Path(temporary_dir)
@@ -2305,7 +2443,10 @@ def render_cv_native_acceptance(
         render_status = "render_unavailable" if missing_tools else "render_failed"
         result: dict[str, Any] = {
             **proof_identity,
-            "renderer_contract_version": proof_identity.get("renderer_contract_version", NATIVE_RENDER_CONTRACT_VERSION),
+            "renderer_contract_version": (
+                "mycvs_external_render_v1" if external_enabled
+                else proof_identity.get("renderer_contract_version", NATIVE_RENDER_CONTRACT_VERSION)
+            ),
             "render_status": render_status,
             "renderer_status": render_status,
             "page_count": None,
@@ -2316,11 +2457,29 @@ def render_cv_native_acceptance(
             "content_sha256": hashlib.sha256(str(markdown or "").encode("utf-8")).hexdigest(),
             "missing_tools": missing_tools,
         }
+        if external_enabled:
+            result.update(
+                {
+                    "converter_revision": external.get("converter_revision") or _sha256_file(external.get("converter_path", "")),
+                    "stylesheet_revision": external.get("stylesheet_revision") or _sha256_file(external.get("stylesheet_path", "")),
+                    "converter_input_checksum": result["content_sha256"],
+                }
+            )
         if missing_tools:
             return result
         try:
+            if external_enabled:
+                converter_command = _external_renderer_command(external, markdown_path, pdf_path)
+                if converter_command is None:
+                    return result
+                if external.get("font_regular_path"):
+                    converter_command.extend(["--inter-regular", external["font_regular_path"]])
+                if external.get("font_bold_path"):
+                    converter_command.extend(["--inter-bold", external["font_bold_path"]])
+            else:
+                converter_command = ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"]
             subprocess.run(
-                ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"],
+                converter_command,
                 check=True,
                 capture_output=True,
                 text=True,

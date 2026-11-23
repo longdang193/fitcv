@@ -522,6 +522,14 @@ the non-secret routing overlay.
   eligibility; prompts, model output, job text, and profile content are excluded.
 - Runtime profiles without an explicit revision receive a deterministic
   checksum-backed revision so ranking-to-CV handoffs remain identity-safe.
-- The external `mycvs_external_render_v1` converter remains disabled until its
+- The external `mycvs_external_render_v1` converter remains disabled by default until its
   converter revision and stylesheet/template revision are pinned and reproducible.
   Without that evidence, the native Europass path remains the safe default.
+- For a controlled local render, the adapter reads `cv.renderer.external` or the
+  runtime variables `FITCV_MYCVS_EXTERNAL_RENDER_ENABLED`,
+  `FITCV_MYCVS_CONVERTER_PATH`, `FITCV_MYCVS_STYLESHEET_PATH`,
+  `FITCV_MYCVS_INTER_REGULAR_PATH`, and `FITCV_MYCVS_INTER_BOLD_PATH`. It writes
+  the canonical Markdown input before invoking the converter and records converter
+  and stylesheet SHA-256 revisions in the render proof.
+  When the external adapter is enabled without explicit paths, it uses the checked-in
+  renderer under `scripts/renderers/mycvs_v1/`; explicit paths still take precedence.

@@ -14735,18 +14735,31 @@ def list_run_structured_jobs(
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            """SELECT j.run_job_id, j.source_snapshot_json,
+            """SELECT j.run_job_id, j.source_url, j.title, j.source_snapshot_json,
                       CASE WHEN b.bookmark_id IS NULL THEN 0 ELSE 1 END AS bookmarked
                FROM run_jobs j
                LEFT JOIN bookmarks b ON b.run_job_id=j.run_job_id
                WHERE j.run_id=? ORDER BY j.title COLLATE NOCASE, j.run_job_id""",
             (run_id,),
         ).fetchall()
-    return [
-        json.loads(str(row["source_snapshot_json"]))
-        | {"run_job_id": row["run_job_id"], "bookmarked": bool(row["bookmarked"])}
-        for row in rows
-    ]
+        structured_by_identity = _run_structured_payloads(conn, run_id)
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        source_snapshot = json.loads(str(row["source_snapshot_json"] or "{}"))
+        payload = _identity_payload_for_job(
+            structured_by_identity,
+            _run_job_identity(row, source_snapshot),
+            allow_legacy_url_fallback=True,
+        )
+        result.append(
+            {
+                **(payload or source_snapshot),
+                "run_job_id": row["run_job_id"],
+                "bookmarked": bool(row["bookmarked"]),
+            }
+        )
+    return result
 
 
 def clear_run_job_interest(
@@ -15036,6 +15049,23 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
             if bindings_match and str(existing["content_checksum"] or "") == str(content_checksum or "") and (
                 existing["content_length"] is None or content_length is None or int(existing["content_length"]) == int(content_length)
             ):
+                review_state = str(row.get("review_state") or "").strip()
+                if review_state in {"stretch", "manual_required"} and conn.execute(
+                    "SELECT 1 FROM cv_review_events WHERE cv_version_id=? LIMIT 1",
+                    (version_id,),
+                ).fetchone() is None:
+                    conn.execute(
+                        """INSERT INTO cv_review_events (
+                            review_event_id, cv_version_id, cv_evaluation_id, from_state,
+                            to_state, actor, note, action_id, idempotency_key, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            str(uuid.uuid4()), version_id, None, "none", review_state,
+                            "system", row.get("review_note") or "CV generation requires review.",
+                            row.get("action_id"), row.get("idempotency_key"), now,
+                        ),
+                    )
+                    conn.commit()
                 return []
             raise sqlite3.IntegrityError("UNIQUE constraint failed: cv_versions.version_id")
         placeholders = ", ".join("?" for _ in range(48))
@@ -15083,6 +15113,19 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 """UPDATE run_jobs SET current_cv_version_id=?, row_revision=row_revision+1
                    WHERE run_job_id=?""",
                 (version_id, run_job_id),
+            )
+        review_state = str(row.get("review_state") or "").strip()
+        if review_state in {"stretch", "manual_required"}:
+            conn.execute(
+                """INSERT INTO cv_review_events (
+                    review_event_id, cv_version_id, cv_evaluation_id, from_state,
+                    to_state, actor, note, action_id, idempotency_key, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid.uuid4()), version_id, None, "none", review_state,
+                    "system", row.get("review_note") or "CV generation requires review.",
+                    row.get("action_id"), row.get("idempotency_key"), now,
+                ),
             )
         conn.commit()
     return []

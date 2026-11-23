@@ -7018,15 +7018,23 @@ def test_list_run_structured_jobs_is_not_truncated_at_fifty() -> None:
     assert len(sqlite_store.list_run_structured_jobs("run-many")) == 55
 
 def test_list_run_structured_jobs_projects_canonical_bookmark_state() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
     run_job_id = _create_normalized_run_with_jobs(
         "run-structured-bookmark", [{"title": "Bookmarked Job"}]
     )[0]
+    load_run_structured_jobs(
+        [{"run_job_id": run_job_id, "job_url": "https://example.com/job", "location": "Berlin"}],
+        "run-structured-bookmark",
+        {},
+    )
     sqlite_store.set_bookmark(run_job_id)
 
     rows = sqlite_store.list_run_structured_jobs("run-structured-bookmark")
 
     assert rows[0]["run_job_id"] == run_job_id
     assert rows[0]["bookmarked"] is True
+    assert rows[0]["location"] == "Berlin"
 
 
 def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
@@ -7088,6 +7096,27 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
     with pytest.raises(ValueError, match="artifact_integrity_mismatch"):
         sqlite_store.get_cv_download("cv-1")
 
+
+
+def test_cv_version_persists_review_state_as_review_event() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-review-state", [{"title": "CV Job"}])[0]
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-review-state-1",
+            "run_job_id": run_job_id,
+            "generation_status": "review_required",
+            "review_state": "manual_required",
+            "content_blob": b"# Review required\n",
+            "pdf_status": "generated",
+            "submission_clearance": "blocked",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["generation_status"] == "review_required"
+    assert version["review_state"] == "manual_required"
+    assert version["submission_clearance"] == "blocked"
 
 
 def test_cv_pdf_artifact_is_persisted_and_integrity_checked() -> None:
