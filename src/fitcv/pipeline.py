@@ -5833,7 +5833,7 @@ def run_pipeline(
                 ),
                 "cv_generation_failed": sum(
                     1 for record in cv_generation_debug_records
-                    if str(record.get("status") or "") in {"validation_failed", "generation_failed", "persistence_failed"}
+                    if str(record.get("status") or "") in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
                 ),
             }
         )

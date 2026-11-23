@@ -685,12 +685,13 @@ def execute_cv_regenerate_once(
         generation_status = {
             "accepted": "generated",
             "review_required": "review_required",
+            "pdf_failed": "pdf_failed",
             "validation_failed": "validation_failed",
             "generation_failed": "generation_failed",
             "persistence_failed": "persistence_failed",
         }.get(str(generation.get("status") or ""), "generation_failed")
         markdown = str(generation.get("markdown_final") or "")
-        content = markdown.encode("utf-8") if generation_status in {"generated", "review_required"} else None
+        content = markdown.encode("utf-8") if generation_status in {"generated", "review_required", "pdf_failed"} else None
         content_checksum = hashlib.sha256(content).hexdigest() if content is not None else None
         pdf_verified = bool(
             pdf_content
@@ -2569,7 +2570,7 @@ def execute_pipeline_run(
                 current_determinism_index: dict[tuple[str, str], tuple[str, str]] = {}
                 for record in cv_debug_records:
                     status_value = str(record.get("status") or "").strip()
-                    if status_value not in {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+                    if status_value not in {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}:
                         continue
                     input_fp = str(record.get("cv_generation_input_fingerprint") or "").strip()
                     evidence_fp = str(record.get("validation_evidence_fingerprint") or "").strip()
@@ -2858,7 +2859,7 @@ def execute_pipeline_run(
                     1
                     for record in cv_debug_records
                     if str(record.get("status") or "").strip()
-                    in {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+                    in {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}
                 )
                 attempted_summary_count = int(summary.get("cv_generation_attempted") or 0)
                 if attempted_summary_count > 0 and not cv_debug_records:

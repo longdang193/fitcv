@@ -39,7 +39,7 @@ class CVOutcomeKind(str, Enum):
 
 _BLOCKING_DIAGNOSTIC_CODES: Final[frozenset[str]] = frozenset({
     "provider_error", "timeout", "empty_output", "template_violation",
-    "markdown_structure_violation", "grounding_failed", "validation_failed",
+    "markdown_structure_violation", "grounding_failed", "validation_failed", "pdf_render_failed",
     "unsupported_claim", "cv_persistence_failed", "persistence_failed",
 })
 
@@ -73,7 +73,7 @@ def classify_cv_outcome(
         or validation.get("missing_sections")
     )
     blocking = code in _BLOCKING_DIAGNOSTIC_CODES or validation_failed or original_outcome in {
-        "failed", "generation_failed", "validation_failed", "persistence_failed",
+        "failed", "generation_failed", "pdf_failed", "validation_failed", "persistence_failed",
     }
     warnings = sorted({str(item).strip() for item in (quality_warnings or []) if str(item).strip()})
     if blocking:

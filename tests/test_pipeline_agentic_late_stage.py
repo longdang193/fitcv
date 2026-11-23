@@ -2052,7 +2052,7 @@ def test_generate_from_analysis_persists_review_required_as_quality_warning(
 
     result = generate_from_analysis(analysis_record, _minimal_profile(), _minimal_config())
 
-    assert result["status"] == "accepted"
+    assert result["status"] == "review_required"
     assert result["review_required_reason_code"] == "unsupported_requirement_gap"
     assert result["outcome_reason"] is None
     assert result["error"] is None
@@ -2062,6 +2062,45 @@ def test_generate_from_analysis_persists_review_required_as_quality_warning(
     assert result["validation_evidence_fingerprint"]
 
 
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_pdf_converter_failure_is_technical_and_preserves_markdown(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    markdown = "# Test Candidate\n## Experience\n- Built grounded reporting workflows.\n- Improved reliability."
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": markdown,
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+        side_effect=RuntimeError("converter unavailable"),
+    ):
+        result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "pdf_failed"
+    assert result["error"]["code"] == "pdf_render_failed"
+    assert result["structured_cv_final"] is not None
+    assert result["markdown_final"] == markdown
+    assert result["final_artifact_acceptance"]["status"] == "failed"
 
 def test_review_required_with_valid_content_is_persistable_only_without_validation_violations() -> None:
     result = {
@@ -2332,9 +2371,9 @@ def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
 
     mock_generate_cv.assert_not_called()
     mock_render_cv_native_acceptance.assert_called_once()
-    assert reused["status"] == "review_required"
+    assert reused["status"] == "pdf_failed"
     assert reused["structured_cv_final"] == _minimal_structured_cv()
-    assert reused["error"]["code"] == "reusable_render_proof_failed"
+    assert reused["error"]["code"] == "pdf_render_failed"
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")

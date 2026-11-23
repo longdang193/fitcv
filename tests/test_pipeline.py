@@ -411,7 +411,7 @@ def test_late_stage_contract_projects_pipeline_outcome_surface(
 
 def test_late_stage_contract_exposes_shared_status_families() -> None:
     assert CV_GENERATION_ATTEMPTED_STATUSES == frozenset(
-        {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+        {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}
     )
     assert CV_DEBUG_ANALYSIS_OMISSION_STATUSES == frozenset(
         {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}
