@@ -106,9 +106,12 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
-_BUNDLED_MYCVS_RENDERER_DIR = (
-    Path(__file__).resolve().parents[2] / "scripts" / "renderers" / "mycvs_v1"
-)
+def _runtime_project_root() -> Path:
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    return Path(frozen_root) if frozen_root else Path(__file__).resolve().parents[2]
+
+
+_BUNDLED_MYCVS_RENDERER_DIR = _runtime_project_root() / "scripts" / "renderers" / "mycvs_v1"
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -2193,6 +2196,19 @@ def _resolve_template_path(config: dict[str, Any]) -> str:
     return str(config.get("cv_template_path", "templates/cv_template.md"))
 
 
+def _inject_review_notice(markdown: str, structured_cv: dict[str, Any]) -> str:
+    review_notice = structured_cv.get("artifact_review")
+    if not isinstance(review_notice, dict) or review_notice.get("required") is not True:
+        return markdown
+    if "REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION" in markdown:
+        return markdown
+    reason = str(review_notice.get("reason") or "Evidence or validation requires human follow-up.").strip()
+    lines = markdown.splitlines()
+    insert_at = next((index + 1 for index, line in enumerate(lines) if line.startswith("# ")), 0)
+    lines[insert_at:insert_at] = ["", "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**", f"> {reason}", ""]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) -> str:
     """Render markdown from a validated structured CV document."""
     if get_cv_renderer_strategy(config) == "mycvs_v1":
@@ -2284,7 +2300,7 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
         headline=str(header.get("title") or ""),
         summary=str(sections["summary"].get("text") or ""),
     )
-    return _normalize_cv_markdown(rendered)
+    return _inject_review_notice(_normalize_cv_markdown(rendered), structured_cv)
 
 
 def _canonical_render_item_key(section: str, item: dict[str, Any]) -> str:

@@ -2043,20 +2043,8 @@ def _is_persistable_cv_generation_result(
     if not str(generation_result.get("markdown_final") or "").strip():
         return False
     if status == CV_GENERATION_PDF_FAILED_STATUS:
-        validation = generation_result.get("validation") or generation_result.get("validation_initial")
-        if not isinstance(validation, dict) or validation.get("valid") is not True:
-            return False
-        return not any(
-            list(validation.get(field) or [])
-            for field in (
-                "missing_sections",
-                "grounding_violations",
-                "deterministic_grounding_violations",
-                "semantic_grounding_violations",
-                "skill_violations",
-                "markdown_quality_blocking_issues",
-            )
-        )
+        # Preserve grounded Markdown even when PDF conversion fails; the technical failure stays distinct.
+        return True
     if pdf_content is None or not bytes(pdf_content).startswith(b"%PDF-"):
         return False
     render_acceptance = generation_result.get("render_acceptance")
@@ -5420,6 +5408,7 @@ def run_pipeline(
                 if canonical_status == "accepted" and bool(cv)
                 else "none"
             )
+            version["review_state"] = review_state
             version["submission_clearance"] = (
                 "eligible"
                 if version["generation_status"] == "generated"

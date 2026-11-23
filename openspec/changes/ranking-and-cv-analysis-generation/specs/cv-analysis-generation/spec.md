@@ -44,7 +44,11 @@ The system SHALL persist generation, review, PDF, and submission-clearance outco
 
 #### Scenario: Review-required CV still attempts PDF
 - **WHEN** analysis identifies unresolved factual or critical concerns
-- **THEN** the system SHALL set `generation_status=review_required` and `review_state=manual_required` (or the applicable existing `stretch` policy state), still attempt PDF generation, and SHALL not treat review-required status as a PDF success.
+- **THEN** the system SHALL set `generation_status=review_required` and `review_state=manual_required` (or the applicable existing `stretch` policy state), still attempt PDF generation, and SHALL evaluate PDF acceptance independently from the review state.
+
+#### Scenario: Review-required CV with a valid PDF is persisted
+- **WHEN** a review-required result has valid Markdown and PDF conversion passes the existing render-proof and page-fit checks
+- **THEN** the system SHALL persist both artifacts with `pdf_status=generated`, keep `generation_status=review_required` and the review state requiring follow-up, set submission clearance to `blocked`, and clearly identify the CV as `REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION`.
 
 #### Scenario: Existing status values remain readable
 - **WHEN** a reader loads a historical or current CV record

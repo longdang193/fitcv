@@ -1830,6 +1830,12 @@ def test_run_pipeline_persists_review_required_when_agentic_gate_has_content(
     assert result["cv_generation_debug_records"][0]["outcome_reason"]["stage"] == "review"
     assert "Low confidence sections" in str(result["cv_generation_debug_records"][0]["outcome_reason"]["message"])
     mock_store_cv_version.assert_called_once()
+    stored_version = mock_store_cv_version.call_args.args[0]
+    assert stored_version["generation_status"] == "review_required"
+    assert stored_version["review_state"] in {"stretch", "manual_required"}
+    assert stored_version["pdf_status"] == "generated"
+    assert stored_version["submission_clearance"] == "blocked"
+    assert stored_version["pdf_content_blob"].startswith(b"%PDF-")
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -2305,7 +2311,24 @@ def test_pdf_failed_with_retained_valid_content_is_persistable() -> None:
 
     assert _is_persistable_cv_generation_result(result) is True
     result["validation"]["grounding_violations"] = ["unsupported claim"]
+    assert _is_persistable_cv_generation_result(result) is True
+    result["markdown_final"] = ""
     assert _is_persistable_cv_generation_result(result) is False
+
+
+def test_pdf_failed_review_required_content_is_persistable_without_pdf() -> None:
+    result = {
+        "status": "pdf_failed",
+        "structured_cv_final": {**_minimal_structured_cv(), "artifact_review": {"required": True}},
+        "markdown_final": "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**\n# Test Candidate",
+        "validation": {
+            "valid": False,
+            "missing_sections": ["Education"],
+            "grounding_violations": ["unsupported claim"],
+        },
+    }
+
+    assert _is_persistable_cv_generation_result(result) is True
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")

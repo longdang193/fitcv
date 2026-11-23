@@ -14,6 +14,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlparse
 
 from playwright.async_api import async_playwright
 from pypdf import PdfReader
@@ -279,6 +280,7 @@ async def _convert_document(source: Path, css_path: Path, destination: Path, min
     soup = BeautifulSoup(fragment, "html.parser")
     normalize_definition_lists(soup)
     normalize_education_gpa(soup)
+    sanitize_generated_html(soup)
     # Link certificate titles to their official program pages (not individual credential-verification URLs).
     certificate_links = {
         "Azure AI Engineer Associate": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-engineer/",
@@ -368,6 +370,24 @@ async def _convert_document(source: Path, css_path: Path, destination: Path, min
     print(f"Created {destination} (A4, 1 page; print scale {chosen:.1%})")
     if chosen < 0.76:
         print("Warning: The CV is dense. Consider reducing content for legibility.")
+
+
+def sanitize_generated_html(soup: BeautifulSoup) -> None:
+    """Remove executable markup and fetch-capable resource elements before printing."""
+    for tag in soup.find_all(["base", "embed", "form", "iframe", "img", "link", "meta", "object", "script", "source", "track", "video", "audio"]):
+        tag.decompose()
+    for tag in soup.find_all(True):
+        for attribute in list(tag.attrs):
+            name = str(attribute).lower()
+            if name.startswith("on") or name == "style":
+                del tag.attrs[attribute]
+                continue
+            if name not in {"action", "formaction", "href", "src"}:
+                continue
+            value = str(tag.attrs.get(attribute) or "").strip()
+            if urlparse(value).scheme.lower() in {"data", "javascript", "vbscript"}:
+                tag.decompose()
+                break
 
 
 def strip_outer_code_fence(markdown: str) -> str:

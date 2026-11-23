@@ -2048,6 +2048,25 @@ def test_mycvs_v1_marks_review_required_artifacts_without_breaking_contract() ->
     assert validate_mycvs_v1_markdown(rendered)["content_sha256"]
 
 
+def test_europass_marks_review_required_artifacts() -> None:
+    config = {"cv": {"preset": "europass", "composition": {}}}
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config=config,
+        fit_classification="stretch",
+    )
+    document["artifact_review"] = {
+        "required": True,
+        "reason": "Missing evidence requires human follow-up.",
+    }
+
+    rendered = render_cv_markdown(document, config)
+
+    assert "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**" in rendered
+    assert "> Missing evidence requires human follow-up." in rendered
+
+
 def test_mycvs_v1_rejects_checksum_and_grounding_failures() -> None:
     document = build_empty_structured_cv(
         jd={"title": "Analyst"},
