@@ -17,6 +17,7 @@ Stage 7 currently treats selected job evidence as a global content allowlist and
 ### Explicitly preserved behavior
 
 - Existing ranking, Pareto-front admission/promotion, shortlist ownership, AI-score calculation, score-state semantics, ranking order contracts, and ranking-to-CV handoff behavior are unchanged by this CV-composition refinement.
+- No individual project or profile record receives extra space, stronger wording, or suppression merely because its evidence was selected; any ordering or optional-detail budget must be an explicit section policy applied symmetrically.
 - Historic ranking and CV artifacts remain readable and are not rewritten or deleted.
 
 ## Capabilities

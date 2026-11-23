@@ -86,7 +86,7 @@ Projects SHALL use eligible canonical project records and preserve validated pro
 
 Certifications SHALL use canonical certification records independently of selected job evidence. When records exist, the CV SHALL preserve the name, issuer, issue date, and validated URL when available.
 
-The section SHALL be omitted when no canonical certifications exist. The generator SHALL NOT fabricate a certification, and an optional focus line SHALL use only grounded certification metadata. The `mycvs_v1` wire heading remains `## Certificates` for compatibility.
+The generator SHALL NOT fabricate a certification, and an optional focus line SHALL use only grounded certification metadata. The `mycvs_v1` wire heading remains `## Certificates` for compatibility.
 
 #### Scenario: Certifications are suppressed by empty selection
 - **WHEN** canonical certifications exist but the selected certification evidence list is empty
@@ -95,6 +95,10 @@ The section SHALL be omitted when no canonical certifications exist. The generat
 #### Scenario: Candidate has no certifications
 - **WHEN** the canonical profile contains no certification records
 - **THEN** the generator SHALL omit the Certificates section rather than emit `Not provided` or an invented credential.
+
+#### Scenario: Certification presence is not policy-controlled
+- **WHEN** the canonical profile contains one or more certification records after normalization
+- **THEN** the generator SHALL emit `## Certificates`; selected evidence, `approved_claims`, section budget, and relevance policy SHALL NOT suppress the records or mark the section absent.
 
 ### Requirement: Skills start from canonical grounded skills
 
@@ -110,7 +114,7 @@ Skills SHALL start from canonical grounded skills, normalize aliases and duplica
 
 ### Requirement: Section presence is evaluated independently
 
-The generator SHALL evaluate each section from its canonical source records and section policy, not from global evidence selection. Header and Summary are mandatory; Education, Experience, Projects, and Skills are present when their canonical source records exist; Certificates is present only when canonical certifications exist and policy permits.
+The generator SHALL evaluate each section from its canonical source records and section policy, not from global evidence selection. Header and Summary are mandatory; Education, Experience, Projects, and Skills are present when their canonical source records exist; Certificates is present whenever canonical certification records exist. A section policy MAY order records or select optional descriptive details, but MAY NOT change these source-driven presence decisions.
 
 #### Scenario: Optional section has no canonical records
 - **WHEN** an optional section has no usable canonical records
@@ -118,15 +122,19 @@ The generator SHALL evaluate each section from its canonical source records and 
 
 ### Requirement: CV composition plan separates sources and claims
 
-Before serialization, the generator SHALL produce a plan containing `baseline_profile_records`, `selected_job_support`, `supported_job_claims`, `unsupported_or_unknown_requirements`, `section_policy`, `records_selected_for_render`, `claims_selected_for_render`, and `audit_metadata`.
+Before initial creation, the generator SHALL produce a provenance-preserving composition plan with all fields defined by the `mycvs_v1` schema.
 
 #### Scenario: Plan preserves provenance
 - **WHEN** a plan is created from selected evidence
-- **THEN** it SHALL retain source and claim provenance in the plan or audit metadata.
+- **THEN** it SHALL contain `baseline_profile_records`, `selected_job_support`, `supported_job_claims`, `unsupported_or_unknown_requirements`, `section_policy`, `section_priority`, `section_budget`, `records_selected_for_render`, `claims_selected_for_render`, and `audit_metadata`, and each rendered claim SHALL retain machine-checkable references to canonical source records and/or attributable support identifiers.
+
+#### Scenario: Resolved plan is reused
+- **WHEN** initial creation, bounded adjustment, repair, serialization, or final validation runs
+- **THEN** the same resolved policy snapshot and provenance-preserving plan SHALL be used rather than rebuilding an evidence-only allowlist.
 
 ### Requirement: CV composition plan controls all generation passes
 
-`section_priority` and `section_budget` SHALL come from explicit configuration or policy, never solely from selected evidence. The plan SHALL be the single input for creation, adjustment, repair, serialization, and final validation.
+`section_priority` and `section_budget` SHALL come from explicit configuration or policy, never solely from selected evidence. They MAY affect ordering and optional descriptive detail, but SHALL NOT remove eligible canonical records or mandatory identity fields. The plan SHALL be the single input for creation, adjustment, repair, serialization, and final validation.
 
 #### Scenario: Adjustment preserves the composition contract
 - **WHEN** a bounded adjustment pass runs
@@ -150,15 +158,31 @@ Visible recruiter-facing content SHALL NOT contain `Not provided`, `N/A`, `Unkno
 
 #### Scenario: Definition-list grammar is valid
 - **WHEN** Education, Experience, Projects, or Certificates contains a rendered record
-- **THEN** the serialized rows SHALL conform to the maintained title-plus-two-definition-lines grammar expected by the bundled renderer.
+- **THEN** the serializer SHALL emit the record title followed by each populated mandatory metadata row in the maintained order (the full record has two definition rows when both metadata values exist), followed by optional populated rows and achievement bullets only where that section permits them; it SHALL omit missing optional values rather than emit empty or placeholder rows.
 
 ### Requirement: Final validation enforces composition invariants
 
-Before PDF acceptance, validation SHALL confirm a grounded Summary, canonical sections when source records exist, omission of empty optional sections, clean visible content, and valid support for visible facts and tailored claims.
+Before PDF acceptance, validation SHALL enforce the composition invariants and source-driven section-presence rules.
 
 #### Scenario: Unsupported requirement is rejected
 - **WHEN** an unsupported requirement appears in candidate content
 - **THEN** validation SHALL fail before PDF acceptance.
+
+#### Scenario: Canonical records and claims remain valid
+- **WHEN** final validation runs
+- **THEN** it SHALL confirm a grounded Summary, canonical sections when source records exist, omission of empty optional sections, clean visible content, valid claim-level support, and retention of all eligible canonical records and mandatory identity fields.
+
+#### Scenario: Certification policy cannot suppress canonical records
+- **WHEN** canonical certifications exist and the selected certification evidence is empty or a relevance policy excludes certifications
+- **THEN** the generator SHALL still emit `## Certificates` with the canonical records, and validation SHALL reject any plan that marks the section absent.
+
+#### Scenario: Repaired claims retain provenance
+- **WHEN** bounded adjustment or repair rewrites a Summary sentence or achievement bullet
+- **THEN** the rewritten claim SHALL retain valid source references, or validation SHALL fail or enter the configured review-required state before PDF acceptance.
+
+#### Scenario: Required canonical content does not fit
+- **WHEN** all eligible canonical records and mandatory identity fields cannot fit the one-page/page-fit contract after optional detail reduction
+- **THEN** generation SHALL fail or enter the configured review-required state with a page-fit diagnostic and SHALL NOT omit canonical records silently.
 
 ### Requirement: Final validation enforces renderer and page-fit gates
 

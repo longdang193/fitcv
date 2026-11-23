@@ -73,7 +73,7 @@ audit_metadata
 
 `baseline_profile_records` are the candidate facts that may be rendered. `selected_job_support` identifies evidence selected for this job. `supported_job_claims` are job-specific assertions that pass the evidence policy. `unsupported_or_unknown_requirements` are retained for analysis/review and cannot become candidate claims. `records_selected_for_render` and `claims_selected_for_render` are the output of section policies, not a copy of `approved_claims`. `audit_metadata` retains provenance without leaking it into visible Markdown.
 
-The composition plan is the single input to initial creation, bounded adjustment, repair, serialization, and final validation. A repair path SHALL use the same section policies rather than rebuilding an evidence-only allowlist.
+Each `claims_selected_for_render` item SHALL include a stable claim key, visible text, section, and machine-checkable references to one or more canonical record IDs and/or attributable support IDs. The plan SHALL be constructed before initial creation and SHALL carry the resolved section-policy snapshot through bounded adjustment, repair, serialization, and final validation. A repair path SHALL use the same plan rather than rebuilding an evidence-only allowlist.
 
 ## Section Policies
 
@@ -85,11 +85,11 @@ Each section has an independent policy with four mandatory parts: source of trut
 | Summary | Canonical profile plus supported job context | Use grounded JD terminology and positioning | Mandatory, approximately 2–4 sentences | Non-empty, grounded, no unsupported seniority/qualification claims |
 | Education | Canonical education records | Optional grounded details may be selected by explicit policy | Present when canonical records exist | Preserve degree, institution, location, dates; definition-list syntax |
 | Experience | Canonical employment records | Selected evidence may influence supported wording and explicit relevance policy, not record existence | Present when employment exists; one overview and 3–5 bullets when enough content exists | Preserve role/employer/location/dates; no fabricated achievements |
-| Projects | Eligible canonical project records | Explicit job-relevance policy may order or budget records | Present when eligible projects exist; one overview and 2–4 bullets when enough content exists | Validated links; no unsupported project claims |
-| Certifications (`Certificates` wire heading) | Canonical certification records | Optional grounded focus/relevance line | Present when certifications exist and policy permits; otherwise omitted | Preserve name/issuer/date/validated URL; no fabricated credentials |
+| Projects | Eligible canonical project records | Explicit job-relevance policy may order records and select optional detail, but may not omit an eligible record | Present when eligible projects exist; one overview and 2–4 bullets when enough content exists | Validated links; no unsupported project claims |
+| Certifications (`Certificates` wire heading) | Canonical certification records | Optional grounded focus/relevance line only | Present whenever one or more canonical certification records exist; omitted only when none exist | Preserve name/issuer/date/validated URL; no fabricated credentials |
 | Skills | Canonical grounded skills and languages | Normalize/deduplicate and apply explicit JD relevance policy | Present when grounded skills or languages exist | No job-only skills; proficiency only when supported |
 
-The absence of selected evidence does not remove a canonical record. Any ordering or content budget must be explicit in `section_policy`; it cannot be inferred solely from selection state.
+The absence of selected evidence does not remove a canonical record. Canonical eligibility is deterministic: a non-tombstoned profile record is eligible when it has the section's required identity field(s) after canonical normalization; selected evidence is never an eligibility predicate. `section_priority` MAY order eligible records, and `section_budget` MAY reduce optional descriptions or bullets, but neither may remove a canonical record or mandatory identity field. If optional detail reduction still cannot satisfy the one-page/page-fit contract, validation SHALL fail or enter review rather than silently dropping records. Any ordering or content budget must be explicit in the resolved `section_policy`; it cannot be inferred solely from selection state.
 
 ## Serialization and Audit Separation
 
@@ -100,12 +100,14 @@ The absence of selected evidence does not remove a canonical record. Any orderin
 - the maintained section order among sections that are present;
 - Pandoc `  :` definition-list rows for structured records;
 - validated links only;
-- a deterministic hidden audit block after the visible content;
+- exactly one deterministic hidden audit block after the visible content and before the checksum marker;
 - the schema/checksum metadata required by `schemas/mycvs_v1.md`.
 
 Visible content SHALL exclude `Not provided`, `N/A`, `Unknown`, `None provided`, equivalent placeholders, evidence IDs, requirement IDs, fingerprints, support states, and internal provenance. The audit block MAY contain those identifiers and SHALL remain outside visible section content.
 
-The wire heading remains `## Certificates` for compatibility with the maintained template, even though the semantic section is Certifications. Optional sections are source-driven: a section with no usable canonical records is omitted rather than rendered with a placeholder heading or placeholder text.
+The wire heading remains `## Certificates` for compatibility with the maintained template, even though the semantic section is Certifications. Optional sections are source-driven: a section with no eligible canonical records is omitted rather than rendered with a placeholder heading or placeholder text. Existing canonical certifications cannot be omitted by policy.
+
+The audit block SHALL contain one compact canonical JSON object between `<!-- mycvs_v1:audit ` and ` -->`. Object keys SHALL be lexicographically sorted, separators SHALL be compact, arrays SHALL use the contract order, and strings SHALL use JSON escaping plus HTML-comment-safe escaping for `&`, `<`, `>`, and `--`. The audit object SHALL include job identity, profile revision, score status, gaps/unknowns, selected support IDs, stable source IDs, claim-level provenance, and the ranking handoff identity. The checksum marker SHALL be the only content after the audit block. `content_sha256` SHALL hash the normalized UTF-8 bytes of the complete Markdown payload from the opening front matter through the closing audit comment and one final LF, excluding the checksum marker itself. This makes audit content part of the checksum input while keeping it outside recruiter-facing content.
 
 ## Validation and PDF Acceptance
 
