@@ -2102,6 +2102,51 @@ def test_pdf_converter_failure_is_technical_and_preserves_markdown(
     assert result["markdown_final"] == markdown
     assert result["final_artifact_acceptance"]["status"] == "failed"
 
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_render_unavailable_is_technical_pdf_failure_and_preserves_markdown(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    markdown = "# Test Candidate\n## Experience\n- Built grounded reporting workflows."
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": markdown,
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+        return_value={
+            "render_status": "render_unavailable",
+            "renderer_status": "render_unavailable",
+            "page_fit_status": "unresolved",
+            "error_code": "pdf_render_unavailable",
+        },
+    ):
+        result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "pdf_failed"
+    assert result["error"]["code"] == "pdf_render_unavailable"
+    assert result["structured_cv_final"] is not None
+    assert result["markdown_final"] == markdown
+
+
 def test_review_required_with_valid_content_is_persistable_only_without_validation_violations() -> None:
     result = {
         "status": "review_required",
@@ -2120,6 +2165,27 @@ def test_review_required_with_valid_content_is_persistable_only_without_validati
 
     assert _is_persistable_cv_generation_result(result) is True
     result["validation"]["skill_violations"] = ["unsupported_skill"]
+    assert _is_persistable_cv_generation_result(result) is False
+
+
+def test_pdf_failed_with_retained_valid_content_is_persistable() -> None:
+    result = {
+        "status": "pdf_failed",
+        "structured_cv_final": _minimal_structured_cv(),
+        "markdown_final": "# Test Candidate\n## Experience\nGrounded work.",
+        "validation": {
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "deterministic_grounding_violations": [],
+            "semantic_grounding_violations": [],
+            "skill_violations": [],
+            "markdown_quality_blocking_issues": [],
+        },
+    }
+
+    assert _is_persistable_cv_generation_result(result) is True
+    result["validation"]["grounding_violations"] = ["unsupported claim"]
     assert _is_persistable_cv_generation_result(result) is False
 
 
@@ -2347,8 +2413,8 @@ def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
     mock_generate_cv.reset_mock()
     mock_render_cv_native_acceptance.reset_mock()
     mock_render_cv_native_acceptance.return_value = {
-        "render_status": "render_failed",
-        "renderer_status": "render_failed",
+        "render_status": "render_unavailable",
+        "renderer_status": "render_unavailable",
         "page_count": None,
         "page_fit_status": "unresolved",
         "artifact_checksum": None,

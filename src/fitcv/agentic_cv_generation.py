@@ -175,6 +175,8 @@ class RepairAttempt(TypedDict, total=False):
     full_regeneration_succeeded: bool
     adjustment_attempted: bool
     adjustment_succeeded: bool
+    adjustment_failed: bool
+    adjustment_error: str
     review_required: bool
 
 
@@ -657,6 +659,7 @@ def _empty_repair_attempt() -> RepairAttempt:
         "full_regeneration_succeeded": False,
         "adjustment_attempted": False,
         "adjustment_succeeded": False,
+        "adjustment_failed": False,
         "review_required": False,
     }
 
@@ -1506,8 +1509,10 @@ def _run_repair_cycle(
         try:
             adjusted_cv, adjusted_markdown, adjusted_validation, adjusted_provenance = adjust_executor()
         except Exception as exc:
-            setattr(exc, "repair_attempt", repair_attempt)
-            raise
+            repair_attempt["performed"] = True
+            repair_attempt["adjustment_failed"] = True
+            repair_attempt["adjustment_error"] = str(exc)
+            return structured_cv, markdown, validation, repair_attempt, runtime_provenance
         if isinstance(adjusted_cv, dict) and adjusted_markdown:
             structured_cv, markdown, validation = adjusted_cv, adjusted_markdown, adjusted_validation
             if adjusted_provenance is not None:
@@ -2312,7 +2317,10 @@ def _apply_final_artifact_contract(
     finalized["render_acceptance"] = render_acceptance
     finalized["page_fit_status"] = render_acceptance.get("page_fit_status") if isinstance(render_acceptance, dict) else None
     finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum") if isinstance(render_acceptance, dict) else None
-    render_failed = render_error is not None or str((render_acceptance or {}).get("render_status") or "") == "render_failed"
+    render_failed = render_error is not None or str((render_acceptance or {}).get("render_status") or "") in {
+        "render_failed",
+        "render_unavailable",
+    }
     finalized["final_artifact_acceptance"] = {
         "status": "accepted" if final_ok else "failed" if render_failed else "review_required",
         "content_valid": content_valid,
@@ -2407,7 +2415,10 @@ def _reusable_result_or_none(
         page_fit_status=str(page_fit_status or "").strip() or None,
         render_acceptance=render_acceptance,
     ):
-        render_failed = str((render_acceptance or {}).get("render_status") or "") == "render_failed"
+        render_failed = str((render_acceptance or {}).get("render_status") or "") in {
+            "render_failed",
+            "render_unavailable",
+        }
         return _build_result(
             analysis_record=analysis_record,
             job=job,
@@ -2786,6 +2797,8 @@ def _generate_fresh_from_analysis(
                 "full_regeneration_succeeded": bool(repair_attempt.get("full_regeneration_succeeded")),
                 "adjustment_attempted": bool(repair_attempt.get("adjustment_attempted")),
                 "adjustment_succeeded": bool(repair_attempt.get("adjustment_succeeded")),
+                "adjustment_failed": bool(repair_attempt.get("adjustment_failed")),
+                "adjustment_error": str(repair_attempt.get("adjustment_error") or ""),
                 "review_required": bool(repair_attempt.get("review_required")),
             }
             _update_live_trace_validation_cycle(
@@ -2871,6 +2884,8 @@ def _generate_fresh_from_analysis(
                 "provider_retry_succeeded": bool(repair_attempt.get("provider_retry_succeeded")),
                 "adjustment_attempted": bool(repair_attempt.get("adjustment_attempted")),
                 "adjustment_succeeded": bool(repair_attempt.get("adjustment_succeeded")),
+                "adjustment_failed": bool(repair_attempt.get("adjustment_failed")),
+                "adjustment_error": str(repair_attempt.get("adjustment_error") or ""),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,

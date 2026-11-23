@@ -174,6 +174,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ATTEMPTED_STATUSES,
     CV_GENERATION_FINAL_STATUSES,
+    CV_GENERATION_PDF_FAILED_STATUS,
     CV_GENERATION_REVIEW_REQUIRED_STATUS,
     cv_generation_status_for_analysis_status as _cv_generation_status_for_analysis_status,
     deterministic_truth_fields as _deterministic_truth_fields,
@@ -2044,7 +2045,7 @@ def _is_persistable_cv_generation_result(
             page_fit_status=generation_result.get("page_fit_status"),
             render_acceptance=generation_result.get("render_acceptance"),
         )
-    if status != CV_GENERATION_REVIEW_REQUIRED_STATUS:
+    if status not in {CV_GENERATION_REVIEW_REQUIRED_STATUS, CV_GENERATION_PDF_FAILED_STATUS}:
         return False
     if not isinstance(generation_result.get("structured_cv_final"), dict):
         return False
