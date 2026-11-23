@@ -75,6 +75,34 @@ audit_metadata
 
 Each `claims_selected_for_render` item SHALL include a stable claim key, visible text, section, and machine-checkable references to one or more canonical record IDs and/or attributable support IDs. The plan SHALL be constructed before initial creation and SHALL carry the resolved section-policy snapshot through bounded adjustment, repair, serialization, and final validation. A repair path SHALL use the same plan rather than rebuilding an evidence-only allowlist.
 
+## Implementation Sequence and Ownership
+
+Implementation SHALL proceed in this order so that the serializer never becomes the place where factual eligibility is decided:
+
+1. **Normalize inputs and build the plan.** `src/fitcv/agentic_cv_generation.py::build_cv_content_plan` SHALL receive the canonical profile, analysis/handoff support, and resolved CV configuration, then produce the complete plan. `src/fitcv/cv_generator.py::project_authorized_profile` and `_build_generation_prompt_context` SHALL stop treating selected evidence as a profile-record filter for the new `mycvs_v1` path. The plan builder, not the prompt formatter, owns canonical-record eligibility.
+2. **Resolve section policy.** `src/fitcv/section_policy.py`, `src/fitcv/cv_presets.py`, `src/fitcv/config.py`, and `config/policy/cv.yaml` SHALL define and validate section enablement, explicit `section_priority`, optional `section_budget`, and the per-section source/tailoring/minimum/presence rules. Certification eligibility SHALL be profile-driven and SHALL not depend on selected certification evidence.
+3. **Generate against the plan.** The initial generation path in `src/fitcv/agentic_cv_generation.py::generate_from_analysis` and its fresh-generation helper SHALL pass the same plan to prompt construction. Adjustment and repair paths (`merge_repaired_section`, `_determine_repair_targets`, and their callers) SHALL update visible text only when the resulting claims still satisfy the plan's provenance references; they SHALL not create a new evidence-only plan.
+4. **Serialize and validate.** `src/fitcv/cv_generator.py::serialize_mycvs_v1` SHALL render only `records_selected_for_render` and `claims_selected_for_render`, omit empty optional sections, and write the hidden audit/checksum block. `validate_mycvs_v1_markdown` SHALL reject placeholders, visible provenance, invalid definition-list rows, missing canonical records, missing claim references, and checksum/audit mismatches before conversion.
+5. **Render and accept.** The existing renderer adapter and render-proof/artifact-contract boundary SHALL consume the validated Markdown unchanged. The bundled renderer SHALL be used for the active `mycvs_v1` path; one-page/page-fit failure SHALL remain observable and SHALL never be repaired by dropping canonical records.
+
+The implementation SHALL keep these ownership boundaries explicit: ranking and shortlist code only supplies the immutable handoff; CV composition owns section policy and content selection; the serializer owns wire grammar; the validator owns contract rejection; the renderer owns PDF evidence; persistence owns independent lifecycle statuses.
+
+## Concrete Data Flow
+
+The implementation SHOULD keep the current dictionary-based boundary where practical, but the following keys are mandatory and must be present at each handoff:
+
+| Boundary | Required input | Required output / invariant |
+| --- | --- | --- |
+| Analysis → plan | canonical profile, job snapshot, selected support, supported claims, gaps/unknowns, ranking handoff | complete composition plan with policy snapshot and stable provenance references |
+| Plan → generation | complete composition plan | prompt context may emphasize selected support but cannot remove canonical records |
+| Generation → repair/adjustment | plan plus candidate structured CV | repaired sections retain claim keys and source references; no evidence-only re-projection |
+| Structured CV → Markdown | plan plus structured content | only eligible records/claims serialize; optional empty sections are omitted |
+| Markdown → validator | Markdown plus plan/audit | visible content is provenance-free and checksum/audit are deterministic |
+| Validator → renderer | validated Markdown | renderer receives no unvalidated or placeholder-bearing payload |
+| Renderer → lifecycle | render proof and artifact checksums | PDF becomes generated only after one-page/page-fit and identity checks pass |
+
+The plan must be persisted in the generation trace/result envelope when that envelope already exists, but audit metadata must remain the only provenance representation inside recruiter-facing Markdown. No new persistence table or service is required.
+
 ## Section Policies
 
 Each section has an independent policy with four mandatory parts: source of truth, tailoring behavior, minimum content, and validation rule.
@@ -128,13 +156,17 @@ Historic ranking and CV artifacts remain readable with their original metadata a
 5. **Renderer grammar remains stable.** Empty YAML front matter and Pandoc definition-list syntax are part of the `mycvs_v1` contract. The existing `Certificates` heading is retained for wire compatibility.
 6. **Page fit does not justify silent data loss.** If the explicit section policy cannot fit the one-page contract, the result fails or enters the configured review path rather than deleting facts merely because they were not selected as evidence.
 7. **Ranking ownership is unchanged.** Ranking, AI scoring, Pareto-front admission, shortlist promotion, and the ranking-to-CV handoff remain outside this refinement.
+8. **Plan before prompt.** The composition plan is built before any LLM prompt so generation cannot redefine eligibility. A prompt-only fix was rejected because it would leave serializer, repair, and adjustment paths inconsistent.
+9. **Validator before renderer.** Placeholder/provenance and canonical-retention checks run before PDF conversion. A renderer-only check was rejected because invalid Markdown could still be persisted or rendered by alternate paths.
+10. **Reuse existing policy/config seams.** Section policy is added to the existing `section_policy.py`, preset, and CV configuration seams rather than introducing a parallel policy registry. This preserves one source of truth and keeps rollback to the existing renderer strategy possible.
 
 ## Risks / Trade-offs
 
-- Section-specific policies are more explicit than a single allowlist and therefore require more fixtures and validation cases.
-- Preserving canonical facts can increase page pressure; page-fit failure must remain observable rather than being hidden by destructive filtering.
-- Existing consumers may expect all legacy headings, so the wire heading and historic artifact compatibility must be tested before enabling the new path.
-- The external converter remains a release-gated dependency; a successful Markdown build is not sufficient evidence of a valid one-page PDF.
+- **[Policy drift]** Section-specific policies are more explicit than a single allowlist → keep the policy matrix in `section_policy.py`/config and cover every row with focused tests.
+- **[Canonical record loss]** Existing projection or repair callers may still filter by evidence → make the plan the only eligibility input for `mycvs_v1` and add mixed/zero-support regression fixtures.
+- **[Page pressure]** Preserving canonical facts can increase one-page failures → reduce only optional detail through explicit budgets, then fail or enter review with diagnostics; never drop records silently.
+- **[Wire compatibility]** Existing consumers may expect legacy headings → retain `## Certificates` and test historic artifact reads before enabling the new path.
+- **[Converter drift]** A successful Markdown build is not sufficient evidence of a valid one-page PDF → require the existing render-proof identity, checksum, and page-fit gate.
 
 ## Open Questions
 
