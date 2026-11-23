@@ -1608,7 +1608,7 @@ def analyze_ranked_job(
             evidence_projection=resolved_evidence_projection,
         )
         has_projected_evidence = bool(resolved_evidence_projection.get("items")) and loose_experience_review
-        if ranking_fit_label == "skip" and not loose_experience_review and not has_projected_evidence:
+        if ranking_fit_label == "skip" and ranking_cv_handoff is None and not loose_experience_review and not has_projected_evidence:
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, BLOCKED_BY_RERANKER_STATUS),
@@ -1776,9 +1776,30 @@ def analyze_ranked_job(
             resolve_experience_evidence_mode(config) in {"full", "strict"}
             and bool(experience_evidence_summary["professional_experience"].get("unverified_requirement_ids"))
         )
+        generation_do_not_claim = list(dict.fromkeys(missing_skills))
+        if ranking_cv_handoff is not None:
+            generation_do_not_claim = list(
+                dict.fromkeys(
+                    [
+                        *generation_do_not_claim,
+                        *list(
+                            experience_evidence_summary["professional_experience"].get(
+                                "unverified_requirement_ids"
+                            )
+                            or []
+                        ),
+                        *[
+                            str(gap.get("requirement_id") or gap.get("requirement") or "")
+                            for gap in list((experience_evidence_summary or {}).get("gaps") or [])
+                            if isinstance(gap, dict)
+                            and str(gap.get("requirement_id") or gap.get("requirement") or "").strip()
+                        ],
+                    ]
+                )
+            )
         if fit_classification == "skip" and (loose_experience_review or should_surface_loose):
             fit_classification = "stretch"
-        if fit_classification == "skip" or mandatory_professional_gap:
+        if ranking_cv_handoff is None and (fit_classification == "skip" or mandatory_professional_gap):
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, SKIPPED_FIT_GATE_STATUS),
@@ -1822,7 +1843,7 @@ def analyze_ranked_job(
             gap_summary=gap_summary,
             requirement_coverage=requirement_coverage,
             section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
-            do_not_claim=missing_skills,
+            do_not_claim=generation_do_not_claim,
             fit_classification=fit_classification,
             ranking_fit_label=resolved_baseline_fit_label,
             candidate_profile_id=candidate_profile_id,

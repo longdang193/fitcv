@@ -57,6 +57,7 @@ from fitcv.cv_generator import (
     build_render_proof_identity,
     final_artifact_acceptance_passes,
     generate_cv,
+    project_authorized_profile,
     render_cv_markdown,
     render_cv_native_acceptance,
     render_item_requirement_support,
@@ -69,6 +70,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS as SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ACCEPTED_STATUS as ACCEPTED_STATUS,
     CV_GENERATION_FAILED_STATUS as GENERATION_FAILED_STATUS,
+    CV_GENERATION_PDF_FAILED_STATUS as PDF_FAILED_STATUS,
     CV_GENERATION_REVIEW_REQUIRED_STATUS as REVIEW_REQUIRED_STATUS,
     CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
     GenerationStatus,
@@ -171,6 +173,10 @@ class RepairAttempt(TypedDict, total=False):
     targeted_generation_succeeded: bool
     full_regeneration_attempted: bool
     full_regeneration_succeeded: bool
+    adjustment_attempted: bool
+    adjustment_succeeded: bool
+    adjustment_failed: bool
+    adjustment_error: str
     review_required: bool
 
 
@@ -651,6 +657,9 @@ def _empty_repair_attempt() -> RepairAttempt:
         "targeted_generation_succeeded": False,
         "full_regeneration_attempted": False,
         "full_regeneration_succeeded": False,
+        "adjustment_attempted": False,
+        "adjustment_succeeded": False,
+        "adjustment_failed": False,
         "review_required": False,
     }
 
@@ -1472,6 +1481,7 @@ def _run_repair_cycle(
     retry_executor: Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]],
     runtime_provenance: dict[str, Any] | None,
     repair_arm: str | None = None,
+    adjust_executor: Callable[[], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]] | None = None,
 ) -> tuple[dict[str, Any] | None, str, dict[str, Any], RepairAttempt, dict[str, Any] | None]:
     repair_attempt = _empty_repair_attempt()
     repair_arm = _coerce_repair_arm(repair_arm or config.get("cv_generation_repair_arm"))
@@ -1488,6 +1498,29 @@ def _run_repair_cycle(
         )
         repair_attempt["local_repair_succeeded"] = bool(validation.get("valid"))
         repair_attempt["local_repair_failed"] = not repair_attempt["local_repair_succeeded"]
+
+    if (
+        validation.get("valid")
+        and list(validation.get("markdown_quality_review_flags") or [])
+        and adjust_executor is not None
+    ):
+        repair_attempt["adjustment_attempted"] = True
+        repair_attempt["reason"] = "adjust_quality"
+        try:
+            adjusted_cv, adjusted_markdown, adjusted_validation, adjusted_provenance = adjust_executor()
+        except Exception as exc:
+            repair_attempt["performed"] = True
+            repair_attempt["adjustment_failed"] = True
+            repair_attempt["adjustment_error"] = str(exc)
+            return structured_cv, markdown, validation, repair_attempt, runtime_provenance
+        if isinstance(adjusted_cv, dict) and adjusted_markdown:
+            structured_cv, markdown, validation = adjusted_cv, adjusted_markdown, adjusted_validation
+            if adjusted_provenance is not None:
+                runtime_provenance = adjusted_provenance
+        repair_attempt["performed"] = True
+        repair_attempt["adjustment_succeeded"] = bool(
+            validation.get("valid") and not list(validation.get("markdown_quality_review_flags") or [])
+        )
 
     selection_summary = (
         (analysis_grounding.get("evidence_selection_summary") or {})
@@ -1716,6 +1749,7 @@ def _build_fallback_provider_generator(
         for key, value in profile.items()
         if key not in {"candidate_profile_id", "revision"}
     }
+    authorized_profile = project_authorized_profile(profile, evidence_payload)
 
     def _call(repair_missing_sections: list[str] | None) -> Any:
         return generate_cv(
@@ -1729,6 +1763,7 @@ def _build_fallback_provider_generator(
             repair_missing_sections=repair_missing_sections,
             content_plan=content_plan,
             target_sections=repair_missing_sections,
+            authorized_profile=authorized_profile,
             ranking_cv_handoff=ranking_cv_handoff,
         )
 
@@ -2148,6 +2183,7 @@ def _finalize_generation_result(
         if review_reason is not None:
             reason_code, message = review_reason
             finalized["review_required_reason_code"] = reason_code
+            finalized["status"] = REVIEW_REQUIRED_STATUS
             warnings = list(finalized.get("quality_warnings") or [])
             warnings.append(message)
             finalized["quality_warnings"] = sorted(set(warnings))
@@ -2229,13 +2265,24 @@ def _apply_final_artifact_contract(
         return finalized
 
     render_acceptance = finalized.get("render_acceptance")
+    render_error: Exception | None = None
     if artifact_dir is not None or not isinstance(render_acceptance, dict) or not _render_acceptance_matches_final_content(
         structured_cv,
         markdown,
         config,
         render_acceptance,
     ):
-        render_acceptance = render_cv_native_acceptance(markdown, config, output_dir=artifact_dir)
+        try:
+            render_acceptance = render_cv_native_acceptance(markdown, config, output_dir=artifact_dir)
+        except Exception as exc:
+            render_error = exc
+            render_acceptance = {
+                "render_status": "render_failed",
+                "renderer_status": "render_failed",
+                "page_fit_status": "unresolved",
+                "error_code": "pdf_render_failed",
+                "error_message": str(exc),
+            }
     final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
     if not final_ok and content_valid and str(render_acceptance.get("page_fit_status") or "") == "fail":
         before_support = render_item_requirement_support(structured_cv, provenance)
@@ -2270,21 +2317,30 @@ def _apply_final_artifact_contract(
     finalized["render_acceptance"] = render_acceptance
     finalized["page_fit_status"] = render_acceptance.get("page_fit_status") if isinstance(render_acceptance, dict) else None
     finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum") if isinstance(render_acceptance, dict) else None
+    render_failed = render_error is not None or str((render_acceptance or {}).get("render_status") or "") in {
+        "render_failed",
+        "render_unavailable",
+    }
     finalized["final_artifact_acceptance"] = {
-        "status": "accepted" if final_ok else "review_required",
+        "status": "accepted" if final_ok else "failed" if render_failed else "review_required",
         "content_valid": content_valid,
         "page_fit_status": finalized.get("page_fit_status"),
         "trim_attempt_count": finalized["trim_attempt_count"],
     }
-    if not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
-        finalized["status"] = "review_required"
+    if render_failed and str(finalized.get("status") or "") in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS}:
+        finalized["status"] = PDF_FAILED_STATUS
+        finalized["error"] = {
+            "stage": "pdf_generation",
+            "code": str((render_acceptance or {}).get("error_code") or "pdf_render_failed"),
+            "message": str((render_acceptance or {}).get("error_message") or "PDF conversion failed."),
+        }
+    elif not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
+        finalized["status"] = REVIEW_REQUIRED_STATUS
         finalized["error"] = {
             "stage": "render",
             "code": str((render_acceptance or {}).get("render_status") or "render_unverified"),
             "message": "Final CV artifact lacks verified native one-page render proof.",
         }
-        finalized["structured_cv_final"] = None
-        finalized["markdown_final"] = None
     trace = finalized.get("cv_generation_trace")
     if isinstance(trace, dict):
         trace = dict(trace)
@@ -2343,17 +2399,30 @@ def _reusable_result_or_none(
     render_acceptance = reusable_record.get("render_acceptance")
     page_fit_status = reusable_record.get("page_fit_status")
     if artifact_dir is not None or not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
-        render_acceptance = render_cv_native_acceptance(structured_cv, config, output_dir=artifact_dir)
+        try:
+            render_acceptance = render_cv_native_acceptance(structured_cv, config, output_dir=artifact_dir)
+        except Exception as exc:
+            render_acceptance = {
+                "render_status": "render_failed",
+                "renderer_status": "render_failed",
+                "page_fit_status": "unresolved",
+                "error_code": "pdf_render_failed",
+                "error_message": str(exc),
+            }
         page_fit_status = render_acceptance.get("page_fit_status")
     if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
         content_acceptance=bool(validation.get("valid")),
         page_fit_status=str(page_fit_status or "").strip() or None,
         render_acceptance=render_acceptance,
     ):
+        render_failed = str((render_acceptance or {}).get("render_status") or "") in {
+            "render_failed",
+            "render_unavailable",
+        }
         return _build_result(
             analysis_record=analysis_record,
             job=job,
-            status="review_required",
+            status=PDF_FAILED_STATUS if render_failed else REVIEW_REQUIRED_STATUS,
             fit_classification=_coerce_fit_classification(analysis_record.get("fit_classification")),
             structured_cv_initial=structured_cv,
             validation_initial=_build_validation_snapshot(validation),
@@ -2362,9 +2431,13 @@ def _reusable_result_or_none(
             markdown_final=markdown,
             validation=validation,
             error={
-                "stage": "final_artifact_acceptance",
-                "code": "reusable_render_proof_failed",
-                "message": "Reusable CV artifact lacks native one-page render proof.",
+                "stage": "pdf_generation" if render_failed else "final_artifact_acceptance",
+                "code": str((render_acceptance or {}).get("error_code") or "pdf_render_failed")
+                if render_failed
+                else "reusable_render_proof_failed",
+                "message": str((render_acceptance or {}).get("error_message") or "PDF conversion failed.")
+                if render_failed
+                else "Reusable CV artifact lacks native one-page render proof.",
             },
             llm_runtime_evidence=[],
             page_fit_status=str(page_fit_status or "").strip() or None,
@@ -2616,11 +2689,13 @@ def _generate_fresh_from_analysis(
 
     def _writer_attempt(
         repair_targets: list[str] | None,
+        *,
+        attempt_type: str | None = None,
     ) -> tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]:
         attempt_index = len(trace_payload["attempts"]) + 1
         attempt_trace = {
             "attempt_index": attempt_index,
-            "attempt_type": "initial_generation" if attempt_index == 1 else "repair_retry",
+            "attempt_type": attempt_type or ("initial_generation" if attempt_index == 1 else "repair_retry"),
             "input_item_count": len(writer_evidence_payload),
             "input_character_count": writer_input_character_count,
             "input_token_estimate": writer_input_character_count // 4,
@@ -2673,6 +2748,7 @@ def _generate_fresh_from_analysis(
             retry_executor=lambda targets: _writer_attempt(targets),
             runtime_provenance=_initial_runtime_evidence,
             repair_arm=_coerce_repair_arm(config.get("cv_generation_repair_arm")),
+            adjust_executor=lambda: _writer_attempt([], attempt_type="adjustment"),
         )
         result_status: GenerationStatus = (
             ACCEPTED_STATUS
@@ -2682,8 +2758,9 @@ def _generate_fresh_from_analysis(
             else VALIDATION_FAILED_STATUS
         )
         error: ErrorPayload | None = None
-        structured_cv_final = structured_cv if result_status == ACCEPTED_STATUS else None
-        markdown_final = markdown if result_status == ACCEPTED_STATUS else None
+        has_grounded_output = isinstance(structured_cv, dict) and bool(str(markdown or "").strip())
+        structured_cv_final = structured_cv if has_grounded_output else None
+        markdown_final = markdown if has_grounded_output else None
         page_fit_status: str | None = None
         render_acceptance: dict[str, Any] | None = None
         trim_count = 0
@@ -2718,6 +2795,10 @@ def _generate_fresh_from_analysis(
                 "targeted_generation_succeeded": bool(repair_attempt.get("targeted_generation_succeeded")),
                 "full_regeneration_attempted": bool(repair_attempt.get("full_regeneration_attempted")),
                 "full_regeneration_succeeded": bool(repair_attempt.get("full_regeneration_succeeded")),
+                "adjustment_attempted": bool(repair_attempt.get("adjustment_attempted")),
+                "adjustment_succeeded": bool(repair_attempt.get("adjustment_succeeded")),
+                "adjustment_failed": bool(repair_attempt.get("adjustment_failed")),
+                "adjustment_error": str(repair_attempt.get("adjustment_error") or ""),
                 "review_required": bool(repair_attempt.get("review_required")),
             }
             _update_live_trace_validation_cycle(
@@ -2801,6 +2882,10 @@ def _generate_fresh_from_analysis(
                 "local_repair_failed": bool(repair_attempt.get("local_repair_failed")),
                 "provider_retry_attempted": bool(repair_attempt.get("provider_retry_attempted")),
                 "provider_retry_succeeded": bool(repair_attempt.get("provider_retry_succeeded")),
+                "adjustment_attempted": bool(repair_attempt.get("adjustment_attempted")),
+                "adjustment_succeeded": bool(repair_attempt.get("adjustment_succeeded")),
+                "adjustment_failed": bool(repair_attempt.get("adjustment_failed")),
+                "adjustment_error": str(repair_attempt.get("adjustment_error") or ""),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,

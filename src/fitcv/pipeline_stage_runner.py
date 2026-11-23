@@ -36,7 +36,11 @@ from fitcv.evidence import build_evidence_projection, retrieve_evidence_bundle, 
 from fitcv.rule_filter import SHORTLIST_ELIGIBILITY_POLICY_VERSION, shortlist_filter_disposition
 from fitcv.semantic_snapshot import compile_semantic_policy
 from fitcv.pipeline_stages.common import primary_job_identity_key
-from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
+from fitcv.ranking_contract import (
+    AI_ONLY_RANKING_ORDER_VERSION,
+    SCORE_STATUS_VALID,
+    normalize_score_state,
+)
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,
@@ -780,19 +784,10 @@ def execute_ranking_stage(
 
     with observe_span("pipeline.ranking", attributes={"run_id": run_id, "final_top_n": final_top_n}):
         ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
-        resolved_preference_policy = resolve_run_preference_policy(
-            ranking_rows=ranking_inputs,
-            config=config,
-            existing_payload=dict(state.get("resolved_preference_policy") or {}),
-            resolver=preference_policy_resolver,
-        )
-        state["resolved_preference_policy"] = resolved_preference_policy_to_dict(
-            resolved_preference_policy
-        )
         ranked = rank_jobs(
             ranking_inputs,
             top_n=final_top_n,
-            resolved_preference_policy=resolved_preference_policy,
+            ranking_order_version=AI_ONLY_RANKING_ORDER_VERSION,
         )
         pipeline_store.store_final_ranking(ranked, config)
         update_ledger = getattr(pipeline_store, "update_shortlist_admission_ledger_scores", None)

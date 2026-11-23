@@ -14846,7 +14846,7 @@ def _cv_projection(
         "generated"
         if native_status == "generated" and evidence_state == "passed"
         else "failed"
-        if native_status in {"validation_failed", "generation_failed", "persistence_failed"}
+        if native_status in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
         else "pending"
         if native_status in {"pending", "running"}
         else "review_required"
@@ -14869,12 +14869,12 @@ def _cv_projection(
     )
     item["capabilities"] = {
         "download": (
-            item.get("generation_status") in {"generated", "review_required"}
+            item.get("generation_status") in {"generated", "review_required", "pdf_failed"}
             and item.get("content_checksum") is not None
             and item.get("content_length") is not None
         ),
         "preview": (
-            item.get("generation_status") in {"generated", "review_required"}
+            item.get("generation_status") in {"generated", "review_required", "pdf_failed"}
             and item.get("content_checksum") is not None
             and item.get("content_length") is not None
             and str(item.get("media_type") or "").split(";", 1)[0].lower()
@@ -15192,7 +15192,7 @@ def update_cv_version(
     error_message: str | None = None,
 ) -> dict[str, Any]:
     terminal_statuses = {
-        "generated", "review_required", "validation_failed", "generation_failed",
+        "generated", "review_required", "pdf_failed", "validation_failed", "generation_failed",
         "persistence_failed", "cancelled",
     }
     normalized_status = str(generation_status or "").strip()
@@ -15202,7 +15202,7 @@ def update_cv_version(
     content_bytes = bytes(content) if content is not None else None
     pdf_content = metadata.get("pdf_content_blob")
     pdf_bytes = bytes(pdf_content) if pdf_content is not None else None
-    if normalized_status in {"generated", "review_required"} and not content_bytes:
+    if normalized_status in {"generated", "review_required", "pdf_failed"} and not content_bytes:
         raise ValueError("generated_content_required")
     pdf_status = metadata.get("pdf_status")
     if pdf_status is not None and str(pdf_status).strip() not in _CV_PDF_STATUSES:
@@ -15268,7 +15268,7 @@ def update_cv_version(
                     metadata.get("schema_id"), len(content_bytes) if content_bytes is not None else None,
                     checksum, content_bytes, error_code, error_message,
                     metadata.get("fit_classification"),
-                    now_iso if normalized_status in {"generated", "review_required"} else None,
+                    now_iso if normalized_status in {"generated", "review_required", "pdf_failed"} else None,
                     metadata.get("cv_generation_model"), metadata.get("cv_prompt_version"),
                     metadata.get("cv_schema_version"),
                     json.dumps(metadata.get("cv_structured_json"), sort_keys=True)

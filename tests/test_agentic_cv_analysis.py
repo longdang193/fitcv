@@ -89,6 +89,30 @@ def test_analyze_ranked_job_rehydrates_valid_handoff_fingerprint() -> None:
     assert result["ranking_cv_handoff"]["handoff_fingerprint"] == ranking_cv_handoff_sha256(handoff)
 
 
+def test_valid_ranking_handoff_bypasses_fit_gate_but_retains_missing_skill_gap() -> None:
+    job = {
+        **_job(),
+        "baseline_fit": 0.2,
+        "baseline_fit_label": "skip",
+        "baseline_rank": 1,
+        "required_skills": ["Python"],
+        "raw_job_fingerprint": "job-fingerprint",
+        "score_status": "valid",
+        "ai_score": 0.2,
+        "ranking_order_version": "ranking_order_v2_ai_only",
+        "ranking_policy_version": "ranking-v1",
+        "ranking_contract_version": "ranking_score_v1",
+        "job_qualifiers": {"title": "Data Analyst"},
+        "source_provenance": {"stage": "test"},
+    }
+    handoff = build_ranking_cv_handoff(job, candidate_profile_revision="profile-v1")
+
+    result = analyze_ranked_job(job, _profile(), _config(), ranking_cv_handoff=handoff)
+
+    assert result["status"] == "ready_for_generation"
+    assert "Python" in result["do_not_claim"]
+
+
 def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
     job = {
         "responsibilities": ["Build SQL pipelines"],

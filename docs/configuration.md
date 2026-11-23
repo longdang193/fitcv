@@ -506,9 +506,10 @@ the non-secret routing overlay.
 ## Ranking-to-CV and Renderer Configuration
 
 - `config/policy/cv.yaml` is the canonical owner of `cv.renderer.strategy`.
-- The default remains `europass`; existing Europass artifacts and resume behavior
-  are preserved when the setting is absent.
-- `mycvs_v1` is an explicit opt-in deterministic Markdown renderer. Its output is
+- New Stage 7 runs use the committed `mycvs_v1` renderer policy. Existing Europass
+  artifacts remain readable, and direct legacy callers preserve Europass when the
+  renderer setting is absent.
+- `mycvs_v1` is the deterministic Markdown renderer for new Stage 7 artifacts. Its output is
   normalized to UTF-8/LF, validated against the canonical intermediate CV model,
   and bound to the ranking handoff identity and content checksum.
 - The ranking stage persists the immutable `ranking_cv_handoff_v1` under

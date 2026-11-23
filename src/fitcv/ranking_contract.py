@@ -65,6 +65,9 @@ NORMALIZER_IDS = {
 }
 RANKING_ORDER_VERSION = "baseline-all-eligible-personalized-fingerprint-url-v1"
 AI_COMPATIBILITY_RANKING_ORDER_VERSION = "ai-compatibility-v1"
+# New Stage 6 runs use the holistic AI score directly. Keep the existing order
+# versions readable so historical personalized rows remain compatible.
+AI_ONLY_RANKING_ORDER_VERSION = "ai-only-finite-ai-score-fingerprint-url-v1"
 RANKING_SCORE_CONTRACT_VERSION = "ranking_score_v1"
 RANKING_DECISION_ENVELOPE_VERSION = "ranking_decision_envelope_v1"
 RANKING_CV_HANDOFF_VERSION = "ranking_cv_handoff_v1"
@@ -568,6 +571,30 @@ def build_ranking_cv_handoff(
 ) -> dict[str, Any]:
     """Build one immutable, fingerprinted ranking-to-CV handoff."""
     score_state = normalize_score_state(row)
+    source_provenance_value = source_provenance
+    if source_provenance_value is None:
+        source_provenance_value = row.get("source_provenance", row.get("provenance"))
+    if isinstance(source_provenance_value, Mapping):
+        source_provenance_value = dict(source_provenance_value)
+        provenance_aliases = (
+            ("jd_reference", "jd_reference"),
+            ("ranking_input_fingerprint", "ranking_input_fingerprint"),
+            ("ranking_input_fingerprint", "ai_score_input_fingerprint"),
+            ("raw_job_fingerprint", "raw_job_fingerprint"),
+        )
+        for provenance_key, row_key in provenance_aliases:
+            if provenance_key not in source_provenance_value and row.get(row_key) not in (None, ""):
+                source_provenance_value[provenance_key] = row[row_key]
+        if "jd_reference" not in source_provenance_value:
+            for row_key in ("job_url", "source_job_url"):
+                if row.get(row_key) not in (None, ""):
+                    source_provenance_value["jd_reference"] = row[row_key]
+                    break
+    baseline_score = row.get("baseline_score", row.get("baseline_fit"))
+    if score_state["score_status"] == SCORE_STATUS_VALID:
+        baseline_score = score_state["ai_score"]
+    else:
+        baseline_score = None
     canonical = validate_ranking_cv_handoff(
         {
             "schema_version": RANKING_CV_HANDOFF_VERSION,
@@ -580,7 +607,7 @@ def build_ranking_cv_handoff(
                 row.get("qualifiers", row.get("job", {}).get("qualifiers") if isinstance(row.get("job"), Mapping) else None),
             ),
             "baseline_rank": row.get("baseline_rank"),
-            "baseline_score": row.get("baseline_score", row.get("baseline_fit")),
+            "baseline_score": baseline_score,
             "score_status": score_state["score_status"],
             "failure_code": score_state["failure_code"],
             "disposition": score_state["disposition"],
@@ -603,9 +630,7 @@ def build_ranking_cv_handoff(
             "ranking_contract_version": ranking_contract_version
             if ranking_contract_version is not None
             else row.get("ranking_contract_version"),
-            "source_provenance": source_provenance
-            if source_provenance is not None
-            else row.get("source_provenance", row.get("provenance")),
+            "source_provenance": source_provenance_value,
         }
     )
     return {
@@ -712,10 +737,13 @@ def build_baseline_result(
     baseline_fit = None
     label = None
     if not holistic_missing:
-        baseline_fit = (
-            float(holistic_value) * float(baseline_weights["holistic_ai_fit"])
-            + structured_fit * float(baseline_weights["structured_fit"])
-        )
+        if context.get("ranking_order_version") == AI_ONLY_RANKING_ORDER_VERSION:
+            baseline_fit = float(holistic_value)
+        else:
+            baseline_fit = (
+                float(holistic_value) * float(baseline_weights["holistic_ai_fit"])
+                + structured_fit * float(baseline_weights["structured_fit"])
+            )
         label = _fit_label_from_thresholds(baseline_fit, policy["fit_label_thresholds"])
     return {
         "holistic_ai_fit": holistic_value,

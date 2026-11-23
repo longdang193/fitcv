@@ -43,6 +43,7 @@ from fitcv.late_stage_contract import (
     pipeline_outcome_surface,
 )
 from fitcv.pipeline import (
+    _checkpoint_payload_from_state,
     _build_analysis_evidence_selection_summary,
     _build_export_results,
     _build_stage_transition_artifacts,
@@ -51,6 +52,7 @@ from fitcv.pipeline import (
     _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
     _reuse_anomaly_payload,
+    _restore_pipeline_state,
     _stage_block,
     PipelineCancelled,
     build_ranking_features,
@@ -103,6 +105,18 @@ def test_pipeline_evidence_summary_records_projection_identity() -> None:
     assert summary["source_profile_schema_version"] == "candidate-profile.v2"
     assert summary["projection_schema_version"] == "candidate-evidence.v1"
     assert summary["projection_fingerprint"] == "projection::1"
+
+
+def test_checkpoint_round_trip_preserves_ranking_cv_handoffs() -> None:
+    handoff = {"fp:job-1": {"schema_version": "ranking_cv_handoff_v1", "job": "job-1"}}
+    state = {"ranking_cv_handoffs_by_identity": handoff, "completed_stage": "ranking"}
+
+    payload = _checkpoint_payload_from_state(state)
+    restored = _restore_pipeline_state(run_id="run-1", checkpoint_payload=payload)
+
+    assert payload["ranking_cv_handoffs_by_identity"] == handoff
+    assert restored["ranking_cv_handoffs_by_identity"] == handoff
+
 
 def test_reuse_anomaly_ignores_fresh_run_without_reused_rows() -> None:
     payload = _reuse_anomaly_payload(
@@ -397,7 +411,7 @@ def test_late_stage_contract_projects_pipeline_outcome_surface(
 
 def test_late_stage_contract_exposes_shared_status_families() -> None:
     assert CV_GENERATION_ATTEMPTED_STATUSES == frozenset(
-        {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+        {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}
     )
     assert CV_DEBUG_ANALYSIS_OMISSION_STATUSES == frozenset(
         {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}
@@ -1000,7 +1014,7 @@ def test_skipped_fit_gate_keeps_cv_analysis_stage_authority() -> None:
     [
         ("validation_failed", "failed"),
         ("generation_failed", "not_run"),
-        ("persistence_failed", "accepted"),
+        ("persistence_failed", "failed"),
     ],
 )
 def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(

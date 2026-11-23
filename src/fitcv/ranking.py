@@ -22,6 +22,7 @@ from fitcv.candidate import canonicalize_role_title, infer_role_family
 from fitcv.preference_policy import ResolvedPreferencePolicy, project_personalized_score
 from fitcv.ranking_contract import (
     AI_COMPATIBILITY_RANKING_ORDER_VERSION,
+    AI_ONLY_RANKING_ORDER_VERSION,
     RANKING_DECISION_ENVELOPE_VERSION,
     RANKING_ORDER_VERSION,
     RANKING_SCORE_CONTRACT_VERSION,
@@ -342,7 +343,11 @@ def rank_jobs(
     ranking_policy_version: str | None = None,
     ranking_contract_version: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Assign the persisted authoritative order, then optional personalization."""
+    """Assign the persisted authoritative order, then optional personalization.
+
+    The AI-only order is an explicit new-run mode. The default order remains
+    personalized for direct legacy callers and historical artifacts.
+    """
     persisted_order_versions = {
         str(job.get("ranking_order_version")).strip()
         for job in jobs
@@ -355,6 +360,7 @@ def rank_jobs(
     ranking_order_version = str(ranking_order_version).strip()
     if not ranking_order_version:
         raise ValueError("ranking_order_version is required")
+    is_ai_only_order = ranking_order_version == AI_ONLY_RANKING_ORDER_VERSION
     active_preference_policy = (
         resolved_preference_policy
         if ranking_order_version == RANKING_ORDER_VERSION
@@ -366,7 +372,18 @@ def rank_jobs(
         if not str(job.get("raw_job_fingerprint") or "").strip():
             raise ValueError("ranking row requires raw_job_fingerprint")
         score_state = normalize_score_state(job)
-        if score_state["score_status"] == SCORE_STATUS_VALID and job.get("baseline_fit") is None:
+        if is_ai_only_order:
+            if score_state["score_status"] == SCORE_STATUS_VALID:
+                # AI score is the sole authority for fresh Stage 6 order. Do
+                # not let a stale persisted baseline leak into the new path.
+                job["baseline_fit"] = score_state["ai_score"]
+            else:
+                # Invalid and unavailable scores remain inspectable, but are
+                # never made rankable by a persisted or fabricated baseline.
+                job["baseline_fit"] = None
+                job["baseline_fit_label"] = None
+                job["baseline_rank"] = None
+        elif score_state["score_status"] == SCORE_STATUS_VALID and job.get("baseline_fit") is None:
             job["baseline_fit"] = score_state["ai_score"]
         if score_state["score_status"] == SCORE_STATUS_VALID and not is_finite_score(
             job.get("baseline_fit")
@@ -467,6 +484,23 @@ def rank_jobs(
     )
     for index, job in enumerate(personalized, start=1):
         job["personalized_rank"] = index
+    if is_ai_only_order:
+        # Do not emit fresh personalized ordering fields. Legacy rows can
+        # still be read through their explicit legacy order version.
+        for job in sorted_jobs:
+            for field in (
+                "personalized_rank",
+                "preference_residual",
+                "personalized_rank_score",
+                "personalized_display_score",
+                "score_was_clipped",
+                "preference_policy_snapshot_id",
+                "preference_vector_fingerprint",
+                "preference_runtime_contract_fingerprint",
+                "preference_policy_resolution_status",
+            ):
+                job.pop(field, None)
+        return sorted_jobs[:top_n]
     return personalized[:top_n]
 
 

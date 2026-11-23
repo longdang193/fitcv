@@ -1031,7 +1031,7 @@ def build_cv_generation_stage_block(
                 record
                 for record in cv_generation_debug_records
                 if str(record.get("status") or "")
-                in {"validation_failed", "generation_failed", "persistence_failed"}
+                in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
             ],
             debug_record_changed_sample_builder,
         ),

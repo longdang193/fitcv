@@ -715,6 +715,54 @@ def test_generation_writer_receives_only_content_plan_approved_evidence() -> Non
     assert result["cv_generation_trace"]["input_summary"]["omitted_input_item_count"] == 1
     assert result["cv_generation_trace"]["input_summary"]["approved_input_item_count"] == 1
 
+def test_generation_provider_receives_only_authorized_profile_records() -> None:
+    profile = {
+        **_minimal_profile(),
+        "education": [
+            {
+                "id": "edu-selected",
+                "degree": "MSc",
+                "institution": "Selected University",
+                "evidence": [{"id": "ev-education"}],
+            },
+            {
+                "id": "edu-unselected",
+                "degree": "BA",
+                "institution": "Unselected University",
+                "evidence": [{"id": "ev-unselected-education"}],
+            },
+        ],
+    }
+    captured: dict[str, Any] = {}
+
+    def fake_generate_cv(*args: Any, **kwargs: Any) -> None:
+        captured["profile"] = args[3]
+        captured["authorized_profile"] = kwargs["authorized_profile"]
+
+    provider_generator = generation_module._build_fallback_provider_generator(
+        job=_minimal_job(),
+        evidence_payload=[
+            {
+                "evidence_id": "ev-education",
+                "parent_id": "edu-selected",
+                "evidence_type": "education_entry",
+            }
+        ],
+        gap_summary={},
+        profile=profile,
+        config=_minimal_config(),
+        fit="strong",
+        evidence_selection_summary={"selected_evidence_ids": ["ev-education"]},
+        content_plan={},
+        ranking_cv_handoff=None,
+    )
+
+    with patch.object(generation_module, "generate_cv", side_effect=fake_generate_cv):
+        provider_generator(None)
+
+    assert captured["profile"]["education"] == profile["education"]
+    assert captured["authorized_profile"]["education"] == [profile["education"][0]]
+
 
 def test_generation_failure_preserves_repair_history_when_provider_retry_raises(monkeypatch) -> None:
     analysis = _minimal_analysis_record()
@@ -1460,6 +1508,18 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "llm_runtime_observations": [_minimal_runtime_observation()],
         "cv_generation_trace": _minimal_cv_generation_trace(),
     }
+    pdf_content = b"%PDF-1.7\nfitcv-pipeline-regression\n"
+    markdown_checksum = hashlib.sha256(agentic_generation_result["markdown_final"].encode("utf-8")).hexdigest()
+    agentic_generation_result["render_acceptance"] = {
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": hashlib.sha256(pdf_content).hexdigest(),
+        "content_sha256": markdown_checksum,
+        "template_sha256": "a" * 64,
+        "render_config_fingerprint": "b" * 64,
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
 
     with patch(
         "fitcv.pipeline.analyze_ranked_job",
@@ -1473,6 +1533,11 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "fitcv.pipeline.wait",
         side_effect=_wait_with_initial_timeout,
     ):
+        def _generate_with_pdf(*, artifact_dir: str, **_: Any) -> dict[str, Any]:
+            Path(artifact_dir, "cv.pdf").write_bytes(pdf_content)
+            return agentic_generation_result
+
+        mock_agentic_generation.side_effect = _generate_with_pdf
         result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -1482,6 +1547,12 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
 
     mock_agentic_analysis.assert_called_once()
     mock_agentic_generation.assert_called_once()
+    assert mock_agentic_generation.call_args.kwargs["artifact_dir"]
+    stored_version = mock_store_cv_version.call_args.args[0]
+    assert stored_version["pdf_content_blob"] == pdf_content
+    assert stored_version["pdf_content_length"] == len(pdf_content)
+    assert stored_version["pdf_content_checksum"] == hashlib.sha256(pdf_content).hexdigest()
+    assert stored_version["pdf_filename"].endswith(".pdf")
     mock_generate_cv.assert_not_called()
     assert result["cv_generation_debug_records"][0]["status"] == "accepted"
     assert result["cv_generation_debug_records"][0]["cv_generation_model"] == "cx/gpt-5.5"
@@ -1981,7 +2052,7 @@ def test_generate_from_analysis_persists_review_required_as_quality_warning(
 
     result = generate_from_analysis(analysis_record, _minimal_profile(), _minimal_config())
 
-    assert result["status"] == "accepted"
+    assert result["status"] == "review_required"
     assert result["review_required_reason_code"] == "unsupported_requirement_gap"
     assert result["outcome_reason"] is None
     assert result["error"] is None
@@ -1990,6 +2061,90 @@ def test_generate_from_analysis_persists_review_required_as_quality_warning(
     assert result["markdown_final"]
     assert result["validation_evidence_fingerprint"]
 
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_pdf_converter_failure_is_technical_and_preserves_markdown(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    markdown = "# Test Candidate\n## Experience\n- Built grounded reporting workflows.\n- Improved reliability."
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": markdown,
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+        side_effect=RuntimeError("converter unavailable"),
+    ):
+        result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "pdf_failed"
+    assert result["error"]["code"] == "pdf_render_failed"
+    assert result["structured_cv_final"] is not None
+    assert result["markdown_final"] == markdown
+    assert result["final_artifact_acceptance"]["status"] == "failed"
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_render_unavailable_is_technical_pdf_failure_and_preserves_markdown(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    markdown = "# Test Candidate\n## Experience\n- Built grounded reporting workflows."
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": markdown,
+    }
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation.render_cv_native_acceptance",
+        return_value={
+            "render_status": "render_unavailable",
+            "renderer_status": "render_unavailable",
+            "page_fit_status": "unresolved",
+            "error_code": "pdf_render_unavailable",
+        },
+    ):
+        result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "pdf_failed"
+    assert result["error"]["code"] == "pdf_render_unavailable"
+    assert result["structured_cv_final"] is not None
+    assert result["markdown_final"] == markdown
 
 
 def test_review_required_with_valid_content_is_persistable_only_without_validation_violations() -> None:
@@ -2010,6 +2165,27 @@ def test_review_required_with_valid_content_is_persistable_only_without_validati
 
     assert _is_persistable_cv_generation_result(result) is True
     result["validation"]["skill_violations"] = ["unsupported_skill"]
+    assert _is_persistable_cv_generation_result(result) is False
+
+
+def test_pdf_failed_with_retained_valid_content_is_persistable() -> None:
+    result = {
+        "status": "pdf_failed",
+        "structured_cv_final": _minimal_structured_cv(),
+        "markdown_final": "# Test Candidate\n## Experience\nGrounded work.",
+        "validation": {
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "deterministic_grounding_violations": [],
+            "semantic_grounding_violations": [],
+            "skill_violations": [],
+            "markdown_quality_blocking_issues": [],
+        },
+    }
+
+    assert _is_persistable_cv_generation_result(result) is True
+    result["validation"]["grounding_violations"] = ["unsupported claim"]
     assert _is_persistable_cv_generation_result(result) is False
 
 
@@ -2237,8 +2413,8 @@ def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
     mock_generate_cv.reset_mock()
     mock_render_cv_native_acceptance.reset_mock()
     mock_render_cv_native_acceptance.return_value = {
-        "render_status": "render_failed",
-        "renderer_status": "render_failed",
+        "render_status": "render_unavailable",
+        "renderer_status": "render_unavailable",
         "page_count": None,
         "page_fit_status": "unresolved",
         "artifact_checksum": None,
@@ -2261,9 +2437,9 @@ def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
 
     mock_generate_cv.assert_not_called()
     mock_render_cv_native_acceptance.assert_called_once()
-    assert reused["status"] == "review_required"
+    assert reused["status"] == "pdf_failed"
     assert reused["structured_cv_final"] == _minimal_structured_cv()
-    assert reused["error"]["code"] == "reusable_render_proof_failed"
+    assert reused["error"]["code"] == "pdf_render_failed"
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")

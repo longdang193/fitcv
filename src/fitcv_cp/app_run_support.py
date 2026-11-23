@@ -319,8 +319,8 @@ def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, in
         ):
             summary["ranked_review_required_count"] += 1
         elif pipeline_status == "ranked_no_cv" and (
-            stage_owned_subreason in {"validation_failed", "generation_failed", "persistence_failed"}
-            or cv_gen_status in {"validation_failed", "generation_failed", "persistence_failed"}
+            stage_owned_subreason in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
+            or cv_gen_status in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
         ):
             summary["ranked_generation_failed_count"] += 1
         elif pipeline_status == "ranked_no_cv":
@@ -344,7 +344,7 @@ def _build_cv_generation_failure_reason_summary(run: PipelineRun) -> dict[str, A
     reason_counts: dict[str, int] = {}
     for record in records:
         status = str(record.get("status") or "").strip()
-        if status not in {"generation_failed", "persistence_failed", "validation_failed"}:
+        if status not in {"generation_failed", "pdf_failed", "persistence_failed", "validation_failed"}:
             continue
         error_payload = record.get("error") if isinstance(record.get("error"), dict) else {}
         error_stage = str(error_payload.get("stage") or "").strip()

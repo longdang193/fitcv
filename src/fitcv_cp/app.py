@@ -827,6 +827,7 @@ DECISION_CHAIN_LABELS: dict[str, str] = {
     "ready_for_generation": "ready for CV generation",
     "validation_failed": "validation failed",
     "generation_failed": "generation failed",
+    "pdf_failed": "PDF generation failed",
     "persistence_failed": "persistence failed",
     "blocked_by_reranker_fit": "blocked by reranker fit",
     "skipped_fit_gate": "skipped after CV analysis",
@@ -2346,7 +2347,7 @@ def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
             "blocking_reasons_sample": [],
         }
     records = [item for item in list(payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
-    attempted_statuses = {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_statuses = {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}
     attempted_records = [record for record in records if str(record.get("status") or "").strip() in attempted_statuses]
     review_required_records = [
         record for record in attempted_records
@@ -4245,9 +4246,9 @@ def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
             final_status = "accepted"
         elif pipeline_status in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
             final_status = "blocked_by_reranker_fit"
-        elif cv_status in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+        elif cv_status in {"review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}:
             final_status = cv_status
-        elif stage_owned_subreason in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+        elif stage_owned_subreason in {"review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}:
             final_status = stage_owned_subreason
         elif pipeline_status == "ranked_no_cv":
             final_status = "ranked_no_cv"

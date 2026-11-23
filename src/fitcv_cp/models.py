@@ -231,6 +231,7 @@ class CvGenerationStatus(str, Enum):
     RUNNING = "running"
     GENERATED = "generated"
     REVIEW_REQUIRED = "review_required"
+    PDF_FAILED = "pdf_failed"
     VALIDATION_FAILED = "validation_failed"
     GENERATION_FAILED = "generation_failed"
     PERSISTENCE_FAILED = "persistence_failed"

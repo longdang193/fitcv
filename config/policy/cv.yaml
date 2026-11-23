@@ -27,7 +27,7 @@ cv_acceptance_policy:
 cv:
   preset: europass
   renderer:
-    strategy: europass
+    strategy: mycvs_v1
   generation:
     model: cx/gpt-5.6-luna
     prompt_version: v1
