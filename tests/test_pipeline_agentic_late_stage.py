@@ -2481,3 +2481,43 @@ def test_trimmed_content_is_revalidated_before_acceptance(
     assert result["status"] == "review_required"
     assert mock_run_all_validations.call_count == 2
     assert result["render_acceptance"]["artifact_checksum"] == "a" * 64
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+@patch("fitcv.agentic_cv_generation.render_cv_native_acceptance")
+@patch("fitcv.agentic_cv_generation.trim_structured_cv_for_page_fit")
+def test_trimmed_render_failure_is_technical_and_preserves_original_content(
+    mock_trim: MagicMock,
+    mock_render: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    config = _minimal_config()
+    config["cv"]["final_artifact_acceptance"] = {"enabled": True}
+    structured = _minimal_structured_cv()
+    markdown = "# Test Candidate\n## Experience\nGrounded work."
+    mock_generate_cv.return_value = {"structured_cv": structured, "markdown": markdown}
+    valid = {
+        "valid": True, "missing_sections": [], "grounding_violations": [],
+        "deterministic_grounding_violations": [], "semantic_grounding_violations": [],
+        "skill_violations": [], "warnings": [], "support_source_summary": {},
+        "markdown_quality_blocking_issues": [], "markdown_quality_review_flags": [],
+    }
+    mock_run_all_validations.side_effect = [valid, valid]
+    mock_render.side_effect = [
+        {"renderer_status": "rendered", "page_count": 2, "page_fit_status": "fail", "artifact_checksum": "a" * 64},
+        RuntimeError("converter unavailable after trim"),
+    ]
+    trimmed = deepcopy(structured)
+    trimmed["sections"]["summary"]["text"] = "Trimmed grounded summary"
+    mock_trim.return_value = trimmed
+
+    result = generate_from_analysis(analysis_record, _minimal_profile(), config)
+
+    assert result["status"] == "pdf_failed"
+    assert result["structured_cv_final"] == structured
+    assert result["markdown_final"] == markdown
+    assert result["render_acceptance"]["error_code"] == "pdf_render_failed"
+    assert result["final_artifact_acceptance"]["status"] == "failed"
+    assert result["trim_attempt_count"] == 1

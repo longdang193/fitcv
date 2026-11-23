@@ -134,6 +134,49 @@ def test_adjustment_failure_retains_valid_create_output() -> None:
     adjust_executor.assert_called_once_with()
 
 
+def test_invalid_adjustment_retains_valid_create_output() -> None:
+    validation = {
+        "valid": True,
+        "missing_sections": [],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": ["Experience section appears shallow."],
+    }
+    adjusted_validation = {**validation, "valid": False, "grounding_violations": ["unsupported claim"]}
+    structured_cv = {"sections": {"experience": [{"bullets": ["Built pipelines."]}]}}
+    adjust_executor = Mock(return_value=(
+        {"sections": {"experience": [{"bullets": ["Unsupported claim."]}]}},
+        "# CV\n## Experience\n- Unsupported claim.",
+        adjusted_validation,
+        {"provider": "adjust"},
+    ))
+
+    result_cv, result_markdown, result_validation, repair_attempt, provenance = _run_repair_cycle(
+        structured_cv=structured_cv,
+        markdown="# CV\n## Experience\n- Built pipelines.",
+        validation=validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=Mock(),
+        runtime_provenance={"provider": "create"},
+        adjust_executor=adjust_executor,
+    )
+
+    assert result_cv == structured_cv
+    assert result_markdown == "# CV\n## Experience\n- Built pipelines."
+    assert result_validation == validation
+    assert repair_attempt["adjustment_attempted"] is True
+    assert repair_attempt["adjustment_succeeded"] is False
+    assert repair_attempt["adjustment_failed"] is True
+    assert repair_attempt["adjustment_error"] == "adjusted draft failed hard validation"
+    assert provenance == {"provider": "create"}
+    adjust_executor.assert_called_once_with()
+
+
 def test_uncertain_validation_stops_for_review_without_retry() -> None:
     retry_executor = Mock()
     validation = {
