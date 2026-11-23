@@ -63,6 +63,30 @@ professional ownership.
 
 Shared LLM runtime rule: `enrich`, `ranking`, `cv_generation`, and auxiliary synonym triage build owner-local prompts and parse owner-local outputs through `src/fitcv/llm_runtime.py`. Shared runtime owns routing, credentials, transport, wire fallback, normalized operational failures, provenance, and the only persistable per-call evidence projection. Embeddings and deterministic builtin synonym triage remain outside this generative spine.
 
+### Ranking-to-CV Handoff
+
+Ranking owns the immutable `ranking_cv_handoff_v1` for each ranked job. The
+handoff is persisted at
+`stage_transition_artifacts_json.artifacts.stages.ranking.ranking_cv_handoff`
+and includes canonical job identity, qualifiers, baseline rank and score, score
+state, evidence IDs, confirmed gaps/unknowns, candidate-profile revision, ranking
+versions, source provenance, and `handoff_fingerprint`.
+
+CV analysis consumes the matching persisted handoff at the worker boundary. A
+valid handoff fingerprint participates in analysis reuse identity; a checksum
+mismatch fails closed. Runs without a ranking handoff retain compatibility with
+the historical reconstruction path, while new complete ranking artifacts are not
+silently overwritten by current ranking defaults.
+
+### CV Lifecycle and Rendering
+
+Generation, review, PDF, and submission outcomes are independent. Markdown may
+remain available while PDF conversion or review is blocked. `pdf_status` becomes
+`generated` only after recognized renderer proof, matching content checksum, and
+one-page acceptance; `submission_clearance` remains `blocked` until generation,
+PDF, and review conditions all pass. The external converter contract is disabled
+until its revisions and reproducibility evidence are pinned.
+
 ## Candidate Evidence Projection
 
 CV analysis converges every immutable Candidate Profile revision before retrieval:
@@ -342,7 +366,7 @@ strategy.
 
 Phase 3 uses one path for every admissible scored job:
 
-`holistic AI scalar + six absolute structured factors -> structured_fit -> baseline_fit -> baseline_fit_label -> global baseline_rank -> bounded preference residual -> personalized_rank -> top-N`
+`holistic AI scalar -> baseline_fit -> baseline_fit_label -> global baseline_rank -> Final Top 15`
 
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
@@ -353,7 +377,7 @@ Phase 3 uses one path for every admissible scored job:
 - ordering is `baseline_fit DESC`, `raw_job_fingerprint ASC`, then `job_url ASC`
 - vector similarity/rank remain shortlist evidence and never affect baseline score, label, fingerprint, or tie order
 - canonical ranking rows use `baseline_fit`, `baseline_fit_label`, `baseline_rank`, factor records, policy versions, and `ranking_contract_fingerprint`
-- personalized fields add raw/display score, residual, clipping flag, `personalized_rank`, and policy fingerprints; they never replace baseline facts
+- new pipeline runs do not activate preference residuals; historical personalized fields remain readable for compatibility and never replace baseline facts
 - checkpoint schema remains v1; centralized adapters read old ranking aliases and reject canonical/legacy conflicts
 - stage-transition artifacts use v8 and preserve full-run/resume parity
 - CV analysis consumes persisted baseline truth only; gap findings, vector evidence, and AI diagnostics do not override ranking qualification

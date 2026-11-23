@@ -54,6 +54,7 @@ def test_recall_safe_pool_retains_only_soft_filter_exclusions() -> None:
     assert pool[1]["legacy_exclusion_reasons"] == ["missing_fit_context"]
 
 from fitcv.pipeline_stage_context import PipelineState
+from fitcv.pipeline_stage_runner import build_recall_safe_evaluation_pool
 
 _FIXTURE_DIR = Path("tests/golden/pipeline_refactor")
 
@@ -696,3 +697,21 @@ def test_rule_filter_stage_builds_context_once_and_preserves_full_payload() -> N
     assert stored[0]["passed_records"][0]["eligibility_policy_fingerprint"] == (
         "policy-fingerprint"
     )
+
+
+def test_recall_safe_pool_retains_soft_exclusions_but_not_hard_exclusions() -> None:
+    pool = build_recall_safe_evaluation_pool(
+        [
+            {"job_url": "passed"},
+            {"job_url": "soft"},
+            {"job_url": "hard"},
+        ],
+        [{"job_url": "passed"}],
+        [
+            {"job_url": "soft", "reasons": ["must_have_skill_missing"]},
+            {"job_url": "hard", "reasons": ["location_type_excluded"]},
+        ],
+    )
+
+    assert [row["job_url"] for row in pool] == ["passed", "soft"]
+    assert pool[1]["legacy_excluded"] is True

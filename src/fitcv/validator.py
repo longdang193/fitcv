@@ -21,7 +21,14 @@ from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.candidate_name_policy import is_candidate_name_placeholder
-from fitcv.config import CV_SECTION_KEY_TO_NAME, get_required_structured_section_keys
+from fitcv.config import (
+    CV_SECTION_KEY_TO_NAME,
+    MYCVS_V1_AUDIT_LINE_RE,
+    MYCVS_V1_HEADINGS,
+    MYCVS_V1_METADATA_LINE_RE,
+    get_cv_renderer_strategy,
+    get_required_structured_section_keys,
+)
 from fitcv.placeholder_policy import (
     is_placeholder_token as _shared_is_placeholder_token,
     normalize_placeholder_token as _shared_normalize_placeholder_token,
@@ -372,6 +379,8 @@ def _find_missing_required_structured_sections(
         return [CV_SECTION_KEY_TO_NAME.get(key, key.title()) for key in required_keys]
 
     missing_sections: list[str] = []
+    renderer_strategy = get_cv_renderer_strategy(config)
+    allow_empty_sections = renderer_strategy == "mycvs_v1"
     for section_key in required_keys:
         if section_key == "education":
             has_profile_education = bool(list((profile or {}).get("education") or []))
@@ -387,8 +396,13 @@ def _find_missing_required_structured_sections(
             if not cert_policy.get("required"):
                 continue
         section_value = sections.get(section_key)
-        if not _structured_section_has_content(section_key, section_value):
-            missing_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
+        if section_key not in sections or (
+            not allow_empty_sections and not _structured_section_has_content(section_key, section_value)
+        ):
+            if renderer_strategy == "mycvs_v1" and section_key == "certifications":
+                missing_sections.append("Certificates")
+            else:
+                missing_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
     return missing_sections
 
 
@@ -486,14 +500,25 @@ def _extract_project_mentions(cv_text: str) -> list[str]:
     return list(dict.fromkeys(mentioned))
 
 
-def _extract_skill_section_tokens(cv_text: str) -> list[str]:
+def _extract_skill_section_tokens(
+    cv_text: str,
+    config: dict[str, Any] | None = None,
+) -> list[str]:
     skills_section_re = re.compile(
         r"^##\s+Skills\s*\n(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL | re.IGNORECASE
     )
     match = skills_section_re.search(cv_text)
     if not match:
         return []
-    raw_tokens = re.split(r"[,\n]+", match.group(1))
+    section_lines = match.group(1).splitlines()
+    if get_cv_renderer_strategy(config) == "mycvs_v1":
+        section_lines = [
+            line
+            for line in section_lines
+            if not MYCVS_V1_AUDIT_LINE_RE.fullmatch(line.strip())
+            and not MYCVS_V1_METADATA_LINE_RE.fullmatch(line.strip())
+        ]
+    raw_tokens = re.split(r"[,\n]+", "\n".join(section_lines))
     return [token.strip() for token in raw_tokens if token.strip()]
 
 
@@ -517,8 +542,9 @@ def _extract_structured_skill_items(structured_cv: dict[str, Any] | None) -> lis
 def _claimed_skill_items(
     cv_text: str,
     structured_cv: dict[str, Any] | None,
+    config: dict[str, Any] | None = None,
 ) -> list[str]:
-    return _extract_structured_skill_items(structured_cv) or _extract_skill_section_tokens(cv_text)
+    return _extract_structured_skill_items(structured_cv) or _extract_skill_section_tokens(cv_text, config)
 
 
 def _normalize_section_name(raw_heading: str) -> str:
@@ -740,7 +766,7 @@ def _check_selected_skill_grounding(
     violations: list[str] = []
     if not selected_skills_lower and not selected_skills_canonical:
         return violations
-    for skill in _extract_skill_section_tokens(cv_text):
+    for skill in _extract_skill_section_tokens(cv_text, config):
         skill_lower = skill.lower()
         skill_canonical = canonicalize_skill(skill, config)
         if skill_lower in selected_skills_lower or skill_canonical in selected_skills_canonical:
@@ -761,7 +787,7 @@ def _check_requirement_grounding(
     selected_evidence_ids: list[str] | None = None,
 ) -> list[str]:
     violations: list[str] = []
-    claimed_skills = _claimed_skill_items(cv_text, structured_cv)
+    claimed_skills = _claimed_skill_items(cv_text, structured_cv, config)
     evidence_by_id = {
         str(item.get("evidence_id") or ""): item
         for item in list(evidence_payload or [])
@@ -1052,7 +1078,7 @@ def check_skill_provenance(
     if not candidate_skills:
         return []
 
-    cv_skills = _extract_skill_section_tokens(cv_text)
+    cv_skills = _extract_skill_section_tokens(cv_text, config)
     if not cv_skills:
         return []
 
@@ -1077,7 +1103,7 @@ def check_skill_provenance(
 
     for skill in cv_skills:
         skill_lower = skill.lower()
-        skill_compact = skill_lower.strip("()[]{} \t")
+        skill_compact = skill_lower.strip("()[]{} \t.,;:")
         if skill_lower in placeholder_tokens or skill_compact in placeholder_tokens:
             continue
         skill_canonical = canonicalize_skill(skill, config)
@@ -1114,14 +1140,19 @@ def run_all_validations(
     or when required sections are missing. Length issues add warnings but do not
     block validity.
     """
+    renderer_strategy = get_cv_renderer_strategy(config)
     required_sections: list[str] = list(config["required_cv_sections"])
     cert_policy = certification_policy_decisions(
         config=config,
         profile=profile,
         evidence_selected_certifications=[],
     )
-    effective_required_sections = list(required_sections)
-    if not cert_policy.get("required"):
+    effective_required_sections = (
+        list(MYCVS_V1_HEADINGS)
+        if renderer_strategy == "mycvs_v1"
+        else list(required_sections)
+    )
+    if renderer_strategy != "mycvs_v1" and not cert_policy.get("required"):
         effective_required_sections = [
             section
             for section in effective_required_sections
@@ -1265,7 +1296,7 @@ def run_all_validations(
 
     markdown_quality_blocking_issues, markdown_quality_review_flags = _markdown_quality_checks(
         cv_text,
-        required_sections,
+        effective_required_sections,
     )
 
     # Non-blocking warnings

@@ -231,6 +231,7 @@ class CvGenerationStatus(str, Enum):
     RUNNING = "running"
     GENERATED = "generated"
     REVIEW_REQUIRED = "review_required"
+    PDF_FAILED = "pdf_failed"
     VALIDATION_FAILED = "validation_failed"
     GENERATION_FAILED = "generation_failed"
     PERSISTENCE_FAILED = "persistence_failed"
@@ -248,6 +249,17 @@ class CvReviewState(str, Enum):
     MANUAL_REQUIRED = "manual_required"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class CvPdfStatus(str, Enum):
+    PENDING = "pending"
+    GENERATED = "generated"
+    FAILED = "failed"
+
+
+class CvSubmissionClearance(str, Enum):
+    BLOCKED = "blocked"
+    ELIGIBLE = "eligible"
 
 
 class EventLevel(str, Enum):

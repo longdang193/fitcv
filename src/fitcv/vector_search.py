@@ -1322,7 +1322,7 @@ def store_shortlist(
     """Insert vector shortlist rows into local sqlite store."""
     shortlist = [
         item for item in shortlist
-        if str(item.get("retrieval_strategy") or VECTOR_RETRIEVAL_STRATEGY) == VECTOR_RETRIEVAL_STRATEGY
+        if str(item.get("retrieval_strategy") or "") == VECTOR_RETRIEVAL_STRATEGY
     ]
     if not shortlist:
         return

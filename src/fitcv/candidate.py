@@ -775,6 +775,8 @@ def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
     allowed_top_level = {
         "schema_version",
         "source_documents",
+        "_runtime_evidence_admission",
+        "_runtime_compatibility",
         *section_registry["identity"]["fields"],
         "contact",
         *(section_id for section_id in section_registry if section_id not in {"identity", "contact"}),

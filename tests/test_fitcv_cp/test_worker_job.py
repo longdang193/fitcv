@@ -341,8 +341,28 @@ def test_pipeline_worker_does_not_start_delivery_before_runtime_ready(
 
 def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_stretch() -> None:
     from fitcv_cp.worker_job import execute_cv_regenerate_once
+    from fitcv.ranking_contract import build_ranking_cv_handoff
 
     now = datetime.datetime.now(datetime.timezone.utc)
+    ranking_handoff = build_ranking_cv_handoff(
+        {
+            "canonical_job_identity": "https://example.com/job-1",
+            "job_qualifiers": {"title": "Role"},
+            "baseline_rank": 1,
+            "baseline_score": 0.8,
+            "evidence_ids": ["evidence-1"],
+            "confirmed_gaps": [],
+            "confirmed_unknowns": [],
+            "score_status": "valid",
+            "disposition": "admitted",
+            "retry_eligible": False,
+        },
+        candidate_profile_revision="v1",
+        ranking_order_version="ranking_order_v1",
+        ranking_policy_version="policy_v1",
+        ranking_contract_version="ranking_score_contract_v1",
+        source_provenance={"source": "test"},
+    )
     run = PipelineRun(
         run_id="run-regen-1",
         status=RunStatus.AWAITING_CONTINUE,
@@ -353,6 +373,21 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
         created_at=now,
         candidate_profile_json=json.dumps({"name": "Candidate"}),
         effective_settings_json="{}",
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "ranking": {
+                            "ranking_cv_handoff": {
+                                "status": "complete",
+                                "items": [ranking_handoff],
+                            }
+                        }
+                    }
+                }
+            },
+            ensure_ascii=False,
+        ),
         cv_generation_debug_json=json.dumps(
             {
                 "cv_generation_debug_records": [
@@ -379,6 +414,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
         "gap_summary": {"summary": "Close fit"},
         "requirement_coverage": [{"requirement": "Python", "status": "covered"}],
     }
+    pdf_bytes = b"%PDF-1.7\nprobe\n"
     generation = {
         "status": "review_required",
         "fit_classification": "stretch",
@@ -393,16 +429,20 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
             "renderer_status": "rendered",
             "page_count": 1,
             "page_fit_status": "pass",
-            "artifact_checksum": "a" * 64,
+            "artifact_checksum": hashlib.sha256(pdf_bytes).hexdigest(),
             "content_sha256": hashlib.sha256(b"# Fresh generated CV").hexdigest(),
             "template_sha256": "c" * 64,
             "render_config_fingerprint": "d" * 64,
             "renderer_contract_version": "fitcv_native_render_v1",
         },
     }
+    def generate_with_pdf(*_args, **kwargs):
+        Path(kwargs["artifact_dir"], "cv.pdf").write_bytes(pdf_bytes)
+        return generation
+
     with patch("fitcv_cp.worker_job.get_run", return_value=run), \
          patch("fitcv_cp.worker_job.list_run_structured_jobs", return_value=[{
-             "run_job_id": "run-job-1", "job_url": "https://example.com/job-1", "title": "Role"
+             "run_job_id": "run-job-1", "job_url": "https://example.com/job-1", "canonical_job_identity": "https://example.com/job-1", "title": "Role"
          }]), \
          patch("fitcv_cp.worker_job.reserve_cv_regeneration", return_value={
              "version_id": "cv-new", "generation_status": "pending", "idempotent_replay": False
@@ -414,7 +454,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
          patch("fitcv_cp.worker_job.update_cv_evaluation") as update_evaluation, \
          patch("fitcv_cp.worker_job.insert_cv_review_event") as insert_review, \
          patch("fitcv_cp.worker_job.analyze_ranked_job", return_value=analysis) as analyze_job, \
-         patch("fitcv_cp.worker_job.generate_from_analysis", return_value=generation) as generate_cv, \
+         patch("fitcv_cp.worker_job.generate_from_analysis", side_effect=generate_with_pdf) as generate_cv, \
          patch("fitcv_cp.worker_job.append_event") as mock_append:
         execute_cv_regenerate_once(
             run_id="run-regen-1",
@@ -427,12 +467,17 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
     reserve_version.assert_called_once()
     analyze_job.assert_called_once()
     assert analyze_job.call_args.args[0]["baseline_fit_label"] == "stretch"
-    generate_cv.assert_called_once_with(analysis, {"name": "Candidate"}, {})
+    assert analyze_job.call_args.kwargs["ranking_cv_handoff"] == ranking_handoff
+    generate_cv.assert_called_once()
+    assert generate_cv.call_args.args == (analysis, {"name": "Candidate"}, {})
+    assert Path(generate_cv.call_args.kwargs["artifact_dir"]).name.startswith("fitcv-cv-artifact-")
     assert update_version.call_args_list[-1].kwargs["generation_status"] == "review_required"
     assert update_version.call_args_list[-1].kwargs["content"] == b"# Fresh generated CV"
     persisted_evidence = update_version.call_args_list[-1].kwargs["metadata"]["quality_warnings_json"]
     assert persisted_evidence["evidence_state"] == "passed"
     assert persisted_evidence["artifact_version_id"] == "cv-new"
+    assert update_version.call_args_list[-1].kwargs["metadata"]["pdf_status"] == "generated"
+    assert update_version.call_args_list[-1].kwargs["metadata"]["submission_clearance"] == "blocked"
     assert insert_evaluation.call_args.kwargs["row"]["status"] == "pending"
     assert update_evaluation.call_args.kwargs["status"] == "succeeded"
     assert update_evaluation.call_args.kwargs["fit_classification"] == "stretch"
@@ -4202,3 +4247,56 @@ def test_verify_jobs_input_projection_fails_closed_for_incomplete_managed_run() 
 
     with pytest.raises(JobsInputIntegrityError, match="managed run input snapshot"):
         _verify_jobs_input_projection(run, "missing.json")
+
+
+def test_load_ranking_cv_handoff_rebuilds_fingerprint_from_persisted_source_job() -> None:
+    from fitcv.enrich import build_raw_job_fingerprint
+    from fitcv.ranking_contract import build_ranking_cv_handoff
+    from fitcv_cp import worker_job
+
+    source_job = {
+        "job_url": "https://example.com/job-fingerprint",
+        "title": "Data Engineer",
+        "company_name": "Example",
+        "location": "Remote",
+        "description": "Build data products.",
+        "source": "fixture",
+    }
+    raw_fingerprint = build_raw_job_fingerprint(source_job)["fingerprint"]
+    handoff = build_ranking_cv_handoff(
+        {
+            "canonical_job_identity": raw_fingerprint,
+            "job_qualifiers": {"title": "Data Engineer"},
+            "baseline_rank": 1,
+            "baseline_score": 0.8,
+            "evidence_ids": [],
+            "confirmed_gaps": [],
+            "confirmed_unknowns": [],
+            "score_status": "valid",
+            "disposition": "admitted",
+            "retry_eligible": False,
+            "ranking_order_version": "order-v1",
+            "ranking_policy_version": "policy-v1",
+            "ranking_contract_version": "ranking_score_v1",
+        },
+        candidate_profile_revision="profile-v1",
+        source_provenance={"source": "test"},
+    )
+    run = MagicMock(
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "ranking": {
+                            "ranking_cv_handoff": {
+                                "status": "complete",
+                                "items": [handoff],
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    )
+
+    assert worker_job._load_ranking_cv_handoff_for_job(run, source_job) == handoff

@@ -17,7 +17,10 @@ from fitcv.pipeline import _resolve_layer4_fit
 from fitcv.pipeline_stages.common import job_identity_index_keys, job_identity_keys
 from fitcv.ranking import rank_jobs
 from fitcv.ranking_contract import (
+    RANKING_CV_HANDOFF_VERSION,
     build_baseline_result,
+    build_ranking_cv_handoff,
+    canonicalize_ranking_cv_handoff,
     fit_label_from_score,
     normalize_score_state,
     resolve_fit_label_for_row,

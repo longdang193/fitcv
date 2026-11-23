@@ -26,6 +26,7 @@ datas = [
     (str(ROOT / "config/scan_catalog.yaml"), "config"),
     (str(ROOT / "data/candidate_profile.template.yaml"), "data"),
     (str(ROOT / "templates"), "templates"),
+    (str(ROOT / "scripts/renderers/mycvs_v1"), "scripts/renderers/mycvs_v1"),
 ]
 
 analysis = Analysis(

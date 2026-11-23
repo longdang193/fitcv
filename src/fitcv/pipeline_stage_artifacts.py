@@ -17,7 +17,20 @@ lifecycle:
 
 from typing import Any, Callable, Protocol, cast
 
-from fitcv.ranking_contract import SCORE_STATUS_INVALID, SCORE_STATUS_UNSCORED, SCORE_STATUS_VALID, normalize_score_state
+from fitcv.candidate import runtime_profile_value
+from fitcv.ranking_contract import (
+    RANKING_CV_HANDOFF_VERSION,
+    RANKING_DECISION_ENVELOPE_VERSION,
+    RANKING_ORDER_VERSION,
+    RANKING_SCORE_CONTRACT_VERSION,
+    SCORE_STATUS_INVALID,
+    SCORE_STATUS_UNSCORED,
+    SCORE_STATUS_VALID,
+    build_ranking_cv_handoff,
+    normalize_score_state,
+    ranking_cv_handoff_sha256,
+    validate_ranking_cv_handoff,
+)
 
 
 def truncate_stage_text(value: str, *, limit: int) -> str:
@@ -63,6 +76,60 @@ def sample_strings(values: list[str], *, limit: int, text_limit: int) -> list[st
         for value in values[:limit]
         if value
     ]
+
+
+def build_ranking_score_state_diagnostics(
+    rows: list[dict[str, Any]],
+    *,
+    max_items: int | None = None,
+) -> list[dict[str, Any]]:
+    """Build bounded, redacted diagnostics for non-valid ranking score rows."""
+    diagnostics: list[dict[str, Any]] = []
+    for row in rows:
+        score_state = normalize_score_state(row)
+        if score_state["score_status"] == SCORE_STATUS_VALID:
+            continue
+        job_key = next(
+            (
+                str(row.get(field_name)).strip()
+                for field_name in (
+                    "canonical_job_identity",
+                    "job_identity",
+                    "run_job_id",
+                    "raw_job_fingerprint",
+                )
+                if row.get(field_name) not in (None, "")
+            ),
+            None,
+        )
+        input_index = row.get("_input_index", row.get("input_index"))
+        diagnostic: dict[str, Any] = {
+            "schema_version": "ranking_score_state_diagnostic_v1",
+            "job_key": job_key,
+            "score_status": score_state["score_status"],
+            "failure_code": score_state["failure_code"],
+            "disposition": score_state["disposition"],
+            "retry_eligible": score_state["retry_eligible"],
+        }
+        if isinstance(input_index, int) and not isinstance(input_index, bool):
+            diagnostic["input_index"] = input_index
+        raw_fingerprint = row.get("raw_job_fingerprint")
+        if raw_fingerprint not in (None, ""):
+            diagnostic["raw_job_fingerprint"] = str(raw_fingerprint)
+        diagnostics.append(diagnostic)
+
+    diagnostics.sort(
+        key=lambda item: (
+            int(item.get("input_index"))
+            if isinstance(item.get("input_index"), int)
+            else 2**31 - 1,
+            str(item.get("job_key") or ""),
+            str(item.get("raw_job_fingerprint") or ""),
+        )
+    )
+    if max_items is not None:
+        return diagnostics[: max(0, int(max_items))]
+    return diagnostics
 
 
 def build_llm_runtime_summary(
@@ -553,6 +620,7 @@ def build_ranking_stage_block(
     llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
     ranking_admission_manifest: dict[str, Any] | None = None,
+    ranking_cv_handoffs_by_identity: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not ranking_reached:
         return stage_block_not_reached_builder("ranking")
@@ -597,12 +665,109 @@ def build_ranking_stage_block(
     for row in ai_scores:
         status = normalize_score_state(row)["score_status"]
         score_status_counts[f"{status}_count"] += 1
+    score_state_diagnostics = build_ranking_score_state_diagnostics(ai_scores)
     ranking_status = (
         "failed"
         if ai_scores and score_status_counts["valid_count"] == 0
         else "partial"
         if score_status_counts["unscored_count"] or score_status_counts["invalid_count"]
         else "completed"
+    )
+    ranking_order_version = str(
+        ranking_contract.get("ranking_order_version")
+        or next(
+            (
+                row.get("ranking_order_version")
+                for row in ranked
+                if row.get("ranking_order_version")
+            ),
+            "",
+        )
+    ).strip() or RANKING_ORDER_VERSION
+    ranking_policy_version = str(
+        ranking_policy.get("policy_version")
+        or next(
+            (
+                row.get("ranking_policy_version")
+                for row in ranked
+                if row.get("ranking_policy_version")
+            ),
+            "",
+        )
+    ).strip() or None
+    ranking_contract_version = str(
+        ranking_contract.get("ranking_score_contract_version")
+        or RANKING_SCORE_CONTRACT_VERSION
+    ).strip()
+    profile_revision = runtime_profile_value(profile, "revision") if isinstance(profile, dict) else None
+    handoff_items: list[dict[str, Any]] = []
+    handoff_references: dict[str, str | None] = {}
+    for row in ranked:
+        identity = str(
+            row.get("canonical_job_identity")
+            or row.get("job_identity")
+            or row.get("raw_job_fingerprint")
+            or extract_job_url(row)
+            or ""
+        ).strip()
+        provided_handoff = (ranking_cv_handoffs_by_identity or {}).get(identity)
+        if isinstance(provided_handoff, dict):
+            try:
+                canonical_handoff = validate_ranking_cv_handoff(provided_handoff)
+                handoff_fingerprint = str(provided_handoff.get("handoff_fingerprint") or "")
+                if handoff_fingerprint != ranking_cv_handoff_sha256(canonical_handoff):
+                    raise ValueError("ranking_cv_handoff_fingerprint_mismatch")
+                handoff = {
+                    **canonical_handoff,
+                    "handoff_fingerprint": handoff_fingerprint,
+                    "handoff_status": "complete",
+                }
+            except (TypeError, ValueError) as exc:
+                handoff = {
+                    "schema_version": RANKING_CV_HANDOFF_VERSION,
+                    "handoff_status": "incomplete",
+                    "canonical_job_identity": identity or None,
+                    "missing_fields": [str(exc)],
+                    "handoff_fingerprint": None,
+                }
+            handoff_references[identity] = handoff.get("handoff_fingerprint")
+            handoff_items.append(handoff)
+            continue
+        provenance = row.get("source_provenance") or row.get("provenance")
+        if not isinstance(provenance, dict):
+            provenance = {
+                "ranking_prompt": dict(ranking_prompt_provenance),
+                "ranking_contract_fingerprint": ranking_contract.get(
+                    "ranking_contract_fingerprint"
+                ),
+            }
+        try:
+            handoff = build_ranking_cv_handoff(
+                row,
+                candidate_profile_revision=profile_revision,
+                ranking_order_version=ranking_order_version,
+                ranking_policy_version=ranking_policy_version,
+                ranking_contract_version=ranking_contract_version,
+                source_provenance=provenance,
+            )
+            handoff["handoff_status"] = "complete"
+            handoff_references[identity] = handoff["handoff_fingerprint"]
+        except (TypeError, ValueError) as exc:
+            handoff = {
+                "schema_version": RANKING_CV_HANDOFF_VERSION,
+                "handoff_status": "incomplete",
+                "canonical_job_identity": identity or None,
+                "missing_fields": [str(exc)],
+                "handoff_fingerprint": None,
+            }
+            handoff_references[identity] = None
+        handoff_items.append(handoff)
+    handoff_status = (
+        "complete"
+        if handoff_items and all(item.get("handoff_status") == "complete" for item in handoff_items)
+        else "incomplete"
+        if handoff_items
+        else "not_available"
     )
     block = stage_block_builder(
         stage_id="ranking",
@@ -636,6 +801,16 @@ def build_ranking_stage_block(
             "ai_score_model": ai_score_model_resolver(config),
             "ranking_policy": ranking_policy,
             "ranking_contract_fingerprint": ranking_contract.get("ranking_contract_fingerprint"),
+            "ranking_order_version": ranking_order_version,
+            "ranking_policy_version": ranking_policy_version,
+            "ranking_score_contract_version": ranking_contract_version,
+            "ranking_decision_envelope_version": ranking_contract.get(
+                "ranking_decision_envelope_version", RANKING_DECISION_ENVELOPE_VERSION
+            ),
+            "ranking_cv_handoff_version": RANKING_CV_HANDOFF_VERSION,
+            "ranking_cv_handoff_status": handoff_status,
+            "score_state_diagnostics_count": len(score_state_diagnostics),
+            "score_state_diagnostics_truncated": False,
             "effective_structured_factor_weights": ranking_contract.get(
                 "effective_structured_factor_weights"
             ),
@@ -666,7 +841,14 @@ def build_ranking_stage_block(
         llm_runtime_observations=llm_runtime_observations,
     )
     block["scorer_input_diagnostics"] = scorer_input_diagnostics
+    block["score_state_diagnostics"] = score_state_diagnostics
     block["admission_manifest"] = dict(ranking_admission_manifest or {})
+    block["ranking_cv_handoff"] = {
+        "schema_version": RANKING_CV_HANDOFF_VERSION,
+        "status": handoff_status,
+        "items": handoff_items,
+        "references": handoff_references,
+    }
     evidence_personalization = (
         block.get("stage_result", {})
         .get("evidence", {})
@@ -849,7 +1031,7 @@ def build_cv_generation_stage_block(
                 record
                 for record in cv_generation_debug_records
                 if str(record.get("status") or "")
-                in {"validation_failed", "generation_failed", "persistence_failed"}
+                in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
             ],
             debug_record_changed_sample_builder,
         ),

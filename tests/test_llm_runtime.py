@@ -657,7 +657,14 @@ def test_default_adapter_preserves_safe_http_400_diagnostics_without_secrets() -
         "code": "invalid_input",
         "param": "input",
         "request_id": "trace-http",
+        "error_body": '{"code":"invalid_input","message":"Invalid request body","param":"input","type":"invalid_request_error"}',
+        "model": "cx/test-model",
+        "endpoint": "https://provider.example/v1/responses",
+        "response_mode": "json_schema",
+        "payload_fingerprint": result.failure.provider_diagnostics["payload_fingerprint"],
     }
+    assert len(result.failure.provider_diagnostics["payload_fingerprint"]) == 64
+    assert "Generate one document" not in json.dumps(result.failure.provider_diagnostics)
 
     evidence = project_llm_runtime_evidence(result)
     assert evidence["failure"]["provider_diagnostics"] == result.failure.provider_diagnostics

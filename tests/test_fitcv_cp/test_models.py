@@ -47,8 +47,8 @@ def test_prototype_pipeline_status_values() -> None:
     ]
     assert [status.value for status in models.ResultBucket] == ["passed", "rejected"]
     assert [status.value for status in models.CvGenerationStatus] == [
-        "pending", "running", "generated", "review_required", "validation_failed", "generation_failed",
-        "persistence_failed", "cancelled",
+        "pending", "running", "generated", "review_required", "pdf_failed", "validation_failed",
+        "generation_failed", "persistence_failed", "cancelled",
     ]
     assert [status.value for status in models.CvEvaluationStatus] == ["pending", "running", "succeeded", "failed"]
     assert [status.value for status in models.CvReviewState] == [

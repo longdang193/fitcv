@@ -15,9 +15,11 @@ tags:
   - ci-safe
 """
 
+import hashlib
 import sys
 import types
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -37,12 +39,15 @@ from fitcv.cv_generator import (
     render_cv_markdown,
     render_cv_native_acceptance,
     render_proof_matches,
+    serialize_mycvs_v1,
+    validate_mycvs_v1_markdown,
     trim_structured_cv_for_page_fit,
     _normalize_structured_cv,
     render_cv_template,
     select_template_variant,
     validate_structured_cv,
 )
+from fitcv.ranking_contract import build_ranking_cv_handoff
 
 
 def test_production_normalization_drops_unsupported_provenance_fields() -> None:
@@ -75,6 +80,7 @@ def test_production_normalization_drops_unsupported_provenance_fields() -> None:
         {
             "name": "SQL Platform",
             "context": "Built data platform",
+            "url": None,
             "bullets": ["Reduced reporting time."],
         }
     ]
@@ -191,6 +197,169 @@ def test_native_render_acceptance_reports_one_page(tmp_path: Path, monkeypatch: 
     assert timeouts == [120, 30, 30]
 
 
+def test_external_mycvs_renderer_writes_markdown_before_pdf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    converter = tmp_path / "converter.py"
+    stylesheet = tmp_path / "cv.css"
+    regular_font = tmp_path / "Inter-Regular.ttf"
+    bold_font = tmp_path / "Inter-Bold.ttf"
+    for path in (converter, stylesheet, regular_font, bold_font):
+        path.write_bytes(path.name.encode("utf-8"))
+
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", lambda tool: f"/fake/{tool}")
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(list(command))
+        if str(converter) in command:
+            markdown_path = Path(command[2])
+            output_path = Path(command[4])
+            assert markdown_path.is_file()
+            assert markdown_path.read_text(encoding="utf-8") == "# Candidate\n"
+            output_path.write_bytes(b"%PDF-1.7 external-render")
+        elif command[0] == "pdfinfo":
+            return types.SimpleNamespace(stdout="Pages: 1\n")
+        return types.SimpleNamespace(stdout="Candidate\n")
+
+    monkeypatch.setattr("fitcv.cv_generator.subprocess.run", fake_run)
+    config = {
+        "cv": {
+            "renderer": {
+                "external": {
+                    "enabled": True,
+                    "converter_path": str(converter),
+                    "stylesheet_path": str(stylesheet),
+                    "font_regular_path": str(regular_font),
+                    "font_bold_path": str(bold_font),
+                }
+            }
+        }
+    }
+
+    result = render_cv_native_acceptance("# Candidate\n", config, output_dir=tmp_path)
+
+    assert result["render_status"] == "pass"
+    assert result["renderer_contract_version"] == "mycvs_external_render_v1"
+    assert result["converter_revision"] == hashlib.sha256(converter.read_bytes()).hexdigest()
+    assert result["stylesheet_revision"] == hashlib.sha256(stylesheet.read_bytes()).hexdigest()
+    assert (tmp_path / "cv.md").read_text(encoding="utf-8") == "# Candidate\n"
+    assert (tmp_path / "cv.pdf").read_bytes().startswith(b"%PDF-")
+    assert commands[0][1] == str(converter)
+    assert commands[0][2].endswith("cv.md")
+    assert commands[0][3] == str(stylesheet)
+    assert commands[0][4].endswith("cv.pdf")
+
+
+def test_external_mycvs_renderer_uses_bundled_assets_when_paths_are_omitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", lambda tool: f"/fake/{tool}")
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(list(command))
+        if command[0] == sys.executable:
+            Path(command[4]).write_bytes(b"%PDF-1.7 bundled-render")
+        elif command[0] == "pdfinfo":
+            return types.SimpleNamespace(stdout="Pages: 1\n")
+        return types.SimpleNamespace(stdout="Candidate\n")
+
+    monkeypatch.setattr("fitcv.cv_generator.subprocess.run", fake_run)
+    result = render_cv_native_acceptance(
+        "# Candidate\n",
+        {"cv": {"renderer": {"external": {"enabled": True}}}},
+        output_dir=tmp_path,
+    )
+
+    assert result["render_status"] == "pass"
+    assert Path(commands[0][1]).name == "build_refined_converter_generic.py"
+    assert Path(commands[0][3]).name == "long-dang-template.css"
+    assert commands[0][5] == "--inter-regular"
+    assert Path(commands[0][6]).name == "Inter-Regular.ttf"
+    assert commands[0][7] == "--inter-bold"
+    assert Path(commands[0][8]).name == "Inter-Bold.ttf"
+
+
+def test_frozen_external_renderer_does_not_relaunch_fitcv_launcher(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commands: list[list[str]] = []
+    python_runtime = r"C:\Python311\python.exe"
+
+    def fake_which(tool: str) -> str:
+        return python_runtime if tool == "python" else f"/fake/{tool}"
+
+    def fake_run(command, **kwargs):
+        commands.append(list(command))
+        if command[0] == python_runtime:
+            Path(command[4]).write_bytes(b"%PDF-1.7 frozen-render")
+        elif command[0] == "pdfinfo":
+            return types.SimpleNamespace(stdout="Pages: 1\n")
+        return types.SimpleNamespace(stdout="Candidate\n")
+
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", fake_which)
+    monkeypatch.setattr("fitcv.cv_generator.subprocess.run", fake_run)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    result = render_cv_native_acceptance(
+        "# Candidate\n",
+        {"cv": {"renderer": {"external": {"enabled": True}}}},
+        output_dir=tmp_path,
+    )
+
+    assert result["render_status"] == "pass"
+    assert commands[0][0] == python_runtime
+    assert Path(commands[0][1]).name == "build_refined_converter_generic.py"
+
+
+def test_frozen_external_renderer_uses_python_for_explicit_converter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    converter = tmp_path / "pinned-converter.py"
+    stylesheet = tmp_path / "cv.css"
+    converter.write_text("# converter\n", encoding="utf-8")
+    stylesheet.write_text("/* stylesheet */\n", encoding="utf-8")
+    python_runtime = r"C:\Python311\python.exe"
+    commands: list[list[str]] = []
+
+    def fake_which(tool: str) -> str:
+        return f"/fake/{tool}"
+
+    def fake_run(command, **kwargs):
+        commands.append(list(command))
+        if command[0] == python_runtime:
+            Path(command[4]).write_bytes(b"%PDF-1.7 explicit-render")
+        elif command[0] == "pdfinfo":
+            return types.SimpleNamespace(stdout="Pages: 1\n")
+        return types.SimpleNamespace(stdout="Candidate\n")
+
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", fake_which)
+    monkeypatch.setattr("fitcv.cv_generator.subprocess.run", fake_run)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    result = render_cv_native_acceptance(
+        "# Candidate\n",
+        {
+            "cv": {
+                "renderer": {
+                    "external": {
+                        "enabled": True,
+                        "converter_path": str(converter),
+                        "stylesheet_path": str(stylesheet),
+                        "python_path": python_runtime,
+                    }
+                }
+            }
+        },
+        output_dir=tmp_path,
+    )
+
+    assert result["render_status"] == "pass"
+    assert commands[0][0] == python_runtime
+    assert commands[0][1] == str(converter)
+
+
 def test_project_authorized_profile_keeps_identity_and_selected_records() -> None:
     profile = {
         "name": "Jane Doe",
@@ -229,6 +398,22 @@ def test_build_structured_generation_prompt_includes_allow_lists() -> None:
     assert "sql" in prompt.lower()
     assert "power bi" in prompt.lower()
     assert "observability" not in prompt.lower()
+
+
+def test_structured_prompt_allows_baseline_profile_when_no_job_claims_are_approved() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["Python"]},
+        evidence=[{"evidence_id": "ev-exp", "evidence_type": "experience_entry", "text": "Built pipelines"}],
+        gap={"matched": [], "missing": ["Python"]},
+        template="",
+        profile={"experiences": [{"company": "ACME"}], "skills": [{"name": "SQL"}]},
+        config={},
+        content_plan={"approved_claims": [], "approved_evidence_ids": []},
+    )
+
+    assert "No verified job-specific claims were approved" in prompt
+    assert "do not leave sections empty solely because approved_claims is empty" in prompt
+    assert "Use only approved claims and evidence ids" not in prompt
 
 def test_build_generation_prompt_contains_evidence() -> None:
     prompt = build_generation_prompt(
@@ -768,6 +953,29 @@ def test_live_schema_config_properties_match_required_sections_for_strict_json_s
         assert ("publications" in sections_schema["properties"]) is publications_enabled
 
 
+def test_live_schema_contact_properties_are_all_required_for_strict_provider_schema() -> None:
+    contact_schema = build_live_structured_cv_response_schema()["properties"]["sections"]["properties"]["header"]["properties"]["contact"]
+
+    assert set(contact_schema["properties"]) == set(contact_schema["required"])
+
+
+def test_live_schema_all_closed_objects_require_every_declared_property() -> None:
+    schema = build_live_structured_cv_response_schema()
+
+    def assert_closed_objects_are_strict(node: object) -> None:
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if node.get("additionalProperties") is False and isinstance(properties, dict):
+                assert set(properties) == set(node.get("required") or [])
+            for value in node.values():
+                assert_closed_objects_are_strict(value)
+        elif isinstance(node, list):
+            for value in node:
+                assert_closed_objects_are_strict(value)
+
+    assert_closed_objects_are_strict(schema)
+
+
 def test_validate_structured_cv_rejects_malformed_skills_groups() -> None:
     doc = build_empty_structured_cv(
         jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
@@ -1266,6 +1474,20 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
     monkeypatch.setenv("FITCV_LLM_API_KEY", "test-key")
 
+    ranking_cv_handoff = build_ranking_cv_handoff(
+        {
+            "raw_job_fingerprint": "job-1",
+            "job_qualifiers": {"title": "Data Engineer"},
+            "baseline_rank": 1,
+            "baseline_fit": 0.9,
+            "score_status": "valid",
+            "source_provenance": {"stage": "ranking"},
+            "ranking_order_version": "order-v1",
+            "ranking_policy_version": "policy-v1",
+        },
+        candidate_profile_revision="profile-v1",
+    )
+
     result = generate_cv(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
         evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
@@ -1276,6 +1498,7 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
             "location": "us-central1",
             "cv": {
                 "generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"},
+                "renderer": {"strategy": "mycvs_v1"},
                 "preset": "europass",
                 "composition": {"summary": {"enabled": True}},
                 "content_rules": {"evidence_grounded_only": True},
@@ -1284,9 +1507,12 @@ def test_generate_cv_parses_chat_completions_json_with_trailing_sse_done(
             "_template_path": str(template_path),
         },
         fit_classification="strong",
+        ranking_cv_handoff=ranking_cv_handoff,
     )
 
     assert result["structured_cv"]["sections"]["header"]["name"] == "Jane Doe"
+    assert result["structured_cv"]["ranking_cv_handoff"] == ranking_cv_handoff
+    assert "handoff=" + ranking_cv_handoff["handoff_fingerprint"] in result["markdown"]
     assert "Grounded summary." in result["markdown"]
 
 
@@ -1802,6 +2028,141 @@ def test_render_proof_matches_native_acceptance_with_full_render_config() -> Non
     acceptance = render_cv_native_acceptance(document, config)
 
     assert render_proof_matches(document, config, acceptance)
+
+
+def test_mycvs_v1_serializer_is_deterministic_and_validates_checksum() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={
+            "name": "Test Candidate",
+            "contact": {
+                "email": "candidate@example.test",
+                "phone": "+49 123",
+                "linkedin": "https://www.linkedin.com/in/candidate",
+                "github": "https://github.com/candidate",
+                "location": "Germany",
+            },
+        },
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    document.update(
+        {
+            "job_id": "job-1",
+            "profile_revision": "profile-2",
+            "score_status": "valid",
+            "confirmed_gaps": ["dbt"],
+            "unknowns": ["salary range"],
+            "handoff": {"handoff_fingerprint": "handoff-1"},
+            "sources": [{"source_id": "ev-1", "url": "https://example.com/evidence/1"}],
+        }
+    )
+    document["sections"]["summary"] = {"text": "Grounded summary."}
+    document["sections"]["experience"] = [
+        {
+            "role": "Data Analyst",
+            "company": "Acme",
+            "start": "2022",
+            "end": "2025",
+            "bullets": ["Built reporting."],
+            "evidence_ids": ["ev-1"],
+        }
+    ]
+    document["sections"]["projects"] = [
+        {"name": "Project", "url": "https://github.com/candidate/project", "bullets": ["Built it."]}
+    ]
+    document["sections"]["certifications"] = [
+        {"name": "Certificate", "issuer": "Issuer", "year": "2026", "url": "https://example.test/certificate"}
+    ]
+    rendered = serialize_mycvs_v1(document)
+    assert rendered == serialize_mycvs_v1(document)
+    assert "\r" not in rendered
+    assert rendered.endswith("\n")
+    assert 'data-icon="tabler:mail"' in rendered
+    assert 'data-icon="tabler:brand-github"' in rendered
+    assert 'data-icon="ic:outline-location-on"' in rendered
+    assert rendered.index("# Test Candidate") < rendered.index("## Summary") < rendered.index("## Education")
+    assert rendered.index("## Education") < rendered.index("## Experience") < rendered.index("## Projects")
+    assert rendered.index("## Projects") < rendered.index("## Certificates") < rendered.index("## Skills")
+    assert "mycvs_v1_audit:" in rendered
+    assert "content_sha256=" in rendered
+    assert validate_mycvs_v1_markdown(rendered)["handoff"] == "handoff-1"
+
+
+def test_mycvs_v1_marks_review_required_artifacts_without_breaking_contract() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="stretch",
+    )
+    document.update(
+        {
+            "job_id": "job-1",
+            "profile_revision": "profile-2",
+            "score_status": "review_required",
+            "handoff": {"handoff_fingerprint": "handoff-1"},
+            "sources": [{"source_id": "ev-1", "url": "https://example.com/evidence/1"}],
+            "artifact_review": {
+                "required": True,
+                "reason": "Missing evidence requires human follow-up.",
+                "reason_code": "post_validation_failed",
+            },
+        }
+    )
+    document["sections"]["summary"] = {"text": "Grounded summary."}
+    document["sections"]["experience"] = [
+        {
+            "role": "Data Analyst",
+            "company": "Acme",
+            "bullets": ["Built reporting."],
+            "evidence_ids": ["ev-1"],
+        }
+    ]
+
+    rendered = serialize_mycvs_v1(document)
+
+    assert "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**" in rendered
+    assert "> Missing evidence requires human follow-up." in rendered
+    assert validate_mycvs_v1_markdown(rendered)["content_sha256"]
+
+
+def test_europass_marks_review_required_artifacts() -> None:
+    config = {"cv": {"preset": "europass", "composition": {}}}
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config=config,
+        fit_classification="stretch",
+    )
+    document["artifact_review"] = {
+        "required": True,
+        "reason": "Missing evidence requires human follow-up.",
+    }
+
+    rendered = render_cv_markdown(document, config)
+
+    assert "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**" in rendered
+    assert "> Missing evidence requires human follow-up." in rendered
+
+
+def test_mycvs_v1_rejects_checksum_and_grounding_failures() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    document.update({"job_id": "job-1", "handoff_fingerprint": "handoff-1", "sources": ["ev-1"]})
+    document["sections"]["experience"] = [{"role": "Analyst", "company": "Acme", "bullets": ["Claim"]}]
+    with pytest.raises(ValueError, match="lacks source evidence"):
+        serialize_mycvs_v1(document)
+
+    valid_document = deepcopy(document)
+    valid_document["sections"]["experience"][0]["evidence_ids"] = ["ev-1"]
+    rendered = serialize_mycvs_v1(valid_document)
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        validate_mycvs_v1_markdown(rendered.replace("Claim", "Changed", 1))
 
 
 def test_page_fit_trim_preserves_unique_project_and_required_language_evidence() -> None:

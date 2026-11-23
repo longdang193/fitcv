@@ -1,10 +1,15 @@
 You are an expert recruiter extracting structured information from job descriptions.
 
-The following metadata was already scraped directly from LinkedIn and is available:
+The following metadata was already scraped directly from the job source and is available:
 ${metadata_block}
 
 Your task is to extract ONLY the fields listed in the JSON schema below from the job
-description text. Do not repeat or infer fields already present in the scraped metadata.
+description text. The job description remains the primary source. Optional sourceSkills
+metadata may support recognition of concrete technical concepts that are absent from
+the prose, but sourceSkills alone are not proof of a mandatory requirement. Do not
+create mandatory_clauses, qualifications, education, certifications, employment
+constraints, or required_skills solely from sourceSkills; mandatory facts still need
+explicit description evidence and exact source_text quotes.
 
 FIELD DEFINITIONS:
 - job_family: the ROLE CATEGORY (what you do), e.g. data_engineering, analytics, data_science, ml_engineering

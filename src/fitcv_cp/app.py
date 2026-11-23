@@ -827,6 +827,7 @@ DECISION_CHAIN_LABELS: dict[str, str] = {
     "ready_for_generation": "ready for CV generation",
     "validation_failed": "validation failed",
     "generation_failed": "generation failed",
+    "pdf_failed": "PDF generation failed",
     "persistence_failed": "persistence failed",
     "blocked_by_reranker_fit": "blocked by reranker fit",
     "skipped_fit_gate": "skipped after CV analysis",
@@ -2326,7 +2327,7 @@ def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
             "blocking_reasons_sample": [],
         }
     records = [item for item in list(payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
-    attempted_statuses = {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_statuses = {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}
     attempted_records = [record for record in records if str(record.get("status") or "").strip() in attempted_statuses]
     review_required_records = [
         record for record in attempted_records
@@ -4223,9 +4224,9 @@ def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
             final_status = "accepted"
         elif pipeline_status in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
             final_status = "blocked_by_reranker_fit"
-        elif cv_status in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+        elif cv_status in {"review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}:
             final_status = cv_status
-        elif stage_owned_subreason in {"review_required", "validation_failed", "generation_failed", "persistence_failed"}:
+        elif stage_owned_subreason in {"review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}:
             final_status = stage_owned_subreason
         elif pipeline_status == "ranked_no_cv":
             final_status = "ranked_no_cv"
@@ -9238,6 +9239,12 @@ def create_app(
         entry = schema_by_key.get(key, {})
         if entry.get("type") == "list[str]":
             return form.getlist(key)
+        if key in {
+            "pipeline.shortlist_strategy",
+            "pipeline.shortlist_policy",
+            "pipeline.shortlist_shadow_enabled",
+        } and key not in form:
+            return entry.get("default")
         return form.get(key, "")
 
     def _run_max_runtime_minutes() -> int:
@@ -12890,6 +12897,31 @@ def create_app(
             "-",
             str(download.get("filename") or f"{cv_version_id}.md"),
         )
+        return Response(
+            content=bytes(download["content"]),
+            media_type=str(download["media_type"]),
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(download["content_length"]),
+                "ETag": f'"{download["content_checksum"]}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.get("/cv-versions/{cv_version_id}/pdf")
+    def download_canonical_cv_pdf(cv_version_id: str) -> Response:
+        try:
+            download = _resolve_run_store().get_cv_pdf_download(cv_version_id)
+        except ValueError as exc:
+            raise ApiError(
+                409,
+                "pdf_artifact_not_available",
+                "PDF artifact failed integrity verification.",
+                action="Regenerate CV or inspect Console.",
+            ) from exc
+        if download is None:
+            raise ApiError(404, "pdf_not_found", "PDF artifact not found.", action="Regenerate CV.")
+        filename = re.sub(r"[^A-Za-z0-9._-]+", "-", str(download.get("filename") or f"{cv_version_id}.pdf"))
         return Response(
             content=bytes(download["content"]),
             media_type=str(download["media_type"]),

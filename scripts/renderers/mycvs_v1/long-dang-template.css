@@ -1,0 +1,174 @@
+/* LONG DANG - CV Template */
+
+#vue-smart-pages-preview {
+  background: #ffffff;
+  color: #111827;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 13.2px;
+  line-height: 1.35;
+  text-align: left;
+  hyphens: auto;
+}
+
+.dark #vue-smart-pages-preview {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+#vue-smart-pages-preview p,
+#vue-smart-pages-preview li,
+#vue-smart-pages-preview dl {
+  margin: 0;
+}
+
+#vue-smart-pages-preview a {
+  color: #3f7fb8;
+  text-decoration: none;
+}
+
+#vue-smart-pages-preview a:hover {
+  color: #2f6fa8;
+  text-decoration: underline;
+}
+
+#vue-smart-pages-preview h1,
+#vue-smart-pages-preview h2,
+#vue-smart-pages-preview h3 {
+  font-weight: 700;
+}
+
+#vue-smart-pages-preview h1 {
+  color: #79a9d1;
+  text-align: center;
+  font-size: 2.15em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.35em 0;
+  padding-bottom: 0.18em;
+  border-bottom: 2px solid #79a9d1;
+}
+
+#vue-smart-pages-preview h2 {
+  color: #79a9d1 !important;
+  font-size: 1.45em;
+  font-weight: 700;
+  margin: 1em 0 0.28em 0;
+  padding-bottom: 0.08em;
+  border-bottom: 1.5px solid #79a9d1;
+}
+
+#vue-smart-pages-preview h3 {
+  color: #111827;
+  font-size: 1.05em;
+  margin: 0.7em 0 0.15em 0;
+}
+
+#vue-smart-pages-preview ul,
+#vue-smart-pages-preview ol {
+  padding-left: 1.25em;
+  margin: 0.2em 0 0.7em 0;
+}
+
+#vue-smart-pages-preview ul {
+  list-style-type: disc;
+}
+
+#vue-smart-pages-preview li {
+  margin-bottom: 0.18em;
+}
+
+#vue-smart-pages-preview dl {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0.08em 0;
+}
+
+#vue-smart-pages-preview dl dt,
+#vue-smart-pages-preview dl dd:not(:last-child) {
+  flex: 1;
+}
+
+#vue-smart-pages-preview strong {
+  font-weight: 700;
+}
+
+#vue-smart-pages-preview em {
+  font-style: italic;
+}
+
+#vue-smart-pages-preview svg.iconify {
+  vertical-align: -0.15em;
+}
+
+#vue-smart-pages-preview .resume-header {
+  text-align: center;
+}
+
+#vue-smart-pages-preview .resume-header h1 {
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+#vue-smart-pages-preview .resume-header-item {
+  white-space: nowrap;
+}
+
+#vue-smart-pages-preview .resume-header-item:not(.no-separator)::after {
+  content: " | ";
+  color: #9ca3af;
+}
+
+#vue-smart-pages-preview .resume-header-item.no-separator::after {
+  content: "";
+}
+
+#vue-smart-pages-preview .resume-header,
+#vue-smart-pages-preview .cover-contact {
+  font-size: 0.96em;
+}
+
+#vue-smart-pages-preview .cover-contact {
+  text-align: center;
+  margin-top: 0.15em;
+}
+
+#vue-smart-pages-preview h2 + p,
+#vue-smart-pages-preview h2 + dl,
+#vue-smart-pages-preview h2 + ul,
+#vue-smart-pages-preview h2 + ol {
+  margin-top: 0.15em;
+}
+
+#vue-smart-pages-preview dl + p,
+#vue-smart-pages-preview dl + ul {
+  margin-top: 0.08em;
+}
+
+#vue-smart-pages-preview ul.crossref-list {
+  padding-left: 1.2em;
+}
+
+#vue-smart-pages-preview li.crossref-item p {
+  margin-left: 0.45em;
+}
+
+#vue-smart-pages-preview li.crossref-item::marker {
+  content: attr(data-caption);
+}
+
+#vue-smart-pages-preview sup.crossref-ref {
+  font-size: 100%;
+  top: 0;
+}
+
+@media print {
+  #vue-smart-pages-preview {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  #vue-smart-pages-preview a {
+    color: #3f7fb8 !important;
+  }
+}

@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from collections import OrderedDict
 from contextlib import nullcontext
 import json
+import hashlib
 import os
 import threading
 import time
@@ -48,7 +49,18 @@ _REQUEST_START_LOCK = threading.Lock()
 _NEXT_REQUEST_START_BY_PROVIDER: dict[str, float] = {}
 _REQUEST_START_MONOTONIC = time.monotonic
 _REQUEST_START_SLEEP = time.sleep
-_PROVIDER_DIAGNOSTIC_KEYS = ("message", "type", "code", "param", "request_id")
+_PROVIDER_DIAGNOSTIC_KEYS = (
+    "message",
+    "type",
+    "code",
+    "param",
+    "request_id",
+    "error_body",
+    "model",
+    "endpoint",
+    "response_mode",
+    "payload_fingerprint",
+)
 _PROVIDER_DIAGNOSTIC_MAX_STRING_LENGTH = 500
 _PROVIDER_REQUEST_ID_HEADERS = ("x-request-id", "request-id", "x-correlation-id", "correlation-id")
 _PROVIDER_SENSITIVE_VALUE_MARKERS = (
@@ -320,6 +332,7 @@ def _provider_http_diagnostics(
     *,
     status: int,
     api_key: str,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, str | int]:
     try:
         body = decode_openai_compat_response_body(response)
@@ -339,6 +352,18 @@ def _provider_http_diagnostics(
             raw[key] = error_fields[key]
         elif isinstance(body, dict) and key in body:
             raw[key] = body[key]
+    safe_error_fields = {
+        key: raw[key]
+        for key in ("message", "type", "code", "param")
+        if key in raw
+    }
+    if safe_error_fields:
+        raw["error_body"] = json.dumps(
+            safe_error_fields,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
     headers = getattr(response, "headers", {}) or {}
     for header_name, header_value in getattr(headers, "items", lambda: ())():
         if str(header_name).lower() in _PROVIDER_REQUEST_ID_HEADERS:
@@ -349,7 +374,14 @@ def _provider_http_diagnostics(
             if isinstance(source, dict) and "request_id" in source:
                 raw["request_id"] = source["request_id"]
                 break
+    if isinstance(metadata, dict):
+        raw.update(metadata)
     return _sanitize_provider_diagnostics(raw, api_key=api_key)
+
+
+def _payload_fingerprint(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 def _wait_for_provider_request_start(route: LlmRouting) -> None:
     interval = route.request_start_interval_secs
@@ -657,6 +689,8 @@ def _openai_compatible_adapter(
         headers["Authorization"] = f"Bearer {api_key}"
     attempts = 0
     client: Any | None = None
+    request_endpoint = ""
+    request_payload: dict[str, Any] | None = None
     try:
         client = transport_pool.get(route, api_key) if transport_pool is not None else httpx.Client(timeout=route.timeout_seconds)
         with nullcontext(client) if transport_pool is not None else client:
@@ -670,8 +704,10 @@ def _openai_compatible_adapter(
                 response_format = _response_format(request, responses_api=True)
                 if response_format is not None:
                     payload["text"] = {"format": response_format}
+                request_endpoint = f"{route.base_url.rstrip('/')}/responses"
+                request_payload = payload
                 response = client.post(
-                    f"{route.base_url.rstrip('/')}/responses",
+                    request_endpoint,
                     headers=headers,
                     json=payload,
                 )
@@ -681,10 +717,12 @@ def _openai_compatible_adapter(
                     if exc.response.status_code != 404:
                         raise
                     attempts += 1
+                    request_endpoint = f"{route.base_url.rstrip('/')}/chat/completions"
+                    request_payload = _chat_payload(request, route)
                     response = client.post(
-                        f"{route.base_url.rstrip('/')}/chat/completions",
+                        request_endpoint,
                         headers=headers,
-                        json=_chat_payload(request, route),
+                        json=request_payload,
                     )
                     response.raise_for_status()
                     body = decode_openai_compat_response_body(response)
@@ -694,10 +732,12 @@ def _openai_compatible_adapter(
                     raw_text = extract_openai_responses_text(body)
             else:
                 attempts += 1
+                request_endpoint = f"{route.base_url.rstrip('/')}/chat/completions"
+                request_payload = _chat_payload(request, route)
                 response = client.post(
-                    f"{route.base_url.rstrip('/')}/chat/completions",
+                    request_endpoint,
                     headers=headers,
-                    json=_chat_payload(request, route),
+                    json=request_payload,
                 )
                 response.raise_for_status()
                 body = decode_openai_compat_response_body(response)
@@ -725,6 +765,12 @@ def _openai_compatible_adapter(
                 exc.response,
                 status=status,
                 api_key=api_key,
+                metadata={
+                    "model": route.model,
+                    "endpoint": request_endpoint,
+                    "response_mode": str(request.response_mode),
+                    "payload_fingerprint": _payload_fingerprint(request_payload or {}),
+                },
             ),
         ) from exc
     except httpx.TransportError as exc:

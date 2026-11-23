@@ -6906,15 +6906,23 @@ def test_list_run_structured_jobs_is_not_truncated_at_fifty() -> None:
     assert len(sqlite_store.list_run_structured_jobs("run-many")) == 55
 
 def test_list_run_structured_jobs_projects_canonical_bookmark_state() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
     run_job_id = _create_normalized_run_with_jobs(
         "run-structured-bookmark", [{"title": "Bookmarked Job"}]
     )[0]
+    load_run_structured_jobs(
+        [{"run_job_id": run_job_id, "job_url": "https://example.com/job", "location": "Berlin"}],
+        "run-structured-bookmark",
+        {},
+    )
     sqlite_store.set_bookmark(run_job_id)
 
     rows = sqlite_store.list_run_structured_jobs("run-structured-bookmark")
 
     assert rows[0]["run_job_id"] == run_job_id
     assert rows[0]["bookmarked"] is True
+    assert rows[0]["location"] == "Berlin"
 
 
 def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
@@ -6975,6 +6983,117 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
         conn.commit()
     with pytest.raises(ValueError, match="artifact_integrity_mismatch"):
         sqlite_store.get_cv_download("cv-1")
+
+
+
+def test_cv_version_persists_review_state_as_review_event() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-review-state", [{"title": "CV Job"}])[0]
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-review-state-1",
+            "run_job_id": run_job_id,
+            "generation_status": "review_required",
+            "review_state": "manual_required",
+            "content_blob": b"# Review required\n",
+            "pdf_status": "generated",
+            "submission_clearance": "blocked",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["generation_status"] == "review_required"
+    assert version["review_state"] == "manual_required"
+    assert version["submission_clearance"] == "blocked"
+
+
+def test_cv_pdf_artifact_is_persisted_and_integrity_checked() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-pdf", [{"title": "CV Job"}])[0]
+    markdown = b"# Generated CV\n"
+    pdf = b"%PDF-1.7\n\xffpersisted\x00\n"
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-pdf-1",
+            "run_job_id": run_job_id,
+            "ordinal": 1,
+            "generation_status": "generated",
+            "filename": "cv.md",
+            "media_type": "text/markdown; charset=utf-8",
+            "content_blob": markdown,
+            "pdf_filename": "cv-pdf-1.pdf",
+            "pdf_media_type": "application/pdf",
+            "pdf_content_blob": pdf,
+            "pdf_content_length": len(pdf),
+            "pdf_content_checksum": hashlib.sha256(pdf).hexdigest(),
+        }
+    )
+
+    download = sqlite_store.get_cv_pdf_download("cv-pdf-1")
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert download is not None
+    assert download["content"] == pdf
+    assert download["media_type"] == "application/pdf"
+    assert download["filename"] == "cv-pdf-1.pdf"
+    assert "pdf_content_blob" not in version
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        conn.execute("UPDATE cv_versions SET pdf_content_blob=? WHERE version_id='cv-pdf-1'", (b"tampered",))
+        conn.commit()
+    with pytest.raises(ValueError, match="pdf_artifact_integrity_mismatch"):
+        sqlite_store.get_cv_pdf_download("cv-pdf-1")
+
+def test_cv_lifecycle_persists_pdf_failure_without_losing_markdown() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-lifecycle", [{"title": "CV Job"}])[0]
+    content = b"# Generated CV\n"
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-lifecycle-1",
+            "run_job_id": run_job_id,
+            "generation_status": "generated",
+            "content_blob": content,
+            "pdf_status": "failed",
+            "pdf_error_code": "render_proof_incomplete",
+            "pdf_error_message": "missing proof",
+            "submission_clearance": "blocked",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["generation_status"] == "generated"
+    assert version["pdf_status"] == "failed"
+    assert version["pdf_error_code"] == "render_proof_incomplete"
+    assert version["submission_clearance"] == "blocked"
+    assert sqlite_store.get_cv_download("cv-lifecycle-1")["content"] == content
+
+
+def test_cv_review_approval_can_clear_submission_after_pdf_acceptance() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-clearance", [{"title": "CV Job"}])[0]
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-clearance-1",
+            "run_job_id": run_job_id,
+            "generation_status": "generated",
+            "content_blob": b"# Generated CV\n",
+            "pdf_status": "generated",
+        }
+    )
+    sqlite_store.insert_cv_review_event(
+        {
+            "review_event_id": "review-clearance-1",
+            "cv_version_id": "cv-clearance-1",
+            "from_state": "manual_required",
+            "to_state": "approved",
+            "actor": "operator",
+            "created_at": "2026-07-20T10:01:00+00:00",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["review_state"] == "approved"
+    assert version["submission_clearance"] == "eligible"
 
 
 def test_cv_version_requires_unique_run_job_binding_when_pipeline_omits_id() -> None:

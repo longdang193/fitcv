@@ -57,6 +57,126 @@ def test_provider_retry_does_not_count_as_local_repair() -> None:
     assert savings["local_repair_succeeded"] is False
 
 
+def test_quality_review_flags_run_an_explicit_adjustment_and_revalidate() -> None:
+    initial_validation = {
+        "valid": True,
+        "missing_sections": [],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": ["Experience section appears shallow."],
+    }
+    adjusted_validation = {**initial_validation, "markdown_quality_review_flags": []}
+    adjust_executor = Mock(return_value=(
+        {"sections": {"experience": [{"bullets": ["Built pipelines.", "Improved reliability."]}]}},
+        "# CV\n## Experience\n- Built pipelines.\n- Improved reliability.",
+        adjusted_validation,
+        {"provider": "adjust"},
+    ))
+
+    result_cv, result_markdown, result_validation, repair_attempt, provenance = _run_repair_cycle(
+        structured_cv={"sections": {"experience": [{"bullets": ["Built pipelines."]}]}},
+        markdown="# CV\n## Experience\n- Built pipelines.",
+        validation=initial_validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=Mock(),
+        runtime_provenance=None,
+        adjust_executor=adjust_executor,
+    )
+
+    assert result_cv["sections"]["experience"][0]["bullets"][-1] == "Improved reliability."
+    assert "Improved reliability." in result_markdown
+    assert result_validation["valid"] is True
+    assert repair_attempt["reason"] == "adjust_quality"
+    assert repair_attempt["adjustment_attempted"] is True
+    assert repair_attempt["adjustment_succeeded"] is True
+    assert provenance == {"provider": "adjust"}
+    adjust_executor.assert_called_once_with()
+
+def test_adjustment_failure_retains_valid_create_output() -> None:
+    validation = {
+        "valid": True,
+        "missing_sections": [],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": ["Experience section appears shallow."],
+    }
+    structured_cv = {"sections": {"experience": [{"bullets": ["Built pipelines."]}]}}
+    adjust_executor = Mock(side_effect=RuntimeError("adjustment provider unavailable"))
+
+    result_cv, result_markdown, result_validation, repair_attempt, provenance = _run_repair_cycle(
+        structured_cv=structured_cv,
+        markdown="# CV\n## Experience\n- Built pipelines.",
+        validation=validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=Mock(),
+        runtime_provenance={"provider": "create"},
+        adjust_executor=adjust_executor,
+    )
+
+    assert result_cv == structured_cv
+    assert result_markdown == "# CV\n## Experience\n- Built pipelines."
+    assert result_validation == validation
+    assert repair_attempt["adjustment_attempted"] is True
+    assert repair_attempt["adjustment_succeeded"] is False
+    assert repair_attempt["adjustment_failed"] is True
+    assert repair_attempt["adjustment_error"] == "adjustment provider unavailable"
+    assert provenance == {"provider": "create"}
+    adjust_executor.assert_called_once_with()
+
+
+def test_invalid_adjustment_retains_valid_create_output() -> None:
+    validation = {
+        "valid": True,
+        "missing_sections": [],
+        "missing_required_fields": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": ["Experience section appears shallow."],
+    }
+    adjusted_validation = {**validation, "valid": False, "grounding_violations": ["unsupported claim"]}
+    structured_cv = {"sections": {"experience": [{"bullets": ["Built pipelines."]}]}}
+    adjust_executor = Mock(return_value=(
+        {"sections": {"experience": [{"bullets": ["Unsupported claim."]}]}},
+        "# CV\n## Experience\n- Unsupported claim.",
+        adjusted_validation,
+        {"provider": "adjust"},
+    ))
+
+    result_cv, result_markdown, result_validation, repair_attempt, provenance = _run_repair_cycle(
+        structured_cv=structured_cv,
+        markdown="# CV\n## Experience\n- Built pipelines.",
+        validation=validation,
+        profile={},
+        config={},
+        analysis_grounding={},
+        retry_executor=Mock(),
+        runtime_provenance={"provider": "create"},
+        adjust_executor=adjust_executor,
+    )
+
+    assert result_cv == structured_cv
+    assert result_markdown == "# CV\n## Experience\n- Built pipelines."
+    assert result_validation == validation
+    assert repair_attempt["adjustment_attempted"] is True
+    assert repair_attempt["adjustment_succeeded"] is False
+    assert repair_attempt["adjustment_failed"] is True
+    assert repair_attempt["adjustment_error"] == "adjusted draft failed hard validation"
+    assert provenance == {"provider": "create"}
+    adjust_executor.assert_called_once_with()
+
+
 def test_uncertain_validation_stops_for_review_without_retry() -> None:
     retry_executor = Mock()
     validation = {

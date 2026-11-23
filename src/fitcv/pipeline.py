@@ -49,6 +49,7 @@ import logging
 import hashlib
 import json
 import os
+import tempfile
 import time
 import uuid
 import datetime
@@ -70,6 +71,7 @@ from fitcv.agentic_cv_generation import (
     transition_cv_generation_persistence_failed,
 )
 from fitcv.cv_generator import final_artifact_acceptance_passes
+from fitcv_cp.run_artifact_contracts import render_proof_is_verified
 from fitcv.candidate import (
     converge_candidate_profile_for_runtime,
     flatten_rankable_skills,
@@ -78,6 +80,7 @@ from fitcv.candidate import (
     load_candidate_profile,
     load_profile_json_text,
     load_profile_yaml,
+    runtime_profile_value,
 )
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
@@ -170,6 +173,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ATTEMPTED_STATUSES,
     CV_GENERATION_FINAL_STATUSES,
+    CV_GENERATION_PDF_FAILED_STATUS,
     CV_GENERATION_REVIEW_REQUIRED_STATUS,
     cv_generation_status_for_analysis_status as _cv_generation_status_for_analysis_status,
     deterministic_truth_fields as _deterministic_truth_fields,
@@ -177,10 +181,12 @@ from fitcv.late_stage_contract import (
     validation_status_for_cv_status as _validation_status_for_cv_status,
 )
 from fitcv.ranking_contract import (
+    AI_ONLY_RANKING_ORDER_VERSION,
     SCORE_STATUS_INVALID,
     SCORE_STATUS_UNSCORED,
     SCORE_STATUS_VALID,
     build_baseline_result,
+    build_ranking_cv_handoff,
     fit_label_from_score,
     normalize_score_state,
     project_legacy_ranking_aliases,
@@ -220,6 +226,9 @@ from fitcv.pipeline_observability import build_bounded_event_payload as _build_b
 from fitcv.pipeline_observability import render_cv_analysis_item_output as _render_cv_analysis_item_output_observability
 from fitcv.pipeline_observability import render_cv_generation_item_output as _render_cv_generation_item_output_observability
 from fitcv.pipeline_stage_artifacts import build_stage_block as _build_stage_block_artifacts
+from fitcv.pipeline_stage_artifacts import (
+    build_ranking_score_state_diagnostics as _build_ranking_score_state_diagnostics,
+)
 from fitcv.pipeline_stage_artifacts import build_stage_block_not_reached as _build_stage_block_not_reached_artifacts
 from fitcv.pipeline_stage_artifacts import build_normalize_stage_block as _build_normalize_stage_block_artifacts
 from fitcv.pipeline_stage_artifacts import build_enrich_stage_block as _build_enrich_stage_block_artifacts
@@ -1667,7 +1676,15 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
         "schema_version": int(getattr(PipelineState, "CHECKPOINT_SCHEMA_VERSION", 1)),
     }
     for key in keys:
-        if key == "candidate_query_debug":
+        if key in {
+            "candidate_query_debug",
+            "shortlist_diagnostics",
+            "shortlist_admission_manifest",
+            "resolved_preference_policy",
+            "ranking_input_diagnostics_by_identity",
+            "ranking_admission_manifest",
+            "ranking_cv_handoffs_by_identity",
+        }:
             payload[key] = json_safe_value(state.get(key) or {})
             continue
         if key == "completed_stage":
@@ -1991,19 +2008,10 @@ def create_run_id() -> str:
     return str(uuid.uuid4())
 
 
-_CV_REVIEW_BLOCKING_VALIDATION_FIELDS = (
-    "missing_sections",
-    "grounding_violations",
-    "deterministic_grounding_violations",
-    "semantic_grounding_violations",
-    "skill_violations",
-    "markdown_quality_blocking_issues",
-)
-
-
 def _is_persistable_cv_generation_result(
     generation_result: dict[str, Any],
     config: dict[str, Any] | None = None,
+    pdf_content: bytes | None = None,
 ) -> bool:
     status = str(generation_result.get("status") or "").strip()
     if status == "accepted":
@@ -2017,16 +2025,23 @@ def _is_persistable_cv_generation_result(
             page_fit_status=generation_result.get("page_fit_status"),
             render_acceptance=generation_result.get("render_acceptance"),
         )
-    if status != CV_GENERATION_REVIEW_REQUIRED_STATUS:
+    if status not in {CV_GENERATION_REVIEW_REQUIRED_STATUS, CV_GENERATION_PDF_FAILED_STATUS}:
         return False
     if not isinstance(generation_result.get("structured_cv_final"), dict):
         return False
     if not str(generation_result.get("markdown_final") or "").strip():
         return False
-    validation = generation_result.get("validation") or generation_result.get("validation_initial")
-    if not isinstance(validation, dict) or validation.get("valid") is not True:
+    if status == CV_GENERATION_PDF_FAILED_STATUS:
+        # Preserve grounded Markdown even when PDF conversion fails; the technical failure stays distinct.
+        return True
+    if pdf_content is None or not bytes(pdf_content).startswith(b"%PDF-"):
         return False
-    return not any(list(validation.get(field) or []) for field in _CV_REVIEW_BLOCKING_VALIDATION_FIELDS)
+    render_acceptance = generation_result.get("render_acceptance")
+    content_checksum = hashlib.sha256(str(generation_result["markdown_final"]).encode("utf-8")).hexdigest()
+    return render_proof_is_verified(render_acceptance, content_checksum=content_checksum) and (
+        hashlib.sha256(bytes(pdf_content)).hexdigest()
+        == str((render_acceptance or {}).get("artifact_checksum") or "")
+    )
 
 def _cv_generation_enabled_sections(config: dict[str, Any]) -> list[str]:
     composition = (config.get("cv") or {}).get("composition") or {}
@@ -2077,6 +2092,37 @@ def _resolve_layer4_fit(
     """Return the authoritative post-filter fit label for a ranked job."""
     del gap_fit
     return resolve_ranked_job_fit(job, config)
+
+
+def _build_ranking_cv_handoff_for_analysis(
+    job: dict[str, Any],
+    profile: dict[str, Any],
+) -> dict[str, Any] | None:
+    profile_revision = runtime_profile_value(profile, "revision")
+    if (
+        not str(profile_revision or "").strip()
+        or job.get("baseline_rank") is None
+        or job.get("baseline_fit") is None
+        or not str(job.get("ranking_order_version") or "").strip()
+        or not str(job.get("ranking_policy_version") or "").strip()
+    ):
+        return None
+    handoff_input = {
+        **job,
+        "job_qualifiers": job.get("job_qualifiers") or {
+            key: job.get(key)
+            for key in ("title", "job_title", "seniority", "job_family", "location_type")
+            if job.get(key) not in (None, "")
+        },
+        "source_provenance": job.get("source_provenance") or {
+            "stage": "ranking",
+            "raw_job_fingerprint": job.get("raw_job_fingerprint"),
+        },
+    }
+    return build_ranking_cv_handoff(
+        handoff_input,
+        candidate_profile_revision=profile_revision,
+    )
 
 
 def _shortlist_status_for_export_row(
@@ -2456,6 +2502,46 @@ def _build_incomplete_description_debug_record(
             "source_stage": "cv_generation",
             "stage_owned_subreason": CV_GENERATION_REVIEW_REQUIRED_STATUS,
             "review_required_reason_code": "job_description_incomplete",
+            "job_snapshot": job_snapshot,
+        }
+    )
+    return record
+
+
+def _build_non_generating_cv_debug_record(
+    analysis_record: dict[str, Any],
+) -> dict[str, Any]:
+    job_snapshot = deepcopy(dict(analysis_record.get("job_snapshot") or {}))
+    status = str(analysis_record.get("status") or "analysis_failed")
+    record = _build_cv_generation_debug_record(
+        generation_result={
+            "job_url": str(analysis_record.get("job_url") or job_snapshot.get("job_url") or ""),
+            "run_job_id": analysis_record.get("run_job_id") or job_snapshot.get("run_job_id"),
+            "job_title": str(analysis_record.get("job_title") or job_snapshot.get("job_title") or job_snapshot.get("title") or ""),
+            "status": status,
+            "source_stage": "cv_analysis",
+            "ranking_fit_label": analysis_record.get("ranking_fit_label"),
+            "fit_classification": analysis_record.get("fit_classification"),
+            "job_snapshot": job_snapshot,
+            "evidence_used": list(analysis_record.get("evidence_used") or []),
+            "evidence_selection_summary": dict(analysis_record.get("evidence_selection_summary") or {}),
+            "analysis_input_summary": dict(analysis_record.get("analysis_input_summary") or {}),
+            "gap_summary": analysis_record.get("gap_summary"),
+            "decision_chain": dict(analysis_record.get("decision_chain") or {}),
+            "outcome_reason": analysis_record.get("outcome_reason"),
+            "error": analysis_record.get("error"),
+        },
+        enabled_sections=[],
+        cv_generation_model=None,
+        cv_prompt_id="",
+        cv_prompt_template_path="",
+    )
+    record.update(
+        {
+            "source_stage": "cv_analysis",
+            "stage_owned_subreason": status,
+            "cv_generation_attempted": False,
+            "generation_skipped": True,
             "job_snapshot": job_snapshot,
         }
     )
@@ -3051,6 +3137,24 @@ def _build_stage_result(
     }
 
 
+def _build_ranking_cv_handoffs_by_identity(
+    cv_analysis_results: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    handoffs: dict[str, dict[str, Any]] = {}
+    for analysis_record in cv_analysis_results:
+        handoff = analysis_record.get("ranking_cv_handoff")
+        if not isinstance(handoff, dict):
+            continue
+        job_snapshot = analysis_record.get("job_snapshot")
+        if isinstance(job_snapshot, dict):
+            for identity_key in job_identity_keys(job_snapshot):
+                handoffs[identity_key.split(":", 1)[-1]] = handoff
+        canonical_identity = str(handoff.get("canonical_job_identity") or "").strip()
+        if canonical_identity:
+            handoffs[canonical_identity] = handoff
+    return handoffs
+
+
 def _build_stage_transition_artifacts(
     *,
     raw_jobs: list[dict[str, Any]],
@@ -3375,6 +3479,7 @@ def _build_stage_transition_artifacts(
                 ranking_inputs=ranking_inputs,
                 ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
                 ranking_admission_manifest=ranking_admission_manifest,
+                ranking_cv_handoffs_by_identity=ranking_cv_handoffs_by_identity,
                 ranked=ranked,
                 ranked_urls=ranked_urls,
                 final_top_n=final_top_n,
@@ -3458,6 +3563,7 @@ def build_ranking_features(
             if identity_key.startswith("url:"):
                 shortlist_by_url.setdefault(identity_key, []).append(row)
     ranking_context = dict(config.get("ranking_contract") or {})
+    ranking_context["ranking_order_version"] = AI_ONLY_RANKING_ORDER_VERSION
     ranking_policy = dict(ranking_context.get("ranking_policy") or {})
     if not ranking_policy:
         raise ValueError("ranking-v2 requires config.ranking_contract")
@@ -3896,6 +4002,11 @@ def run_pipeline(
                     reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
                 state["passed_jobs"] = passed_jobs
                 state["candidate_filter_rejected_jobs"] = candidate_filter_rejected_jobs
+                state["recall_safe_evaluation_pool"] = build_recall_safe_evaluation_pool(
+                    enriched,
+                    passed_jobs,
+                    candidate_filter_rejected_jobs,
+                )
                 set_span_attributes(
                     {
                         "candidate_skills": len(candidate_skill_names),
@@ -4256,6 +4367,10 @@ def run_pipeline(
                             "ai_scored_jobs": len(ai_scores),
                             "configured_concurrency": ranking_concurrency,
                             "ranking_concurrency_effective": ranking_effective_concurrency,
+                            "score_state_diagnostics": _build_ranking_score_state_diagnostics(
+                                ai_scores,
+                                max_items=100,
+                            ),
                         },
                         artifact_refs={"stage_id": "ranking"},
                     ),
@@ -4275,6 +4390,10 @@ def run_pipeline(
                             "ranking_concurrency_effective": ranking_effective_concurrency,
                             "reused_ai_scores": reused_ai_count,
                             "fresh_ai_scores": fresh_ai_count,
+                            "score_state_diagnostics": _build_ranking_score_state_diagnostics(
+                                ai_scores,
+                                max_items=100,
+                            ),
                         },
                         artifact_refs={"stage_id": "ranking"},
                     ),
@@ -4380,6 +4499,7 @@ def run_pipeline(
                     analysis_input: tuple[dict[str, Any], dict[str, Any] | None],
                 ) -> dict[str, Any]:
                     job, reusable_record = analysis_input
+                    ranking_cv_handoff = _build_ranking_cv_handoff_for_analysis(job, profile)
                     return dict(
                         analyze_ranked_job(
                             job,
@@ -4387,6 +4507,7 @@ def run_pipeline(
                             config,
                             reusable_record=reusable_record,
                             evidence_projection=evidence_projection,
+                            ranking_cv_handoff=ranking_cv_handoff,
                         )
                     )
 
@@ -4426,22 +4547,8 @@ def run_pipeline(
                             fresh_analysis_reuse_reason_counts.get(reuse_reason) or 0
                         ) + 1
                     if analysis_status != CV_ANALYSIS_READY_FOR_GENERATION_STATUS:
-                        generation_result = dict(
-                            run_agentic_cv_generation(
-                                analysis_record,
-                                profile,
-                                config,
-                            )
-                        )
-                        generation_result["run_job_id"] = analysis_record.get("run_job_id")
                         cv_generation_debug_records.append(
-                            _build_cv_generation_debug_record(
-                                generation_result=generation_result,
-                                enabled_sections=enabled_cv_sections,
-                                cv_generation_model=cv_generation_model_value,
-                                cv_prompt_id=cv_prompt_id_value,
-                                cv_prompt_template_path=cv_prompt_template_path_value,
-                            )
+                            _build_non_generating_cv_debug_record(analysis_record)
                         )
                     if reporter is not None and analysis_status == CV_ANALYSIS_FAILED_STATUS:
                         analysis_error = dict(analysis_record.get("error") or {})
@@ -4598,6 +4705,9 @@ def run_pipeline(
                     }
                 )
                 state["cv_analysis_results"] = cv_analysis_results
+                state["ranking_cv_handoffs_by_identity"] = _build_ranking_cv_handoffs_by_identity(
+                    cv_analysis_results
+                )
                 state["cv_generation_debug_records"] = cv_generation_debug_records
                 stage_boundary_result = _handle_stage_boundary(
                     run_id=run_id,
@@ -5118,6 +5228,7 @@ def run_pipeline(
             evidence_selection_summary: dict[str, Any],
             analysis_input_summary: dict[str, Any],
             cv_generation_input_fingerprint: str | None,
+            pdf_content: bytes | None,
         ) -> tuple[bool, dict[str, Any] | None, str | None]:
             latency_ms = int((time.monotonic() - cv_generation_started_monotonic) * 1000)
             canonical_result = cast(dict[str, Any], generation_state.get("canonical_result") or {})
@@ -5141,6 +5252,11 @@ def run_pipeline(
             structured_cv_final = structured_cv
             markdown_final = cv
             canonical_status = str(canonical_result.get("status") or "accepted")
+            render_acceptance = (
+                dict(canonical_result.get("render_acceptance"))
+                if isinstance(canonical_result.get("render_acceptance"), dict)
+                else None
+            )
             version = create_cv_version_record(
                 job_url=str(job.get("job_url") or ""),
                 run_id=run_id,
@@ -5166,14 +5282,47 @@ def run_pipeline(
                 if isinstance(canonical_result.get("error"), dict)
                 else None,
                 original_outcome=canonical_status,
-                render_acceptance=(
-                    dict(canonical_result.get("render_acceptance"))
-                    if isinstance(canonical_result.get("render_acceptance"), dict)
-                    else None
-                ),
+                render_acceptance=render_acceptance,
             )
             version["generation_status"] = (
                 "generated" if canonical_status == "accepted" else canonical_status
+            )
+            content_checksum = hashlib.sha256(cv.encode("utf-8")).hexdigest() if cv else None
+            pdf_verified = render_proof_is_verified(
+                render_acceptance,
+                content_checksum=content_checksum,
+            )
+            pdf_status = "generated" if pdf_verified else "failed" if cv else "pending"
+            pdf_error_code = None if pdf_verified or not cv else "render_proof_incomplete"
+            version["pdf_status"] = pdf_status
+            version["pdf_error_code"] = pdf_error_code
+            if pdf_content:
+                version["pdf_filename"] = f"fitcv-cv-{version['version_id']}.pdf"
+                version["pdf_media_type"] = "application/pdf"
+                version["pdf_content_length"] = len(pdf_content)
+                version["pdf_content_checksum"] = hashlib.sha256(pdf_content).hexdigest()
+                version["pdf_content_blob"] = pdf_content
+            version["pdf_error_message"] = (
+                None
+                if pdf_verified or not cv
+                else "PDF render proof is missing, incomplete, or does not match the Markdown artifact."
+            )
+            review_state = (
+                "stretch"
+                if fit == "stretch" and bool(cv)
+                else "manual_required"
+                if canonical_status == "review_required" and bool(cv)
+                else "approved"
+                if canonical_status == "accepted" and bool(cv)
+                else "none"
+            )
+            version["review_state"] = review_state
+            version["submission_clearance"] = (
+                "eligible"
+                if version["generation_status"] == "generated"
+                and pdf_status == "generated"
+                and review_state in {"none", "approved"}
+                else "blocked"
             )
             pipeline_store.store_cv_version(version, config)
             results.append({
@@ -5227,12 +5376,20 @@ def run_pipeline(
             generation_started_at_iso: str,
             reusable_record: dict[str, Any] | None,
         ) -> dict[str, Any]:
-            generation_result = run_agentic_cv_generation(
-                analysis_record=analysis_record,
-                profile=profile,
-                config=config,
-                reusable_record=reusable_record,
-            )
+            with tempfile.TemporaryDirectory(prefix="fitcv-cv-artifact-") as artifact_dir:
+                generation_result = run_agentic_cv_generation(
+                    analysis_record=analysis_record,
+                    profile=profile,
+                    config=config,
+                    reusable_record=reusable_record,
+                    artifact_dir=artifact_dir,
+                )
+                pdf_path = os.path.join(artifact_dir, "cv.pdf")
+                if os.path.isfile(pdf_path):
+                    with open(pdf_path, "rb") as pdf_file:
+                        pdf_content = pdf_file.read()
+                else:
+                    pdf_content = None
             _emit_cv_generation_invoked_event(
                 state=generation_state,
                 cv_generation_model_value=_resolved_cv_generation_model(
@@ -5309,7 +5466,7 @@ def run_pipeline(
                         artifact_refs={"stage_id": "cv_generation"},
                     ),
                 }
-            if not _is_persistable_cv_generation_result(generation_result, config):
+            if not _is_persistable_cv_generation_result(generation_result, config, pdf_content):
                 debug_record = _build_cv_generation_debug_record(
                     generation_result=generation_result,
                     enabled_sections=enabled_cv_sections,
@@ -5324,11 +5481,13 @@ def run_pipeline(
                     "deferred_observation": True,
                     "deferred_reporter_payload": reporter_payload,
                     "canonical_result": generation_result,
+                    "pdf_content": pdf_content,
                 }
             return {
                 "should_continue": False,
                 "deferred_reporter_payload": reporter_payload,
                 "canonical_result": generation_result,
+                "pdf_content": pdf_content,
                 "fit": fit,
                 "analysis_input_summary": analysis_input_summary,
                 "evidence_used": evidence_used,
@@ -5511,6 +5670,7 @@ def run_pipeline(
                 cv = str(canonical_outcome["cv"] or "")
                 validation = cast(dict[str, Any], canonical_outcome["validation"])
                 generation_state["canonical_result"] = canonical_outcome.get("canonical_result")
+                generation_state["pdf_content"] = canonical_outcome.get("pdf_content")
                 generation_state["fit"] = fit
                 generation_state["evidence_used"] = evidence_used
                 generation_state["evidence_selection_summary"] = evidence_selection_summary
@@ -5550,6 +5710,7 @@ def run_pipeline(
                     evidence_selection_summary=evidence_selection_summary,
                     analysis_input_summary=analysis_input_summary,
                     cv_generation_input_fingerprint=reuse_fingerprint or None,
+                    pdf_content=cast(bytes | None, generation_state.get("pdf_content")),
                 )
                 if should_continue:
                     continue
@@ -5580,11 +5741,14 @@ def run_pipeline(
                 ),
                 "cv_generation_failed": sum(
                     1 for record in cv_generation_debug_records
-                    if str(record.get("status") or "") in {"validation_failed", "generation_failed", "persistence_failed"}
+                    if str(record.get("status") or "") in {"validation_failed", "generation_failed", "pdf_failed", "persistence_failed"}
                 ),
             }
         )
         state["cv_analysis_results"] = cv_analysis_results
+        state["ranking_cv_handoffs_by_identity"] = _build_ranking_cv_handoffs_by_identity(
+            cv_analysis_results
+        )
         state["cv_results"] = results
         state["cv_generation_debug_records"] = cv_generation_debug_records
         stage_transition_artifacts = _build_stage_transition_artifacts(

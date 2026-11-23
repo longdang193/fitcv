@@ -17,16 +17,18 @@ lifecycle:
 
 import hashlib
 import json
-import hashlib
+import os
 import re
 import shutil
 import subprocess
+import sys
 import textwrap
 import tempfile
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from urllib.parse import urlsplit
 
 from jinja2 import BaseLoader, Environment, TemplateError
 
@@ -39,7 +41,11 @@ from fitcv.placeholder_policy import (
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
+    MYCVS_V1_AUDIT_LINE_RE,
+    MYCVS_V1_HEADINGS,
+    MYCVS_V1_METADATA_LINE_RE,
     get_cv_generation_structured_prompt_id,
+    get_cv_renderer_strategy,
     get_prompt_replacement,
     get_required_structured_section_keys,
 )
@@ -99,6 +105,13 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
+MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
+def _runtime_project_root() -> Path:
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    return Path(frozen_root) if frozen_root else Path(__file__).resolve().parents[2]
+
+
+_BUNDLED_MYCVS_RENDERER_DIR = _runtime_project_root() / "scripts" / "renderers" / "mycvs_v1"
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -108,13 +121,18 @@ def _stable_render_fingerprint(value: Any) -> str:
 
 
 def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    return {
+    proof = {
         "final_artifact_contract_version": FINAL_ARTIFACT_CONTRACT_VERSION,
         "artifact_content_sha256": _stable_render_fingerprint(structured_cv),
         "template_sha256": _template_sha256(config) or "",
         "render_config_fingerprint": _render_config_fingerprint(config),
         "renderer_contract_version": _RENDER_CONTRACT_VERSION,
+        "renderer_strategy": get_cv_renderer_strategy(config),
     }
+    if proof["renderer_strategy"] == "mycvs_v1":
+        _, handoff = _mycvs_handoff_context(structured_cv)
+        proof["handoff_fingerprint"] = handoff
+    return proof
 
 
 def _trim_item_identity(item: Any) -> str:
@@ -552,7 +570,7 @@ def project_authorized_profile(
     }
     projected: dict[str, Any] = {}
     for key, value in profile.items():
-        if key in {"name", "contact", "email", "phone", "linkedin", "location"}:
+        if key in {"name", "contact", "email", "phone", "linkedin", "github", "location"}:
             projected[key] = deepcopy(value)
             continue
         if not isinstance(value, list):
@@ -777,11 +795,26 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "Do not leave required sections empty. Each required section must contain at least one grounded line or bullet."
         )
+    approved_claims = [
+        item for item in list((content_plan or {}).get("approved_claims") or []) if isinstance(item, dict)
+    ]
+    has_approved_job_claims = bool(approved_claims)
+    allow_baseline_profile = (
+        isinstance(content_plan, dict)
+        and "approved_claims" in content_plan
+        and not approved_claims
+    )
     if content_plan:
-        constraint_lines.append(
-            "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
-            + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
-        )
+        if has_approved_job_claims:
+            constraint_lines.append(
+                "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
+                + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
+            )
+        elif allow_baseline_profile:
+            constraint_lines.append(
+                "No verified job-specific claims were approved. Use factual baseline records from the authorized candidate profile "
+                "for the enabled sections; do not leave sections empty solely because approved_claims is empty."
+            )
         space_budget = dict(content_plan.get("space_budget") or {})
         max_summary_lines = space_budget.get("max_summary_lines")
         section_limits = dict(space_budget.get("section_claim_limits") or {})
@@ -886,9 +919,18 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
         )
-        constraint_lines.append(
-            "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
-        )
+        if has_approved_job_claims:
+            constraint_lines.append(
+                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+            )
+        elif allow_baseline_profile:
+            constraint_lines.append(
+                "Use baseline profile records for factual sections, and use the selected evidence bundle only to tailor job-specific positioning; do not invent facts."
+            )
+        else:
+            constraint_lines.append(
+                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+            )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
@@ -972,6 +1014,7 @@ def _build_default_sections(
                 "email": _profile_contact_value(profile, "email"),
                 "phone": _profile_contact_value(profile, "phone"),
                 "linkedin": _profile_contact_value(profile, "linkedin"),
+                "github": _profile_contact_value(profile, "github"),
             },
         },
         "summary": {"text": ""},
@@ -1049,11 +1092,12 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                             "contact": {
                                 "type": "object",
                                 "additionalProperties": False,
-                                "required": ["email", "phone", "linkedin"],
+                                "required": ["email", "phone", "linkedin", "github"],
                                 "properties": {
                                     "email": nullable_string_schema,
                                     "phone": nullable_string_schema,
                                     "linkedin": nullable_string_schema,
+                                    "github": nullable_string_schema,
                                 },
                             },
                         },
@@ -1087,10 +1131,11 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                         "items": {
                             "type": "object",
                             "additionalProperties": False,
-                            "required": ["name", "context", "bullets"],
+                            "required": ["name", "context", "url", "bullets"],
                             "properties": {
                                 "name": {"type": "string"},
                                 "context": nullable_string_schema,
+                                "url": nullable_string_schema,
                                 "bullets": {"type": "array", "items": bullet_schema},
                             },
                         },
@@ -1134,11 +1179,12 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
                         "items": {
                             "type": "object",
                             "additionalProperties": False,
-                            "required": ["name", "issuer", "year"],
+                            "required": ["name", "issuer", "year", "url"],
                             "properties": {
                                 "name": {"type": "string"},
                                 "issuer": nullable_string_schema,
                                 "year": nullable_string_schema,
+                                "url": nullable_string_schema,
                             },
                         },
                     },
@@ -1261,6 +1307,7 @@ def _normalize_contact(raw_header: dict[str, Any], default_header: dict[str, Any
         "email": str(raw_contact.get("email") or default_contact.get("email") or "").strip() or None,
         "phone": str(raw_contact.get("phone") or default_contact.get("phone") or "").strip() or None,
         "linkedin": str(raw_contact.get("linkedin") or default_contact.get("linkedin") or "").strip() or None,
+        "github": str(raw_contact.get("github") or default_contact.get("github") or "").strip() or None,
     }
 
 
@@ -1425,6 +1472,7 @@ def _normalize_projects_section(raw_sections: dict[str, Any], *, config: dict[st
             {
                 "name": str(item.get("name") or "").strip(),
                 "context": str(item.get("context") or "").strip() or None,
+                "url": str(item.get("url") or item.get("link") or "").strip() or None,
                 "bullets": _normalize_bullets(item.get("bullets")),
             }
         )
@@ -1482,6 +1530,7 @@ def _normalize_certifications_section(raw_sections: dict[str, Any], *, config: d
                 "name": str(item.get("name") or "").strip(),
                 "issuer": str(item.get("issuer") or "").strip() or None,
                 "year": str(item.get("year") or "").strip() or None,
+                "url": str(item.get("url") or item.get("link") or "").strip() or None,
             }
         )
     return _sanitize_section_entries("certifications", certification_entries, config=config)
@@ -1518,6 +1567,7 @@ def _normalize_structured_cv(
     profile: dict[str, Any] | None,
     config: dict[str, Any],
     fit_classification: str,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized = build_empty_structured_cv(
         jd=jd,
@@ -1545,6 +1595,8 @@ def _normalize_structured_cv(
     normalized["sections"]["certifications"] = _normalize_certifications_section(raw_sections, config=config)
     normalized["sections"]["publications"] = _normalize_publications_section(raw_sections, config=config)
     normalized["sections"]["languages"] = _normalize_languages_section(raw_sections, config=config)
+    if isinstance(ranking_cv_handoff, dict):
+        normalized["ranking_cv_handoff"] = deepcopy(ranking_cv_handoff)
 
     validate_structured_cv(normalized, config=config)
     return normalized
@@ -1764,6 +1816,365 @@ def _normalize_cv_markdown(markdown: str) -> str:
     return text.strip() + "\n"
 
 
+def _normalize_mycvs_v1_text(value: Any) -> str:
+    text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join(line.rstrip() for line in text.split("\n")).strip() + "\n"
+
+
+def _mycvs_line(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").replace("\r", " ").replace("\n", " ")).strip()
+
+
+def _mycvs_list(value: Any) -> list[str]:
+    if isinstance(value, (str, int, float)):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    return list(dict.fromkeys(_mycvs_line(item) for item in value if _mycvs_line(item)))
+
+
+def _mycvs_handoff_context(structured_cv: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    handoff = next(
+        (
+            structured_cv.get(key)
+            for key in ("handoff", "ranking_handoff", "ranking_cv_handoff")
+            if structured_cv.get(key) not in (None, "")
+        ),
+        {},
+    )
+    handoff_mapping = handoff if isinstance(handoff, dict) else {}
+
+    def first_value(*keys: str) -> Any:
+        for key in keys:
+            if structured_cv.get(key) not in (None, ""):
+                return structured_cv[key]
+            if handoff_mapping.get(key) not in (None, ""):
+                return handoff_mapping[key]
+        return None
+
+    fingerprint = first_value("handoff_fingerprint", "fingerprint", "identity", "checksum")
+    if isinstance(fingerprint, dict):
+        fingerprint = fingerprint.get("sha256") or fingerprint.get("value")
+    if not str(fingerprint or "").strip() and handoff_mapping:
+        fingerprint = _stable_render_fingerprint(handoff_mapping)
+    fingerprint = _mycvs_line(fingerprint)
+    if not fingerprint or ";" in fingerprint or "-->" in fingerprint:
+        raise ValueError("mycvs_v1 requires a safe ranking handoff identity")
+    context = {
+        "job_id": first_value("job_id", "job_identifier", "job_url"),
+        "profile_revision": first_value("profile_revision", "candidate_profile_revision"),
+        "score_status": first_value("score_status"),
+        "gaps": first_value("confirmed_gaps", "gaps"),
+        "unknowns": first_value("unknowns", "confirmed_unknowns"),
+    }
+    return context, fingerprint
+
+
+def _mycvs_source_ids(item: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for key in ("source_ids", "evidence_ids", "source_refs", "evidence_refs"):
+        raw = item.get(key)
+        if isinstance(raw, dict):
+            raw = list(raw.keys())
+        values.extend(_mycvs_list(raw))
+    return list(dict.fromkeys(values))
+
+
+def _mycvs_sources(structured_cv: dict[str, Any], experience: list[dict[str, Any]]) -> list[dict[str, str]]:
+    raw_sources = structured_cv.get("sources")
+    if raw_sources is None:
+        raw_sources = structured_cv.get("source_references")
+    if isinstance(raw_sources, dict):
+        raw_sources = [{"source_id": key, "url": value} for key, value in raw_sources.items()]
+    sources: list[dict[str, str]] = []
+    for raw in list(raw_sources or []):
+        if isinstance(raw, str):
+            source_id, url, title = _mycvs_line(raw), "", ""
+        elif isinstance(raw, dict):
+            source_id = _mycvs_line(raw.get("source_id") or raw.get("evidence_id") or raw.get("id"))
+            url = _mycvs_line(raw.get("url") or raw.get("link") or raw.get("source_url"))
+            title = _mycvs_line(raw.get("title") or raw.get("label"))
+        else:
+            continue
+        if not source_id:
+            raise ValueError("mycvs_v1 sources require stable source identifiers")
+        sources.append({"source_id": source_id, "url": url, "title": title})
+    known_ids = {item["source_id"] for item in sources}
+    for item in experience:
+        for source_id in _mycvs_source_ids(item):
+            if source_id not in known_ids:
+                sources.append({"source_id": source_id, "url": "", "title": ""})
+                known_ids.add(source_id)
+    return sources
+
+
+def _mycvs_url_is_valid(url: str) -> bool:
+    parsed = urlsplit(url)
+    return bool(
+        url
+        and "\n" not in url
+        and "\r" not in url
+        and parsed.scheme in {"http", "https"}
+        and parsed.netloc
+        and not parsed.username
+        and not parsed.password
+    )
+
+
+def _mycvs_link_is_valid(url: str) -> bool:
+    parsed = urlsplit(url)
+    if parsed.scheme in {"mailto", "tel"}:
+        return bool(parsed.path) and "\r" not in url and "\n" not in url
+    return _mycvs_url_is_valid(url)
+
+
+def _mycvs_contact_link(icon: str, label: str, target: str) -> str:
+    return f'<span class="iconify" data-icon="{icon}"></span> [{label}](<{target}>)'
+
+
+def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
+    """Serialize the canonical intermediate CV model into deterministic myCVs Markdown."""
+    validate_structured_cv(structured_cv)
+    sections = structured_cv["sections"]
+    header = sections["header"]
+    candidate_name = _mycvs_line(header.get("name"))
+    if not candidate_name:
+        raise ValueError("mycvs_v1 requires a canonical candidate name")
+    context, handoff = _mycvs_handoff_context(structured_cv)
+    experience = [item for item in sections.get("experience", []) if isinstance(item, dict)]
+    sources = _mycvs_sources(structured_cv, experience)
+    source_ids = {item["source_id"] for item in sources}
+    contact = header.get("contact") if isinstance(header.get("contact"), dict) else {}
+    contact_lines: list[str] = []
+    email = _mycvs_line(contact.get("email"))
+    phone = _mycvs_line(contact.get("phone"))
+    linkedin = _mycvs_line(contact.get("linkedin"))
+    github = _mycvs_line(contact.get("github"))
+    location = _mycvs_line(header.get("location"))
+    if email or phone or linkedin:
+        contact_items: list[str] = []
+        if email:
+            contact_items.append(_mycvs_contact_link("tabler:mail", email, f"mailto:{email}"))
+        if phone:
+            phone_target = re.sub(r"[^+0-9]", "", phone)
+            contact_items.append(_mycvs_contact_link("tabler:phone", phone, f"tel:{phone_target}"))
+        if linkedin:
+            linkedin_target = linkedin if _mycvs_url_is_valid(linkedin) else f"https://{linkedin}"
+            if not _mycvs_url_is_valid(linkedin_target):
+                raise ValueError("mycvs_v1 LinkedIn URL is not validated")
+            contact_items.append(_mycvs_contact_link("tabler:brand-linkedin", linkedin, linkedin_target))
+        contact_lines.append("\n  : ".join(contact_items))
+    if github or location:
+        contact_items = []
+        if github:
+            github_target = github if _mycvs_url_is_valid(github) else f"https://{github}"
+            if not _mycvs_url_is_valid(github_target):
+                raise ValueError("mycvs_v1 GitHub URL is not validated")
+            contact_items.append(_mycvs_contact_link("tabler:brand-github", github, github_target))
+        if location:
+            contact_items.append(f'<span class="iconify" data-icon="ic:outline-location-on"></span> {location}')
+        contact_lines.append("\n  : ".join(contact_items))
+
+    lines = [f"# {candidate_name}"]
+    if contact_lines:
+        lines.extend(["", *contact_lines])
+    review_notice = structured_cv.get("artifact_review")
+    if isinstance(review_notice, dict) and review_notice.get("required") is True:
+        reason = _mycvs_line(review_notice.get("reason")) or "Evidence or validation requires human follow-up."
+        lines.extend(
+            [
+                "",
+                "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**",
+                f"> {reason}",
+            ]
+        )
+    lines.extend(["", "## Summary"])
+    lines.append(_mycvs_line((sections.get("summary") or {}).get("text")) or "Not provided.")
+    lines.extend(["", "## Education"])
+    education = [item for item in sections.get("education", []) if isinstance(item, dict)]
+    if education:
+        for item in education:
+            degree = _mycvs_line(item.get("degree")) or "Not provided"
+            institution = _mycvs_line(item.get("institution"))
+            field = _mycvs_line(item.get("field"))
+            dates = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
+            detail = " — ".join(part for part in (degree, institution, field) if part)
+            lines.append(f"- **{detail}**" + (f" ({dates})" if dates else ""))
+    else:
+        lines.append("Not provided.")
+
+    lines.extend(["", "## Experience"])
+    if experience:
+        for item in experience:
+            role = _mycvs_line(item.get("role")) or "Not provided"
+            company = _mycvs_line(item.get("company"))
+            location = _mycvs_line(item.get("location"))
+            period = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
+            title = " — ".join(part for part in (role, company) if part)
+            lines.append(f"- **{title}**" + (f" ({period})" if period else ""))
+            if location:
+                lines.append(f"  : **{location}**")
+            bullets = _mycvs_list(item.get("bullets"))
+            lines.extend(f"  - {bullet}" for bullet in bullets)
+            refs = _mycvs_source_ids(item)
+            if refs:
+                lines.append(f"  - Evidence: {', '.join(refs)}")
+            elif source_ids:
+                raise ValueError(f"mycvs_v1 experience item lacks source evidence: {title}")
+    else:
+        lines.append("Not provided.")
+
+    lines.extend(["", "## Projects"])
+    projects = [item for item in sections.get("projects", []) if isinstance(item, dict)]
+    if projects:
+        for item in projects:
+            name = _mycvs_line(item.get("name")) or "Not provided"
+            url = _mycvs_line(item.get("url"))
+            if url:
+                if not _mycvs_url_is_valid(url):
+                    raise ValueError(f"mycvs_v1 project URL is not validated: {url!r}")
+                name = f"[{name}](<{url}>)"
+            lines.append(f"- **{name}**")
+            context_text = _mycvs_line(item.get("context"))
+            if context_text:
+                lines.append(f"  : **{context_text}**")
+            lines.extend(f"  - {bullet}" for bullet in _mycvs_list(item.get("bullets")))
+    else:
+        lines.append("Not provided.")
+
+    lines.extend(["", "## Certificates"])
+    certificates = [item for item in sections.get("certifications", []) if isinstance(item, dict)]
+    if certificates:
+        for item in certificates:
+            name = _mycvs_line(item.get("name")) or "Not provided"
+            url = _mycvs_line(item.get("url"))
+            if url:
+                if not _mycvs_url_is_valid(url):
+                    raise ValueError(f"mycvs_v1 certificate URL is not validated: {url!r}")
+                name = f"[{name}](<{url}>)"
+            issuer = _mycvs_line(item.get("issuer"))
+            year = _mycvs_line(item.get("year"))
+            lines.append(f"- **{name}**" + (f" — {issuer}" if issuer else "") + (f" ({year})" if year else ""))
+    else:
+        lines.append("Not provided.")
+
+    lines.extend(["", "## Skills"])
+    skill_groups = list((sections.get("skills") or {}).get("groups") or [])
+    if skill_groups:
+        for group in skill_groups:
+            label = _mycvs_line(group.get("label"))
+            items = _mycvs_list(group.get("items"))
+            if label and items:
+                lines.append(f"**{label}:** {', '.join(items)}")
+    else:
+        lines.append("Not provided.")
+
+    audit_payload = {
+        "job_id": _mycvs_line(context["job_id"]),
+        "profile_revision": _mycvs_line(context["profile_revision"]),
+        "score_status": _mycvs_line(context["score_status"]),
+        "gaps": _mycvs_list(context["gaps"]),
+        "unknowns": _mycvs_list(context["unknowns"]),
+        "sources": sources,
+        "artifact_review": {
+            "required": bool(isinstance(review_notice, dict) and review_notice.get("required") is True),
+            "reason": _mycvs_line(review_notice.get("reason")) if isinstance(review_notice, dict) else "",
+        },
+    }
+    for source in sources:
+        source_url = source["url"]
+        if source_url and not _mycvs_url_is_valid(source_url):
+            raise ValueError(f"mycvs_v1 source URL is not validated: {source_url!r}")
+    audit_json = json.dumps(audit_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if "-->" in audit_json:
+        raise ValueError("mycvs_v1 audit metadata contains an unsafe comment delimiter")
+    lines.extend(["", f"<!-- mycvs_v1_audit: {audit_json} -->"])
+    payload = _normalize_mycvs_v1_text("\n".join(lines))
+    checksum = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return payload + f"<!-- mycvs_v1: schema=mycvs_v1; content_sha256={checksum}; handoff={handoff} -->\n"
+
+
+def validate_mycvs_v1_markdown(
+    markdown: str,
+    *,
+    expected_handoff: str | None = None,
+) -> dict[str, Any]:
+    """Validate myCVs Markdown and return its normalized checksum metadata."""
+    text = str(markdown or "")
+    errors: list[str] = []
+    if "\r" in text:
+        errors.append("line endings must be LF")
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        errors.append("content must be UTF-8")
+    if any(line != line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")):
+        errors.append("trailing whitespace is not allowed")
+    metadata_matches = list(re.finditer(r"^<!-- mycvs_v1:.* -->$", text, re.MULTILINE))
+    if len(metadata_matches) != 1:
+        errors.append("exactly one mycvs_v1 metadata block is required")
+        metadata_match = None
+        metadata_span = None
+    else:
+        metadata_span = metadata_matches[0]
+        metadata_match = MYCVS_V1_METADATA_LINE_RE.fullmatch(metadata_span.group(0))
+        if metadata_match is None:
+            errors.append("invalid mycvs_v1 metadata block")
+    if metadata_match is not None:
+        if text[metadata_span.end():].strip():
+            errors.append("metadata block must be final")
+        payload = _normalize_mycvs_v1_text(text[:metadata_span.start()])
+        checksum = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        if checksum != metadata_match.group(1):
+            errors.append("content checksum mismatch")
+        handoff = metadata_match.group(2).strip()
+        if expected_handoff is not None and handoff != _mycvs_line(expected_handoff):
+            errors.append("handoff identity mismatch")
+    else:
+        payload, handoff = text, ""
+    payload_lines = payload.splitlines()
+    headings = [(match.group(1), match.group(2).strip()) for line in payload_lines if (match := re.match(r"^(#{1,6})[ \t]+(.+?)\s*$", line))]
+    expected_headings = [("#", payload_lines[0][2:].strip() if payload_lines and payload_lines[0].startswith("# ") else ""), *[("##", heading) for heading in MYCVS_V1_HEADINGS]]
+    if headings != expected_headings or not expected_headings[0][1]:
+        errors.append("headings must match the fixed mycvs_v1 order")
+    for link in re.findall(r"\[[^\]]+\]\((?:<([^>\r\n]+)>|([^\)\r\n]+))\)", payload):
+        url = link[0] or link[1]
+        if not _mycvs_link_is_valid(url):
+            errors.append(f"unsupported source URL: {url!r}")
+    audit_matches = [match for line in payload_lines if (match := MYCVS_V1_AUDIT_LINE_RE.fullmatch(line))]
+    audit_payload: dict[str, Any] | None = None
+    if len(audit_matches) != 1:
+        errors.append("exactly one mycvs_v1 audit block is required")
+    else:
+        try:
+            parsed_audit = json.loads(audit_matches[0].group(1))
+            if not isinstance(parsed_audit, dict):
+                raise ValueError
+            audit_payload = parsed_audit
+        except (TypeError, ValueError, json.JSONDecodeError):
+            errors.append("invalid mycvs_v1 audit block")
+    required_audit_keys = ("job_id", "profile_revision", "score_status", "gaps", "unknowns", "sources")
+    if audit_payload is not None and not all(key in audit_payload for key in required_audit_keys):
+        errors.append("audit block must include job, profile, score, gaps, unknowns, and sources")
+    if audit_payload is not None:
+        for source in audit_payload.get("sources") or []:
+            if not isinstance(source, dict) or not str(source.get("source_id") or "").strip():
+                errors.append("audit sources require stable source identifiers")
+                continue
+            source_url = str(source.get("url") or "").strip()
+            if source_url and not _mycvs_url_is_valid(source_url):
+                errors.append(f"unsupported audit source URL: {source_url!r}")
+    if not handoff:
+        errors.append("handoff identity is required")
+    if errors:
+        raise ValueError("mycvs_v1 validation failed: " + "; ".join(dict.fromkeys(errors)))
+    return {"valid": True, "content_sha256": metadata_match.group(1), "handoff": handoff}
+
+
+render_mycvs_v1_markdown = serialize_mycvs_v1
+validate_mycvs_v1 = validate_mycvs_v1_markdown
+
+
 # ── LLM generation (integration) ─────────────────────────────────────────────
 
 def _resolve_template_path(config: dict[str, Any]) -> str:
@@ -1785,8 +2196,23 @@ def _resolve_template_path(config: dict[str, Any]) -> str:
     return str(config.get("cv_template_path", "templates/cv_template.md"))
 
 
+def _inject_review_notice(markdown: str, structured_cv: dict[str, Any]) -> str:
+    review_notice = structured_cv.get("artifact_review")
+    if not isinstance(review_notice, dict) or review_notice.get("required") is not True:
+        return markdown
+    if "REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION" in markdown:
+        return markdown
+    reason = str(review_notice.get("reason") or "Evidence or validation requires human follow-up.").strip()
+    lines = markdown.splitlines()
+    insert_at = next((index + 1 for index, line in enumerate(lines) if line.startswith("# ")), 0)
+    lines[insert_at:insert_at] = ["", "> **REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION**", f"> {reason}", ""]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) -> str:
     """Render markdown from a validated structured CV document."""
+    if get_cv_renderer_strategy(config) == "mycvs_v1":
+        return serialize_mycvs_v1(structured_cv)
     import pathlib
 
     structured_cv = deepcopy(structured_cv)
@@ -1874,7 +2300,7 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
         headline=str(header.get("title") or ""),
         summary=str(sections["summary"].get("text") or ""),
     )
-    return _normalize_cv_markdown(rendered)
+    return _inject_review_notice(_normalize_cv_markdown(rendered), structured_cv)
 
 
 def _canonical_render_item_key(section: str, item: dict[str, Any]) -> str:
@@ -1901,6 +2327,7 @@ def _render_config_fingerprint(config: dict[str, Any]) -> str:
         "cv": dict(config.get("cv") or {}),
         "cv_template_path": str(config.get("cv_template_path") or ""),
         "template_path": str(config.get("_template_path") or ""),
+        "external_renderer": _external_renderer_config(config),
     }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -1914,6 +2341,69 @@ def _template_sha256(config: dict[str, Any]) -> str | None:
         return None
 
 
+def _external_renderer_config(config: dict[str, Any]) -> dict[str, str]:
+    renderer = ((config.get("cv") or {}).get("renderer") or {})
+    external = renderer.get("external") if isinstance(renderer, dict) else {}
+    if not isinstance(external, dict):
+        external = {}
+    enabled = external.get("enabled") or os.environ.get("FITCV_MYCVS_EXTERNAL_RENDER_ENABLED")
+    bundled = {
+        "converter_path": _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py",
+        "stylesheet_path": _BUNDLED_MYCVS_RENDERER_DIR / "long-dang-template.css",
+        "font_regular_path": _BUNDLED_MYCVS_RENDERER_DIR / "fonts" / "Inter-Regular.ttf",
+        "font_bold_path": _BUNDLED_MYCVS_RENDERER_DIR / "fonts" / "Inter-Bold.ttf",
+    }
+    use_bundled = str(enabled or "").strip().lower() in {"1", "true", "yes", "on"}
+
+    def bundled_path(key: str) -> str | None:
+        path = bundled[key]
+        return str(path) if use_bundled and path.is_file() else None
+
+    values = {
+        "enabled": enabled,
+        "converter_path": external.get("converter_path")
+        or os.environ.get("FITCV_MYCVS_CONVERTER_PATH")
+        or bundled_path("converter_path"),
+        "stylesheet_path": external.get("stylesheet_path")
+        or os.environ.get("FITCV_MYCVS_STYLESHEET_PATH")
+        or bundled_path("stylesheet_path"),
+        "font_regular_path": external.get("font_regular_path")
+        or os.environ.get("FITCV_MYCVS_INTER_REGULAR_PATH")
+        or bundled_path("font_regular_path"),
+        "font_bold_path": external.get("font_bold_path")
+        or os.environ.get("FITCV_MYCVS_INTER_BOLD_PATH")
+        or bundled_path("font_bold_path"),
+        "python_path": external.get("python_path")
+        or os.environ.get("FITCV_MYCVS_PYTHON"),
+        "converter_revision": external.get("converter_revision")
+        or os.environ.get("FITCV_MYCVS_CONVERTER_REVISION"),
+        "stylesheet_revision": external.get("stylesheet_revision")
+        or os.environ.get("FITCV_MYCVS_STYLESHEET_REVISION"),
+    }
+    return {key: str(value).strip() for key, value in values.items() if str(value or "").strip()}
+
+def _external_renderer_command(
+    external: dict[str, str],
+    markdown_path: Path,
+    output_path: Path,
+) -> list[str] | None:
+    converter_path = str(external.get("converter_path") or "")
+    if not converter_path:
+        return None
+    runtime = sys.executable
+    if getattr(sys, "frozen", False):
+        runtime = str(external.get("python_path") or shutil.which("python") or shutil.which("py") or "")
+        if not runtime:
+            return None
+    return [runtime, converter_path, str(markdown_path), str(external["stylesheet_path"]), str(output_path)]
+
+def _sha256_file(path: str) -> str | None:
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
 def render_cv_native_acceptance(
     content: dict[str, Any] | str,
     config: dict[str, Any],
@@ -1924,8 +2414,25 @@ def render_cv_native_acceptance(
     """Render exact markdown through native tools and return final proof."""
     structured_cv = content if isinstance(content, dict) else None
     markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
-    required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
-    missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
+    if get_cv_renderer_strategy(config) == "mycvs_v1":
+        validate_mycvs_v1_markdown(markdown)
+    external = _external_renderer_config(config)
+    external_enabled = external.get("enabled", "").lower() in {"1", "true", "yes", "on"}
+    if external_enabled:
+        required_tools = ("pdfinfo", "pdftotext")
+        missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
+        for key in ("converter_path", "stylesheet_path"):
+            if not external.get(key) or not Path(external[key]).is_file():
+                missing_tools.append(key)
+        if (
+            getattr(sys, "frozen", False)
+            and external.get("converter_path")
+            and not (external.get("python_path") or shutil.which("python") or shutil.which("py"))
+        ):
+            missing_tools.append("python_runtime")
+    else:
+        required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
+        missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     base = Path(output_dir) if output_dir is not None else None
     with TemporaryDirectory(dir=str(base) if base else None) as temporary_dir:
         work_dir = Path(temporary_dir)
@@ -1936,7 +2443,10 @@ def render_cv_native_acceptance(
         render_status = "render_unavailable" if missing_tools else "render_failed"
         result: dict[str, Any] = {
             **proof_identity,
-            "renderer_contract_version": proof_identity.get("renderer_contract_version", NATIVE_RENDER_CONTRACT_VERSION),
+            "renderer_contract_version": (
+                "mycvs_external_render_v1" if external_enabled
+                else proof_identity.get("renderer_contract_version", NATIVE_RENDER_CONTRACT_VERSION)
+            ),
             "render_status": render_status,
             "renderer_status": render_status,
             "page_count": None,
@@ -1947,11 +2457,29 @@ def render_cv_native_acceptance(
             "content_sha256": hashlib.sha256(str(markdown or "").encode("utf-8")).hexdigest(),
             "missing_tools": missing_tools,
         }
+        if external_enabled:
+            result.update(
+                {
+                    "converter_revision": external.get("converter_revision") or _sha256_file(external.get("converter_path", "")),
+                    "stylesheet_revision": external.get("stylesheet_revision") or _sha256_file(external.get("stylesheet_path", "")),
+                    "converter_input_checksum": result["content_sha256"],
+                }
+            )
         if missing_tools:
             return result
         try:
+            if external_enabled:
+                converter_command = _external_renderer_command(external, markdown_path, pdf_path)
+                if converter_command is None:
+                    return result
+                if external.get("font_regular_path"):
+                    converter_command.extend(["--inter-regular", external["font_regular_path"]])
+                if external.get("font_bold_path"):
+                    converter_command.extend(["--inter-bold", external["font_bold_path"]])
+            else:
+                converter_command = ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"]
             subprocess.run(
-                ["pandoc", str(markdown_path), "-o", str(pdf_path), "--pdf-engine=xelatex"],
+                converter_command,
                 check=True,
                 capture_output=True,
                 text=True,
@@ -2172,6 +2700,7 @@ def _execute_cv_generation_runtime(
     target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
     adapter: LlmAdapter | None = None,
     validator: Any | None = None,
 ) -> LlmRuntimeResult:
@@ -2222,6 +2751,7 @@ def _execute_cv_generation_runtime(
             profile=provider_profile,
             config=config,
             fit_classification=fit_classification,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
         return {
             "structured_cv": structured_cv,
@@ -2271,6 +2801,7 @@ def generate_structured_cv(
     target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Call the LLM to generate a structured CV document."""
     value = _runtime_value_or_raise(
@@ -2287,6 +2818,7 @@ def generate_structured_cv(
             target_sections=target_sections,
             authorized_profile=authorized_profile,
             max_output_tokens=max_output_tokens,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
     )
     return dict(value["structured_cv"])
@@ -2306,6 +2838,7 @@ def generate_cv(
     target_sections: list[str] | None = None,
     authorized_profile: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate structured CV content and render markdown from it."""
     return _runtime_value_or_raise(
@@ -2322,5 +2855,6 @@ def generate_cv(
             target_sections=target_sections,
             authorized_profile=authorized_profile,
             max_output_tokens=max_output_tokens,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
     )
