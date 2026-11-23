@@ -2391,7 +2391,7 @@ def _external_renderer_command(
     if not converter_path:
         return None
     runtime = sys.executable
-    if getattr(sys, "frozen", False) and Path(converter_path).resolve() == _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py":
+    if getattr(sys, "frozen", False):
         runtime = str(external.get("python_path") or shutil.which("python") or shutil.which("py") or "")
         if not runtime:
             return None
@@ -2427,7 +2427,6 @@ def render_cv_native_acceptance(
         if (
             getattr(sys, "frozen", False)
             and external.get("converter_path")
-            and Path(external["converter_path"]).resolve() == _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py"
             and not (external.get("python_path") or shutil.which("python") or shutil.which("py"))
         ):
             missing_tools.append("python_runtime")
