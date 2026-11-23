@@ -20,7 +20,7 @@ from typing import Any
 
 # ── supported presets ─────────────────────────────────────────────────────────
 
-SUPPORTED_PRESETS = frozenset(["europass"])
+SUPPORTED_PRESETS = frozenset(["mycvs", "europass"])
 
 
 # ── allowed enum values per preset ───────────────────────────────────────────
@@ -70,7 +70,34 @@ def _make_europass_allowed_values() -> dict[str, Any]:
 
 # ── preset registry ───────────────────────────────────────────────────────────
 
+_MYCVS_REGISTRY = {
+    # The committed myCVs template/schema is the canonical new-run contract.
+    "template_path": "templates/cv_template.md",
+    "sections": {
+        "summary": {},
+        "education": {},
+        "experience": {},
+        "skills": {},
+        "certifications": {},
+        "projects": {},
+        "publications": {},
+        "languages": {},
+    },
+    "section_order": [
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "certifications",
+        "projects",
+        "publications",
+        "languages",
+    ],
+    "allowed_values": _make_europass_allowed_values(),
+}
+
 PRESET_REGISTRY: dict[str, dict[str, Any]] = {
+    "mycvs": _MYCVS_REGISTRY,
     "europass": {
         # Canonical template file for this preset.
         "template_path": "templates/cv_template.md",

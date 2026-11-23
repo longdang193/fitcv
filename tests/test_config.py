@@ -13,7 +13,6 @@ tags:
 """
 import shutil
 import uuid
-import os
 from pathlib import Path
 
 import pytest
@@ -530,7 +529,7 @@ def test_resolve_data_backend_prefers_control_plane_over_legacy_bridge_keys(
         "    type: sqlite\n"
     )
     monkeypatch.chdir(tmp_path)
-    
+
     cfg = {"some_key": "value"}
 
     assert resolve_data_backend(cfg) == "sqlite"
@@ -607,10 +606,17 @@ def test_load_config_includes_cv_defaults() -> None:
     cfg = load_config()
     assert cfg["cv_generation_model"] == "cx/gpt-5.6-luna"
     assert cfg["cv"]["generation"]["model"] == "cx/gpt-5.6-luna"
-    assert cfg["cv"]["preset"] == "europass"
+    assert cfg["cv"]["preset"] == "mycvs"
     assert cfg["cv"]["composition"]["summary"]["enabled"] is True
     assert cfg["cv"]["validation"]["max_pages"] == 1
     assert cfg["cv"]["generation"]["prompt_version"] == "v1"
+
+
+def test_load_config_uses_promoted_requirement_aware_shortlist() -> None:
+    cfg = load_config()
+
+    assert cfg["pipeline"]["shortlist_strategy"] == "core_pareto_evidence_v1"
+    assert cfg["pipeline"]["shortlist_policy"] == "requirement_aware_v1"
 
 
 def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:

@@ -53,9 +53,9 @@ def test_deterministic_truth_fields_registry_parity(status: str, expected: dict[
     [
         ("accepted", "accepted"),
         ("validation_failed", "failed"),
-        ("persistence_failed", "accepted"),
+        ("persistence_failed", "failed"),
         ("review_required", "not_run"),
-        ("generation_failed", "not_run"),
+        ("generation_failed", "failed"),
     ],
 )
 def test_validation_status_for_cv_status_parity(status: str, expected: str) -> None:
@@ -80,7 +80,7 @@ def test_pipeline_helpers_match_shared_late_stage_contract() -> None:
     job = {"shortlist_origin": "vector_search"}
 
     assert validation_status_for_cv_status("validation_failed") == "failed"
-    assert validation_status_for_cv_status("persistence_failed") == "accepted"
+    assert validation_status_for_cv_status("persistence_failed") == "failed"
     assert deterministic_truth_fields("accepted") == {
         "deterministic_outcome": "accepted",
         "stage_owned_subreason": "accepted",

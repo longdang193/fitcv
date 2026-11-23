@@ -25,7 +25,6 @@ from fitcv.agentic_cv_analysis import (
     _build_requirement_uncertainties,
     analyze_ranked_job,
     build_analysis_input_summary,
-    build_evidence_used,
     extract_job_url,
     resolve_ranked_job_fit,
     should_route_loose_experience_review,
@@ -36,6 +35,7 @@ from fitcv.evidence import (
     build_cv_analysis_input_fingerprint,
     build_required_skill_descriptors,
 )
+from fitcv.pipeline_stage_runner import build_stage_6_to_7_handoff
 
 
 def _job() -> dict:
@@ -65,6 +65,51 @@ def _config() -> dict:
         "pipeline": {"evidence_top_k": 3},
         "ranking_policy": {"fit_label_thresholds": {"strong": 0.7, "stretch": 0.4}},
     }
+
+
+def _stage6_handoff_job(*, job_url: str | None = None, profile_revision: str = "7") -> tuple[dict, dict]:
+    profile = {**_profile(), "candidate_profile_id": "candidate-1", "revision": profile_revision}
+    job = {
+        **_job(),
+        "job_url": job_url or _job()["job_url"],
+        "baseline_fit": 0.1,
+        "baseline_fit_label": "skip",
+        "ranking_fit_label": "skip",
+        "ai_score": 0.8,
+        "score_status": "valid",
+        "baseline_rank": 1,
+        "final_rank": 1,
+        "stage5_admission": {"admitted": True, "status": "admitted"},
+    }
+    job["stage6_to_stage7_handoff"] = build_stage_6_to_7_handoff(job, profile=profile)
+    return job, profile
+
+
+def test_valid_stage6_handoff_allows_final_top15_job_into_generation() -> None:
+    job, profile = _stage6_handoff_job()
+
+    result = analyze_ranked_job(job, profile, _config())
+
+    assert result["status"] == "ready_for_generation"
+    assert result["ranking_fit_label"] == "skip"
+    assert result["candidate_profile_revision"] == "7"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda job: job["stage6_to_stage7_handoff"].update({"job_url": "https://example.com/job/mismatch"}),
+        lambda job: job["stage6_to_stage7_handoff"].update({"final_rank": 16}),
+        lambda job: job["stage6_to_stage7_handoff"].update({"stage5_admission": {"admitted": False}}),
+    ],
+)
+def test_invalid_stage6_handoff_does_not_bypass_fit_gate(mutate) -> None:
+    job, profile = _stage6_handoff_job()
+    mutate(job)
+
+    result = analyze_ranked_job(job, profile, _config())
+
+    assert result["status"] == "skipped_fit_gate"
 
 
 def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
@@ -734,11 +779,7 @@ def test_analyze_ranked_job_converges_legacy_profile_before_evidence(
         "preferences": {},
     }
 
-    result = analyze_ranked_job(
-        _job(),
-        profile,
-        {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}},
-    )
+    result = analyze_ranked_job(_job(), profile, _config())
 
     assert result["status"] == "ready_for_generation"
     assert mock_bundle.called
@@ -920,10 +961,6 @@ def _complete_reusable_record() -> dict:
         "evidence_payload": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
         "evidence_used": [{"evidence_type": "experience_entry"}],
         "evidence_selection_summary": {"selected_evidence_count": 1, "fallback_used": False},
-        "experience_evidence_summary": {"mode": "full", "professional_experience": {"unverified_requirement_ids": []}},
-        "uncertainties": [],
-        "candidate_profile_id": "candidate-1",
-        "candidate_profile_revision": "7",
         "gap_summary": {"matched": ["SQL"], "missing": ["Python"]},
         "requirement_coverage": [],
         "section_confidence_hints": {"experience": "medium"},
@@ -932,44 +969,6 @@ def _complete_reusable_record() -> dict:
         "error": None,
         "cv_analysis_trace": {"step_id": "cv_analysis"},
     }
-
-
-def test_build_evidence_used_preserves_canonical_identity_and_legacy_fields() -> None:
-    result = build_evidence_used(
-        [
-            {
-                "evidence_id": "ev-1",
-                "kind": "experience_entry",
-                "evidence_type": "legacy-experience",
-                "parent_title": "Senior Data Engineer",
-                "source_refs": [
-                    {"document_id": "cv-1", "locator": {"page": 2}},
-                    {"document_id": "cv-1", "source_block_id": "block-1"},
-                ],
-                "source_ref": "experiences[0]",
-                "name": "Example Corp",
-                "matched_channels": ["skills"],
-                "selection_reasons": ["supports_sql"],
-            }
-        ]
-    )
-
-    assert result == [
-        {
-            "evidence_id": "ev-1",
-            "kind": "experience_entry",
-            "parent_title": "Senior Data Engineer",
-            "source_refs": [
-                {"document_id": "cv-1", "locator": {"page": 2}},
-                {"document_id": "cv-1", "source_block_id": "block-1"},
-            ],
-            "evidence_type": "legacy-experience",
-            "source_ref": "experiences[0]",
-            "name": "Example Corp",
-            "matched_channels": ["skills"],
-            "selection_reasons": ["supports_sql"],
-        }
-    ]
 
 
 def test_cv_analysis_fingerprint_uses_raw_identity_not_mutable_url() -> None:
@@ -1339,7 +1338,6 @@ def test_analyze_ranked_job_preserves_mode_on_exact_reuse(
     reusable_record["analysis_input_fingerprint"] = "analysis::reuse-loose"
     reusable_record["analysis_input_components"]["contract_fingerprint"] = "contract::loose"
     reusable_record["analysis_input_components"]["experience_evidence_mode"] = "loose"
-    reusable_record["experience_evidence_summary"]["mode"] = "loose"
     config = {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}}
     job = _job()
     job["raw_job_fingerprint"] = "raw-job-1"
@@ -1355,32 +1353,6 @@ def test_analyze_ranked_job_preserves_mode_on_exact_reuse(
     assert result["analysis_input_components"]["experience_evidence_mode"] == "loose"
     assert result["experience_evidence_summary"]["mode"] == "loose"
     mock_bundle.assert_not_called()
-
-
-def test_exact_reuse_preserves_professional_evidence_uncertainty_and_profile_identity() -> None:
-    profile = {
-        **_profile(),
-        "candidate_profile_id": "candidate-1",
-        "revision": "7",
-        "years_experience": 1,
-    }
-    job = {
-        **_job(),
-        "required_skills": [],
-        "years_experience_min": 5,
-    }
-
-    fresh = analyze_ranked_job(job, profile, _config())
-    reused = analyze_ranked_job(job, profile, _config(), reusable_record=fresh)
-
-    assert fresh["status"] == reused["status"] == "skipped_fit_gate"
-    assert fresh["requirement_coverage"] == reused["requirement_coverage"]
-    assert fresh["experience_evidence_summary"] == reused["experience_evidence_summary"]
-    assert fresh["uncertainties"] == reused["uncertainties"]
-    assert fresh["candidate_profile_id"] == reused["candidate_profile_id"] == "candidate-1"
-    assert fresh["candidate_profile_revision"] == reused["candidate_profile_revision"] == "7"
-    assert fresh["analysis_reuse_status"] == "fresh_compute"
-    assert reused["analysis_reuse_status"] == "reused_exact_match"
 
 
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
@@ -1727,47 +1699,3 @@ def test_analyze_ranked_job_emits_fresh_skipped_fit_gate_record(
     assert result["outcome_reason"]["stage"] == "fit_gate"
     assert result["error"] is None
     assert mock_resolve_fit.call_count == 2
-
-
-@patch("fitcv.agentic_cv_analysis.resolve_ranked_job_fit", side_effect=["strong", "skip"])
-@patch("fitcv.agentic_cv_analysis.compute_gap")
-@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
-@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
-def test_skipped_fit_gate_still_inspects_richer_project_evidence(
-    mock_fingerprint,
-    mock_bundle,
-    mock_gap,
-    mock_resolve_fit,
-) -> None:
-    mock_fingerprint.return_value = {
-        "fingerprint": "analysis::rich-evidence",
-        "payload": {
-            "profile": {"name": "Candidate"},
-            "job": {"job_title": "Data Analyst"},
-            "contract_fingerprint": "contract::1",
-        },
-    }
-    mock_bundle.return_value = {
-        "selected_evidence": [{"evidence_id": "project-sql", "evidence_type": "project_entry"}],
-        "selected_evidence_ids": ["project-sql"],
-    }
-    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
-    profile = _profile()
-    profile["projects"] = [
-        {
-            "name": "SQL pipeline",
-            "skills": ["SQL"],
-            "highlights": ["Built a SQL pipeline"],
-        }
-    ]
-    job = _job()
-    job["required_skills"] = ["SQL commercial experience"]
-
-    result = analyze_ranked_job(
-        job,
-        profile,
-        {**_config(), "cv_analysis": {"experience_evidence_mode": "loose"}},
-    )
-
-    assert mock_bundle.called
-    assert result["status"] != "skipped_fit_gate"

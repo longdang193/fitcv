@@ -78,7 +78,6 @@ from fitcv_cp.run_lifecycle import (
     can_unarchive_run,
     decide_terminal_run,
     job_stage_status_from_outcome,
-    pipeline_stage_is_control_plane_terminal,
     result_bucket_for_job_stage,
     run_display_status,
     run_stage_status_from_pipeline,
@@ -4636,8 +4635,7 @@ def confirm_candidate_profile_creation_attempt(
                     conn.execute(
                         """
                         UPDATE candidate_profiles
-                        SET lifecycle='archived', archived_at=?, updated_at=?, revision=revision+1,
-                            is_default=0
+                        SET lifecycle='archived', archived_at=?, updated_at=?, revision=revision+1
                         WHERE candidate_profile_id=? AND lifecycle='active'
                         """,
                         (now, now, parent_profile_id),
@@ -5210,8 +5208,7 @@ def transition_candidate_profile_lifecycle(
                 )
                 conn.execute(
                     """UPDATE candidate_profiles
-                       SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = ?,
-                           is_default = 0
+                       SET lifecycle = ?, archived_at = ?, updated_at = ?, revision = ?
                        WHERE candidate_profile_id = ? AND revision = ?""",
                     (
                         lifecycle,
@@ -10977,45 +10974,6 @@ def list_runs(
     return [run for row in rows if (run := _normalized_run_from_row(row)) is not None]
 
 
-def list_runs_for_reconciliation(*, limit: int = 200) -> list[PipelineRun]:
-    path = Path(_local_sqlite_path())
-    if not path.exists():
-        return []
-    with _sqlite_connection(path, read_only=True) as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """
-            SELECT run_id, backend_status, triggered_by, trigger_source, created_at,
-                   settings_used_json
-            FROM pipeline_runs
-            WHERE archived_at IS NULL AND backend_status IN ('queued', 'running')
-            ORDER BY created_at DESC, run_id DESC
-            LIMIT ?
-            """,
-            (max(1, int(limit)),),
-        ).fetchall()
-    runs: list[PipelineRun] = []
-    for row in rows:
-        try:
-            status = RunStatus(str(row["backend_status"]))
-        except ValueError:
-            continue
-        runs.append(
-            PipelineRun(
-                run_id=str(row["run_id"]),
-                status=status,
-                triggered_by=str(row["triggered_by"] or ""),
-                trigger_source=str(row["trigger_source"] or ""),
-                jobs_path="",
-                config_path="",
-                created_at=_parse_dt(row["created_at"])
-                or datetime.datetime.now(datetime.timezone.utc),
-                settings_used_json=row["settings_used_json"],
-            )
-        )
-    return runs
-
-
 def _mutate_normalized_run(run_id: str, mutate: Callable[[PipelineRun], PipelineRun]) -> bool:
     with _sqlite_connection(Path(_local_sqlite_path())) as conn:
         conn.row_factory = sqlite3.Row
@@ -12462,6 +12420,47 @@ def query_runs(
         "page": page_number,
         "page_size": page_size,
     }
+
+
+def query_shortlist_admission_decisions(
+    run_id: str,
+    *,
+    page: int = 1,
+    page_size: int = 50,
+    search: str = "",
+) -> dict[str, Any]:
+    """Return the complete shortlist decision envelope, including exclusions."""
+    if page_size not in {10, 20, 50, 100}:
+        raise ValueError("page_size must be 10, 20, 50, or 100")
+    page_number = max(1, int(page))
+    pattern = f"%{str(search or '').strip()}%"
+    with _sqlite_connection(Path(_local_sqlite_path()), read_only=True) as conn:
+        conn.row_factory = sqlite3.Row
+        _require_control_plane_schema(conn)
+        table_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='shortlist_admission_ledger'"
+        ).fetchone()
+        if table_exists is None:
+            return {"items": [], "total": 0, "page": page_number, "page_size": page_size}
+        where = "run_id = ? AND (job_url LIKE ? OR job_identity LIKE ?)"
+        params: list[Any] = [run_id, pattern, pattern]
+        total = int(conn.execute(f"SELECT COUNT(*) FROM shortlist_admission_ledger WHERE {where}", params).fetchone()[0])
+        offset = (page_number - 1) * page_size
+        rows = conn.execute(
+            f"SELECT * FROM shortlist_admission_ledger WHERE {where} ORDER BY admitted DESC, admission_rank ASC, job_identity ASC LIMIT ? OFFSET ?",
+            [*params, page_size, offset],
+        ).fetchall()
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        raw_decision = item.get("decision_json")
+        if raw_decision:
+            try:
+                item["coverage"] = json.loads(raw_decision)
+            except (TypeError, ValueError):
+                item["coverage"] = None
+        items.append(item)
+    return {"items": items, "total": total, "page": page_number, "page_size": page_size}
 
 
 def reserve_idempotent_action(scope: str, key: str, fingerprint: str) -> dict[str, Any]:
@@ -15657,8 +15656,7 @@ def persist_pipeline_snapshot(
     completed_stage_ids = {
         canonical
         for raw_stage_id in list(summary.get("completed_stages") or [])
-        if pipeline_stage_is_control_plane_terminal(str(raw_stage_id))
-        and (canonical := canonical_stage_id(str(raw_stage_id))) is not None
+        if (canonical := canonical_stage_id(str(raw_stage_id))) is not None
     }
     stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
     if isinstance(stage_artifacts.get("artifacts"), dict):
@@ -15680,16 +15678,11 @@ def persist_pipeline_snapshot(
         try:
             conn.execute("BEGIN IMMEDIATE")
             for raw_stage_id, block_value in stage_blocks.items():
-                if not pipeline_stage_is_control_plane_terminal(str(raw_stage_id)):
-                    continue
                 stage_id = canonical_stage_id(str(raw_stage_id))
                 if stage_id is None or not isinstance(block_value, dict):
                     continue
                 block = dict(block_value)
-                raw_stage_status = str(block.get("status") or "").strip().lower()
-                if raw_stage_status in {"", "not_reached"}:
-                    continue
-                stage_status = run_stage_status_from_pipeline(raw_stage_status)
+                stage_status = run_stage_status_from_pipeline(str(block.get("status") or ""))
                 if stage_status.value == "pending" and stage_id in completed_stage_ids:
                     stage_status = run_stage_status_from_pipeline("completed")
                 output_counts = dict(block.get("output_counts") or {})

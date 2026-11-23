@@ -9,10 +9,8 @@
         "datePosted": "r86400",
         "easyApply": false,
         "keywords": "student",
-        "limit": 100,
+        "limit": 80,
         "location": "Germany",
-        "titleExclude": ["duales"],
-        "titleInclude": ["AI"],
         "under10Applicants": false
       }
     },
@@ -22,9 +20,8 @@
         "datePosted": "r86400",
         "easyApply": false,
         "keywords": "Praktikum",
-        "limit": 100,
+        "limit": 80,
         "location": "Germany",
-        "titleExclude": ["duales"],
         "under10Applicants": false
       }
     }

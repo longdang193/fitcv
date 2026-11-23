@@ -3,7 +3,7 @@ layer: change
 artifact_type: plan
 template_id: implementation-plan
 contract_version: "1"
-status: completed
+status: proposed
 name: fitcv-validated-runtime-evidence-integrity
 targets:
   - src/fitcv/candidate.py
@@ -12,7 +12,6 @@ targets:
   - src/fitcv/ai_score.py
   - src/fitcv/agentic_cv_analysis.py
   - src/fitcv/agentic_cv_generation.py
-  - src/fitcv/contracts.py
   - src/fitcv/pipeline.py
   - src/fitcv/pipeline_stage_runner.py
   - tests/test_candidate.py
@@ -37,7 +36,7 @@ The review basis is the public, commit-pinned revision `4d15a0e6eb05064c65afa4b1
 
 ### Support status survives every runtime projection
 
-Legacy parent and bullet support states remain attached during v2 adaptation and runtime convergence. Public canonical claims normalize to `supported` or `unsupported`; a runtime-only evidence-admission/audit state keyed by generated evidence ID preserves legacy non-rankable parent and fragment provenance without expanding the public v2 schema. CV capability matching, evidence projection, retrieval, and scoring admit only evidence-backed rankable claims, while raw compatibility projections retain their documented legacy behavior.
+Legacy parent and bullet support states remain attached during v2 adaptation and runtime convergence. CV capability matching, evidence projection, retrieval, and scoring admit only evidence-backed rankable claims, while raw compatibility projections retain their documented legacy behavior.
 
 ### Canonical-v2 claims require admissible proof
 
@@ -50,10 +49,6 @@ Negated source prose cannot become affirmative evidence merely because structure
 ### Scoring receives bounded, attributable evidence
 
 Nested source locators and provenance metadata are bounded independently from evidence text, and final scoring diagnostics describe the exact model-visible payload. Evidence required for compatibility scoring remains attributable and joinable to canonical evidence IDs.
-
-### Reuse reflects the active evidence policy
-
-CV-analysis and CV-generation reuse fingerprints include an explicit evidence-integrity policy version. Existing cached analysis or accepted generation artifacts are rejected when the support-status, polarity, rankability, or evidence-visibility contract changes.
 
 ## Execution Approach
 
@@ -100,7 +95,6 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - Modify: `src/fitcv/candidate.py:_adapt_legacy_parent`, `adapt_candidate_profile_to_v2`
 - Modify: `src/fitcv/agentic_cv_analysis.py:_candidate_skill_names`
 - Modify: `src/fitcv/agentic_cv_generation.py:check_cv_acceptance_policy` and its requirement-coverage callers
-- Modify: `src/fitcv/pipeline.py` and `src/fitcv/pipeline_stage_runner.py` to establish and consume one converged runtime-profile variable at retrieval, scoring, ranking, and CV boundaries
 - Verify: `tests/test_candidate.py`, `tests/test_evidence.py`, `tests/test_agentic_cv_analysis.py`, `tests/test_agentic_cv_generation.py`, `tests/test_pipeline.py`
 
 **Dependencies:**
@@ -115,12 +109,11 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - [ ] Step 1: Add fixtures for a legacy project and experience bullet marked `claimed_only` or `unsupported`, plus a supported sibling claim with distinct evidence IDs.
 - [ ] Step 2: Preserve parent/bullet status during adaptation and prevent non-rankable parents or fragments from creating supported derived claims or rankable evidence links.
 - [ ] Step 3: Change `_candidate_skill_names` and generation review gating to use rankable skills and authoritative requirement coverage without weakening legacy fallback behavior.
-- [ ] Step 4: Add a runtime-only admission/audit marker keyed by generated evidence ID so unsupported legacy parent and fragment evidence remains inspectable but cannot enter positive selection.
-- [ ] Step 5: Add an end-to-end regression from legacy profile input through runtime convergence, evidence projection, evidence selection, CV gap analysis, and ranking/generation inputs.
+- [ ] Step 4: Add an end-to-end regression from legacy profile input through runtime convergence, evidence projection, evidence selection, CV gap analysis, and ranking/generation inputs.
 
 **Verification:**
 - [ ] `python -m pytest tests/test_candidate.py tests/test_evidence.py tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline.py -q`
-- Expected: claimed-only and unsupported skills never appear as demonstrated CV capabilities or supported ranking evidence; their generated evidence remains audit-visible but admission-excluded; supported claims still reach evidence selection and scoring.
+- Expected: claimed-only and unsupported skills never appear as demonstrated CV capabilities or supported ranking evidence; supported claims still reach evidence selection and scoring.
 - [ ] Direct assertion over the converged profile, projected evidence, `candidate_skills`, `requirement_coverage`, `do_not_claim`, and generated review flags.
 - Expected: the final state is status-consistent and the unsupported-requirement review is not skipped merely because an unrestricted declared-skill list matched.
 
@@ -157,7 +150,6 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - Inspect: `src/fitcv/candidate.py:validate_candidate_profile`, `converge_candidate_profile_for_runtime`, `_is_rankable_support_status`, `flatten_rankable_skills`
 - Inspect: `src/fitcv/ai_score.py:build_ranking_job_input`
 - Inspect: `src/fitcv/pipeline.py` rankable candidate-skill assembly and `src/fitcv/pipeline_stage_runner.py` scoring-input selection
-- Inspect: `src/fitcv/contracts.py` as the owner of reuse-policy version constants
 - Modify: `src/fitcv/candidate.py` canonical-v2 validation and rankability helpers
 - Modify: `src/fitcv/ai_score.py:build_ranking_job_input` only where admission must be enforced at the scorer boundary
 - Verify: `tests/test_candidate.py`, `tests/test_ai_score.py`, `tests/test_pipeline.py`
@@ -175,8 +167,7 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - [ ] Step 1: Define the canonical-v2 admissible statuses and the supported-claim evidence-reference invariant in the existing candidate contract owner.
 - [ ] Step 2: Reject missing, unknown, empty, and dangling claim metadata with field-specific validation errors; preserve the separate legacy adaptation path.
 - [ ] Step 3: Make `_is_rankable_support_status` use an explicit allowlist or validated enum result so unknown values cannot become supported by default.
-- [ ] Step 4: Establish `runtime_profile = converge_candidate_profile_for_runtime(profile or {})` immediately after load and pass that object to vector query construction, scorer candidate facts, `build_ranking_features`, CV analysis, and generation review; retain the raw profile only for compatibility diagnostics.
-- [ ] Step 5: Add validator and scorer-input regressions for missing status, unknown status, empty refs, dangling refs, supported-without-evidence, valid supported evidence, and a legacy valid claim that remains rankable after convergence.
+- [ ] Step 4: Add validator and scorer-input regressions for missing status, unknown status, empty refs, dangling refs, supported-without-evidence, and valid supported evidence.
 
 **Verification:**
 - [ ] `python -m pytest tests/test_candidate.py tests/test_ai_score.py tests/test_pipeline.py -q`
@@ -203,7 +194,7 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - Selection basis: focused polarity regressions cover the material success and failure paths.
 
 **Specification Coverage:**
-- Source-evidence polarity is authoritative: a structurally valid claim-to-evidence link never overrides an evidence item whose relevant occurrences are all negated.
+- Negative source evidence remains unsupported unless a separately validated positive claim-to-evidence link exists.
 - Positive source prose with a matching skill tag continues to score as supported.
 
 **Required Skills:**
@@ -222,13 +213,13 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 
 **Authority:**
 - Preauthorized local actions: adjust evidence-channel construction and polarity evaluation in the named symbols and add focused evidence tests.
-- Stop for: a proposed change that treats structured tags or structural claim links as independent positive proof without affirmative source polarity.
+- Stop for: a proposed change that treats structured tags as independent proof without a validated canonical evidence reference.
 
 **Steps:**
 - [ ] Step 1: Reproduce `text="No Python experience was required for the role."` with `skills=["Python"]` and capture the current positive coverage.
 - [ ] Step 2: Separate source/scoring prose used for polarity from structured tags used only as metadata or bounded search hints.
-- [ ] Step 3: Preserve positive prose behavior; structured tags may assist discovery but cannot convert an all-negated evidence item into positive support. Require affirmative source text in that item or a separate affirmative evidence item.
-- [ ] Step 4: Add negative, positive, mixed-channel, multi-occurrence, and canonical projection-to-selection regressions.
+- [ ] Step 3: Preserve positive prose behavior and require an independently validated positive linkage before tags can add support.
+- [ ] Step 4: Add negative, positive, mixed-channel, and multi-occurrence regressions.
 
 **Verification:**
 - [ ] `python -m pytest tests/test_evidence.py -q`
@@ -240,10 +231,10 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 ### Task 4: Filter negative and non-rankable technology/project material from retrieval
 
 **Purpose:**
-- Stop claimed-only, rejected, unsupported, and negated project technology or domain tags from contributing positive overlap, lexical fallback admission, vector query text, or candidate-query signatures.
+- Stop claimed-only, rejected, unsupported, and negated project technology from contributing positive technology overlap, lexical fallback admission, vector query text, or candidate-query signatures.
 
 **Task Function:**
-- Harden all project-derived retrieval components—technology inventory, domain tags, and project evidence-hint harvest—while preserving supported project evidence, stable ordering, and existing query bounds.
+- Harden the technology inventory and project evidence-hint harvest while preserving supported project evidence, stable ordering, and existing query bounds.
 
 **Template Profile:**
 - Controller-selected: `<none (lead controller)>`
@@ -277,9 +268,9 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 
 **Steps:**
 - [ ] Step 1: Add a claimed-only project with `name`, `business_value`, and highlights that would otherwise enter `project_evidence_hints`.
-- [ ] Step 2: Add a supported project with `text="No Kubernetes experience"`, unsupported/negated domain tags, and verify current technology overlap and lexical admission.
-- [ ] Step 3: Apply one shared project-admissibility predicate to technology inventory, project domain tags, and project-hint harvesting before positive retrieval components are built.
-- [ ] Step 4: Assert excluded values are absent from components, rendered query text, and signature while supported affirmative technology and domain values remain present and ordered.
+- [ ] Step 2: Add a supported project with `text="No Kubernetes experience"` and verify current technology overlap and lexical admission.
+- [ ] Step 3: Apply the shared rankability and polarity gates before technology inventory and project-hint harvesting.
+- [ ] Step 4: Assert excluded values are absent from components, rendered query text, and signature while supported affirmative values remain present and ordered.
 
 **Verification:**
 - [ ] `python -m pytest tests/test_vector_search.py -q`
@@ -319,9 +310,7 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - Inspect: `src/fitcv/ai_score.py:_bounded_source_refs`, `build_ranking_job_input`, request-budget attempt construction, and `build_ranking_input_diagnostics`
 - Inspect: `src/fitcv/candidate.py:validate_candidate_profile` source-reference locator validation
 - Inspect: `src/fitcv/pipeline_stage_runner.py` evidence selection and visibility handoff
-- Inspect: `src/fitcv/contracts.py:CV_ANALYSIS_REUSE_SCHEMA_VERSION`, `src/fitcv/agentic_cv_analysis.py` reuse validation, and `src/fitcv/agentic_cv_generation.py:_CV_GENERATION_FINGERPRINT_SCHEMA_VERSION`
 - Modify: `src/fitcv/ai_score.py` provenance bounding, final-payload diagnostics, and explicit budget failure metadata
-- Modify: `src/fitcv/contracts.py` and the owning CV-analysis/CV-generation fingerprint builders to version the evidence-integrity policy
 - Modify if required: `src/fitcv/candidate.py` locator schema/size validation
 - Verify: `tests/test_ai_score.py`, `tests/test_candidate.py`, `tests/test_pipeline.py`
 
@@ -338,7 +327,6 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 - [ ] Step 2: Restrict locator fields to the canonical kinds and bound nested scalar values plus serialized provenance size independently from evidence text.
 - [ ] Step 3: Build `model_visible_ranking_input` from the selected final job, candidate, and evidence values and derive visibility counters from it; retain raw input under a distinct provenance field.
 - [ ] Step 4: Add regressions for trimmed locators, preserved IDs, visible evidence counts, omission diagnostics, and explicit mandatory-contract failure.
-- [ ] Step 5: Add stale-cache regressions proving prior-version CV-analysis and accepted CV-generation records are rejected and recomputed under the new evidence-integrity policy.
 
 **Verification:**
 - [ ] `python -m pytest tests/test_ai_score.py tests/test_candidate.py tests/test_pipeline.py -q`
@@ -349,17 +337,10 @@ CV-analysis and CV-generation reuse fingerprints include an explicit evidence-in
 
 ## Verification
 
-- `python -m pytest tests/test_candidate.py tests/test_candidate_profile_ingest.py tests/test_benchmark_requirement_support.py tests/test_p0b_holdout_benchmark_adapter.py tests/test_evidence.py tests/test_vector_search.py tests/test_ai_score.py tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline.py -q` → `578 passed, 3 skipped`
-- `python -m pytest tests/test_pipeline.py::test_evidence_integrity_backend_trace tests/test_vector_search.py -q` → `62 passed, 1 skipped`
-- `python -m pytest -q` → `3700 passed, 10 skipped, 3 failed`; all three failures are pre-existing frontend packaging prerequisites outside this plan (`frontend/dist` is absent, causing `/app` 503 and the packaging data-source assertion).
-- `git diff --check` → clean; final changes are limited to the named plan, source, and regression-test files.
-- `tests/test_pipeline.py::test_evidence_integrity_backend_trace` proves legacy convergence, audit-only unsupported/negated evidence, excluded project technology/query material, supported evidence selection, and ranker input visibility through the backend boundary.
-
-## Execution Notes
-
-- Runtime convergence remains canonical-only (`search_preferences`); compatibility callers use a fallback projection instead of reintroducing a second runtime schema.
-- Legacy project admission is checked from runtime evidence metadata after adaptation, preventing unsupported project names, technology values, and hints from entering positive retrieval.
-- The full-suite frontend failures are not addressed because `frontend/dist` is outside the approved target set and unrelated to evidence integrity.
+- `python -m pytest tests/test_candidate.py tests/test_evidence.py tests/test_vector_search.py tests/test_ai_score.py tests/test_agentic_cv_analysis.py tests/test_agentic_cv_generation.py tests/test_pipeline.py -q`
+- `python -m pytest -q`
+- Inspect the final diff with `git diff --check` and confirm only the named source, test, and directly affected specification files changed.
+- Run a representative backend trace covering legacy and canonical-v2 profile input, runtime convergence, evidence projection/selection, vector shortlist construction, scorer request serialization, CV requirement coverage, and final ranking/generation disposition.
 
 ## Completion Criteria
 

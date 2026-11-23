@@ -30,7 +30,6 @@ from fitcv.contracts import (
     REQUIRED_INDEED_FIELDS,
     REQUIRED_SCRAPER_FIELDS,
     SCRAPER_CAMEL_TO_SNAKE,
-    build_description_quality,
 )
 from fitcv.persistence import get_local_sqlite_path, sqlite_connection
 from fitcv.pipeline_stages.common import normalize_job_url_key
@@ -325,8 +324,6 @@ def build_source_location(job: dict[str, Any]) -> dict[str, str | None]:
 
 def _normalize_indeed_job(job: dict[str, Any]) -> dict[str, Any]:
     apply_url = _indeed_apply_url(job)
-    description = _indeed_description_text(job)
-    description_quality = build_description_quality(description, "description")
     return {
         "job_url": _indeed_job_url(job),
         "title": str(job.get("title") or ""),
@@ -337,7 +334,7 @@ def _normalize_indeed_job(job: dict[str, Any]) -> dict[str, Any]:
         "company_name": _indeed_company_name(job),
         "company_url": _indeed_company_url(job),
         "company_id": _indeed_company_id(job),
-        "description": description,
+        "description": _indeed_description_text(job),
         "applications_count": "",
         "contract_type": _indeed_job_types_text(job),
         "experience_level": "",
@@ -349,8 +346,7 @@ def _normalize_indeed_job(job: dict[str, Any]) -> dict[str, Any]:
         "source_provider": "indeed",
         "source_job_id": str(job.get("key") or job.get("refNum") or _indeed_job_url(job)),
         "description_source": "description",
-        "description_complete": description_quality["description_quality"] == "full",
-        **description_quality,
+        "description_complete": bool(_indeed_description_text(job).strip()),
         "raw_json": json.dumps(job, ensure_ascii=False),
     }
 
@@ -363,8 +359,6 @@ def _normalize_stepstone_job(job: dict[str, Any]) -> dict[str, Any]:
         isinstance(label, dict) and str(label.get("type") or "") == "QUICK_APPLY"
         for label in labels
     ) else "EXTERNAL"
-    description = str(job.get("textSnippet") or "")
-    description_quality = build_description_quality(description, "text_snippet")
     return {
         "job_url": job_url,
         "title": str(job.get("title") or ""),
@@ -375,7 +369,7 @@ def _normalize_stepstone_job(job: dict[str, Any]) -> dict[str, Any]:
         "company_name": str(job.get("companyName") or ""),
         "company_url": str(job.get("companyUrl") or ""),
         "company_id": str(job.get("companyId") or ""),
-        "description": description,
+        "description": str(job.get("textSnippet") or ""),
         "applications_count": "",
         "contract_type": "",
         "experience_level": "",
@@ -387,8 +381,7 @@ def _normalize_stepstone_job(job: dict[str, Any]) -> dict[str, Any]:
         "source_provider": "stepstone",
         "source_job_id": str(job.get("id") or ""),
         "description_source": "text_snippet",
-        "description_complete": description_quality["description_quality"] == "full",
-        **description_quality,
+        "description_complete": False,
         "raw_json": json.dumps(job, ensure_ascii=False),
     }
 
@@ -397,41 +390,12 @@ def _normalize_linkedin_job(job: dict[str, Any]) -> dict[str, Any]:
     mapped = {_CAMEL_TO_SNAKE.get(key, key): value for key, value in job.items()}
     description = str(mapped.get("description") or "")
     source_provider = str(job.get("source") or "linkedin").strip().lower() or "linkedin"
-    description_source = str(mapped.get("description_source") or "description").strip() or "description"
-    upstream_provenance = {
-        key: mapped.get(key)
-        for key in (
-            "description_quality",
-            "description_source_checksum",
-            "description_source_length",
-            "description_quality_signals",
-            "description_boundary",
-        )
-        if mapped.get(key) not in (None, "", [])
-    }
-    description_quality = build_description_quality(description, description_source)
-    upstream_checksum = str(mapped.get("description_source_checksum") or "").strip()
-    if upstream_checksum == description_quality["description_source_checksum"]:
-        description_quality.update(
-            {
-                key: mapped[key]
-                for key in (
-                    "description_source_checksum",
-                    "description_source_length",
-                    "description_quality_signals",
-                    "description_boundary",
-                )
-                if key in mapped and mapped[key] not in (None, "")
-            }
-        )
     mapped.update(
         {
             "source_provider": source_provider,
             "source_job_id": str(job.get("id") or mapped.get("job_url") or ""),
-            "description_source": description_source,
-            "description_complete": description_quality["description_quality"] == "full",
-            **description_quality,
-            **upstream_provenance,
+            "description_source": "description",
+            "description_complete": bool(description.strip()),
             "raw_json": json.dumps(job, ensure_ascii=False),
         }
     )

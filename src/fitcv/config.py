@@ -104,11 +104,22 @@ SUPPORTED_RETRIEVAL_STRATEGIES = frozenset({
     "lexical_v1",
     "hybrid_rrf_v1",
 })
+SUPPORTED_SHORTLIST_STRATEGIES = frozenset({
+    "legacy_retrieval_v1",
+    "core_pareto_evidence_v1",
+})
+SUPPORTED_SHORTLIST_POLICIES = frozenset({
+    "legacy_production_v1",
+    "requirement_aware_v1",
+    "shadow",
+})
 MIXED_FALLBACK_RETRIEVAL_STRATEGY = "vector_cosine_v1_with_lexical_fallback"
 CHECKPOINT_RETRIEVAL_STRATEGIES = SUPPORTED_RETRIEVAL_STRATEGIES | {
     MIXED_FALLBACK_RETRIEVAL_STRATEGY,
 }
 DEFAULT_RETRIEVAL_STRATEGY = "hybrid_rrf_v1"
+DEFAULT_SHORTLIST_STRATEGY = "legacy_retrieval_v1"
+DEFAULT_SHORTLIST_POLICY = "legacy_production_v1"
 
 
 def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:
@@ -121,6 +132,34 @@ def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:
             f"{sorted(SUPPORTED_RETRIEVAL_STRATEGIES)}, got: {strategy!r}"
         )
     return strategy
+
+
+def resolve_shortlist_strategy(config: dict[str, Any] | None) -> str:
+    """Return the admission selector, independent from retrieval strategy."""
+    pipeline_cfg = (config or {}).get("pipeline") or {}
+    strategy = str(pipeline_cfg.get("shortlist_strategy") or DEFAULT_SHORTLIST_STRATEGY).strip()
+    if strategy not in SUPPORTED_SHORTLIST_STRATEGIES:
+        raise ValueError(
+            "pipeline.shortlist_strategy must be one of "
+            f"{sorted(SUPPORTED_SHORTLIST_STRATEGIES)}, got: {strategy!r}"
+        )
+    return strategy
+
+
+def resolve_shortlist_policy(config: dict[str, Any] | None, *, strategy: str | None = None) -> str:
+    pipeline_cfg = (config or {}).get("pipeline") or {}
+    default = "requirement_aware_v1" if (strategy or resolve_shortlist_strategy(config)) == "core_pareto_evidence_v1" else DEFAULT_SHORTLIST_POLICY
+    policy = str(pipeline_cfg.get("shortlist_policy") or default).strip()
+    if policy not in SUPPORTED_SHORTLIST_POLICIES:
+        raise ValueError(
+            "pipeline.shortlist_policy must be one of "
+            f"{sorted(SUPPORTED_SHORTLIST_POLICIES)}, got: {policy!r}"
+        )
+    return policy
+
+
+def resolve_shortlist_shadow_enabled(config: dict[str, Any] | None) -> bool:
+    return bool(((config or {}).get("pipeline") or {}).get("shortlist_shadow_enabled", False))
 SUPPORTED_PROVIDER_TYPES = frozenset({"openai", "openai_compatible"})
 SUPPORTED_AUTH_MODES = frozenset({"required", "optional", "none"})
 SUPPORTED_WIRE_APIS = frozenset({"responses", "chat_completions"})
@@ -1411,6 +1450,28 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
                 f"{sorted(SUPPORTED_RETRIEVAL_STRATEGIES)}, got: {retrieval_strategy!r}"
             )
         pipeline_cfg["retrieval_strategy"] = retrieval_strategy
+        shortlist_strategy = str(pipeline_cfg.setdefault("shortlist_strategy", DEFAULT_SHORTLIST_STRATEGY) or "").strip()
+        if shortlist_strategy not in SUPPORTED_SHORTLIST_STRATEGIES:
+            raise ValueError(
+                "pipeline.shortlist_strategy must be one of "
+                f"{sorted(SUPPORTED_SHORTLIST_STRATEGIES)}, got: {shortlist_strategy!r}"
+            )
+        pipeline_cfg["shortlist_strategy"] = shortlist_strategy
+        shortlist_policy = str(
+            pipeline_cfg.setdefault(
+                "shortlist_policy",
+                "requirement_aware_v1" if shortlist_strategy == "core_pareto_evidence_v1" else DEFAULT_SHORTLIST_POLICY,
+            )
+            or ""
+        ).strip()
+        if shortlist_policy not in SUPPORTED_SHORTLIST_POLICIES:
+            raise ValueError(
+                "pipeline.shortlist_policy must be one of "
+                f"{sorted(SUPPORTED_SHORTLIST_POLICIES)}, got: {shortlist_policy!r}"
+            )
+        pipeline_cfg["shortlist_policy"] = shortlist_policy
+        if not isinstance(pipeline_cfg.setdefault("shortlist_shadow_enabled", False), bool):
+            raise ValueError("pipeline.shortlist_shadow_enabled must be a boolean")
         shortlist_audit_sample_n = pipeline_cfg.setdefault("shortlist_audit_sample_n", 5)
         if isinstance(shortlist_audit_sample_n, bool) or not isinstance(shortlist_audit_sample_n, int):
             raise ValueError("pipeline.shortlist_audit_sample_n must be an integer")
@@ -1601,7 +1662,7 @@ def apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
     # required_cv_sections: enabled composition sections only.
     required: list[str] = []
     comp = cv_cfg.get("composition") or {}
-    preset = str(cv_cfg.get("preset") or "europass").strip().lower()
+    preset = str(cv_cfg.get("preset") or "mycvs").strip().lower()
     ordered_keys = list(get_section_order(preset))
     ordered_keys.extend(str(key) for key in comp if str(key) not in ordered_keys)
     for section_name in ordered_keys:

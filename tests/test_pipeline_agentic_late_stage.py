@@ -821,10 +821,12 @@ def test_execute_ranking_stage_preserves_empty_evidence_ranking_input() -> None:
     captured: dict[str, Any] = {}
 
     def fingerprint(*_args: Any, **kwargs: Any) -> dict[str, Any]:
-        raise AssertionError("fingerprint/reuse lookup must not run without selected evidence")
+        captured["fingerprint_ranking_input"] = kwargs["ranking_input"]
+        return {"fingerprint": "empty-evidence-fingerprint"}
 
     def score(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
-        raise AssertionError("provider scoring must not run without selected evidence")
+        captured["scoring_ranking_inputs"] = kwargs["ranking_inputs"]
+        return [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
 
     with patch("fitcv.pipeline_stage_runner.select_ranking_evidence", return_value=[]):
         execute_ranking_stage(
@@ -849,7 +851,11 @@ def test_execute_ranking_stage_preserves_empty_evidence_ranking_input() -> None:
             rank_jobs=MagicMock(),
         )
 
-    assert captured == {}
+    assert captured["fingerprint_ranking_input"]["candidate_evidence"] == []
+    assert (
+        captured["scoring_ranking_inputs"][primary_job_identity_key(job)]["candidate_evidence"]
+        == []
+    )
 
 def _minimal_runtime_evidence(
     *,
@@ -1039,10 +1045,6 @@ def test_run_pipeline_emits_effective_concurrency_for_enrich_and_ranking_events(
     }
     mock_build_ranking_features.return_value = [ranked_job]
     mock_rank_jobs.return_value = [ranked_job]
-    profile["projects"] = [{
-        "name": "SQL Data Platform",
-        "highlights": ["Built SQL data pipelines."],
-    }]
 
     with patch.dict("os.environ", {"FITCV_ENRICH_HEARTBEAT_EVENTS": ""}, clear=False):
         run_pipeline(
@@ -2057,7 +2059,7 @@ def test_reuse_with_missing_render_proof_rerenders_without_provider_call(
     "fitcv.agentic_cv_generation.render_cv_native_acceptance",
     return_value={},
 )
-def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
+def test_reuse_with_failed_rerender_is_generation_failed_without_provider_call(
     mock_render_cv_native_acceptance: MagicMock,
     mock_generate_cv: MagicMock,
     mock_run_all_validations: MagicMock,
@@ -2122,9 +2124,12 @@ def test_reuse_with_failed_rerender_is_review_required_without_provider_call(
 
     mock_generate_cv.assert_not_called()
     mock_render_cv_native_acceptance.assert_called_once()
-    assert reused["status"] == "review_required"
+    assert reused["status"] == "generation_failed"
     assert reused["structured_cv_final"] == _minimal_structured_cv()
-    assert reused["error"]["code"] == "reusable_render_proof_failed"
+    assert reused["markdown_final"] == markdown
+    assert reused["late_stage_state"]["pdf_status"] == "failed"
+    assert reused["late_stage_state"]["submission_permitted"] is False
+    assert reused["error"]["code"] == "render_failed"
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
@@ -2163,6 +2168,10 @@ def test_trimmed_content_is_revalidated_before_acceptance(
 
     result = generate_from_analysis(analysis_record, _minimal_profile(), config)
 
-    assert result["status"] == "review_required"
+    assert result["status"] == "generation_failed"
     assert mock_run_all_validations.call_count == 2
     assert result["render_acceptance"]["artifact_checksum"] == "a" * 64
+    assert result["structured_cv_final"] == structured
+    assert result["markdown_final"] == "# Test Candidate\n## Experience\nGrounded work."
+    assert result["late_stage_state"]["pdf_status"] == "failed"
+    assert result["late_stage_state"]["submission_permitted"] is False

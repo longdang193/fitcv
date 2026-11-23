@@ -53,6 +53,18 @@ DEFAULT_SELECTED_RULE_FILTERS: list[str] = [
     str(item["code"]) for item in RULE_FILTER_SIGNALS if bool(item["default_selected"])
 ]
 KNOWN_RULE_FILTER_SIGNAL_CODES: set[str] = set(RULE_FILTER_SIGNAL_LABELS)
+SHORTLIST_ELIGIBILITY_POLICY_VERSION = "shortlist_eligibility_matrix_v1"
+SHORTLIST_SOFT_FILTER_REASONS = frozenset(
+    {"missing_fit_context", "must_have_skill_missing", "domain_not_preferred"}
+)
+
+
+def shortlist_filter_disposition(reasons: list[str] | tuple[str, ...] | set[str]) -> str:
+    """Classify rule-filter reasons for requirement-aware evaluation pooling."""
+    normalized = {str(reason).strip() for reason in reasons if str(reason).strip()}
+    if normalized and normalized.issubset(SHORTLIST_SOFT_FILTER_REASONS):
+        return "soft_exclusion"
+    return "hard_exclusion"
 
 
 # ── built-in fallbacks (used when config is not passed) ───────────────────────
@@ -458,69 +470,24 @@ def check_location_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
 
 
 def check_fit_context(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
-    """Return True when normalized context or usable matching input exists."""
+    """Return True when at least one normalized fit-context field exists."""
     del prefs
-    if any(
+    return any(
         str(job.get(field_name) or "").strip()
         for field_name in ("location_type", "seniority", "job_family", "domain")
-    ):
-        return True
-    if any(
-        str(job.get(field_name) or "").strip()
-        for field_name in ("description_cleaned", "description", "raw_description")
-    ):
-        return True
-    if any(
-        isinstance(job.get(field_name), list) and job.get(field_name)
-        for field_name in (
-            "required_skills",
-            "required_skill_entities",
-            "qualifications",
-            "education",
-            "certifications",
-            "employment_constraints",
-            "mandatory_clauses",
-            "language_requirements",
-            "responsibilities",
-            "tech_stack",
-        )
-    ):
-        return True
-    return any(
-        isinstance(job.get(field_name), (int, float)) and not isinstance(job.get(field_name), bool)
-        for field_name in ("years_experience_min", "years_experience_max")
     )
 
-def classify_contract_type(
-    job: dict[str, Any],
-    prefs: dict[str, Any],
-    config: dict[str, Any] | None = None,
-) -> str:
-    """Classify contract metadata without treating missing data as mismatch."""
-    contract_type = str(job.get("contract_type") or "").strip().lower()
+def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
+    """Return True if job contract_type is permitted by include/exclude prefs."""
+    contract_type = str(job.get("contract_type") or "").lower()
     excluded = _get_excluded_contract_types(prefs)
+    if excluded and contract_type in excluded:
+        return False
+
     allowed = _normalized_string_list(prefs.get("contract_types"))
-    if contract_type in {"", "unknown", "none", "n/a", "not specified", "unspecified"}:
-        missing_policy = str(
-            ((config or {}).get("rule_filter") or {}).get("missing_contract_type_policy") or "unknown"
-        ).strip().lower()
-        if missing_policy == "reject":
-            return "mismatch"
-        return "unknown" if (excluded or allowed) else "match"
-    if contract_type in excluded:
-        return "mismatch"
-    if allowed and contract_type not in allowed:
-        return "mismatch"
-    return "match"
-
-
-def check_contract_type(
-    job: dict[str, Any],
-    prefs: dict[str, Any],
-    config: dict[str, Any] | None = None,
-) -> bool:
-    """Return True unless contract metadata is a confirmed mismatch."""
-    return classify_contract_type(job, prefs, config) != "mismatch"
+    if not allowed:
+        return True
+    return contract_type in allowed
 
 
 def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -548,12 +515,6 @@ def check_must_have_skills(
     """
     must_haves = prefs.get("must_have_skills", [])
     if not must_haves:
-        return True
-    description_quality = str(job.get("description_quality") or "").strip().lower()
-    if (
-        description_quality in {"missing", "partial", "boilerplate_only", "unknown"}
-        or str(job.get("enrich_reuse_status") or "").strip().lower() == "enrichment_fallback"
-    ):
         return True
     canonical_job_skills = job.get("required_skills_canonical")
     if isinstance(canonical_job_skills, list) and canonical_job_skills:
@@ -774,7 +735,7 @@ def apply_rule_filters(
         ("seniority_mismatch", lambda job, preferences: check_seniority(job, preferences, config)),
         ("missing_fit_context", check_fit_context),
         ("location_type_excluded", check_location_type),
-        ("contract_type_excluded", lambda job, preferences: check_contract_type(job, preferences, config)),
+        ("contract_type_excluded", check_contract_type),
         ("experience_level_excluded", check_experience_level),
         (
             "must_have_skill_missing",
@@ -798,20 +759,8 @@ def apply_rule_filters(
             exclude_keywords=prefs.get("job_title_exclude_keywords") or prefs.get("excluded_job_titles"),
         )
         if not title_result["passed"]:
-            title_reason = str(title_result["reason_code"])
-            if title_reason in selected_filter_codes:
-                reasons.append(title_reason)
-            else:
-                marks.append(_build_rule_filter_mark(title_reason, job, prefs, config))
-        contract_state = classify_contract_type(job, prefs, config)
-        if contract_state == "unknown":
-            marks.append(
-                {
-                    "code": "contract_type_unknown",
-                    "message": "Contract type is missing or unrecognized; compatibility remains unknown.",
-                    "details": {"match_state": "unknown", "admission": "retained_for_retrieval"},
-                }
-            )
+            reasons.append(str(title_result["reason_code"]))
+            marks.append(_build_rule_filter_mark(str(title_result["reason_code"]), job, prefs, config))
         if eligibility_policy is not None and candidate_fit_context is not None:
             eligibility = evaluate_fit_factors(
                 actual_location=job.get("actual_location"),
@@ -826,27 +775,6 @@ def apply_rule_filters(
                     for factor_id, factor_result in eligibility["fit_factor_results"].items()
                     if factor_result["eligibility_decision"] == "reject"
                 )
-            )
-
-        has_normalized_fit_context = any(
-            str(job.get(field_name) or "").strip()
-            for field_name in ("location_type", "seniority", "job_family", "domain")
-        )
-        if not has_normalized_fit_context and check_fit_context(job, prefs):
-            fallback_status = str(job.get("enrich_reuse_status") or "") == "enrichment_fallback"
-            marks.append(
-                {
-                    "code": "enrichment_fallback" if fallback_status else "missing_fit_context",
-                    "message": (
-                        "Structured enrichment failed; raw job text remains available for retrieval."
-                        if fallback_status
-                        else "Structured fit context is incomplete; usable job evidence remains available for retrieval."
-                    ),
-                    "details": {
-                        "admission": "retained_for_retrieval",
-                        "original_reason": "missing_fit_context",
-                    },
-                }
             )
 
         for reason_code, check_fn in checks:

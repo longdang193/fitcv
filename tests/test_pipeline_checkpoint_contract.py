@@ -29,6 +29,20 @@ def test_pipeline_state_restores_from_wrapped_checkpoint_payload() -> None:
     assert state.raw_jobs == [{"job_url": "x"}]
 
 
+def test_new_shortlist_checkpoint_fails_closed_on_strategy_mismatch() -> None:
+    with pytest.raises(ValueError, match="Checkpoint shortlist strategy mismatch"):
+        PipelineState.from_checkpoint_payload(
+            run_id="run-shortlist-mismatch",
+            checkpoint_payload={
+                "shortlist_diagnostics": {
+                    "shortlist_strategy": "core_pareto_evidence_v1",
+                    "eligibility_policy": "requirement_aware_v1",
+                }
+            },
+            ranking_config={"pipeline": {"shortlist_strategy": "legacy_retrieval_v1"}},
+        )
+
+
 def test_pipeline_state_rejects_legacy_vector_checkpoint_without_strategy() -> None:
     with pytest.raises(ValueError, match="legacy vector-derived checkpoint missing retrieval_strategy"):
         PipelineState.from_checkpoint_payload(

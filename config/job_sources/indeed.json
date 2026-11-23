@@ -7,8 +7,8 @@
       "name": "intern",
       "input": {
         "country": "de",
-        "datePosted": "3",
-        "limit": 150,
+        "datePosted": "1",
+        "limit": 100,
         "location": "Germany",
         "title": "intern"
       }
@@ -17,8 +17,8 @@
       "name": "student",
       "input": {
         "country": "de",
-        "datePosted": "3",
-        "limit": 150,
+        "datePosted": "1",
+        "limit": 100,
         "location": "Germany",
         "title": "student"
       }

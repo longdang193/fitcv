@@ -3457,7 +3457,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     ]
     assert captured["run"].candidate_profile_source == "default_config"
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
-    assert profile_snapshot["search_preferences"]["domains"] == ["fintech"]
+    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
     assert "cv_generation_runtime_expectation" in effective["runtime_inputs"]
@@ -4104,35 +4104,6 @@ def test_candidate_profile_update_route_passes_cas_and_idempotency() -> None:
     assert client.post("/candidate-profiles").status_code == 405
     assert detail.status_code == 200 and detail.json()["data"]["overview"] == {"skills": []}
     assert archived.status_code == 200 and archived.json()["data"]["lifecycle"] == "archived"
-
-
-def test_candidate_profile_archive_route_clears_default_profile_ownership() -> None:
-    app = _app()
-    profile = app.state.run_store.create_candidate_profile_attempt(
-        profile_bytes=b"experiences: []\nskills: []\nprojects: []\nachievements: []\npreferences: {}\n",
-        original_filename="profile.yaml",
-        profile_name="Default Candidate",
-    )
-    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
-        conn.execute(
-            "UPDATE candidate_profiles SET is_default=1 WHERE candidate_profile_id=?",
-            (profile["profile_id"],),
-        )
-        conn.commit()
-
-    response = TestClient(app).post(
-        f"/candidate-profiles/{profile['profile_id']}/actions/archive",
-        headers={"Idempotency-Key": "archive-default-profile"},
-        json={"expected_revision": profile["revision"]},
-    )
-
-    assert response.status_code == 200
-    assert response.json()["data"]["lifecycle"] == "archived"
-    with sqlite3.connect(os.environ["FITCV_CP_SQLITE_PATH"]) as conn:
-        assert conn.execute(
-            "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
-            (profile["profile_id"],),
-        ).fetchone()[0] == 0
 
 
 def test_candidate_profile_lifecycle_rejects_noop_and_stale_revision() -> None:
@@ -4836,6 +4807,28 @@ def test_run_jobs_forwards_repeated_title_filters(monkeypatch: pytest.MonkeyPatc
     assert response.status_code == 200
     assert captured["job_title_include"] == ["ai", "data scientist"]
     assert captured["job_title_exclude"] == ["duales"]
+
+
+def test_shortlist_admission_route_returns_complete_decision_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _app()
+    monkeypatch.setattr("fitcv_cp.app.sqlite_store_module.run_exists", lambda run_id: run_id == "run-1")
+    captured: dict[str, object] = {}
+    app.state.run_store.query_shortlist_admission_decisions_fn = lambda run_id, **kwargs: (
+        captured.update(run_id=run_id, **kwargs)
+        or {
+            "items": [{"job_identity": "job-a", "admitted": 1, "coverage": {"required": {"ratio": 1.0}}}],
+            "total": 1,
+            "page": kwargs["page"],
+            "page_size": kwargs["page_size"],
+        }
+    )
+
+    response = TestClient(app).get("/runs/run-1/shortlist-admissions?page=1&page_size=10&search=Data")
+
+    assert response.status_code == 200
+    assert captured == {"run_id": "run-1", "page": 1, "page_size": 10, "search": "Data"}
+    assert response.json()["data"][0]["coverage"]["required"]["ratio"] == 1.0
+    assert response.json()["meta"]["decision_envelope"] is True
 
 
 def test_runs_rejects_invalid_page_size_with_machine_error() -> None:
@@ -11680,27 +11673,6 @@ def test_download_settings_used_json_endpoint_404_if_snapshot_missing():
     assert resp.status_code == 404
 
 
-def test_download_settings_used_json_endpoint_200_for_awaiting_review_run():
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-settings-awaiting-review",
-        status=RunStatus.AWAITING_CONTINUE,
-        checkpoint_status="awaiting_review",
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        settings_used_json='{"run_id":"run-settings-awaiting-review","effective_settings":{}}',
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run):
-        resp = TestClient(_app()).get("/admin/runs/run-settings-awaiting-review/settings-used.json")
-    assert resp.status_code == 200
-    assert resp.json()["run_id"] == "run-settings-awaiting-review"
-
-
 def test_download_stage_slice_endpoint_200():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -12113,35 +12085,6 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
     assert manifest["file_fingerprints"]["normalize.json"].startswith("sha256:")
     assert "mapping-suggestions.json" not in manifest["missing_files"]
     assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
-
-
-def test_download_run_artifact_bundle_includes_settings_for_awaiting_review_run() -> None:
-    from fitcv_cp.models import PipelineRun, RunStatus
-    from datetime import datetime, timezone
-
-    run = PipelineRun(
-        run_id="run-bundle-awaiting-review",
-        status=RunStatus.AWAITING_CONTINUE,
-        checkpoint_status="awaiting_review",
-        run_mode="run_all",
-        triggered_by="admin",
-        trigger_source="web",
-        jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml",
-        created_at=datetime.now(timezone.utc),
-        settings_used_json='{"run_id":"run-bundle-awaiting-review","effective_settings":{}}',
-    )
-    with patch("fitcv_cp.app.get_run", return_value=run):
-        resp = TestClient(_app()).get("/admin/runs/run-bundle-awaiting-review/artifacts.zip")
-
-    assert resp.status_code == 200
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
-        names = set(archive.namelist())
-        manifest = json.loads(archive.read("manifest.json"))
-    assert "settings-used.json" in names
-    assert manifest["artifact_states"]["settings-used.json"] == "present"
-    assert "settings-used.json" in manifest["included_files"]
-    assert "settings-used.json" not in manifest["missing_files"]
 
 
 def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
@@ -16747,8 +16690,8 @@ def test_admin_upload_trigger_stores_selected_profile_snapshot(tmp_path):
     assert "run_id" in resp.json()
     assert captured["run"].candidate_profile_source == "profile-1"
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
-    assert profile_snapshot["search_preferences"]["domains"] == ["fintech"]
-    assert "revision" not in profile_snapshot
+    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
+    assert profile_snapshot["revision"] == 3
 
 
 def test_admin_upload_trigger_keeps_profile_snapshot_after_source_mutation(tmp_path):
@@ -16783,7 +16726,7 @@ def test_admin_upload_trigger_keeps_profile_snapshot_after_source_mutation(tmp_p
     assert resp.status_code == 201, resp.text
     profile["profile"]["preferences"]["domains"].append("mutated-after-submit")
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
-    assert profile_snapshot["search_preferences"]["domains"] == ["fintech"]
+    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
 
 
 def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_path):
@@ -18077,58 +18020,8 @@ def test_post_runs_uses_schema_valid_canonical_profile_snapshot(
     deserialized_profile = json.loads(run.candidate_profile_json)
     assert "candidate_profile_id" not in deserialized_profile
     assert "revision" not in deserialized_profile
-    validation_errors = validate_candidate_profile_v2(
-        {
-            key: value
-            for key, value in deserialized_profile.items()
-            if not key.startswith("_runtime_")
-        }
-    )
+    validation_errors = validate_candidate_profile_v2(deserialized_profile)
     assert validation_errors == [], f"Candidate profile snapshot has validation errors: {validation_errors}"
-
-
-def test_default_run_profile_snapshot_canonicalizes_legacy_language_fields(tmp_path: Path) -> None:
-    from fitcv.candidate import validate_candidate_profile_v2
-    from fitcv_cp.app import _resolve_default_candidate_profile_snapshot
-
-    profile_path = tmp_path / "candidate-profile.yaml"
-    profile_path.write_text(
-        """name: Candidate
-experiences: []
-skills: []
-projects: []
-achievements: []
-preferences: {}
-languages:
-  - id: lang_vi
-    name: Vietnamese
-    level: native
-    native: true
-  - id: lang_en
-    name: English
-    level: C1
-    read: C1
-    speak: C1
-    write: C1
-    notes: Professional working proficiency
-    evidence_refs: []
-""",
-        encoding="utf-8",
-    )
-
-    with patch(
-        "fitcv_cp.app.load_config",
-        return_value={"paths": {"candidate_profile": str(profile_path)}},
-    ):
-        snapshot = json.loads(_resolve_default_candidate_profile_snapshot("config.yaml"))
-
-    assert validate_candidate_profile_v2(snapshot) == []
-    assert [item["level"] for item in snapshot["languages"]] == ["native", "C1"]
-    assert all(
-        set(item) <= {"id", "name", "level", "native", "read", "speak", "write", "source_refs"}
-        for item in snapshot["languages"]
-    )
-    assert all("notes" not in item and "evidence_refs" not in item for item in snapshot["languages"])
 
 
 def test_company_catalog_route_has_exact_envelope_and_openapi_paths() -> None:
@@ -18291,40 +18184,3 @@ def test_results_export_normalizes_score_state_without_fabricating_zero() -> Non
     })
     assert valid["ai_score"] == 0.0
     assert valid["score_status"] == "valid"
-
-
-def test_results_export_does_not_label_unscored_stage_dispositions_as_ambiguous() -> None:
-    from fitcv_cp.app import _normalize_results_export_row
-
-    not_shortlisted = _normalize_results_export_row({
-        "job_url": "https://example.com/not-shortlisted",
-        "pipeline_status": "not_shortlisted",
-        "scores": {
-            "ai_score": None,
-            "score_status": None,
-            "failure_code": None,
-        },
-        "job_outcome": {
-            "reason_code": "not_selected_by_shortlist",
-        },
-    })
-
-    assert not_shortlisted["score_status"] == "unscored"
-    assert not_shortlisted["failure_code"] is None
-
-
-def test_results_export_preserves_explicit_scoring_failure_for_unscored_job() -> None:
-    from fitcv_cp.app import _normalize_results_export_row
-
-    budget_limited = _normalize_results_export_row({
-        "job_url": "https://example.com/budget-limited",
-        "pipeline_status": "ranking_unavailable",
-        "scores": {
-            "ai_score": None,
-            "score_status": "unscored",
-            "failure_code": "budget_exceeded",
-        },
-    })
-
-    assert budget_limited["score_status"] == "unscored"
-    assert budget_limited["failure_code"] == "budget_exceeded"

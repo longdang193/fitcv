@@ -7,6 +7,28 @@
     "ai_score_top_n": 50,
     "scorer_request_limit_chars": 12000
   },
+  "shortlist_policy_matrix": {
+    "policy_version": "shortlist_eligibility_matrix_v1",
+    "legacy_production_v1": {
+      "missing_fit_context": "hard",
+      "unknown_metadata": "retain_with_diagnostic"
+    },
+    "requirement_aware_v1": {
+      "missing_fit_context": "soft_exclusion_for_evaluation_pool",
+      "unknown_metadata": "retain_with_diagnostic"
+    },
+    "shadow": {
+      "legacy_production_v1": "authoritative_downstream_input",
+      "requirement_aware_v1": "non_authoritative_comparison"
+    }
+  },
+  "regression_cases": {
+    "missing_fit_context_and_unknown_metadata": {
+      "legacy_production_v1": "hard_filter_or_diagnostic",
+      "requirement_aware_v1": "retain_in_recall_safe_pool",
+      "shadow": "compare_without_changing_legacy_downstream_input"
+    }
+  },
   "profiles": {
     "data_platform": {
       "profile": {
@@ -103,7 +125,7 @@
           "job": {
             "job_url": "fixture://missing-vector-relevant",
             "title": "Kafka Data Engineer",
-            "description": "Operate Kafka and Python streaming pipelines for regulated banking workloads. Responsibilities include production monitoring, incident response, and data-quality checks.",
+            "description": "Operate Kafka and Python streaming pipelines for regulated banking workloads.",
             "job_family": "data_engineering",
             "domain": "banking",
             "required_skills_canonical": [
@@ -126,7 +148,7 @@
           "job": {
             "job_url": "fixture://weak-vector-hit",
             "title": "Frontend Engineer",
-            "description": "Build browser interfaces with JavaScript and CSS. Responsibilities include component delivery, accessibility checks, and frontend regression testing.",
+            "description": "Build browser interfaces with JavaScript and CSS.",
             "job_family": "frontend",
             "domain": "web",
             "required_skills_canonical": [
@@ -148,7 +170,7 @@
           "job": {
             "job_url": "fixture://negative-domain",
             "title": "Financial Controller",
-            "description": "Prepare accounting close and tax reports; no software engineering work. Responsibilities include reconciliations, audit support, and month-end reporting.",
+            "description": "Prepare accounting close and tax reports; no software engineering work.",
             "job_family": "finance",
             "domain": "accounting",
             "required_skills_canonical": [
@@ -170,7 +192,7 @@
           "job": {
             "job_url": "fixture://negative-seniority",
             "title": "Junior Data Intern",
-            "description": "Learn basic spreadsheet reporting under supervision. Responsibilities include data entry, workbook maintenance, and routine reporting tasks.",
+            "description": "Learn basic spreadsheet reporting under supervision.",
             "job_family": "data_analysis",
             "domain": "banking",
             "required_skills_canonical": [
@@ -193,7 +215,7 @@
           "job": {
             "job_url": "fixture://lexical-only-relevant",
             "title": "SQL Analytics Engineer",
-            "description": "Use SQL and Python to support banking reporting and data quality. Responsibilities include validation checks, issue triage, and stakeholder-facing analysis.",
+            "description": "Use SQL and Python to support banking reporting and data quality.",
             "job_family": "analytics",
             "domain": "banking",
             "required_skills_canonical": [

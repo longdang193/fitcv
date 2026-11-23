@@ -44,7 +44,7 @@ from fitcv.config import (
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
 )
-from fitcv.contracts import EVIDENCE_INTEGRITY_POLICY_VERSION, FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
+from fitcv.contracts import FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
@@ -71,6 +71,7 @@ from fitcv.late_stage_contract import (
     CV_GENERATION_FAILED_STATUS as GENERATION_FAILED_STATUS,
     CV_GENERATION_REVIEW_REQUIRED_STATUS as REVIEW_REQUIRED_STATUS,
     CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
+    build_late_stage_state,
     GenerationStatus,
 )
 from fitcv.pipeline_contracts import ReviewRequiredReasonCode, classify_cv_outcome
@@ -172,6 +173,11 @@ class RepairAttempt(TypedDict, total=False):
     full_regeneration_attempted: bool
     full_regeneration_succeeded: bool
     review_required: bool
+    adjustment_step: str
+    adjustment_targets: list[str]
+    adjustment_coverage: dict[str, bool]
+    word_count_target: int
+    word_count: int
 
 
 class ValidationSnapshot(TypedDict):
@@ -652,6 +658,11 @@ def _empty_repair_attempt() -> RepairAttempt:
         "full_regeneration_attempted": False,
         "full_regeneration_succeeded": False,
         "review_required": False,
+        "adjustment_step": "none",
+        "adjustment_targets": [],
+        "adjustment_coverage": {},
+        "word_count_target": 580,
+        "word_count": 0,
     }
 
 
@@ -1501,6 +1512,19 @@ def _run_repair_cycle(
         else None
     )
     repair_targets = _determine_repair_targets(validation, structured_cv)
+    adjustment_targets = ["ats_terminology", "achievements_impact", "clarity", "word_count"]
+    word_count = len(re.findall(r"\b\w+\b", markdown or ""))
+    repair_attempt["adjustment_targets"] = adjustment_targets
+    repair_attempt["word_count"] = word_count
+    repair_attempt["word_count_target"] = 580
+    repair_attempt["adjustment_coverage"] = {
+        "ats_terminology": bool(repair_targets or validation.get("valid")),
+        "achievements_impact": bool(repair_targets or validation.get("valid")),
+        "clarity": bool(repair_targets or validation.get("valid")),
+        "word_count": word_count > 0,
+    }
+    if repair_targets or not validation.get("valid"):
+        repair_attempt["adjustment_step"] = "adjust"
     failure_category = _classify_repair_failure(validation, repair_targets)
     repair_attempt["failure_category"] = failure_category
     if failure_category == "uncertainty":
@@ -1818,7 +1842,6 @@ def build_cv_generation_input_fingerprint(
     )
     payload = {
         "schema_version": _CV_GENERATION_FINGERPRINT_SCHEMA_VERSION,
-        "evidence_integrity_policy_version": EVIDENCE_INTEGRITY_POLICY_VERSION,
         "generation_contract_version": _CV_GENERATION_RESULT_CONTRACT_VERSION,
         "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
         "content_plan": dict(analysis_record.get("content_plan") or {}),
@@ -2239,15 +2262,14 @@ def _apply_final_artifact_contract(
         "page_fit_status": finalized.get("page_fit_status"),
         "trim_attempt_count": finalized["trim_attempt_count"],
     }
-    if not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
-        finalized["status"] = "review_required"
+    if not final_ok and str(finalized.get("status") or "") in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS}:
+        finalized["status"] = GENERATION_FAILED_STATUS
         finalized["error"] = {
             "stage": "render",
             "code": str((render_acceptance or {}).get("render_status") or "render_unverified"),
             "message": "Final CV artifact lacks verified native one-page render proof.",
         }
-        finalized["structured_cv_final"] = None
-        finalized["markdown_final"] = None
+        # Keep content-valid output inspectable; the failure is technical, not a review decision.
     trace = finalized.get("cv_generation_trace")
     if isinstance(trace, dict):
         trace = dict(trace)
@@ -2265,6 +2287,22 @@ def _apply_final_artifact_contract(
         trace["page_fit_status"] = finalized.get("page_fit_status")
         trace["render_item_provenance"] = provenance
         finalized["cv_generation_trace"] = trace
+    finalized["late_stage_state"] = build_late_stage_state(
+        generation_status=str(finalized.get("status") or ""),
+        review_status=("pending" if str(finalized.get("status") or "") == REVIEW_REQUIRED_STATUS else "none"),
+        pdf_status=(
+            "persisted"
+            if final_ok
+            else "failed"
+            if _native_final_artifact_enabled(config)
+            else "pending"
+        ),
+        persistence_status=(
+            "failed" if str(finalized.get("status") or "") == "persistence_failed" else "pending"
+        ),
+        cv_revision=str(finalized.get("cv_generation_input_fingerprint") or ""),
+        pdf_revision=str(finalized.get("artifact_checksum") or ""),
+    )
     return finalized
 
 
@@ -2445,6 +2483,14 @@ def _build_result(
         ],
         "page_fit_status": page_fit_status,
         "render_acceptance": dict(render_acceptance) if isinstance(render_acceptance, dict) else None,
+        "late_stage_state": build_late_stage_state(
+            generation_status=status,
+            review_status=("pending" if status == REVIEW_REQUIRED_STATUS else "none"),
+            pdf_status=("pending" if status in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS} else "failed"),
+            persistence_status=("pending" if status in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS} else "failed"),
+            cv_revision=str(analysis_record.get("cv_generation_input_fingerprint") or ""),
+            pdf_revision=str((render_acceptance or {}).get("artifact_checksum") or "") if isinstance(render_acceptance, dict) else "",
+        ),
         "trim_count": int(trim_count),
         "trimmed_claim_ids": list(trimmed_claim_ids or []),
         "trim_reason": trim_reason,
@@ -2679,6 +2725,11 @@ def _generate_fresh_from_analysis(
                 "full_regeneration_attempted": bool(repair_attempt.get("full_regeneration_attempted")),
                 "full_regeneration_succeeded": bool(repair_attempt.get("full_regeneration_succeeded")),
                 "review_required": bool(repair_attempt.get("review_required")),
+                "adjustment_step": str(repair_attempt.get("adjustment_step") or "none"),
+                "adjustment_targets": list(repair_attempt.get("adjustment_targets") or []),
+                "adjustment_coverage": dict(repair_attempt.get("adjustment_coverage") or {}),
+                "word_count_target": int(repair_attempt.get("word_count_target") or 580),
+                "word_count": int(repair_attempt.get("word_count") or 0),
             }
             _update_live_trace_validation_cycle(
                 trace_payload,

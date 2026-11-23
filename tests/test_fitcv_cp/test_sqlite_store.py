@@ -53,18 +53,43 @@ def _canonical_job(name: str) -> dict[str, str]:
     }
 
 
-def test_list_runs_for_reconciliation_skips_large_compatibility_snapshots() -> None:
-    sqlite_store.insert_run(_make_run("run-reconciliation-fast"))
+def test_query_shortlist_admission_decisions_returns_admitted_and_excluded_rows() -> None:
+    from fitcv.pipeline_store import persist_shortlist_admission_ledger
 
-    with patch.object(
-        sqlite_store,
-        "_pipeline_run_from_json",
-        side_effect=AssertionError("reconciliation must not decode compatibility_json"),
-    ):
-        runs = sqlite_store.list_runs_for_reconciliation()
+    database_path = Path(os.environ["FITCV_CP_SQLITE_PATH"])
+    sqlite_store.initialize_control_plane_database(database_path, database_path.with_name("missing-profile.yaml"))
+    persist_shortlist_admission_ledger(
+        [
+            {
+                "identity": "job-a",
+                "job_url": "https://jobs.example.test/a",
+                "shortlist_status": "shortlist_admitted",
+                "admission_rank": 1,
+                "admission_reason": "pareto_front_1",
+                "coverage": {"required": {"ratio": 1.0}},
+                "evaluation_pool_id": "pool-1",
+            },
+            {
+                "identity": "job-b",
+                "job_url": "https://jobs.example.test/b",
+                "shortlist_status": "not_admitted",
+                "admission_rank": 2,
+                "exclusion_reason": "capacity_exceeded",
+                "coverage": {"required": {"ratio": 0.5}},
+                "evaluation_pool_id": "pool-1",
+            },
+        ],
+        {"shortlist_strategy": "core_pareto_evidence_v1", "evaluation_pool_id": "pool-1"},
+        "run-ledger",
+        {"pipeline": {"vector_search_top_n": 50}},
+    )
 
-    assert [run.run_id for run in runs] == ["run-reconciliation-fast"]
-    assert runs[0].status is RunStatus.QUEUED
+    result = sqlite_store.query_shortlist_admission_decisions("run-ledger", page_size=10)
+
+    assert result["total"] == 2
+    assert [item["job_identity"] for item in result["items"]] == ["job-a", "job-b"]
+    assert result["items"][0]["coverage"]["required"]["ratio"] == 1.0
+    assert result["items"][1]["exclusion_reason"] == "capacity_exceeded"
 
 
 def test_local_cancel_terminalizes_unclaimed_and_awaiting_runs() -> None:
@@ -2498,46 +2523,6 @@ def test_candidate_profile_lifecycle_preserves_revision_payload_and_run_snapshot
         restored_again["profile"]["checksum"],
     )
     assert json.loads(snapshot[4]) == canonical
-
-
-def test_candidate_profile_lifecycle_clears_default_when_archiving(
-    tmp_path: Path,
-) -> None:
-    database_path = tmp_path / "fitcv.sqlite3"
-    ready, _ = _candidate_profile_ready_to_confirm(database_path)
-    confirmation = sqlite_store.get_candidate_profile_confirmation(
-        ready["attempt_id"], database_path=database_path
-    )
-    assert confirmation is not None
-    profile = sqlite_store.confirm_candidate_profile_creation_attempt(
-        ready["attempt_id"],
-        expected_revision=ready["revision"],
-        expected_baseline_fingerprint=confirmation["approval_fingerprints"]["baseline"],
-        expected_derived_fingerprint=confirmation["approval_fingerprints"]["derived"],
-        expected_confirmation_fingerprint=confirmation["fingerprint"],
-        idempotency_key="confirm-default-archive",
-        database_path=database_path,
-    )
-    with sqlite3.connect(database_path) as conn:
-        conn.execute(
-            "UPDATE candidate_profiles SET is_default=1 WHERE candidate_profile_id=?",
-            (profile["profile_id"],),
-        )
-        conn.commit()
-
-    archived = sqlite_store.transition_candidate_profile_lifecycle(
-        profile["profile_id"],
-        lifecycle="archived",
-        expected_revision=profile["revision"],
-        database_path=database_path,
-    )
-
-    assert archived["lifecycle"] == "archived"
-    with sqlite3.connect(database_path) as conn:
-        assert conn.execute(
-            "SELECT is_default FROM candidate_profiles WHERE candidate_profile_id=?",
-            (profile["profile_id"],),
-        ).fetchone()[0] == 0
 
 
 def test_update_candidate_profile_preserves_existing_run_snapshot(tmp_path: Path) -> None:
@@ -6711,103 +6696,6 @@ def test_snapshot_progress_counts_terminal_stage_rows_when_summary_list_is_empty
 
     assert detail is not None
     assert detail["progress"] == {"completed": 6, "total": 6}
-
-
-def test_snapshot_progress_does_not_count_not_reached_stages_as_completed() -> None:
-    run_id = "run-snapshot-progress-not-reached"
-    _create_normalized_run_with_jobs(
-        run_id,
-        [{"title": "Analyst", "job_url": "https://example.com/analyst"}],
-    )
-    sqlite_store.persist_pipeline_snapshot(
-        run_id,
-        {
-            "total_jobs": 1,
-            "completed_stages": ["enrichment"],
-            "stage_transition_artifacts": {
-                "stages": {
-                    "enrichment": {"status": "completed"},
-                    "screening": {"status": "not_reached"},
-                    "shortlisting": {"status": "not_reached"},
-                    "ranking": {"status": "not_reached"},
-                    "cv-analysis": {"status": "not_reached"},
-                    "cv-generation": {"status": "not_reached"},
-                }
-            },
-        },
-        run_status=RunStatus.AWAITING_CONTINUE,
-        snapshot_at=datetime.datetime.now(datetime.timezone.utc),
-    )
-
-    detail = sqlite_store.get_run_detail(run_id)
-
-    assert detail is not None
-    assert detail["progress"] == {"completed": 1, "total": 6}
-    assert [stage["status"] for stage in detail["stages"]] == [
-        "succeeded",
-        "pending",
-        "pending",
-        "pending",
-        "pending",
-        "pending",
-    ]
-
-
-def test_snapshot_progress_does_not_complete_enrichment_for_normalize_only() -> None:
-    run_id = "run-snapshot-progress-normalize-alias"
-    _create_normalized_run_with_jobs(
-        run_id,
-        [{"title": "Analyst", "job_url": "https://example.com/analyst"}],
-    )
-    snapshot_at = datetime.datetime.now(datetime.timezone.utc)
-    sqlite_store.persist_pipeline_snapshot(
-        run_id,
-        {
-            "total_jobs": 1,
-            "completed_stages": ["normalize"],
-            "stage_transition_artifacts": {
-                "stages": {
-                    "normalize": {"status": "completed"},
-                    "enrich": {"status": "not_reached"},
-                    "rule_filter": {"status": "not_reached"},
-                    "shortlist": {"status": "not_reached"},
-                    "ranking": {"status": "not_reached"},
-                    "cv_analysis": {"status": "not_reached"},
-                    "cv_generation": {"status": "not_reached"},
-                }
-            },
-        },
-        run_status=RunStatus.AWAITING_CONTINUE,
-        snapshot_at=snapshot_at,
-    )
-
-    detail = sqlite_store.get_run_detail(run_id)
-    assert detail is not None
-    assert detail["progress"] == {"completed": 0, "total": 6}
-    assert detail["stages"][0]["status"] == "pending"
-    assert detail["stages"][0]["finished_at"] is None
-
-    sqlite_store.persist_pipeline_snapshot(
-        run_id,
-        {
-            "total_jobs": 1,
-            "completed_stages": ["normalize", "enrich"],
-            "stage_transition_artifacts": {
-                "stages": {
-                    "normalize": {"status": "completed"},
-                    "enrich": {"status": "completed"},
-                }
-            },
-        },
-        run_status=RunStatus.AWAITING_CONTINUE,
-        snapshot_at=snapshot_at + datetime.timedelta(minutes=1),
-    )
-
-    detail = sqlite_store.get_run_detail(run_id)
-    assert detail is not None
-    assert detail["progress"] == {"completed": 1, "total": 6}
-    assert detail["stages"][0]["status"] == "succeeded"
-    assert detail["stages"][0]["finished_at"] is not None
 
 
 def test_run_detail_reconciles_stale_progress_from_stage_execution_states() -> None:

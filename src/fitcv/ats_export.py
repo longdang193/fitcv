@@ -180,14 +180,6 @@ def _matches(title: str, keywords: Sequence[str]) -> bool:
     return not normalized or any(keyword in title.casefold() for keyword in normalized)
 
 
-def _matches_job_text(title: str, description: str, keywords: Sequence[str]) -> bool:
-    normalized = tuple(keyword.strip().casefold() for keyword in keywords if keyword.strip())
-    if not normalized:
-        return True
-    haystack = f"{title}\n{description}".casefold()
-    return any(keyword in haystack for keyword in normalized)
-
-
 def _validate_job(job: dict[str, str]) -> None:
     errors = validate_linkedin_schema(job)
     if errors:
@@ -289,7 +281,7 @@ def parse_greenhouse_jobs(
         title = str(row.get("title") or "").strip()
         job_url = str(row.get("absolute_url") or "").strip()
         description = _html_to_text(str(row.get("content") or ""))
-        if not title or not job_url or not description or not _matches_job_text(title, description, keywords):
+        if not title or not job_url or not description or not _matches(title, keywords):
             continue
         location = row.get("location")
         location_text = str(location.get("name") or "") if isinstance(location, dict) else ""
@@ -354,7 +346,7 @@ def parse_ashby_jobs(
         description = str(row.get("descriptionPlain") or "").strip()
         if not description:
             description = _html_to_text(str(row.get("descriptionHtml") or ""))
-        if not title or not job_url or not description or not _matches_job_text(title, description, keywords):
+        if not title or not job_url or not description or not _matches(title, keywords):
             continue
         location = row.get("location")
         location_text = str(location.get("name") or "") if isinstance(location, dict) else str(location or "")
@@ -400,7 +392,7 @@ def parse_lever_jobs(
         description = str(row.get("descriptionPlain") or "").strip()
         if not description:
             description = _html_to_text(str(row.get("description") or ""))
-        if not title or not job_url or not description or not _matches_job_text(title, description, keywords):
+        if not title or not job_url or not description or not _matches(title, keywords):
             continue
         job = {
             "title": title,
@@ -449,7 +441,7 @@ def parse_gem_jobs(
         job = detail.get("job") if isinstance(detail.get("job"), dict) else row.get("job")
         if not isinstance(job, dict):
             job = {}
-        if not title or not ext_id or not job_url or not description or not _matches_job_text(title, description, keywords):
+        if not title or not ext_id or not job_url or not description or not _matches(title, keywords):
             continue
         job_data = {
             "title": title,
@@ -516,28 +508,21 @@ def parse_workday_jobs(
     keywords: Sequence[str] = (),
     today: date | None = None,
     description_loader: Callable[[str], str] | None = None,
-    max_detail_fetches: int | None = None,
 ) -> list[dict[str, str]]:
     _, job_base = _workday_endpoints(careers_url)
     rows = payload.get("jobPostings")
     jobs: list[dict[str, str]] = []
-    detail_fetches = 0
     for row in rows if isinstance(rows, list) else []:
-        if max_detail_fetches is not None and detail_fetches >= max(0, int(max_detail_fetches)):
-            break
         if not isinstance(row, dict):
             continue
         title = str(row.get("title") or "").strip()
         external_path = str(row.get("externalPath") or "").strip()
-        if not title or not external_path.startswith("/job/"):
+        if not title or not external_path.startswith("/job/") or not _matches(title, keywords):
             continue
         job_url = f"{job_base}{external_path}"
-        detail_fetches += 1
         page_html = description_loader(job_url) if description_loader is not None else ""
         description = _meta_description(page_html)
         if not description:
-            continue
-        if not _matches_job_text(title, description, keywords):
             continue
         job = {
             "title": title,

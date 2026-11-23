@@ -21,8 +21,8 @@ import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills, runtime_profile_value
-from fitcv.contracts import EVIDENCE_INTEGRITY_POLICY_VERSION, normalize_analysis_channel_mapping
+from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
+from fitcv.contracts import deserialize_stage_6_to_7_handoff, normalize_analysis_channel_mapping
 from fitcv.evidence import (
     _assess_requirement_support,
     _assess_responsibility_support,
@@ -77,6 +77,8 @@ class CvAnalysisRecord(TypedDict, total=False):
     raw_job_fingerprint: str
     job_url: str
     job_title: str
+    candidate_profile_id: str
+    candidate_profile_revision: str
     status: AnalysisStatus
     analysis_input_fingerprint: str | None
     analysis_input_components: dict[str, Any]
@@ -98,71 +100,54 @@ class CvAnalysisRecord(TypedDict, total=False):
     error: ErrorPayload | None
     cv_analysis_trace: dict[str, Any]
     uncertainties: list[dict[str, Any]]
-    candidate_profile_id: str
-    candidate_profile_revision: str
 
 
 def extract_job_title(job: dict[str, Any]) -> str:
     return str(job.get("title") or job.get("job_title") or "")
 
 
+def _valid_stage6_handoff(job: Mapping[str, Any], profile: Mapping[str, Any]) -> dict[str, Any] | None:
+    payload = job.get("stage6_to_stage7_handoff")
+    if not isinstance(payload, Mapping):
+        return None
+    try:
+        handoff = deserialize_stage_6_to_7_handoff(payload)
+    except (TypeError, ValueError):
+        return None
+    if not handoff:
+        return None
+    if str(handoff.get("score_status") or "") != SCORE_STATUS_VALID:
+        return None
+    final_rank = handoff.get("final_rank")
+    if not isinstance(final_rank, int) or not 1 <= final_rank <= 15:
+        return None
+    admission = handoff.get("stage5_admission")
+    if not isinstance(admission, Mapping):
+        return None
+    if admission.get("admitted") is not True and str(admission.get("status") or "") not in {"admitted", "passed"}:
+        return None
+    job_url = extract_job_url(job)
+    handoff_url = str(handoff.get("job_url") or "").strip()
+    if not job_url or not handoff_url or job_url != handoff_url:
+        return None
+    jd_reference = handoff.get("jd_reference")
+    if not isinstance(jd_reference, Mapping) or str(jd_reference.get("job_url") or "").strip() != job_url:
+        return None
+    profile_revision = str(profile.get("revision") or "").strip()
+    handoff_revision = str(handoff.get("candidate_profile_revision") or "").strip()
+    if not profile_revision or handoff_revision != profile_revision:
+        return None
+    profile_id = str(profile.get("candidate_profile_id") or "").strip()
+    handoff_profile_id = str(handoff.get("candidate_profile_id") or "").strip()
+    if profile_id and handoff_profile_id and profile_id != handoff_profile_id:
+        return None
+    return handoff
+
+
 def build_evidence_used(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    def bounded_value(value: Any, *, depth: int = 0) -> Any:
-        if depth >= 2:
-            return str(value)[:160]
-        if isinstance(value, dict):
-            return {
-                str(key): bounded_value(raw_value, depth=depth + 1)
-                for key, raw_value in list(value.items())[:8]
-                if raw_value not in (None, "")
-            }
-        if isinstance(value, list):
-            return [bounded_value(item, depth=depth + 1) for item in value[:8]]
-        if isinstance(value, str):
-            return value[:160]
-        if value is None:
-            return None
-        return value
-
-    def bounded_source_refs(item: dict[str, Any]) -> list[dict[str, Any] | str]:
-        values = list(item.get("source_refs") or [])
-        if not values and str(item.get("source_ref") or "").strip():
-            values = [str(item.get("source_ref") or "").strip()]
-        bounded: list[dict[str, Any] | str] = []
-        seen: set[str] = set()
-        for value in values:
-            if isinstance(value, dict):
-                reference: dict[str, Any] = {}
-                for key, raw_value in list(value.items())[:8]:
-                    if raw_value in (None, ""):
-                        continue
-                    reference[str(key)] = bounded_value(raw_value)
-                normalized = json.dumps(reference, ensure_ascii=False, sort_keys=True)
-            else:
-                reference = str(value)[:160]
-                normalized = reference.casefold()
-            if normalized and normalized not in seen:
-                seen.add(normalized)
-                bounded.append(reference)
-            if len(bounded) >= 4:
-                break
-        return bounded
-
     debug_evidence: list[dict[str, Any]] = []
     for item in evidence:
-        evidence_id = str(item.get("evidence_id") or "")
-        evidence_kind = str(item.get("kind") or item.get("evidence_type") or "")
-        parent_title = str(
-            item.get("parent_title")
-            or item.get("title")
-            or item.get("role")
-            or ""
-        )
         debug_item: dict[str, Any] = {
-            "evidence_id": evidence_id,
-            "kind": evidence_kind,
-            "parent_title": parent_title,
-            "source_refs": bounded_source_refs(item),
             "evidence_type": str(item.get("evidence_type") or ""),
             "source_ref": str(item.get("source_ref") or ""),
             "name": str(item.get("name") or ""),
@@ -368,9 +353,7 @@ def _loose_project_review_allowed(
     seniority_values = [
         job.get("seniority"),
         job.get("experience_level"),
-        dict(profile.get("preferences") or profile.get("search_preferences") or {}).get(
-            "seniority_target"
-        ),
+        dict(profile.get("preferences") or {}).get("seniority_target"),
     ]
     normalized = {
         _normalise_seniority(str(value), config)
@@ -380,7 +363,7 @@ def _loose_project_review_allowed(
     if normalized.intersection({"senior", "lead", "manager", "director"}):
         return False
     try:
-        if float(runtime_profile_value(profile, "years_experience")) >= 5.0:
+        if float(profile.get("years_experience")) >= 5.0:
             return False
     except (TypeError, ValueError):
         pass
@@ -831,7 +814,6 @@ def _resolution_evidence_metadata(
         return {"evidence_type": evidence_type or "candidate_resolution", "source_section": source_section}
     if evidence_type == "experience_entry":
         return {"evidence_type": evidence_type, "source_section": source_section or "experiences"}
-    normalized = str(answer_text or "").casefold()
     explicit_professional_context = re.search(
         r"\b(?:professional|employment|employed|commercial|workplace|production|company|employer|team)\b"
         r"|\b(?:worked|working|served|interned)\s+(?:at|for)\s+[A-Z][\w&.-]+",
@@ -1361,10 +1343,6 @@ _REUSABLE_RECORD_REQUIRED_FIELDS = frozenset(
         "evidence_payload",
         "evidence_used",
         "evidence_selection_summary",
-        "experience_evidence_summary",
-        "uncertainties",
-        "candidate_profile_id",
-        "candidate_profile_revision",
         "gap_summary",
         "requirement_coverage",
         "section_confidence_hints",
@@ -1400,7 +1378,6 @@ def _build_analysis_input_components(
     components["experience_evidence_mode"] = str(
         resolve_experience_evidence_mode(config)
     )
-    components["evidence_integrity_policy_version"] = EVIDENCE_INTEGRITY_POLICY_VERSION
     components["requirement_resolutions_hash"] = _hash(list(payload.get("requirement_resolutions") or []))
     return components
 
@@ -1445,9 +1422,6 @@ def _reuse_rejection_reason(
         analysis_input_components.get("experience_evidence_mode") or "full"
     ):
         return "experience_evidence_mode_changed"
-    prior_evidence_policy = str(prior_components.get("evidence_integrity_policy_version") or "")
-    if prior_evidence_policy and prior_evidence_policy != EVIDENCE_INTEGRITY_POLICY_VERSION:
-        return "evidence_integrity_policy_version_changed"
     return None
 
 
@@ -1481,16 +1455,12 @@ def _rebuild_reused_record(
         ),
         evidence_payload=list(reusable_record.get("evidence_payload") or []),
         evidence_selection_summary=dict(reusable_record.get("evidence_selection_summary") or {}),
-        experience_evidence_summary=dict(reusable_record.get("experience_evidence_summary") or {}),
         gap_summary=reusable_record.get("gap_summary"),
         requirement_coverage=list(reusable_record.get("requirement_coverage") or []),
         section_confidence_hints=dict(reusable_record.get("section_confidence_hints") or {}),
         do_not_claim=list(reusable_record.get("do_not_claim") or []),
         fit_classification=fit_classification,
         ranking_fit_label=ranking_fit_label,
-        uncertainties=list(reusable_record.get("uncertainties") or []),
-        candidate_profile_id=str(reusable_record.get("candidate_profile_id") or ""),
-        candidate_profile_revision=str(reusable_record.get("candidate_profile_revision") or ""),
         error=cast(ErrorPayload | None, prior_error),
     )
 
@@ -1506,8 +1476,6 @@ def analyze_ranked_job(
     evidence_projection: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
-    candidate_profile_id = str(profile.get("candidate_profile_id") or "").strip()
-    candidate_profile_revision = str(profile.get("revision") or "").strip()
     raw_requirement_resolutions = [
         dict(item)
         for item in list(config.get("_requirement_resolutions") or [])
@@ -1538,7 +1506,10 @@ def analyze_ranked_job(
     gap_summary: dict[str, Any] | None = None
     loose_experience_review = False
     try:
-        profile_years_experience = runtime_profile_value(profile, "years_experience")
+        profile_years_experience = profile.get("years_experience")
+        candidate_profile_id = str(profile.get("candidate_profile_id") or "")
+        candidate_profile_revision = str(profile.get("revision") or "")
+        stage6_profile = profile
         profile = converge_candidate_profile_for_runtime(profile)
         profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(
@@ -1572,6 +1543,7 @@ def analyze_ranked_job(
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
                 },
             )
+        authoritative_stage6_handoff = _valid_stage6_handoff(job, stage6_profile)
         resolved_evidence_projection = evidence_projection or build_evidence_projection(profile)
         loose_experience_review = should_route_loose_experience_review(
             job,
@@ -1579,8 +1551,12 @@ def analyze_ranked_job(
             config,
             evidence_projection=resolved_evidence_projection,
         )
-        has_projected_evidence = bool(resolved_evidence_projection.get("items")) and loose_experience_review
-        if ranking_fit_label == "skip" and not loose_experience_review and not has_projected_evidence:
+        if (
+            ranking_fit_label == "skip"
+            and not loose_experience_review
+            and authoritative_stage6_handoff is None
+            and not isinstance(job.get("stage6_to_stage7_handoff"), Mapping)
+        ):
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, BLOCKED_BY_RERANKER_STATUS),
@@ -1721,9 +1697,6 @@ def analyze_ranked_job(
             config,
             fit_classification_override=fit_classification_override,
         )
-        required_skills = [
-            str(skill) for skill in list(job.get("required_skills") or []) if str(skill)
-        ]
         missing_skills = [
             str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)
         ]
@@ -1748,7 +1721,7 @@ def analyze_ranked_job(
         )
         if fit_classification == "skip" and (loose_experience_review or should_surface_loose):
             fit_classification = "stretch"
-        if fit_classification == "skip" or mandatory_professional_gap:
+        if (fit_classification == "skip" or mandatory_professional_gap) and authoritative_stage6_handoff is None:
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, SKIPPED_FIT_GATE_STATUS),
@@ -1820,8 +1793,6 @@ def analyze_ranked_job(
             do_not_claim=[],
             fit_classification=ranking_fit_label,
             ranking_fit_label=resolved_baseline_fit_label,
-            candidate_profile_id=candidate_profile_id,
-            candidate_profile_revision=candidate_profile_revision,
             error={
                 "stage": "analysis",
                 "message": str(exc),

@@ -188,7 +188,7 @@ This matrix defines current SSOT ownership for migration execution.
 | Config surface | Canonical ownership | Notes |
 | --- | --- | --- |
 | `config/runtime/control_plane.yaml` | control-plane backend/provider/model routing defaults | Includes `control_plane.data_backend.*`, `control_plane.providers.*`, `control_plane.model_routing.*`, feature flags, observability toggles. |
-| `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, Top-N controls, `pipeline.shortlist_audit_sample_n`, lifecycle limits, replay health thresholds, and model defaults used by runtime pipeline stages. |
+| `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, Top-N controls, `pipeline.shortlist_strategy`, `pipeline.shortlist_policy`, `pipeline.shortlist_shadow_enabled`, `pipeline.shortlist_audit_sample_n`, lifecycle limits, replay health thresholds, and model defaults used by runtime pipeline stages. |
 | `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
 | `config/policy/eligibility.yaml` | location/language eligibility policy | Sole mutable owner of factor modes and absolute normalization values; ranking/runtime/env config may not shadow `eligibility_policy`. |
 | `config/policy/ranking.yaml` | ranking-v2 baseline policy | Sole mutable owner of exact ranking policy, absolute defaults, fixed weights, label thresholds, active baseline mode, and label-migration gate. |

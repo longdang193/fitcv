@@ -139,6 +139,35 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["pipeline", "vector_search_top_n"],
     },
     {
+        "key": "pipeline.shortlist_strategy",
+        "type": "str",
+        "default": "legacy_retrieval_v1",
+        "options": ["legacy_retrieval_v1", "core_pareto_evidence_v1"],
+        "label": "Shortlist Admission Strategy",
+        "description": "Select legacy retrieval admission or requirement-aware Pareto admission.",
+        "group": "retrieval",
+        "config_path": ["pipeline", "shortlist_strategy"],
+    },
+    {
+        "key": "pipeline.shortlist_policy",
+        "type": "str",
+        "default": "legacy_production_v1",
+        "options": ["legacy_production_v1", "requirement_aware_v1", "shadow"],
+        "label": "Shortlist Eligibility Policy",
+        "description": "Controls hard exclusions versus diagnostic-only uncertainty during shortlist admission.",
+        "group": "retrieval",
+        "config_path": ["pipeline", "shortlist_policy"],
+    },
+    {
+        "key": "pipeline.shortlist_shadow_enabled",
+        "type": "bool",
+        "default": False,
+        "label": "Shortlist Shadow Evaluation",
+        "description": "Record requirement-aware comparison without changing legacy downstream inputs.",
+        "group": "retrieval",
+        "config_path": ["pipeline", "shortlist_shadow_enabled"],
+    },
+    {
         "key": "pipeline.ai_score_top_n",
         "type": "int",
         "default": 50,
@@ -510,16 +539,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "group": "rule_filter",
         "config_path": ["rule_filter", "selected_filters"],
     },
-    {
-        "key": "rule_filter.missing_contract_type_policy",
-        "type": "str",
-        "default": "unknown",
-        "label": "Missing Contract Type Policy",
-        "description": "How an allow-list handles missing or unrecognized contract metadata.",
-        "options": ["unknown", "reject"],
-        "group": "rule_filter",
-        "config_path": ["rule_filter", "missing_contract_type_policy"],
-    },
     # ── CV Generation ──────────────────────────────────────────────────────
     {
         "key": "cv_generation_model",
@@ -536,7 +555,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "cv_preset",
         "type": "str",
-        "default": "europass",
+        "default": "mycvs",
         "label": "CV Preset",
         "description": "The CV preset to use for generation. Controls template, section order, and supported composition options.",
         "options": _CV_PRESET_OPTIONS,
@@ -732,6 +751,9 @@ def _derive_ranking_groups() -> dict[str, list[str]]:
 def _derive_settings_sections() -> dict[str, list[str]]:
     return {
         "retrieval-core": _ordered_key_projection([
+            "pipeline.shortlist_strategy",
+            "pipeline.shortlist_policy",
+            "pipeline.shortlist_shadow_enabled",
             "pipeline.vector_search_top_n",
             "pipeline.ai_score_top_n",
             "pipeline.final_top_n",

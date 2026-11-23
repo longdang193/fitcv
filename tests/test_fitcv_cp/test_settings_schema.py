@@ -1445,7 +1445,7 @@ def test_cv_settings_have_correct_group():
 
 def test_cv_settings_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_preset"]["default"] == "europass"
+    assert schema_by_key["cv_preset"]["default"] == "mycvs"
     assert schema_by_key["cv_generation_model"]["default"] == "cx/gpt-5.6-luna"
     assert schema_by_key["cv_max_pages"]["default"] == 2
 
@@ -1517,7 +1517,7 @@ def test_synonym_management_automation_defaults() -> None:
 
 def test_cv_preset_default():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_preset"]["default"] == "europass"
+    assert schema_by_key["cv_preset"]["default"] == "mycvs"
 
 
 def test_cv_preset_type():
@@ -1810,7 +1810,7 @@ def test_valid_cv_composition_group_payload_passes():
 
 def test_cv_preset_defaults_match_cv_yaml():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_preset"]["default"] == "europass"
+    assert schema_by_key["cv_preset"]["default"] == "mycvs"
 
 
 def test_cv_generation_model_default_uses_25_flash():

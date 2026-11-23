@@ -85,7 +85,6 @@ def execute_scan(scan_id: str, job_id: str | None = None) -> None:
                 careers_url=str(company["careers_url"]),
                 keywords=(),
                 max_jobs=request_max_jobs,
-                acquisition_limit=200,
                 timeout_seconds=60,
                 trusted_provider_config=company.get("provider_config"),
             )
@@ -94,11 +93,7 @@ def execute_scan(scan_id: str, job_id: str | None = None) -> None:
                 "provider",
                 "started",
                 "Provider acquisition started.",
-                {
-                    "company_id": company["company_id"],
-                    "max_jobs": request.max_jobs,
-                    "acquisition_limit": request.acquisition_limit,
-                },
+                {"company_id": company["company_id"], "max_jobs": request.max_jobs},
             )
             acquired_jobs = acquire_scanner_jobs(request).artifact.jobs
             current = sqlite_store.get_scan_detail(scan_id)

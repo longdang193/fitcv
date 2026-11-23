@@ -160,6 +160,29 @@ Runtime toggles:
 - `control_plane.observability.emit_model_routing_diagnostics` (runtime routing event toggle)
 - `control_plane.observability.emit_backend_capability_diagnostics` (backend diagnostics event toggle)
 
+Shortlist admission diagnostics are persisted per run. The durable ledger keeps
+both admitted and non-admitted rows with the selector strategy, eligibility
+policy, policy version, evaluation-pool and assessment fingerprints, coverage
+states, Pareto front, admission rank, and decision reason. `shortlist_diagnostics`
+and checkpoint manifests may contain bounded samples for fast inspection; use
+`GET /runs/{run_id}/shortlist-admissions` (or the store
+`query_shortlist_admission_decisions()` API) for complete results. Shadow comparison is
+non-authoritative and must not change legacy downstream inputs.
+
+Promotion metrics are generated separately from runtime admission with
+`scripts/evaluate_requirement_aware_shortlisting.py`. The artifact records
+Recall@50 against the full pre-capacity pool, occurrence-level evidence
+correctness, `U/T`, contradiction agreement, disagreement, deterministic replay,
+latency p95, retrieval cost, frozen input/policy fingerprints, and gate results.
+Missing reviewed labels or frozen legacy baselines produce a blocked artifact;
+they are not treated as passing or zero-valued metrics.
+
+If production is switched while that artifact is blocked, record the explicit
+operator override in a promotion-decision artifact. The override changes the
+runtime selector only; it does not change the recorded gate results or close
+the evidence task. The rollback target is `legacy_retrieval_v1` with
+`legacy_production_v1`.
+
 Collector example:
 
 - local collector endpoint: `http://localhost:4318/v1/traces`

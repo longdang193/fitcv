@@ -28,6 +28,15 @@ CV_GENERATION_ACCEPTED_STATUS: Final[Literal["accepted"]] = "accepted"
 CV_GENERATION_VALIDATION_FAILED_STATUS: Final[Literal["validation_failed"]] = "validation_failed"
 CV_GENERATION_FAILED_STATUS: Final[Literal["generation_failed"]] = "generation_failed"
 CV_GENERATION_PERSISTENCE_FAILED_STATUS: Final[Literal["persistence_failed"]] = "persistence_failed"
+CV_REVIEW_PENDING_STATUS = "pending"
+CV_REVIEW_APPROVED_STATUS = "approved"
+CV_REVIEW_REJECTED_STATUS = "rejected"
+CV_PDF_PENDING_STATUS = "pending"
+CV_PDF_PERSISTED_STATUS = "persisted"
+CV_PDF_FAILED_STATUS = "failed"
+CV_PERSISTENCE_PENDING_STATUS = "pending"
+CV_PERSISTENCE_PERSISTED_STATUS = "persisted"
+CV_PERSISTENCE_FAILED_STATUS = "failed"
 
 AnalysisStatus = Literal[
     "blocked_by_reranker_fit",
@@ -89,12 +98,57 @@ def shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
 def validation_status_for_cv_status(status: str) -> str:
     if status == CV_GENERATION_ACCEPTED_STATUS:
         return CV_GENERATION_ACCEPTED_STATUS
-    if status == CV_GENERATION_VALIDATION_FAILED_STATUS:
+    if status in {CV_GENERATION_VALIDATION_FAILED_STATUS, CV_GENERATION_FAILED_STATUS, CV_GENERATION_PERSISTENCE_FAILED_STATUS}:
         return "failed"
-    if status == CV_GENERATION_PERSISTENCE_FAILED_STATUS:
-        return CV_GENERATION_ACCEPTED_STATUS
     return "not_run"
 
+
+
+
+def derive_submission_permission(row: dict[str, Any]) -> dict[str, Any]:
+    """Derive submission permission from independent technical and review states."""
+    generation_status = str(row.get("generation_status") or row.get("status") or "").strip()
+    review_status = str(row.get("review_status") or "").strip().lower()
+    pdf_status = str(row.get("pdf_status") or "").strip().lower()
+    persistence_status = str(row.get("persistence_status") or "").strip().lower()
+    mandatory_review = bool(row.get("mandatory_review") or row.get("review_required"))
+    technical_ok = generation_status == CV_GENERATION_ACCEPTED_STATUS and not bool(row.get("technical_failure"))
+    pdf_ok = pdf_status == CV_PDF_PERSISTED_STATUS or (not pdf_status and technical_ok)
+    persisted = persistence_status == CV_PERSISTENCE_PERSISTED_STATUS or (not persistence_status and pdf_ok)
+    review_ok = review_status == CV_REVIEW_APPROVED_STATUS or (not mandatory_review and review_status != CV_REVIEW_REJECTED_STATUS)
+    permitted = technical_ok and pdf_ok and persisted and review_ok
+    return {
+        "submission_permitted": permitted,
+        "submission_blockers": [
+            reason for reason, blocked in (
+                ("technical_failure", not technical_ok),
+                ("pdf_failure", not pdf_ok),
+                ("persistence_failure", not persisted),
+                ("review_pending", not review_ok),
+            ) if blocked
+        ],
+    }
+
+
+def build_late_stage_state(
+    *,
+    generation_status: str,
+    review_status: str | None = None,
+    pdf_status: str | None = None,
+    persistence_status: str | None = None,
+    cv_revision: str | None = None,
+    pdf_revision: str | None = None,
+) -> dict[str, Any]:
+    state = {
+        "generation_status": str(generation_status or ""),
+        "review_status": str(review_status or (CV_REVIEW_PENDING_STATUS if generation_status == CV_GENERATION_REVIEW_REQUIRED_STATUS else "none")),
+        "pdf_status": str(pdf_status or (CV_PDF_PENDING_STATUS if generation_status in {CV_GENERATION_ACCEPTED_STATUS, CV_GENERATION_REVIEW_REQUIRED_STATUS} else CV_PDF_FAILED_STATUS)),
+        "persistence_status": str(persistence_status or (CV_PERSISTENCE_PENDING_STATUS if generation_status in {CV_GENERATION_ACCEPTED_STATUS, CV_GENERATION_REVIEW_REQUIRED_STATUS} else CV_PERSISTENCE_FAILED_STATUS)),
+        "cv_revision": str(cv_revision or ""),
+        "pdf_revision": str(pdf_revision or ""),
+    }
+    state.update(derive_submission_permission(state))
+    return state
 
 def deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
     normalized_status = str(status or "").strip()

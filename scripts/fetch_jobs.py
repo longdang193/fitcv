@@ -22,11 +22,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from fitcv.ingest import validate_job_schema
-from fitcv.contracts import build_description_quality
 
 try:
     import scripts.fetch_workingstudentjobs as workingstudentjobs
@@ -214,9 +210,16 @@ def _html_to_text(value: str) -> str:
 
 
 def _description_status(description: str, source_description: str) -> str:
+    normalized = description.strip()
     if source_description == "api_structured_summary":
         return "fallback_summary"
-    return str(build_description_quality(description, source_description)["description_quality"])
+    if not normalized:
+        return "missing"
+    if normalized.casefold() in {"description not available", "n/a", "not available", "apply now"}:
+        return "partial"
+    if len(normalized) < 80:
+        return "partial"
+    return "full"
 
 
 def _location_text(value: Any) -> str:
@@ -255,7 +258,6 @@ def _canonical_record(
     experience_level: str = "",
     run_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    description_quality = build_description_quality(description, source_description)
     record = {
         "id": source_job_id,
         "jobUrl": job_url,
@@ -276,11 +278,6 @@ def _canonical_record(
         "sourceJobId": source_job_id,
         "sourceDescription": source_description,
         "descriptionStatus": _description_status(description, source_description),
-        "descriptionQuality": description_quality["description_quality"],
-        "descriptionSourceChecksum": description_quality["description_source_checksum"],
-        "descriptionSourceLength": description_quality["description_source_length"],
-        "descriptionQualitySignals": description_quality["description_quality_signals"],
-        "descriptionBoundary": description_quality["description_boundary"],
         "sourceRecord": raw,
     }
     if isinstance(raw.get("descriptionHtml"), str):
@@ -506,15 +503,15 @@ def fetch_sources(
             mapped = [mapper(item, result) for item in result["items"] if isinstance(item, dict)]
             incomplete = [record for record in mapped if record["descriptionStatus"] != "full"]
             failures.extend({"sourceJobId": record["sourceJobId"], "reason": "incomplete_description"} for record in incomplete)
-            retained_records = list(mapped)
+            full_records = [record for record in mapped if record["descriptionStatus"] == "full"]
             if remaining_limit:
-                retained_records = retained_records[:remaining_limit]
-            records.extend(retained_records)
-            source_record_count += len(retained_records)
+                full_records = full_records[:remaining_limit]
+            records.extend(full_records)
+            source_record_count += len(full_records)
             _emit_progress(
                 progress,
                 f"source {source} run {run_index}/{len(run_specs)} {run_name}: completed raw_items={len(result['items'])} "
-                f"retained_records={len(retained_records)} incomplete={len(incomplete)} "
+                f"full_records={len(full_records)} failures={len(incomplete)} "
                 f"status={result.get('status', 'SUCCEEDED')} partial={bool(result.get('partial', False))}",
             )
     return records, failures, runs

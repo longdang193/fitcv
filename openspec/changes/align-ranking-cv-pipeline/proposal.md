@@ -8,13 +8,13 @@ This change turns the Figma board contract into implementation-ready requirement
 
 ## What Changes
 
-- Define the Stage 6 contract from Pareto Top 50 to Final Top 15: valid finite `ai_score` is the only baseline ranking authority; `baseline_fit = ai_score`, `baseline_rank` is the final order, and preferences never rerank new runs.
+- Define the Stage 6 contract from Pareto Top 50 to Final Top 15: only valid finite `ai_score` entries may be admitted; `baseline_fit = ai_score`, `baseline_rank` is the final order, `final_rank = baseline_rank` for new outputs, and preferences never rerank new runs.
 - Preserve validated shortlist evidence, qualifiers, gaps, score/status, job identity, JD references, profile revision, versions, and provenance across the Stage 6 to Stage 7 handoff.
 - Keep the 12,000-character ranking request bounded while ensuring Stage 7 can retrieve additional canonical evidence instead of treating the ranking prompt as the evidence database.
 - Make invalid or unscored AI results status-only and keep promotion override records auditable with operator, reason, strategy/version, evidence-gate state, timestamp, and readable persistence.
-- Define a fixed-order Stage 7 orchestrator: evidence planning, `CREATE CV`, explicit `ADJUST CV`, unified validation, targeted retries, safe grounded fallback, review-state resolution, exact myCVs Markdown rendering/validation, and mandatory PDF generation.
-- Require factual integrity/provenance and exact myCVs Markdown schema as hard constraints; treat ATS/recruiter quality as an optimization objective that cannot override factual or page-fit constraints.
-- Require review-required CVs to produce and persist a valid PDF while blocking submission until mandatory review is complete; classify converter failure as technical recovery/failure, never as human review success.
+- Define a fixed-order Stage 7 orchestrator: evidence planning, `CREATE CV`, explicit `ADJUST CV`, unified validation, targeted retries, safe grounded fallback with final hard checks, review-state resolution, exact myCVs Markdown rendering/validation, and mandatory PDF generation.
+- Require factual integrity/provenance and exact myCVs Markdown schema as hard constraints; treat ATS/recruiter quality as an optimization objective and approximately 580 words as an adjustment target, not a new hard gate unless an authoritative requirement says otherwise.
+- Require review-required CVs to produce and persist a post-conversion-verified PDF while blocking submission until mandatory review is complete; classify converter or artifact-acceptance failure as technical recovery/failure, never as human review success.
 - Integrate the existing myCVs converter for both optional-review and mandatory-review states; do not create a replacement converter in this change.
 - Preserve historical personalized artifacts and legacy statuses as read-only compatibility data while preventing new runs from emitting or consuming personalized ranking fields.
 

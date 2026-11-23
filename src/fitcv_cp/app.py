@@ -121,7 +121,7 @@ from fitcv.pipeline_contracts import (
     timeline_stage_download_for_event,
     timeline_stage_label,
 )
-from fitcv.ranking_contract import normalize_score_state, normalize_score_state_for_export
+from fitcv.ranking_contract import normalize_score_state
 from fitcv.rule_filter import evaluate_title_filter, normalize_title_keywords
 from fitcv.pipeline_stages.common import job_identity_keys, normalize_job_url_key
 from fitcv.prompts import get_prompt_definition, render_prompt, required_template_variables
@@ -1024,18 +1024,6 @@ def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, CanonicalJobs]:
         ) from exc
 
 
-def _canonicalize_candidate_profile_snapshot(profile: dict[str, Any]) -> dict[str, Any]:
-    from fitcv.candidate import converge_candidate_profile_for_runtime
-
-    try:
-        return converge_candidate_profile_for_runtime(profile)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Candidate profile validation failed: {exc}",
-        ) from exc
-
-
 def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
     from fitcv.candidate import load_profile_yaml as _load_profile_yaml, validate_profile as _validate_profile
 
@@ -1056,11 +1044,7 @@ def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
             status_code=422,
             detail=f"Candidate profile validation failed: {'; '.join(profile_errors)}",
         )
-    return _json.dumps(
-        _canonicalize_candidate_profile_snapshot(resolved_profile),
-        ensure_ascii=False,
-        indent=2,
-    )
+    return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
 
 def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
     from fitcv.candidate import load_profile_text as _load_profile_text
@@ -1069,11 +1053,7 @@ def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
         resolved_profile = _load_profile_text(raw_text, format_hint="auto")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    return _json.dumps(
-        _canonicalize_candidate_profile_snapshot(resolved_profile),
-        ensure_ascii=False,
-        indent=2,
-    )
+    return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
 
 def _load_jobs_input_manifest(raw_manifest_json: str | None) -> dict[str, Any]:
     if not raw_manifest_json:
@@ -1705,7 +1685,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
     artifact_payloads = build_terminal_run_artifact_payloads(run_record=run, events=[])
 
     results_payload = artifact_payloads.get("export.json")
-    if _run_status_allows_export(run) and isinstance(results_payload, dict):
+    if run.status == RunStatus.SUCCEEDED and isinstance(results_payload, dict):
         files.append(
             _build_run_artifact_file(
                 run.run_id,
@@ -1714,7 +1694,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
             )
         )
     hitl_review_payload = artifact_payloads.get("hitl-review-audit.json")
-    if _run_status_allows_export(run) and isinstance(hitl_review_payload, dict):
+    if run.status == RunStatus.SUCCEEDED and isinstance(hitl_review_payload, dict):
         files.append(
             _build_run_artifact_file(
                 run.run_id,
@@ -1767,7 +1747,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 _json.dumps(cv_generation_trace_payload, ensure_ascii=False, indent=2),
             )
         )
-    if _run_status_allows_export(run) and run.settings_used_json:
+    if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
         files.append(
             _build_run_artifact_file(
                 run.run_id,
@@ -2855,7 +2835,7 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
     if spec.state_kind == "hitl_review":
         return "missing" if run.status == RunStatus.SUCCEEDED and bool(run.cv_generation_debug_json) else "not_applicable"
     if spec.state_kind == "settings_used":
-        return "missing" if _run_status_allows_export(run) else "not_applicable"
+        return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if spec.state_kind == "cv_debug":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if spec.state_kind == "review_required":
@@ -4218,12 +4198,10 @@ def _normalize_results_export_row(row: dict[str, Any]) -> dict[str, Any]:
         **(dict(normalized.get("scores") or {}) if isinstance(normalized.get("scores"), dict) else {}),
         **normalized,
     }
-    score_state = normalize_score_state_for_export(score_source)
+    score_state = normalize_score_state(score_source)
     normalized["ai_score"] = score_state["ai_score"]
     normalized["score_status"] = score_state["score_status"]
     normalized["failure_code"] = score_state["failure_code"]
-    normalized["disposition"] = score_state["disposition"]
-    normalized["retry_eligible"] = score_state["retry_eligible"]
     decision_chain = normalized.get("decision_chain")
     if not isinstance(decision_chain, dict):
         decision_chain = {}
@@ -4335,40 +4313,6 @@ def _with_required_skills_display(job: dict[str, Any]) -> dict[str, Any]:
     display = derive_required_skills_display(normalized_job)
     normalized_job["required_skills_display"] = list(display.get("values") or [])
     normalized_job["required_skills_display_source"] = display.get("source")
-    category_fields = (
-        ("required", "required_skills"),
-        ("preferred", "preferred_skills"),
-        ("advantage", "advantage_skills"),
-        ("technology", "tech_stack"),
-        ("keyword", "keywords"),
-        ("application", "application_instructions"),
-        ("contact", "contact_details"),
-    )
-    category_items: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for category, field_name in category_fields:
-        raw_values = (
-            normalized_job.get("required_skills_display")
-            if category == "required" and display.get("source") == "required_skill_entities"
-            else normalized_job.get(field_name)
-        )
-        values = raw_values if isinstance(raw_values, list) else [raw_values] if raw_values else []
-        for value in values:
-            text = str(value or "").strip()
-            key = text.casefold()
-            if not text or key in seen:
-                continue
-            seen.add(key)
-            category_items.append(
-                {
-                    "value": text,
-                    "category": category,
-                    "source": normalized_job.get("required_skills_display_source")
-                    if category == "required"
-                    else field_name,
-                }
-            )
-    normalized_job["required_skills_display_items"] = category_items
     return normalized_job
 
 
@@ -10041,7 +9985,6 @@ def create_app(
                         careers_url=req.careers_url,
                         keywords=req.keywords,
                         max_jobs=req.max_jobs,
-                        acquisition_limit=200,
                         timeout_seconds=req.timeout_seconds,
                     )
                     acquisition = acquire_scanner_jobs(scanner_request)
@@ -10066,7 +10009,6 @@ def create_app(
                             "careers_url": scanner_request.careers_url,
                             "keywords": list(scanner_request.keywords),
                             "max_jobs": scanner_request.max_jobs,
-                        "acquisition_limit": scanner_request.acquisition_limit,
                             "timeout_seconds": scanner_request.timeout_seconds,
                             "retrieved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                         },
@@ -10203,7 +10145,6 @@ def create_app(
                     raise ApiError(422, "validation_failed", str(exc)) from exc
                 profile_snapshot = dict(profile.get("profile") or {})
                 profile_snapshot.setdefault("name", profile.get("name"))
-                profile_snapshot = _canonicalize_candidate_profile_snapshot(profile_snapshot)
                 source_kind = "combined" if upload_name else "scan"
                 result = _execute_trigger_with_inputs(
                     jobs_path=upload_name or scan_ids[0],
@@ -10263,7 +10204,6 @@ def create_app(
                     careers_url=str(form.get("careers_url") or ""),
                     keywords=keyword_values,
                     max_jobs=max_jobs,
-                    acquisition_limit=200,
                     timeout_seconds=timeout_seconds,
                 )
                 acquisition = acquire_scanner_jobs(scanner_request)
@@ -10282,7 +10222,6 @@ def create_app(
                 )
             profile_snapshot = dict(profile.get("profile") or {})
             profile_snapshot.setdefault("name", profile.get("name"))
-            profile_snapshot = _canonicalize_candidate_profile_snapshot(profile_snapshot)
             fingerprint_payload = {
                 "jobs_sha256": acquisition.artifact.sha256,
                 "candidate_profile_id": candidate_profile_id,
@@ -10294,7 +10233,6 @@ def create_app(
                 "careers_url": scanner_request.careers_url,
                 "keywords": list(scanner_request.keywords),
                 "max_jobs": scanner_request.max_jobs,
-                "acquisition_limit": scanner_request.acquisition_limit,
                 "timeout_seconds": scanner_request.timeout_seconds,
             }
             try:
@@ -10502,7 +10440,6 @@ def create_app(
             ) from exc
         profile_snapshot = dict(profile.get("profile") or {})
         profile_snapshot.setdefault("name", profile.get("name"))
-        profile_snapshot = _canonicalize_candidate_profile_snapshot(profile_snapshot)
         fingerprint_payload = {
             "jobs_sha256": artifact.sha256,
             "candidate_profile_id": candidate_profile_id,
@@ -10674,7 +10611,6 @@ def create_app(
                     careers_url=careers_url,
                     keywords=keywords.splitlines(),
                     max_jobs=max_jobs,
-                    acquisition_limit=200,
                     timeout_seconds=timeout_seconds,
                 )
                 acquisition = acquire_scanner_jobs(scanner_request)
@@ -10710,7 +10646,8 @@ def create_app(
             )
         candidate_snapshot = dict(profile.get("profile") or {})
         candidate_snapshot.setdefault("name", profile.get("name"))
-        candidate_snapshot = _canonicalize_candidate_profile_snapshot(candidate_snapshot)
+        candidate_snapshot["revision"] = profile.get("revision")
+        candidate_snapshot["candidate_profile_id"] = candidate_profile_id
 
         return _execute_trigger_with_inputs(
             jobs_path=source_path,
@@ -12038,6 +11975,66 @@ def create_app(
                 "job_title_include": job_title_include,
                 "job_title_exclude": job_title_exclude,
             },
+        )
+
+    @app.get("/runs/{run_id}/shortlist-admissions")
+    def get_shortlist_admission_decisions(
+        run_id: str,
+        page: int = 1,
+        page_size: int = 50,
+        search: str = "",
+    ) -> dict[str, Any]:
+        if page < 1 or page_size not in {10, 20, 50, 100}:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {
+                        "field": "page",
+                        "code": "invalid_value",
+                        "message": "Use 1 or greater.",
+                    }
+                ] if page < 1 else [
+                    {
+                        "field": "page_size",
+                        "code": "invalid_value",
+                        "message": "Use 10, 20, 50, or 100.",
+                    }
+                ],
+                action="Fix highlighted fields and retry.",
+            )
+        store = _resolve_run_store()
+        if not sqlite_store_module.run_exists(run_id):
+            raise ApiError(
+                404,
+                "run_not_found",
+                "Run not found.",
+                action="Return to Runs and select an existing Run.",
+            )
+        try:
+            result = store.query_shortlist_admission_decisions(
+                run_id,
+                page=page,
+                page_size=page_size,
+                search=search,
+            )
+        except ValueError as exc:
+            raise ApiError(
+                422,
+                "validation_failed",
+                "Request validation failed.",
+                field_errors=[
+                    {"field": "filters", "code": "invalid_value", "message": str(exc)}
+                ],
+                action="Fix highlighted fields and retry.",
+            ) from exc
+        return _collection_response(
+            list(result.get("items") or []),
+            page=int(result.get("page") or page),
+            page_size=int(result.get("page_size") or page_size),
+            total_items=int(result.get("total") or 0),
+            meta={"run_id": run_id, "search": search, "decision_envelope": True},
         )
 
     def _require_canonical_run_job(run_id: str, run_job_id: str) -> dict[str, Any]:
@@ -13768,7 +13765,7 @@ def create_app(
         section_errors: dict[str, str] = {}
 
         for key in keys:
-            if key in metadata_only_keys and key not in form:
+            if key not in form:
                 raw = active.get(key, schema_by_key[key]["default"])
             else:
                 raw = _settings_form_value(form, key)
@@ -16924,8 +16921,8 @@ def create_app(
         run = get_run(run_id, client=client)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if not _run_status_allows_export(run):
-            raise HTTPException(status_code=409, detail="Settings-used export is not available for this run state")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="Settings-used export is only available for succeeded runs")
         if not run.settings_used_json:
             raise HTTPException(status_code=404, detail="Settings-used export is not available for this run")
         try:

@@ -20,12 +20,38 @@ from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from fitcv.pipeline_contracts import (
     PIPELINE_STAGE_SEQUENCE,
     build_stage_dispatch_map,
     completed_pipeline_stages_through,
     next_pipeline_stage,
 )
+
+
+def test_recall_safe_pool_retains_only_soft_filter_exclusions() -> None:
+    from fitcv.pipeline_stage_runner import build_recall_safe_evaluation_pool
+
+    enriched = [
+        {"job_url": "job-passed", "title": "Data Engineer"},
+        {"job_url": "job-soft", "title": "Data Engineer"},
+        {"job_url": "job-hard", "title": "Unrelated"},
+    ]
+    pool = build_recall_safe_evaluation_pool(
+        enriched,
+        [{"job_url": "job-passed", "marks": []}],
+        [
+            {"job_url": "job-soft", "reasons": ["missing_fit_context"]},
+            {"job_url": "job-hard", "reasons": ["title_not_included", "missing_fit_context"]},
+        ],
+    )
+
+    assert [row["job_url"] for row in pool] == ["job-passed", "job-soft"]
+    assert pool[0]["legacy_eligibility"] == "passed"
+    assert pool[0]["eligibility_policy_version"] == "shortlist_eligibility_matrix_v1"
+    assert pool[1]["legacy_excluded"] is True
+    assert pool[1]["legacy_exclusion_reasons"] == ["missing_fit_context"]
 
 from fitcv.pipeline_stage_context import PipelineState
 
@@ -399,6 +425,191 @@ def test_shortlist_manifest_is_bounded_while_admission_ledger_is_complete() -> N
     assert manifest["counts"]["after_fused_cutoff"] == 1
     assert stored_ledger[50]["exclusion_reason"] == "after_fused_cutoff"
     assert stored_ledger[50]["vector_rank"] == 51
+
+
+def test_requirement_aware_shortlist_assesses_evidence_before_admission(monkeypatch) -> None:
+    from fitcv.pipeline_stage_runner import execute_shortlist_stage
+
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        "fitcv.pipeline_stage_runner.retrieve_evidence_bundle",
+        lambda *args, **kwargs: {
+            "selected_evidence": [
+                {
+                    "evidence_id": "ev-1",
+                    "requirement_assessments": {
+                        "req-1": {
+                            "qualified_support": True,
+                            "canonical_match": True,
+                            "qualifier_status": "verified",
+                        }
+                    },
+                }
+            ],
+            "unselected_top_candidates": [],
+        },
+    )
+
+    stored: list[list[dict]] = []
+    ledger: list[dict] = []
+    state: dict = {}
+    job = {
+        "job_url": "https://example.com/requirement-aware",
+        "requirement_occurrences": [
+            {"occurrence_id": "req-1", "category": "required", "source_wording": "Python"}
+        ],
+    }
+
+    execute_shortlist_stage(
+        run_id="run-requirement-aware",
+        state=state,
+        profile={"preferences": {}, "experiences": []},
+        passed_jobs=[job],
+        config={"pipeline": {"shortlist_strategy": "core_pareto_evidence_v1"}},
+        vector_top_n=50,
+        reporter=None,
+        pipeline_store=SimpleNamespace(
+            store_shortlist=lambda rows, config: stored.append(rows),
+            store_shortlist_admission_ledger=lambda rows, diagnostics, run_id, config: ledger.extend(rows),
+        ),
+        observe_span=lambda *args, **kwargs: nullcontext(),
+        set_span_attributes=lambda attributes: captured.update(attributes),
+        run_vector_search=lambda *args, **kwargs: pytest.fail("legacy retrieval must not run"),
+        materialize_scoring_shortlist=lambda rows, jobs: rows,
+        unique_job_urls=lambda rows: [str(row["job_url"]) for row in rows],
+        raw_shortlist_anomaly_urls=lambda rows, jobs: [],
+    )
+
+    assert stored[0][0]["coverage"]["required"]["supported"] == 1
+    assert state["shortlist_diagnostics"]["assessment_fingerprint"]
+    assert state["shortlist_diagnostics"]["assessment_input_fingerprint"]
+    assert state["shortlist_admission_manifest"]["assessment_input_fingerprint"]
+    assert state["shortlist_diagnostics"]["evaluation_pool_id"]
+    assert ledger[0]["shortlist_status"] == "shortlist_admitted"
+    assert captured["shortlist_jobs"] == 1
+
+
+def test_requirement_aware_shortlist_retrieves_when_requirement_coverage_is_empty(monkeypatch) -> None:
+    from fitcv.pipeline_stage_runner import execute_shortlist_stage
+
+    retrieval_calls: list[str] = []
+    monkeypatch.setattr(
+        "fitcv.pipeline_stage_runner.retrieve_evidence_bundle",
+        lambda _profile, job, *_args, **_kwargs: (
+            retrieval_calls.append(str(job["job_url"]))
+            or {
+                "selected_evidence": [
+                    {
+                        "evidence_id": "ev-empty-coverage",
+                        "requirement_assessments": {
+                            "req-empty-coverage": {
+                                "qualified_support": True,
+                                "canonical_match": True,
+                                "qualifier_status": "verified",
+                            }
+                        },
+                    }
+                ],
+                "unselected_top_candidates": [],
+            }
+        ),
+    )
+
+    job = {
+        "job_url": "https://example.com/empty-requirement-coverage",
+        "requirement_coverage": [],
+        "requirement_occurrences": [
+            {
+                "occurrence_id": "req-empty-coverage",
+                "category": "required",
+                "source_wording": "Python",
+            }
+        ],
+    }
+    state: dict = {}
+
+    execute_shortlist_stage(
+        run_id="run-empty-requirement-coverage",
+        state=state,
+        profile={"preferences": {}, "experiences": []},
+        passed_jobs=[job],
+        config={"pipeline": {"shortlist_strategy": "core_pareto_evidence_v1"}},
+        vector_top_n=50,
+        reporter=None,
+        pipeline_store=SimpleNamespace(
+            store_shortlist=lambda rows, config: None,
+            store_shortlist_admission_ledger=lambda rows, diagnostics, run_id, config: None,
+        ),
+        observe_span=lambda *args, **kwargs: nullcontext(),
+        set_span_attributes=lambda attributes: None,
+        run_vector_search=lambda *args, **kwargs: pytest.fail("legacy retrieval must not run"),
+        materialize_scoring_shortlist=lambda rows, jobs: rows,
+        unique_job_urls=lambda rows: [str(row["job_url"]) for row in rows],
+        raw_shortlist_anomaly_urls=lambda rows, jobs: [],
+    )
+
+    assert retrieval_calls == [job["job_url"]]
+    assert state["shortlist"][0]["coverage"]["required"]["supported"] == 1
+
+
+def test_legacy_shadow_shortlist_is_non_authoritative(monkeypatch) -> None:
+    from fitcv.pipeline_stage_runner import execute_shortlist_stage
+
+    monkeypatch.setattr(
+        "fitcv.pipeline_stage_runner.retrieve_evidence_bundle",
+        lambda *args, **kwargs: {"selected_evidence": [], "unselected_top_candidates": []},
+    )
+    job = {
+        "job_url": "https://example.com/shadow",
+        "requirement_occurrences": [
+            {"occurrence_id": "req-shadow", "category": "required", "source_wording": "Python"}
+        ],
+    }
+    excluded_job = {
+        "job_url": "https://example.com/shadow-excluded",
+        "requirement_occurrences": [
+            {"occurrence_id": "req-shadow-excluded", "category": "required", "source_wording": "SQL"}
+        ],
+        "legacy_excluded": True,
+    }
+    state: dict = {"recall_safe_evaluation_pool": [job, excluded_job]}
+    retrieval_calls: list[list[str]] = []
+
+    execute_shortlist_stage(
+        run_id="run-shadow",
+        state=state,
+        profile={"preferences": {}, "experiences": []},
+        passed_jobs=[job],
+        config={"pipeline": {"shortlist_shadow_enabled": True}},
+        vector_top_n=50,
+        reporter=None,
+        pipeline_store=SimpleNamespace(
+            embed_and_store_jobs=lambda jobs, config: None,
+            store_shortlist=lambda rows, config: None,
+            store_shortlist_admission_ledger=lambda rows, diagnostics, run_id, config: None,
+        ),
+        observe_span=lambda *args, **kwargs: nullcontext(),
+        set_span_attributes=lambda attributes: None,
+        run_vector_search=lambda _profile, urls, _config, **_kwargs: (
+            retrieval_calls.append(list(urls))
+            or {
+                "production_rows": [{"job_url": job["job_url"]}],
+                "audit_rows": [],
+                "diagnostics": {},
+                "candidate_query": {},
+            }
+        ),
+        materialize_scoring_shortlist=lambda rows, jobs: [{**jobs[0], **rows[0]}],
+        unique_job_urls=lambda rows: [str(row["job_url"]) for row in rows],
+        raw_shortlist_anomaly_urls=lambda rows, jobs: [],
+    )
+
+    assert state["shortlist"] == [{**job, "job_url": job["job_url"]}]
+    assert state["shortlist_diagnostics"]["shadow"]["authoritative"] is False
+    assert state["shortlist_diagnostics"]["shadow"]["disagreement_count"] == 1
+    assert retrieval_calls == [[job["job_url"]], [job["job_url"], excluded_job["job_url"]]]
+    assert state["shortlist_diagnostics"]["shadow"]["legacy_excluded"] == 1
 
 
 def test_rule_filter_stage_builds_context_once_and_preserves_full_payload() -> None:

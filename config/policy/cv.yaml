@@ -25,7 +25,7 @@ cv_acceptance_policy:
     - stretch
 
 cv:
-  preset: europass
+  preset: mycvs
   generation:
     model: cx/gpt-5.6-luna
     prompt_version: v1

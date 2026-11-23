@@ -25,9 +25,9 @@ Input jobs contract and normalization: [job-data-input.md](job-data-input.md).
 ## Stage Responsibilities
 
 - `normalize`: canonicalize incoming jobs and preserve provider-native `source_location` evidence
-- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, and reuse-aware metadata; canonical skills are the deduplicated union of validated structured entities and accepted raw values, including valid multi-word skills
+- `enrich`: derive structured job fields, preserve run-scoped `run_job_id`, canonical `actual_location`, canonical `language_requirements`, reuse-aware metadata, and use bounded provider-specific source skills as supporting prompt input when available
 - `rule_filter`: evaluate symmetric location/language factors, project policy modes, and apply deterministic gating before expensive steps
-- `shortlist`: relevance-aware hybrid retrieval over eligible jobs; production rows use real vector evidence when available, while partial vector/lexical fallback uses rank-normalized channel scores and lexical rescue requires affirmative component overlap
+- `shortlist`: strategy-controlled admission; `legacy_retrieval_v1` keeps retrieval admission, while `core_pareto_evidence_v1` assesses job-specific requirement coverage, builds core Pareto fronts, and applies deterministic evidence tie-breaking
 - `ranking`: authoritative fit scoring and decision labels
 - `cv_analysis`: one canonical per-job analyzer owns evidence selection, gap, fit-gate, reuse validity, and generation readiness; pipeline owns batch invocation, persistence, and observations
 - `cv_generation`: one canonical `generate_from_analysis` contract owns fingerprints, reuse validity, structured generation, validation, repair, acceptance/review meaning, and result shape; pipeline persists canonical `accepted` results only
@@ -75,26 +75,17 @@ CV analysis converges every immutable Candidate Profile revision before retrieva
 - each nested evidence statement emits one item; section and kind remain provenance metadata, never score bonuses or reserved quotas
 - derived claims link by `evidence_refs`; runtime reverses those links into evidence-item skills without duplicating ownership
 - one global selection budget applies after channel retrieval and deterministic evidence-ID tie breaking
-- each distinct required skill keeps one recoverable supporter in the existing required-skill channel before channel-pool cutoffs; selected items retain source text, scoring context, stable evidence IDs, and source references
-- candidate technology hints and lexical overlap admit only supported demonstrated skills, including supported top-level skills and experience-bullet skills; unsupported and `claimed_only` technology is excluded
 - required-skill support is derived separately from profile fit: `profile_match` comes from `compute_gap()`, `canonical` records support across the projected evidence pool, `pool` records support after channel retrieval and merge, and `selected` comes only from final selected evidence; each map points requirement IDs to evidence IDs
 - only selected `verified` support can produce `support_strength: supported`; `relevant_unverified`, `not_selected`, and `unsupported` stay non-authoritative
 - `requirement_coverage` is the sole requirement-support authority; `supporting_evidence_ids` and `source_refs` point to selected `candidate-evidence.v1` items only
-- compact `evidence_used` remains backward-compatible with `evidence_type`, `source_ref`, and `name`, while also exposing `evidence_id`, canonical `kind`, bounded `parent_title`, and bounded plural `source_refs`
 - analysis metadata records `source_profile_schema_version`, `projection_schema_version`, and `projection_fingerprint`
 - traceability resolves `claim -> evidence_refs -> candidate-evidence.v1 item -> source_refs -> uploaded source document`
-
-Mandatory enrichment completeness is computed from mandatory requirement channels
-only. Preferred skills and responsibilities can enrich context, but cannot make a
-row appear complete when required skills, experience, education, or other
-mandatory channels are missing or degraded.
 
 ### Proof Boundary and Review Uncertainty
 
 - `candidate-evidence.v1` keeps original retrieval text, while `support_fragments` are deterministic source-only sentence/clause fragments used for requirement proof.
 - `requirement-support-v5` requires target skill and every qualifier in one unambiguous source fragment; sibling fragments, titles, roles, organizations, scoring metadata, and domains cannot donate proof.
 - pre-v4 analysis records are not reusable; policy version participates in the analysis contract fingerprint.
-- exact CV-analysis reuse requires the persisted experience summary, uncertainty metadata, and candidate-profile identity; older records missing any of these fields fail closed into fresh recomputation
 - non-verified requirement rows expose `uncertainty_id`, `resolution_key`, affected fact, question, disposition, evidence IDs, and source fingerprint. Human actions are `RESOLVE_WITH_ANSWER`, `CONFIRM_OMIT`, and `OVERRIDE_BLOCK`.
 - profile-scoped resolutions reuse only when candidate identity/revision, source fingerprint, resolution key, and requirement instance match; otherwise pipeline asks again.
 - resolution actions enqueue one bounded re-analysis through the existing CV regeneration entrypoint; refreshed analysis/generation replaces the prior debug record before closure.
@@ -274,22 +265,78 @@ Phase 1 uses one path for both factors:
 
 Phase 2 requests vector retrieval and preserves that requested strategy in diagnostics. Compatible vectors use one path:
 
-`eligible jobs -> relevance-aware query components -> valid vector evidence -> production Top N`
+`eligible jobs -> valid cosine evidence -> total vector order -> production Top N`
 
-- candidate skill query slots prioritize repeated, supported demonstrated skills with stable deterministic ties; project slots prioritize supported, richer evidence before stable profile order
-- ordering is `vector_similarity` descending, then `job_url` ascending when the vector path is complete
+- ordering is `vector_similarity` descending, then `job_url` ascending
 - one latest embedding row per job URL is selected by `created_at DESC, id DESC`
 - missing, invalid, stale, or contract-incompatible vectors use deterministic lexical ranking only when the caller supplies the eligible structured job batch
 - vector and lexical rows never mix in one shortlist
-- partial vector/lexical fallback normalizes each channel's native scores independently before applying the configured blend; channel rank and stable URL provide scale-independent tie-breakers
 - diagnostics record `requested_strategy`, `effective_strategy`, `fallback_reason`, backend identity, model, dimension, contract fingerprint, and result counts
 - absent fallback data produces `effective_strategy: unavailable`; retrieval never changes silently
 - `raw_shortlist` remains checkpoint compatibility name for production retrieval rows
 - `shortlist_diagnostics` preserves coverage and cutoff metrics in checkpoint state
-- bounded query construction prioritizes repeated demonstrated skills and richer project evidence; affirmative skill, technology, or description overlap can authorize lexical rescue, while neutral/unknown title relevance alone cannot
 - deterministic below-cutoff audit rows exist only in `stage_transition_artifacts.stages.shortlist.audit_sample`
 - audit rows never reach shortlist persistence, AI scoring, ranking, exports, or `strong | stretch | skip` labels
 - continuation preserves prior completed shortlist artifact block, including audit evidence, while current execution updates only stages in its execution segment
+
+### Requirement-Aware Shortlisting
+
+`pipeline.shortlist_strategy` is independent from `pipeline.retrieval_strategy`.
+The production default is `core_pareto_evidence_v1`; it retains all
+evaluation-pool rows in the admission ledger and admits at most 50. Retrieval
+finds candidate evidence only; it does not decide admission. Each decision
+records `shortlist_strategy`, `eligibility_policy`, `policy_version`,
+`evaluation_pool_id`, `assessment_fingerprint`, `pareto_front`,
+`admission_rank`, `coverage`, and the admission or exclusion reason. Use
+`query_shortlist_admission_decisions()` for complete admitted and non-admitted
+operator records; bounded stage samples remain diagnostic only.
+
+`pipeline.shortlist_shadow_enabled` records a comparison without changing the
+legacy downstream shortlist. Shadow retrieval and requirement-aware assessment
+use the same recall-safe evaluation pool; legacy-only soft-filter exclusions are
+recorded as diagnostics while configured hard exclusions remain outside the
+pool. Resume rejects a checkpoint when its persisted shortlist strategy or
+eligibility policy conflicts with the active configuration.
+
+The strategy was explicitly promoted on 2026-11-22 against the recorded
+blocked evaluation artifact at
+`docs/superpowers/evidence/2026-11-21-fitcv-shortlist-promotion-blocked.json`.
+That artifact remains `promotion_eligible: false`; the switch is an operator
+override, not a claim that the missing occurrence labels, frozen legacy
+baseline, and cold/warm latency-cost gates passed. Roll back by setting
+`pipeline.shortlist_strategy` to `legacy_retrieval_v1` and
+`pipeline.shortlist_policy` to `legacy_production_v1`.
+
+Promotion evaluation is explicit and fail-closed. Run the frozen-pool evaluator
+with a reviewed profile revision, split ID, requirement and eligibility
+fingerprints, and cache condition:
+
+```powershell
+py scripts/evaluate_requirement_aware_shortlisting.py `
+  --fixture tests/fixtures/requirement_aware_admission_pool.json `
+  --output .tmp/requirement-aware-shortlist-evaluation.json `
+  --profile-revision <profile-revision> `
+  --as-of <utc-timestamp> `
+  --split-id <held-out-split-id> `
+  --requirement-contract-fingerprint <fingerprint> `
+  --eligibility-policy-fingerprint <fingerprint> `
+  --cache-condition cold `
+  --legacy-baseline .tmp/legacy-shortlist-baseline.json `
+  --retrieval-cost .tmp/requirement-aware-retrieval-cost.json `
+  --latency-sample-ms <sample-1-ms> `
+  --latency-sample-ms <sample-2-ms>
+```
+
+`--legacy-baseline` supplies the matching frozen legacy metrics object with
+`recall_at_50`, `p95_latency_ms`, and `retrieval_cost.total`. `--retrieval-cost`
+supplies the requirement-aware cost object. Repeat `--latency-sample-ms` for
+the frozen sample set; run the command once per cold/warm cache condition.
+
+Exit code `2` means promotion is blocked because reviewed occurrence labels,
+frozen legacy baselines, or required latency/cost samples are missing or fail a
+gate. The evaluator records input, policy, split, cache, metric, gate, and
+selection fingerprints in the JSON artifact; it never changes the production
+strategy.
 
 ## Ranking-V2 Fixed Baseline
 
@@ -299,10 +346,6 @@ Phase 3 uses one path for every admissible scored job:
 
 - `config/policy/ranking.yaml` owns one exact, versioned policy; production accepts only `holistic_ai_only`
 - AI scoring emits `ai_score` plus diagnostics; model-authored labels have no ranking authority
-- scorer requests preserve the final bounded job, candidate, and evidence payload in visibility diagnostics; evidence keeps source `text`, selection `scoring_context`, stable `evidence_id`, and `source_refs` as separate fields
-- scorer diagnostics report raw and model-visible candidate/evidence counts from that same final selected payload, so visibility manifests do not describe a pre-budget source object
-- if no attributable selected evidence exists before budgeting, the row is `score_status: unscored` with `failure_code: evidence_limited`, `disposition: unavailable`, and `retry_eligible: false`; it cannot reuse a cached normal score or invoke the compatibility provider
-- if attributable evidence existed but budget trimming removes it, the row is `score_status: unscored` with retryable `failure_code: budget_exceeded`; visibility counts and omission reasons describe the final bounded payload, not the unbounded source object
 - `holistic_ai_fit` is the bounded AI scalar and sole active baseline contribution
 - six structured factors remain independently normalized, weighted, persisted, and observable
 - hard-gated or disabled location/language factors are removed once from effective structured weights, then retained weights renormalize once
