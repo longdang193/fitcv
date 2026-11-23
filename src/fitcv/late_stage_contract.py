@@ -24,6 +24,7 @@ CV_ANALYSIS_READY_FOR_GENERATION_STATUS = "ready_for_generation"
 CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
 CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
 CV_GENERATION_REVIEW_REQUIRED_STATUS = "review_required"
+CV_GENERATION_PDF_FAILED_STATUS: Final[Literal["pdf_failed"]] = "pdf_failed"
 CV_GENERATION_ACCEPTED_STATUS: Final[Literal["accepted"]] = "accepted"
 CV_GENERATION_VALIDATION_FAILED_STATUS: Final[Literal["validation_failed"]] = "validation_failed"
 CV_GENERATION_FAILED_STATUS: Final[Literal["generation_failed"]] = "generation_failed"
@@ -60,6 +61,7 @@ CV_GENERATION_FINAL_STATUSES: Final[frozenset[str]] = frozenset(
     {
         CV_GENERATION_ACCEPTED_STATUS,
         CV_GENERATION_REVIEW_REQUIRED_STATUS,
+        CV_GENERATION_PDF_FAILED_STATUS,
         CV_GENERATION_VALIDATION_FAILED_STATUS,
         CV_GENERATION_FAILED_STATUS,
         CV_GENERATION_PERSISTENCE_FAILED_STATUS,
@@ -69,6 +71,7 @@ CV_GENERATION_ATTEMPTED_STATUSES: Final[frozenset[str]] = CV_GENERATION_FINAL_ST
 CV_GENERATION_NON_ACCEPTED_FINAL_STATUSES: Final[frozenset[str]] = frozenset(
     {
         CV_GENERATION_REVIEW_REQUIRED_STATUS,
+        CV_GENERATION_PDF_FAILED_STATUS,
         CV_GENERATION_VALIDATION_FAILED_STATUS,
         CV_GENERATION_FAILED_STATUS,
         CV_GENERATION_PERSISTENCE_FAILED_STATUS,
@@ -98,7 +101,7 @@ def shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
 def validation_status_for_cv_status(status: str) -> str:
     if status == CV_GENERATION_ACCEPTED_STATUS:
         return CV_GENERATION_ACCEPTED_STATUS
-    if status in {CV_GENERATION_VALIDATION_FAILED_STATUS, CV_GENERATION_FAILED_STATUS, CV_GENERATION_PERSISTENCE_FAILED_STATUS}:
+    if status in {CV_GENERATION_VALIDATION_FAILED_STATUS, CV_GENERATION_FAILED_STATUS, CV_GENERATION_PERSISTENCE_FAILED_STATUS, CV_GENERATION_PDF_FAILED_STATUS}:
         return "failed"
     return "not_run"
 
@@ -174,6 +177,7 @@ def deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
         CV_GENERATION_VALIDATION_FAILED_STATUS,
         CV_GENERATION_FAILED_STATUS,
         CV_GENERATION_PERSISTENCE_FAILED_STATUS,
+        CV_GENERATION_PDF_FAILED_STATUS,
     }:
         return {
             "deterministic_outcome": "rejected",
@@ -258,6 +262,8 @@ def pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
             return {"label": "CV created", "badge_class": "badge-success"}
         if stage_owned_subreason == CV_GENERATION_REVIEW_REQUIRED_STATUS:
             return {"label": "CV review required", "badge_class": "badge-warning"}
+        if stage_owned_subreason == CV_GENERATION_PDF_FAILED_STATUS:
+            return {"label": "CV PDF generation failed", "badge_class": "badge-error"}
         if stage_owned_subreason == CV_GENERATION_VALIDATION_FAILED_STATUS:
             return {"label": "CV validation failed", "badge_class": "badge-error"}
         if stage_owned_subreason == CV_GENERATION_FAILED_STATUS:

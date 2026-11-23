@@ -57,6 +57,7 @@ from fitcv.cv_generator import (
     build_render_proof_identity,
     final_artifact_acceptance_passes,
     generate_cv,
+    project_authorized_profile,
     render_cv_markdown,
     render_cv_native_acceptance,
     render_item_requirement_support,
@@ -68,6 +69,7 @@ from fitcv.late_stage_contract import (
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS as SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ACCEPTED_STATUS as ACCEPTED_STATUS,
+    CV_GENERATION_PDF_FAILED_STATUS as PDF_FAILED_STATUS,
     CV_GENERATION_FAILED_STATUS as GENERATION_FAILED_STATUS,
     CV_GENERATION_REVIEW_REQUIRED_STATUS as REVIEW_REQUIRED_STATUS,
     CV_GENERATION_VALIDATION_FAILED_STATUS as VALIDATION_FAILED_STATUS,
@@ -172,6 +174,10 @@ class RepairAttempt(TypedDict, total=False):
     targeted_generation_succeeded: bool
     full_regeneration_attempted: bool
     full_regeneration_succeeded: bool
+    adjustment_attempted: bool
+    adjustment_succeeded: bool
+    adjustment_failed: bool
+    adjustment_error: str
     review_required: bool
     adjustment_step: str
     adjustment_targets: list[str]
@@ -657,6 +663,9 @@ def _empty_repair_attempt() -> RepairAttempt:
         "targeted_generation_succeeded": False,
         "full_regeneration_attempted": False,
         "full_regeneration_succeeded": False,
+        "adjustment_attempted": False,
+        "adjustment_succeeded": False,
+        "adjustment_failed": False,
         "review_required": False,
         "adjustment_step": "none",
         "adjustment_targets": [],
@@ -1483,6 +1492,7 @@ def _run_repair_cycle(
     retry_executor: Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]],
     runtime_provenance: dict[str, Any] | None,
     repair_arm: str | None = None,
+    adjust_executor: Callable[[], tuple[dict[str, Any] | None, str, dict[str, Any], dict[str, Any] | None]] | None = None,
 ) -> tuple[dict[str, Any] | None, str, dict[str, Any], RepairAttempt, dict[str, Any] | None]:
     repair_attempt = _empty_repair_attempt()
     repair_arm = _coerce_repair_arm(repair_arm or config.get("cv_generation_repair_arm"))
@@ -1499,6 +1509,37 @@ def _run_repair_cycle(
         )
         repair_attempt["local_repair_succeeded"] = bool(validation.get("valid"))
         repair_attempt["local_repair_failed"] = not repair_attempt["local_repair_succeeded"]
+
+    if (
+        validation.get("valid")
+        and list(validation.get("markdown_quality_review_flags") or [])
+        and adjust_executor is not None
+    ):
+        repair_attempt["adjustment_attempted"] = True
+        repair_attempt["reason"] = "adjust_quality"
+        try:
+            adjusted_cv, adjusted_markdown, adjusted_validation, adjusted_provenance = adjust_executor()
+        except Exception as exc:
+            repair_attempt["performed"] = True
+            repair_attempt["adjustment_failed"] = True
+            repair_attempt["adjustment_error"] = str(exc)
+            return structured_cv, markdown, validation, repair_attempt, runtime_provenance
+        if isinstance(adjusted_cv, dict) and adjusted_markdown:
+            if adjusted_validation.get("valid"):
+                structured_cv, markdown, validation = adjusted_cv, adjusted_markdown, adjusted_validation
+                if adjusted_provenance is not None:
+                    runtime_provenance = adjusted_provenance
+            else:
+                repair_attempt["adjustment_failed"] = True
+                repair_attempt["adjustment_error"] = "adjusted draft failed hard validation"
+        else:
+            repair_attempt["adjustment_failed"] = True
+            repair_attempt["adjustment_error"] = "adjusted draft was incomplete"
+        repair_attempt["performed"] = True
+        repair_attempt["adjustment_succeeded"] = bool(
+            adjusted_validation.get("valid")
+            and not list(adjusted_validation.get("markdown_quality_review_flags") or [])
+        )
 
     selection_summary = (
         (analysis_grounding.get("evidence_selection_summary") or {})
@@ -1733,12 +1774,21 @@ def _build_fallback_provider_generator(
     fit: str,
     evidence_selection_summary: dict[str, Any],
     content_plan: dict[str, Any],
+    ranking_cv_handoff: dict[str, Any] | None = None,
+    authorized_profile: dict[str, Any] | None = None,
 ) -> Callable[[list[str] | None], Any]:
     provider_profile = {
         key: value
         for key, value in profile.items()
         if key not in {"candidate_profile_id", "revision"}
     }
+    if authorized_profile is None:
+        approved_ids = content_plan.get("approved_evidence_ids")
+        authorized_profile = (
+            deepcopy(profile)
+            if isinstance(approved_ids, list) and not approved_ids
+            else project_authorized_profile(profile, evidence_payload)
+        )
 
     def _call(repair_missing_sections: list[str] | None) -> Any:
         return generate_cv(
@@ -1752,6 +1802,8 @@ def _build_fallback_provider_generator(
             repair_missing_sections=repair_missing_sections,
             content_plan=content_plan,
             target_sections=repair_missing_sections,
+            authorized_profile=authorized_profile,
+            ranking_cv_handoff=ranking_cv_handoff,
         )
 
     return _call
@@ -2101,15 +2153,55 @@ def _finalize_generation_result(
     reuse_reason_code: str,
     trace_id: str,
     profile: dict[str, Any],
+    artifact_dir: str | Path | None = None,
     reused_cv_version_id: str | None = None,
 ) -> CvGenerationResult:
     finalized = deepcopy(result)
+    ranking_cv_handoff = analysis_record.get("ranking_cv_handoff")
+    if isinstance(ranking_cv_handoff, dict):
+        for field in ("structured_cv_initial", "structured_cv_final"):
+            structured_cv = finalized.get(field)
+            if isinstance(structured_cv, dict):
+                structured_cv = deepcopy(structured_cv)
+                structured_cv["ranking_cv_handoff"] = deepcopy(ranking_cv_handoff)
+                finalized[field] = structured_cv
+        structured_cv_final = finalized.get("structured_cv_final")
+        if isinstance(structured_cv_final, dict):
+            finalized["markdown_final"] = render_cv_markdown(structured_cv_final, config)
+            job = dict(analysis_record.get("job_snapshot") or {})
+            evidence_payload = [
+                item for item in list(analysis_record.get("evidence_payload") or [])
+                if isinstance(item, dict)
+            ]
+            evidence_used = [
+                item for item in list(analysis_record.get("evidence_used") or [])
+                if isinstance(item, dict)
+            ]
+            finalized["validation"] = _run_generation_validations(
+                finalized["markdown_final"],
+                profile=profile,
+                config=config,
+                structured_cv=structured_cv_final,
+                analysis_grounding=_build_validation_grounding_payload(
+                    analysis_record,
+                    job,
+                    evidence_payload,
+                    evidence_used,
+                ),
+            )
     finalized = _apply_final_artifact_contract(
         finalized,
         analysis_record=analysis_record,
         profile=profile,
         config=config,
+        artifact_dir=artifact_dir,
     )
+    if reuse_status == "reused_exact_match" and finalized.get("status") == PDF_FAILED_STATUS:
+        finalized["status"] = GENERATION_FAILED_STATUS
+        error = finalized.get("error")
+        if isinstance(error, dict):
+            error["code"] = "render_failed"
+            error["stage"] = "render"
     finalized["result_contract_version"] = _CV_GENERATION_RESULT_CONTRACT_VERSION
     finalized["raw_job_fingerprint"] = str(analysis_record.get("raw_job_fingerprint") or "")
     finalized["analysis_input_fingerprint"] = str(analysis_record.get("analysis_input_fingerprint") or "")
@@ -2135,6 +2227,8 @@ def _finalize_generation_result(
         if review_reason is not None:
             reason_code, message = review_reason
             finalized["review_required_reason_code"] = reason_code
+            finalized["status"] = REVIEW_REQUIRED_STATUS
+            status = REVIEW_REQUIRED_STATUS
             warnings = list(finalized.get("quality_warnings") or [])
             warnings.append(message)
             finalized["quality_warnings"] = sorted(set(warnings))
@@ -2189,6 +2283,7 @@ def _apply_final_artifact_contract(
     analysis_record: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult:
     finalized = cast(CvGenerationResult, deepcopy(result))
     structured_cv = finalized.get("structured_cv_final")
@@ -2215,13 +2310,28 @@ def _apply_final_artifact_contract(
         return finalized
 
     render_acceptance = finalized.get("render_acceptance")
+    render_error: Exception | None = None
     if not isinstance(render_acceptance, dict) or not _render_acceptance_matches_final_content(
         structured_cv,
         markdown,
         config,
         render_acceptance,
     ):
-        render_acceptance = render_cv_native_acceptance(markdown, config)
+        try:
+            render_acceptance = render_cv_native_acceptance(
+                markdown,
+                config,
+                output_dir=artifact_dir,
+            )
+        except Exception as exc:
+            render_error = exc
+            render_acceptance = {
+                "render_status": "render_failed",
+                "renderer_status": "render_failed",
+                "page_fit_status": "unresolved",
+                "error_code": "pdf_render_failed",
+                "error_message": str(exc),
+            }
     final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
     if not final_ok and content_valid and str(render_acceptance.get("page_fit_status") or "") == "fail":
         before_support = render_item_requirement_support(structured_cv, provenance)
@@ -2242,7 +2352,21 @@ def _apply_final_artifact_contract(
         )
         after_support = render_item_requirement_support(trimmed, provenance)
         if trimmed_validation.get("valid") and before_support == after_support and trimmed != structured_cv:
-            trimmed_render = render_cv_native_acceptance(trimmed_markdown, config)
+            try:
+                trimmed_render = render_cv_native_acceptance(
+                    trimmed_markdown,
+                    config,
+                    output_dir=artifact_dir,
+                )
+            except Exception as exc:
+                render_error = exc
+                trimmed_render = {
+                    "render_status": "render_failed",
+                    "renderer_status": "render_failed",
+                    "page_fit_status": "unresolved",
+                    "error_code": "pdf_render_failed",
+                    "error_message": str(exc),
+                }
             finalized["trim_attempt_count"] = 1
             if final_artifact_acceptance_passes(content_valid=True, render_acceptance=trimmed_render):
                 structured_cv = trimmed
@@ -2256,13 +2380,24 @@ def _apply_final_artifact_contract(
     finalized["render_acceptance"] = render_acceptance
     finalized["page_fit_status"] = render_acceptance.get("page_fit_status") if isinstance(render_acceptance, dict) else None
     finalized["artifact_checksum"] = render_acceptance.get("artifact_checksum") if isinstance(render_acceptance, dict) else None
+    render_failed = render_error is not None or str((render_acceptance or {}).get("render_status") or "") in {
+        "render_failed",
+        "render_unavailable",
+    }
     finalized["final_artifact_acceptance"] = {
-        "status": "accepted" if final_ok else "review_required",
+        "status": "accepted" if final_ok else "failed" if render_failed else "review_required",
         "content_valid": content_valid,
         "page_fit_status": finalized.get("page_fit_status"),
         "trim_attempt_count": finalized["trim_attempt_count"],
     }
-    if not final_ok and str(finalized.get("status") or "") in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS}:
+    if render_failed and str(finalized.get("status") or "") in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS}:
+        finalized["status"] = PDF_FAILED_STATUS
+        finalized["error"] = {
+            "stage": "pdf_generation",
+            "code": str((render_acceptance or {}).get("error_code") or "pdf_render_failed"),
+            "message": str((render_acceptance or {}).get("error_message") or "PDF conversion failed."),
+        }
+    elif not final_ok and str(finalized.get("status") or "") == ACCEPTED_STATUS:
         finalized["status"] = GENERATION_FAILED_STATUS
         finalized["error"] = {
             "stage": "render",
@@ -2313,6 +2448,7 @@ def _reusable_result_or_none(
     config: dict[str, Any],
     reusable_record: dict[str, Any] | None,
     fingerprint_result: dict[str, Any],
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult | None:
     if not isinstance(reusable_record, dict):
         return None
@@ -2343,7 +2479,19 @@ def _reusable_result_or_none(
     render_acceptance = reusable_record.get("render_acceptance")
     page_fit_status = reusable_record.get("page_fit_status")
     if not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
-        render_acceptance = render_cv_native_acceptance(structured_cv, config)
+        render_acceptance = render_cv_native_acceptance(
+            structured_cv,
+            config,
+            output_dir=artifact_dir,
+        )
+        page_fit_status = render_acceptance.get("page_fit_status")
+    elif artifact_dir is not None and _native_final_artifact_enabled(config):
+        # Re-materialize reusable output for the current pipeline run.
+        render_acceptance = render_cv_native_acceptance(
+            structured_cv,
+            config,
+            output_dir=artifact_dir,
+        )
         page_fit_status = render_acceptance.get("page_fit_status")
     if _native_final_artifact_enabled(config) and not final_artifact_acceptance_passes(
         content_acceptance=bool(validation.get("valid")),
@@ -2577,12 +2725,21 @@ def _generate_fresh_from_analysis(
         for item in list(content_plan.get("approved_evidence_ids") or [])
         if str(item).strip()
     }
-    writer_evidence_payload = [
-        item
-        for item in evidence_payload
-        if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
-        in approved_evidence_ids
-    ]
+    writer_evidence_payload = (
+        [
+            item
+            for item in evidence_payload
+            if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+            in approved_evidence_ids
+        ]
+        if approved_evidence_ids
+        else list(evidence_payload)
+    )
+    authorized_profile = (
+        project_authorized_profile(profile, writer_evidence_payload)
+        if approved_evidence_ids
+        else deepcopy(profile)
+    )
     full_input_character_count = len(json.dumps(evidence_payload, ensure_ascii=False, sort_keys=True))
     writer_input_character_count = len(json.dumps(writer_evidence_payload, ensure_ascii=False, sort_keys=True))
     input_metrics = {
@@ -2609,6 +2766,8 @@ def _generate_fresh_from_analysis(
         fit=fit,
         evidence_selection_summary=evidence_selection_summary,
         content_plan=content_plan,
+        ranking_cv_handoff=analysis_record.get("ranking_cv_handoff"),
+        authorized_profile=authorized_profile,
     )
 
     def _call_provider(
@@ -2786,6 +2945,11 @@ def _generate_fresh_from_analysis(
             latest_attempt.setdefault("error_stage", failure_stage)
             latest_attempt.setdefault("error_message", str(exc))
             latest_attempt.setdefault("error_code", _error_code_from_message(str(exc)))
+            provider_diagnostics = ((runtime_failure_evidence or {}).get("failure") or {}).get(
+                "provider_diagnostics"
+            )
+            if isinstance(provider_diagnostics, dict):
+                latest_attempt["provider_diagnostics"] = dict(provider_diagnostics)
             trace_payload["trace_status"] = "degraded"
             trace_payload["input_summary"] = {
                 "attempt_count": len(trace_payload["attempts"]),
@@ -2847,6 +3011,7 @@ def generate_from_analysis(
     config: dict[str, Any],
     *,
     reusable_record: dict[str, Any] | None = None,
+    artifact_dir: str | Path | None = None,
 ) -> CvGenerationResult:
     if not isinstance(analysis_record, dict) or not isinstance(profile, dict) or not isinstance(config, dict):
         raise TypeError("analysis_record, profile, and config must be mappings")
@@ -2865,6 +3030,7 @@ def generate_from_analysis(
             config=config,
             reusable_record=reusable_record,
             fingerprint_result=fingerprint_result,
+            artifact_dir=artifact_dir,
         )
         if reused is not None:
             return _finalize_generation_result(
@@ -2876,6 +3042,7 @@ def generate_from_analysis(
                 reuse_reason_code="exact_fingerprint_match",
                 trace_id=trace_id,
                 profile=profile,
+                artifact_dir=artifact_dir,
                 reused_cv_version_id=str((reusable_record or {}).get("version_id") or "") or None,
             )
     fresh = _generate_fresh_from_analysis(analysis_record, profile, config, trace_id=trace_id)
@@ -2889,4 +3056,5 @@ def generate_from_analysis(
         reuse_reason_code=reuse_reason,
         trace_id=trace_id,
         profile=profile,
+        artifact_dir=artifact_dir,
     )

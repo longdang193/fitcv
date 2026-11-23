@@ -25,7 +25,7 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, TypedDict
+from typing import Any, Callable, NotRequired, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
 from fitcv.config import (
@@ -2115,6 +2115,7 @@ def lookup_reusable_structured_jobs(
             normalized_job = normalized_by_url.get(job_url)
             if normalized_job is None:
                 continue
+            legacy_fingerprintless = not raw_fingerprint or not contract_fingerprint
             if legacy_fingerprintless and _source_skills_for_enrichment(normalized_job):
                 continue
             try:

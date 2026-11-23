@@ -132,6 +132,7 @@ class PipelineState:
     ranking_input_diagnostics_by_identity: dict[str, dict[str, Any]] = field(default_factory=dict)
     ranking_admission_manifest: dict[str, Any] = field(default_factory=dict)
     stage6_to_stage7_handoffs: list[dict[str, Any]] = field(default_factory=list)
+    ranking_cv_handoffs_by_identity: dict[str, dict[str, Any]] = field(default_factory=dict)
     ranking_inputs: list[dict[str, Any]] = field(default_factory=list)
     ranked: list[dict[str, Any]] = field(default_factory=list)
     cv_analysis_results: list[dict[str, Any]] = field(default_factory=list)
@@ -184,6 +185,7 @@ class PipelineState:
                 "resolved_preference_policy",
                 "ranking_input_diagnostics_by_identity",
                 "ranking_admission_manifest",
+                "ranking_cv_handoffs_by_identity",
             }:
                 if isinstance(value, dict):
                     setattr(state, key, dict(value))
@@ -242,6 +244,7 @@ class PipelineState:
             "ranking_input_diagnostics_by_identity",
             "ranking_admission_manifest",
             "stage6_to_stage7_handoffs",
+            "ranking_cv_handoffs_by_identity",
             "ranking_inputs",
             "ranked",
             "cv_analysis_results",
@@ -276,6 +279,10 @@ class PipelineState:
             },
             "ranking_admission_manifest": dict(self.ranking_admission_manifest),
             "stage6_to_stage7_handoffs": list(self.stage6_to_stage7_handoffs),
+            "ranking_cv_handoffs_by_identity": {
+                str(identity): dict(handoff)
+                for identity, handoff in self.ranking_cv_handoffs_by_identity.items()
+            },
             "ranking_inputs": list(self.ranking_inputs),
             "ranked": list(self.ranked),
             "cv_analysis_results": list(self.cv_analysis_results),

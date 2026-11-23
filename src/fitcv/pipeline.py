@@ -3192,6 +3192,7 @@ def _build_stage_transition_artifacts(
     enrich_llm_runtime_observations = list(enrich_llm_runtime_observations or [])
     ranking_llm_runtime_observations = list(ranking_llm_runtime_observations or [])
     cv_analysis_results = list(cv_analysis_results or [])
+    ranking_cv_handoffs_by_identity = _build_ranking_cv_handoffs_by_identity(cv_analysis_results)
     shortlist_reached = len(passed_jobs) > 0
     ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
     cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
@@ -4060,6 +4061,7 @@ def run_pipeline(
                         pipeline_store=pipeline_store,
                         set_span_attributes=set_span_attributes,
                     )
+                    pipeline_store.store_shortlist(raw_shortlist, config)
                     shortlist = list(state.get("shortlist") or raw_shortlist)
                     shortlist_audit_rows = []
                     shortlist_diagnostics = dict(state.get("shortlist_diagnostics") or {})

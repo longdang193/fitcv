@@ -740,6 +740,7 @@ def adapt_candidate_profile_to_v2(
 
 def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str, Any]:
     """Return one validated v2-compatible runtime snapshot without mutating input."""
+    profile_revision = profile.get("revision")
     if profile.get("schema_version") == "candidate-profile.v2":
         normalized = copy.deepcopy(profile)
         normalized.pop("preferences", None)
@@ -756,11 +757,21 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
                 "parser": {"name": "fitcv-v1-runtime-adapter", "version": "1"},
             },
         )
+    if profile_revision is not None:
+        compatibility = dict(normalized.get("_runtime_compatibility") or {})
+        compatibility["revision"] = copy.deepcopy(profile_revision)
+        normalized["_runtime_compatibility"] = compatibility
     errors = validate_candidate_profile_v2(normalized)
     if errors:
         raise ValueError("; ".join(errors))
     return normalized
 
+
+def runtime_profile_value(profile: dict[str, Any], key: str, default: Any = None) -> Any:
+    value = profile.get(key)
+    if value is not None:
+        return value
+    return (profile.get("_runtime_compatibility") or {}).get(key, default)
 
 def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
     errors: list[str] = []

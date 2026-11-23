@@ -746,6 +746,11 @@ def build_cv_analysis_record(
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "cv_analysis_trace": trace_record,
         "uncertainties": resolved_uncertainties,
+        "ranking_cv_handoff": (
+            dict(job.get("ranking_cv_handoff"))
+            if isinstance(job.get("ranking_cv_handoff"), Mapping)
+            else None
+        ),
     }
 
 
@@ -1474,8 +1479,12 @@ def analyze_ranked_job(
     reusable_record: dict[str, Any] | None = None,
     fit_classification_override: FitClassification | None = None,
     evidence_projection: dict[str, Any] | None = None,
+    ranking_cv_handoff: dict[str, Any] | None = None,
 ) -> CvAnalysisRecord:
     _validate_analysis_inputs(job, profile, config, top_k)
+    job = dict(job)
+    if isinstance(ranking_cv_handoff, Mapping):
+        job["ranking_cv_handoff"] = dict(ranking_cv_handoff)
     raw_requirement_resolutions = [
         dict(item)
         for item in list(config.get("_requirement_resolutions") or [])

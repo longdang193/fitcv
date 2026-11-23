@@ -54,7 +54,11 @@ from fitcv.contracts import (
     SETTINGS_USED_SCHEMA_VERSION,
 )
 from fitcv.pipeline import PipelineCancelled, run_pipeline
-from fitcv.ranking_contract import normalize_score_state
+from fitcv.ranking_contract import (
+    normalize_score_state,
+    ranking_cv_handoff_sha256,
+    validate_ranking_cv_handoff,
+)
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,

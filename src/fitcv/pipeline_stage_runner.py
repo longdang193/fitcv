@@ -40,7 +40,7 @@ from fitcv.rule_filter import (
     SHORTLIST_ELIGIBILITY_POLICY_VERSION,
     shortlist_filter_disposition,
 )
-from fitcv.ranking_contract import SCORE_STATUS_VALID, normalize_score_state
+from fitcv.ranking_contract import AI_ONLY_RANKING_ORDER_VERSION, SCORE_STATUS_VALID, normalize_score_state
 from fitcv.contracts import build_stage_6_to_7_handoff
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
@@ -514,7 +514,7 @@ def execute_shortlist_stage(
     evaluation_pool = list(state.get("recall_safe_evaluation_pool") or passed_jobs)
     if resolve_shortlist_strategy(config) == "core_pareto_evidence_v1":
         with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "strategy": "core_pareto_evidence_v1"}):
-            return _execute_requirement_aware_shortlist_stage(
+            result = _execute_requirement_aware_shortlist_stage(
                 run_id=run_id,
                 state=state,
                 profile=profile,
@@ -524,6 +524,8 @@ def execute_shortlist_stage(
                 pipeline_store=pipeline_store,
                 set_span_attributes=set_span_attributes,
             )
+            pipeline_store.store_shortlist(result[0], config)
+            return result
     with observe_span("pipeline.shortlist", attributes={"run_id": run_id, "vector_top_n": vector_top_n}):
         effective_strategy = resolve_retrieval_strategy(config)
         if effective_strategy != "lexical_v1":

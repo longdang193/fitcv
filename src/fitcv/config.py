@@ -120,6 +120,13 @@ CHECKPOINT_RETRIEVAL_STRATEGIES = SUPPORTED_RETRIEVAL_STRATEGIES | {
 DEFAULT_RETRIEVAL_STRATEGY = "hybrid_rrf_v1"
 DEFAULT_SHORTLIST_STRATEGY = "legacy_retrieval_v1"
 DEFAULT_SHORTLIST_POLICY = "legacy_production_v1"
+SUPPORTED_CV_RENDERER_STRATEGIES = frozenset({"europass", "mycvs_v1"})
+DEFAULT_CV_RENDERER_STRATEGY = "europass"
+MYCVS_V1_HEADINGS = ("Summary", "Education", "Experience", "Projects", "Certificates", "Skills")
+MYCVS_V1_METADATA_LINE_RE = re.compile(
+    r"^<!-- mycvs_v1: schema=mycvs_v1; content_sha256=([0-9a-f]{64}); handoff=([^;\r\n]+) -->$"
+)
+MYCVS_V1_AUDIT_LINE_RE = re.compile(r"^<!-- mycvs_v1_audit: (.+) -->$")
 
 
 def resolve_retrieval_strategy(config: dict[str, Any] | None) -> str:
@@ -1839,6 +1846,17 @@ def get_cv_generation_structured_prompt_id(config: dict[str, Any]) -> str:
     ).strip()
     return prompt_id or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
 
+
+def get_cv_renderer_strategy(config: dict[str, Any] | None) -> str:
+    """Return the validated additive CV renderer strategy."""
+    renderer = dict(((config or {}).get("cv") or {}).get("renderer") or {})
+    strategy = str(renderer.get("strategy") or DEFAULT_CV_RENDERER_STRATEGY).strip()
+    if strategy not in SUPPORTED_CV_RENDERER_STRATEGIES:
+        raise ValueError(
+            "cv.renderer.strategy must be one of "
+            f"{sorted(SUPPORTED_CV_RENDERER_STRATEGIES)}, got: {strategy!r}"
+        )
+    return strategy
 
 def get_cv_generation_model(config: dict[str, Any]) -> str:
     return str((((config.get("cv") or {}).get("generation") or {}).get("model")) or config.get("cv_generation_model") or _DEFAULT_ACTIVE_MODEL)

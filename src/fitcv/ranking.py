@@ -328,6 +328,7 @@ def rank_jobs(
     top_n: int,
     *,
     resolved_preference_policy: ResolvedPreferencePolicy | None = None,
+    ranking_order_version: str | None = None,
 ) -> list[dict[str, Any]]:
     """Rank valid AI-scored jobs, retaining personalization only for legacy callers."""
     scored_jobs: list[dict[str, Any]] = []
@@ -352,6 +353,8 @@ def rank_jobs(
     for index, job in enumerate(sorted_jobs, start=1):
         job["baseline_rank"] = index
         job["final_rank"] = index
+        if ranking_order_version is not None:
+            job["ranking_order_version"] = str(ranking_order_version)
         baseline_fit = float(job["baseline_fit"])
         residual = 0.0
         raw_score = baseline_fit
