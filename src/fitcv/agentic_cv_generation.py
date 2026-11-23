@@ -1514,12 +1514,20 @@ def _run_repair_cycle(
             repair_attempt["adjustment_error"] = str(exc)
             return structured_cv, markdown, validation, repair_attempt, runtime_provenance
         if isinstance(adjusted_cv, dict) and adjusted_markdown:
-            structured_cv, markdown, validation = adjusted_cv, adjusted_markdown, adjusted_validation
-            if adjusted_provenance is not None:
-                runtime_provenance = adjusted_provenance
+            if adjusted_validation.get("valid"):
+                structured_cv, markdown, validation = adjusted_cv, adjusted_markdown, adjusted_validation
+                if adjusted_provenance is not None:
+                    runtime_provenance = adjusted_provenance
+            else:
+                repair_attempt["adjustment_failed"] = True
+                repair_attempt["adjustment_error"] = "adjusted draft failed hard validation"
+        else:
+            repair_attempt["adjustment_failed"] = True
+            repair_attempt["adjustment_error"] = "adjusted draft was incomplete"
         repair_attempt["performed"] = True
         repair_attempt["adjustment_succeeded"] = bool(
-            validation.get("valid") and not list(validation.get("markdown_quality_review_flags") or [])
+            adjusted_validation.get("valid")
+            and not list(adjusted_validation.get("markdown_quality_review_flags") or [])
         )
 
     selection_summary = (
@@ -2303,8 +2311,19 @@ def _apply_final_artifact_contract(
         )
         after_support = render_item_requirement_support(trimmed, provenance)
         if trimmed_validation.get("valid") and before_support == after_support and trimmed != structured_cv:
-            trimmed_render = render_cv_native_acceptance(trimmed_markdown, config, output_dir=artifact_dir)
             finalized["trim_attempt_count"] = 1
+            try:
+                trimmed_render = render_cv_native_acceptance(trimmed_markdown, config, output_dir=artifact_dir)
+            except Exception as exc:
+                render_error = exc
+                trimmed_render = {
+                    "render_status": "render_failed",
+                    "renderer_status": "render_failed",
+                    "page_fit_status": "unresolved",
+                    "error_code": "pdf_render_failed",
+                    "error_message": str(exc),
+                }
+            render_acceptance = trimmed_render
             if final_artifact_acceptance_passes(content_valid=True, render_acceptance=trimmed_render):
                 structured_cv = trimmed
                 markdown = trimmed_markdown
