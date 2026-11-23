@@ -7098,6 +7098,27 @@ def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:
 
 
 
+def test_cv_version_persists_review_state_as_review_event() -> None:
+    run_job_id = _create_normalized_run_with_jobs("run-cv-review-state", [{"title": "CV Job"}])[0]
+    sqlite_store.insert_cv_version_row(
+        {
+            "version_id": "cv-review-state-1",
+            "run_job_id": run_job_id,
+            "generation_status": "review_required",
+            "review_state": "manual_required",
+            "content_blob": b"# Review required\n",
+            "pdf_status": "generated",
+            "submission_clearance": "blocked",
+        }
+    )
+
+    version = sqlite_store.list_cv_versions(run_job_id)[0]
+
+    assert version["generation_status"] == "review_required"
+    assert version["review_state"] == "manual_required"
+    assert version["submission_clearance"] == "blocked"
+
+
 def test_cv_pdf_artifact_is_persisted_and_integrity_checked() -> None:
     run_job_id = _create_normalized_run_with_jobs("run-cv-pdf", [{"title": "CV Job"}])[0]
     markdown = b"# Generated CV\n"

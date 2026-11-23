@@ -2373,12 +2373,29 @@ def _external_renderer_config(config: dict[str, Any]) -> dict[str, str]:
         "font_bold_path": external.get("font_bold_path")
         or os.environ.get("FITCV_MYCVS_INTER_BOLD_PATH")
         or bundled_path("font_bold_path"),
+        "python_path": external.get("python_path")
+        or os.environ.get("FITCV_MYCVS_PYTHON"),
         "converter_revision": external.get("converter_revision")
         or os.environ.get("FITCV_MYCVS_CONVERTER_REVISION"),
         "stylesheet_revision": external.get("stylesheet_revision")
         or os.environ.get("FITCV_MYCVS_STYLESHEET_REVISION"),
     }
     return {key: str(value).strip() for key, value in values.items() if str(value or "").strip()}
+
+def _external_renderer_command(
+    external: dict[str, str],
+    markdown_path: Path,
+    output_path: Path,
+) -> list[str] | None:
+    converter_path = str(external.get("converter_path") or "")
+    if not converter_path:
+        return None
+    runtime = sys.executable
+    if getattr(sys, "frozen", False) and Path(converter_path).resolve() == _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py":
+        runtime = str(external.get("python_path") or shutil.which("python") or shutil.which("py") or "")
+        if not runtime:
+            return None
+    return [runtime, converter_path, str(markdown_path), str(external["stylesheet_path"]), str(output_path)]
 
 def _sha256_file(path: str) -> str | None:
     try:
@@ -2407,6 +2424,13 @@ def render_cv_native_acceptance(
         for key in ("converter_path", "stylesheet_path"):
             if not external.get(key) or not Path(external[key]).is_file():
                 missing_tools.append(key)
+        if (
+            getattr(sys, "frozen", False)
+            and external.get("converter_path")
+            and Path(external["converter_path"]).resolve() == _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py"
+            and not (external.get("python_path") or shutil.which("python") or shutil.which("py"))
+        ):
+            missing_tools.append("python_runtime")
     else:
         required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
         missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
@@ -2446,13 +2470,9 @@ def render_cv_native_acceptance(
             return result
         try:
             if external_enabled:
-                converter_command = [
-                    sys.executable,
-                    external["converter_path"],
-                    str(markdown_path),
-                    external["stylesheet_path"],
-                    str(pdf_path),
-                ]
+                converter_command = _external_renderer_command(external, markdown_path, pdf_path)
+                if converter_command is None:
+                    return result
                 if external.get("font_regular_path"):
                     converter_command.extend(["--inter-regular", external["font_regular_path"]])
                 if external.get("font_bold_path"):

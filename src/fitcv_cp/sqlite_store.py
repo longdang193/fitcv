@@ -15049,6 +15049,23 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
             if bindings_match and str(existing["content_checksum"] or "") == str(content_checksum or "") and (
                 existing["content_length"] is None or content_length is None or int(existing["content_length"]) == int(content_length)
             ):
+                review_state = str(row.get("review_state") or "").strip()
+                if review_state in {"stretch", "manual_required"} and conn.execute(
+                    "SELECT 1 FROM cv_review_events WHERE cv_version_id=? LIMIT 1",
+                    (version_id,),
+                ).fetchone() is None:
+                    conn.execute(
+                        """INSERT INTO cv_review_events (
+                            review_event_id, cv_version_id, cv_evaluation_id, from_state,
+                            to_state, actor, note, action_id, idempotency_key, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            str(uuid.uuid4()), version_id, None, "none", review_state,
+                            "system", row.get("review_note") or "CV generation requires review.",
+                            row.get("action_id"), row.get("idempotency_key"), now,
+                        ),
+                    )
+                    conn.commit()
                 return []
             raise sqlite3.IntegrityError("UNIQUE constraint failed: cv_versions.version_id")
         placeholders = ", ".join("?" for _ in range(48))
@@ -15096,6 +15113,19 @@ def insert_cv_version_row(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> l
                 """UPDATE run_jobs SET current_cv_version_id=?, row_revision=row_revision+1
                    WHERE run_job_id=?""",
                 (version_id, run_job_id),
+            )
+        review_state = str(row.get("review_state") or "").strip()
+        if review_state in {"stretch", "manual_required"}:
+            conn.execute(
+                """INSERT INTO cv_review_events (
+                    review_event_id, cv_version_id, cv_evaluation_id, from_state,
+                    to_state, actor, note, action_id, idempotency_key, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid.uuid4()), version_id, None, "none", review_state,
+                    "system", row.get("review_note") or "CV generation requires review.",
+                    row.get("action_id"), row.get("idempotency_key"), now,
+                ),
             )
         conn.commit()
     return []

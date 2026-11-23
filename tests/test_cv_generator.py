@@ -281,6 +281,38 @@ def test_external_mycvs_renderer_uses_bundled_assets_when_paths_are_omitted(
     assert Path(commands[0][8]).name == "Inter-Bold.ttf"
 
 
+def test_frozen_external_renderer_does_not_relaunch_fitcv_launcher(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commands: list[list[str]] = []
+    python_runtime = r"C:\Python311\python.exe"
+
+    def fake_which(tool: str) -> str:
+        return python_runtime if tool == "python" else f"/fake/{tool}"
+
+    def fake_run(command, **kwargs):
+        commands.append(list(command))
+        if command[0] == python_runtime:
+            Path(command[4]).write_bytes(b"%PDF-1.7 frozen-render")
+        elif command[0] == "pdfinfo":
+            return types.SimpleNamespace(stdout="Pages: 1\n")
+        return types.SimpleNamespace(stdout="Candidate\n")
+
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", fake_which)
+    monkeypatch.setattr("fitcv.cv_generator.subprocess.run", fake_run)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    result = render_cv_native_acceptance(
+        "# Candidate\n",
+        {"cv": {"renderer": {"external": {"enabled": True}}}},
+        output_dir=tmp_path,
+    )
+
+    assert result["render_status"] == "pass"
+    assert commands[0][0] == python_runtime
+    assert Path(commands[0][1]).name == "build_refined_converter_generic.py"
+
+
 def test_project_authorized_profile_keeps_identity_and_selected_records() -> None:
     profile = {
         "name": "Jane Doe",
