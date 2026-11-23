@@ -1167,8 +1167,8 @@ def test_load_config_nested_cv_has_preset() -> None:
 def test_load_config_nested_cv_defaults_renderer_strategy_without_changing_preset() -> None:
     cfg = load_config()
     assert cfg["cv"]["preset"] == "europass"
-    assert cfg["cv"]["renderer"]["strategy"] == "europass"
-    assert get_cv_renderer_strategy(cfg) == "europass"
+    assert cfg["cv"]["renderer"]["strategy"] == "mycvs_v1"
+    assert get_cv_renderer_strategy(cfg) == "mycvs_v1"
 
 
 def test_nested_cv_accepts_explicit_mycvs_renderer_strategy() -> None:

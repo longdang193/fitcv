@@ -568,6 +568,97 @@ def test_rank_jobs_uses_ai_score_and_does_not_mix_persisted_order_with_personali
     assert all(row["score_status"] == "valid" for row in ranked)
 
 
+def test_rank_jobs_ai_only_order_ignores_preferences_and_omits_personalized_fields() -> None:
+    runtime = PreferenceRuntimeContract.build(
+        domain_id="ranking_v1",
+        baseline_policy_fingerprint="baseline",
+        ranking_contract_fingerprint="ranking",
+        embedding_model="model",
+        embedding_dimension=2,
+        embedding_contract_fingerprint="embedding",
+        learned_alpha=0.25,
+        preference_vector_norm_bound=1.0,
+    )
+    vector = (-1.0, 0.0)
+    resolved = ResolvedPreferencePolicy(
+        schema_version="resolved_preference_policy_v1",
+        resolution_status="active",
+        runtime_contract=runtime,
+        policy_snapshot_id="snapshot",
+        preference_vector=vector,
+        preference_vector_fingerprint=preference_vector_fingerprint(vector),
+        payload_fingerprint="payload",
+        diagnostic_code=None,
+    )
+    jobs = [
+        {
+            "job_url": "u1",
+            "raw_job_fingerprint": "f1",
+            "ai_score": 0.9,
+            "baseline_fit": 0.1,
+            "normalized_embedding": [-1.0, 0.0],
+        },
+        {
+            "job_url": "u2",
+            "raw_job_fingerprint": "f2",
+            "ai_score": 0.8,
+            "baseline_fit": 0.9,
+            "normalized_embedding": [1.0, 0.0],
+        },
+    ]
+
+    ranked = rank_jobs(
+        jobs,
+        top_n=2,
+        resolved_preference_policy=resolved,
+        ranking_order_version=ranking_contract.AI_ONLY_RANKING_ORDER_VERSION,
+    )
+
+    assert [row["job_url"] for row in ranked] == ["u1", "u2"]
+    assert [row["baseline_fit"] for row in ranked] == [0.9, 0.8]
+    assert all("personalized_rank" not in row for row in ranked)
+    assert all(row["ranking_personalization_authoritative"] is False for row in ranked)
+
+
+def test_rank_jobs_ai_only_keeps_invalid_rows_inspectable_but_unranked() -> None:
+    jobs = [
+        {
+            "job_url": "valid",
+            "raw_job_fingerprint": "f-valid",
+            "ai_score": 0.7,
+            "baseline_fit": 0.1,
+        },
+        {
+            "job_url": "invalid",
+            "raw_job_fingerprint": "f-invalid",
+            "ai_score": 2.0,
+            "baseline_fit": 0.99,
+            "score_status": "invalid",
+        },
+        {
+            "job_url": "unscored",
+            "raw_job_fingerprint": "f-unscored",
+            "ai_score": None,
+            "baseline_fit": 0.95,
+            "score_status": "unscored",
+        },
+    ]
+
+    ranked = rank_jobs(
+        jobs,
+        top_n=10,
+        ranking_order_version=ranking_contract.AI_ONLY_RANKING_ORDER_VERSION,
+    )
+
+    assert [row["job_url"] for row in ranked] == ["valid"]
+    assert jobs[1]["score_status"] == "invalid"
+    assert jobs[1]["baseline_fit"] is None
+    assert jobs[1]["baseline_rank"] is None
+    assert jobs[2]["score_status"] == "unscored"
+    assert jobs[2]["baseline_fit"] is None
+    assert jobs[2]["baseline_rank"] is None
+
+
 def test_ai_compatibility_order_uses_ai_score_when_baseline_fit_is_stale() -> None:
     jobs = [
         {

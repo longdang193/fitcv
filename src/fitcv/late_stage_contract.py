@@ -92,7 +92,7 @@ def validation_status_for_cv_status(status: str) -> str:
     if status == CV_GENERATION_VALIDATION_FAILED_STATUS:
         return "failed"
     if status == CV_GENERATION_PERSISTENCE_FAILED_STATUS:
-        return CV_GENERATION_ACCEPTED_STATUS
+        return "failed"
     return "not_run"
 
 

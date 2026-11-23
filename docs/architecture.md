@@ -88,7 +88,7 @@ Ranking-v2 ownership:
 - `config/policy/ranking.yaml` is the sole mutable owner of ranking policy versions, baseline weights, six structured-factor weights, declared-preference component weights, absolute missing-value defaults, and fit-label thresholds.
 - `src/fitcv/ranking_contract.py` owns exact policy validation, effective location/language weight projection, normalized factor records, `structured_fit`, `baseline_fit`, deterministic `baseline_fit_label`, total ordering, compatibility adapters, and `ranking_contract_fingerprint`.
 - production mode is `holistic_ai_only`: `holistic_ai_fit` determines `baseline_fit`; structured factors remain versioned diagnostics until a later approved mode changes policy.
-- ranking order is `baseline_fit DESC`, `raw_job_fingerprint ASC`, then `job_url ASC`. Vector evidence never enters baseline score, label, fingerprint, or tie-breaks.
+- new Stage 6 runs use `ai-only-finite-ai-score-fingerprint-url-v1`: valid finite `ai_score` is the sole ordering authority, then `raw_job_fingerprint ASC`, then `job_url ASC`. Vector evidence never enters baseline score, label, fingerprint, or tie-breaks.
 - canonical writes use `baseline_fit`, `baseline_fit_label`, and `baseline_rank`. `final_score`, `fit_label`, and `final_rank` exist only at explicit legacy read/export boundaries.
 - ranking owns baseline labels. CV analysis consumes persisted `baseline_fit_label`, or derives from persisted `baseline_fit` using the same policy thresholds when the label is absent.
 
@@ -100,7 +100,7 @@ Preference-learning and runtime-policy ownership:
 - SQLite tables `inverse_training_runs`, `ranking_policy_snapshots`, and `policy_activation_events` form one immutable lifecycle registry. Training and candidate insertion is atomic; lifecycle transitions use short `BEGIN IMMEDIATE` transactions and append audit events in the same commit.
 - Candidate solving and held-out evaluation run outside the writer transaction. Content-addressed IDs make exact retries idempotent; evidence, parent, config, and runtime identities are rechecked before persistence or activation.
 - Pipeline resolves one compatible active snapshot through an injected resolver, checkpoints the exact payload, and reuses it on resume. Missing, invalid, incompatible, or unavailable storage produces a visible zero-residual status for the entire run.
-- Runtime order uses `personalized_rank_score = baseline_fit + learned_alpha * dot(preference_vector, normalized_embedding)`. Display clipping never controls order. Baseline score, global baseline rank, `strong | stretch | skip`, CV eligibility, and generation gates remain baseline-derived.
+- New pipeline runs do not activate preference residuals. Historical personalized fields remain readable without being rewritten; baseline score, global baseline rank, `strong | stretch | skip`, CV eligibility, and generation gates remain baseline-derived.
 
 Shortlist ownership:
 

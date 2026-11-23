@@ -57,6 +57,7 @@ from fitcv.cv_generator import (
     build_render_proof_identity,
     final_artifact_acceptance_passes,
     generate_cv,
+    project_authorized_profile,
     render_cv_markdown,
     render_cv_native_acceptance,
     render_item_requirement_support,
@@ -1716,6 +1717,7 @@ def _build_fallback_provider_generator(
         for key, value in profile.items()
         if key not in {"candidate_profile_id", "revision"}
     }
+    authorized_profile = project_authorized_profile(profile, evidence_payload)
 
     def _call(repair_missing_sections: list[str] | None) -> Any:
         return generate_cv(
@@ -1729,6 +1731,7 @@ def _build_fallback_provider_generator(
             repair_missing_sections=repair_missing_sections,
             content_plan=content_plan,
             target_sections=repair_missing_sections,
+            authorized_profile=authorized_profile,
             ranking_cv_handoff=ranking_cv_handoff,
         )
 
