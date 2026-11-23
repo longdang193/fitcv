@@ -7018,15 +7018,23 @@ def test_list_run_structured_jobs_is_not_truncated_at_fifty() -> None:
     assert len(sqlite_store.list_run_structured_jobs("run-many")) == 55
 
 def test_list_run_structured_jobs_projects_canonical_bookmark_state() -> None:
+    from fitcv.enrich import load_run_structured_jobs
+
     run_job_id = _create_normalized_run_with_jobs(
         "run-structured-bookmark", [{"title": "Bookmarked Job"}]
     )[0]
+    load_run_structured_jobs(
+        [{"run_job_id": run_job_id, "job_url": "https://example.com/job", "location": "Berlin"}],
+        "run-structured-bookmark",
+        {},
+    )
     sqlite_store.set_bookmark(run_job_id)
 
     rows = sqlite_store.list_run_structured_jobs("run-structured-bookmark")
 
     assert rows[0]["run_job_id"] == run_job_id
     assert rows[0]["bookmarked"] is True
+    assert rows[0]["location"] == "Berlin"
 
 
 def test_cv_versions_are_immutable_and_download_verifies_checksum() -> None:

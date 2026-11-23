@@ -44,6 +44,31 @@ from fitcv.agentic_cv_generation import (
 )
 
 
+def _valid_pdf_render_proof(markdown: str) -> tuple[bytes, dict[str, str | int]]:
+    pdf_content = b"%PDF-1.7\nfitcv-review-regression\n"
+    return pdf_content, {
+        "render_status": "pass",
+        "page_count": 1,
+        "page_fit_status": "pass",
+        "artifact_checksum": hashlib.sha256(pdf_content).hexdigest(),
+        "content_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "template_sha256": "a" * 64,
+        "render_config_fingerprint": "b" * 64,
+        "renderer_contract_version": "fitcv_native_render_v1",
+    }
+
+
+def _write_review_pdf(generation_result: dict[str, Any]):
+    pdf_content, render_acceptance = _valid_pdf_render_proof(str(generation_result["markdown_final"]))
+    generation_result["render_acceptance"] = render_acceptance
+
+    def _generate(*, artifact_dir: str, **_: Any) -> dict[str, Any]:
+        Path(artifact_dir, "cv.pdf").write_bytes(pdf_content)
+        return generation_result
+
+    return _generate
+
+
 def test_render_item_provenance_protects_ambiguous_support_but_allows_unmatched_optional_trim() -> None:
     content_plan = {
         "approved_claims": [
@@ -714,6 +739,97 @@ def test_generation_writer_receives_only_content_plan_approved_evidence() -> Non
     assert [item["evidence_id"] for item in captured["evidence_payload"]] == ["ev-approved"]
     assert result["cv_generation_trace"]["input_summary"]["omitted_input_item_count"] == 1
     assert result["cv_generation_trace"]["input_summary"]["approved_input_item_count"] == 1
+
+
+def test_generation_writer_keeps_profile_evidence_when_no_verified_requirement_exists() -> None:
+    analysis = {
+        **_minimal_analysis_record(),
+        "evidence_payload": [
+            {
+                "evidence_id": "ev-experience",
+                "evidence_type": "experience_entry",
+                "source_section": "experiences",
+                "text": "Built data pipelines at ACME",
+                "parent_id": "exp-1",
+            }
+        ],
+        "requirement_coverage": [
+            {
+                "requirement_instance_id": "required_skill:python",
+                "requirement": "Python",
+                "selected_support": "unsupported",
+                "supporting_evidence_ids": [],
+            }
+        ],
+    }
+    captured: dict[str, Any] = {}
+
+    def fake_provider_builder(**kwargs: Any):
+        captured.update(kwargs)
+        return lambda _repair_targets: None
+
+    with patch.object(
+        generation_module,
+        "_build_fallback_provider_generator",
+        side_effect=fake_provider_builder,
+    ), patch.object(
+        generation_module,
+        "_execute_generation_attempt",
+        return_value=(
+            {"sections": {"summary": {"text": "ok"}}},
+            "# CV",
+            {"valid": True},
+            None,
+        ),
+    ), patch.object(
+        generation_module,
+        "_run_repair_cycle",
+        side_effect=lambda **kwargs: (
+            kwargs["structured_cv"],
+            kwargs["markdown"],
+            kwargs["validation"],
+            {"performed": False, "missing_sections": []},
+            kwargs["runtime_provenance"],
+        ),
+    ):
+        result = generation_module._generate_fresh_from_analysis(
+            analysis,
+            _minimal_profile(),
+            _minimal_config(),
+        )
+
+    assert [item["evidence_id"] for item in captured["evidence_payload"]] == ["ev-experience"]
+    assert result["cv_generation_trace"]["input_summary"]["approved_input_item_count"] == 1
+
+
+def test_generation_provider_uses_full_profile_when_no_job_claims_are_approved() -> None:
+    profile = {
+        **_minimal_profile(),
+        "education": [{"id": "edu-1", "degree": "MSc", "institution": "Selected University"}],
+    }
+    captured: dict[str, Any] = {}
+
+    def fake_generate_cv(*args: Any, **kwargs: Any) -> None:
+        captured["authorized_profile"] = kwargs["authorized_profile"]
+
+    provider_generator = generation_module._build_fallback_provider_generator(
+        job=_minimal_job(),
+        evidence_payload=[{"evidence_id": "ev-exp", "evidence_type": "experience_entry", "parent_id": "exp-1"}],
+        gap_summary={},
+        profile=profile,
+        config=_minimal_config(),
+        fit="strong",
+        evidence_selection_summary={},
+        content_plan={"approved_claims": [], "approved_evidence_ids": []},
+        ranking_cv_handoff=None,
+    )
+
+    with patch.object(generation_module, "generate_cv", side_effect=fake_generate_cv):
+        provider_generator(None)
+
+    assert captured["authorized_profile"]["experiences"] == profile["experiences"]
+    assert captured["authorized_profile"]["education"] == profile["education"]
+
 
 def test_generation_provider_receives_only_authorized_profile_records() -> None:
     profile = {
@@ -1704,7 +1820,7 @@ def test_run_pipeline_persists_review_required_when_agentic_gate_has_content(
     with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=agentic_analysis_result), patch(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
-        return_value=agentic_generation_result,
+        side_effect=_write_review_pdf(agentic_generation_result),
     ):
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-agentic-review")
 
@@ -1834,7 +1950,7 @@ def test_run_pipeline_marks_review_required_from_markdown_quality_flags(
     with patch("fitcv.pipeline.analyze_ranked_job", create=True, return_value=agentic_analysis_result), patch(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
-        return_value=agentic_generation_result,
+        side_effect=_write_review_pdf(agentic_generation_result),
     ):
         result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml", run_id="late-stage-agentic-markdown-review")
 
@@ -2147,25 +2263,28 @@ def test_render_unavailable_is_technical_pdf_failure_and_preserves_markdown(
     assert result["markdown_final"] == markdown
 
 
-def test_review_required_with_valid_content_is_persistable_only_without_validation_violations() -> None:
+def test_review_required_with_valid_pdf_is_persistable_even_with_validation_violations() -> None:
     result = {
         "status": "review_required",
         "structured_cv_final": _minimal_structured_cv(),
         "markdown_final": "# Test Candidate\n## Experience\nGrounded work.",
         "validation": {
-            "valid": True,
-            "missing_sections": [],
-            "grounding_violations": [],
+            "valid": False,
+            "missing_sections": ["Education"],
+            "grounding_violations": ["unsupported claim"],
             "deterministic_grounding_violations": [],
             "semantic_grounding_violations": [],
-            "skill_violations": [],
+            "skill_violations": ["unsupported_skill"],
             "markdown_quality_blocking_issues": [],
         },
     }
+    pdf_content, render_acceptance = _valid_pdf_render_proof(result["markdown_final"])
+    result["render_acceptance"] = render_acceptance
 
-    assert _is_persistable_cv_generation_result(result) is True
-    result["validation"]["skill_violations"] = ["unsupported_skill"]
-    assert _is_persistable_cv_generation_result(result) is False
+    assert _is_persistable_cv_generation_result(result, pdf_content=pdf_content) is True
+    assert _is_persistable_cv_generation_result(result, pdf_content=b"not-a-pdf") is False
+    result["render_acceptance"]["artifact_checksum"] = "c" * 64
+    assert _is_persistable_cv_generation_result(result, pdf_content=pdf_content) is False
 
 
 def test_pdf_failed_with_retained_valid_content_is_persistable() -> None:

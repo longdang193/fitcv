@@ -2019,19 +2019,10 @@ def create_run_id() -> str:
     return str(uuid.uuid4())
 
 
-_CV_REVIEW_BLOCKING_VALIDATION_FIELDS = (
-    "missing_sections",
-    "grounding_violations",
-    "deterministic_grounding_violations",
-    "semantic_grounding_violations",
-    "skill_violations",
-    "markdown_quality_blocking_issues",
-)
-
-
 def _is_persistable_cv_generation_result(
     generation_result: dict[str, Any],
     config: dict[str, Any] | None = None,
+    pdf_content: bytes | None = None,
 ) -> bool:
     status = str(generation_result.get("status") or "").strip()
     if status == "accepted":
@@ -2051,10 +2042,29 @@ def _is_persistable_cv_generation_result(
         return False
     if not str(generation_result.get("markdown_final") or "").strip():
         return False
-    validation = generation_result.get("validation") or generation_result.get("validation_initial")
-    if not isinstance(validation, dict) or validation.get("valid") is not True:
+    if status == CV_GENERATION_PDF_FAILED_STATUS:
+        validation = generation_result.get("validation") or generation_result.get("validation_initial")
+        if not isinstance(validation, dict) or validation.get("valid") is not True:
+            return False
+        return not any(
+            list(validation.get(field) or [])
+            for field in (
+                "missing_sections",
+                "grounding_violations",
+                "deterministic_grounding_violations",
+                "semantic_grounding_violations",
+                "skill_violations",
+                "markdown_quality_blocking_issues",
+            )
+        )
+    if pdf_content is None or not bytes(pdf_content).startswith(b"%PDF-"):
         return False
-    return not any(list(validation.get(field) or []) for field in _CV_REVIEW_BLOCKING_VALIDATION_FIELDS)
+    render_acceptance = generation_result.get("render_acceptance")
+    content_checksum = hashlib.sha256(str(generation_result["markdown_final"]).encode("utf-8")).hexdigest()
+    return render_proof_is_verified(render_acceptance, content_checksum=content_checksum) and (
+        hashlib.sha256(bytes(pdf_content)).hexdigest()
+        == str((render_acceptance or {}).get("artifact_checksum") or "")
+    )
 
 def _cv_generation_enabled_sections(config: dict[str, Any]) -> list[str]:
     composition = (config.get("cv") or {}).get("composition") or {}
@@ -5559,7 +5569,7 @@ def run_pipeline(
                         artifact_refs={"stage_id": "cv_generation"},
                     ),
                 }
-            if not _is_persistable_cv_generation_result(generation_result, config):
+            if not _is_persistable_cv_generation_result(generation_result, config, pdf_content):
                 debug_record = _build_cv_generation_debug_record(
                     generation_result=generation_result,
                     enabled_sections=enabled_cv_sections,

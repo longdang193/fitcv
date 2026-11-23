@@ -82,3 +82,10 @@ The system SHALL save the PDF and review metadata separately from submission per
 #### Scenario: Review remains outstanding
 - **WHEN** a PDF is persisted but mandatory review is incomplete
 - **THEN** the artifact remains available for inspection and submission is blocked.
+### Requirement: Usable flagged CVs still receive inspectable artifacts
+The system SHALL persist a valid Markdown and PDF artifact when grounded content exists but evidence or validation concerns require human follow-up.
+
+#### Scenario: Evidence or validation concern remains
+- **WHEN** a CV has usable grounded content but missing evidence, validation violations, or another mandatory-review condition
+- **THEN** the system renders and persists the Markdown and a verified PDF, marks the artifact clearly as `REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION`, retains the diagnostics, and keeps submission blocked
+
