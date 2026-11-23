@@ -2,101 +2,138 @@
 
 ## Context
 
-See `proposal.md` and the two capability specs for the behavioral contract. The current pipeline already has stage checkpoints, candidate evidence projections, ranking orchestration, CV analysis/generation modules, a native PDF path, and persisted artifacts. `src/fitcv/ranking.py` currently performs personalized ordering when an active preference policy is available, and `decision-learning-v2` remains an active policy version. Those fields and policy inputs are therefore active behavior for existing runs, not merely historical compatibility data. `config/policy/cv.yaml` currently selects `europass`, while `src/fitcv/cv_presets.py` and `src/fitcv/cv_generator.py` own the current preset and PDF boundaries.
+Stage 7 receives an immutable ranking-to-CV handoff, the canonical candidate profile, attributable evidence, and the target job requirements. The existing pipeline already owns stage checkpoints, evidence projections, CV analysis/generation, Markdown serialization, PDF conversion, render proof, and persisted lifecycle outcomes.
 
-The FigJam flow places Ranking before the final Top 15 CV handoff. Ranking input is bounded by the existing 12,000-character contract. CV generation then performs evidence planning, fixed-template creation, initial ATS/achievement/impact optimization, unified validation, a bounded correction/revalidation loop, deterministic `mycvs_v1` Markdown rendering, mandatory PDF conversion, one-page render acceptance, and independent review/PDF outcomes.
+The current CV composition contract is too coarse: selected job evidence can act as a global content allowlist, certifications can be suppressed when their selected-evidence list is empty, Skills can be restricted to selected evidence, Experience can become empty when no experience evidence is selected, and the serializer can turn missing content into `Not provided.`. The design below makes composition section-specific while preserving the existing ranking, shortlist, persistence, and PDF boundaries.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Make new ranking decisions and their handoff versioned, reproducible, and evidence-backed.
-- Reuse existing evidence, stage, checkpoint, and persistence boundaries.
-- Add deterministic `mycvs_v1` rendering/validation without making converter details implicit. The visible output follows the maintained candidate format: contact/Iconify metadata, then `Summary`, `Education`, `Experience`, `Projects`, `Certificates`, and `Skills`; audit fields remain in a deterministic HTML comment outside the visible headings.
-- Preserve the existing one-page render acceptance and make submission clearance explicit.
-- Preserve historical artifacts and a rollback-safe migration path.
-- Persist accepted native PDF bytes and integrity metadata in the existing CV-version store; keep Markdown download/preview compatibility and add a separate PDF download boundary.
+- Compose every new CV from the complete canonical candidate profile plus selected job evidence.
+- Give each section its own source of truth, tailoring behavior, minimum content, section-presence rule, and validation invariants.
+- Separate canonical facts from selected job support, supported claims, unsupported requirements, rendered records, and hidden audit metadata.
+- Remove visible placeholders and visible evidence/provenance identifiers.
+- Preserve the maintained `mycvs_v1` Markdown grammar, empty YAML front matter, Pandoc definition-list rows, deterministic audit metadata, checksum scope, bundled renderer, and one-page/page-fit acceptance.
+- Keep bounded adjustment, review-required persistence, PDF status, and submission-clearance behavior independent and compatible.
 
 **Non-Goals:**
 
-- Rewriting profile ingestion, shortlist admission, or downstream fit truth.
-- Adding a new model provider, search service, database, or general-purpose workflow engine.
-- Deleting or backfilling historic personalized ranking or Europass artifacts.
-- Allowing a weighted mega-score to replace the documented core/Pareto policy.
+- Changing ranking order, AI-score calculation, score validity, Pareto-front admission/promotion, shortlist generation, or ranking-to-CV handoff semantics.
+- Rewriting profile ingestion, evidence projection, or downstream fit truth.
+- Deleting or backfilling historic personalized ranking or legacy CV artifacts.
+- Introducing a new model provider, database, service, or workflow engine.
+- Automatically prioritizing a profile record solely because one of its evidence IDs was selected. Any ordering or page-budget behavior must come from explicit section policy.
 
 ## Implementation Boundaries
 
-- Ranking computation and score-state normalization remain in `src/fitcv/ranking.py::rank_jobs` and `src/fitcv/ranking_contract.py`; the new order/version envelope must extend those seams rather than introduce a parallel ranking path.
-- Ranking-stage serialization remains owned by `src/fitcv/pipeline_stage_artifacts.py::build_ranking_stage_block`. Run/checkpoint persistence and resume compatibility remain owned by `src/fitcv_cp/models.py`, `src/fitcv_cp/sqlite_store.py`, and `src/fitcv_cp/worker_job.py`.
-- The immutable ranking-to-CV handoff is produced from the admitted shortlist and persisted inside `stage_transition_artifacts_json.stages.ranking`; CV analysis and generation consume it through `src/fitcv/agentic_cv_analysis.py`, `src/fitcv/agentic_cv_generation.py`, and the existing worker boundary in `src/fitcv_cp/worker_job.py`.
-- CV rendering and render-proof compatibility remain in `src/fitcv/cv_generator.py` and `src/fitcv_cp/run_artifact_contracts.py`. The new adapter may add the smallest reusable serializer/adapter seam required by those owners, but must not duplicate final-artifact acceptance logic.
-- `config/policy/cv.yaml` remains the configuration owner. Additive renderer configuration must preserve `cv.preset: europass` and its existing default behavior; no new provider, database, or workflow engine is required.
-- Tests extend the existing ownership boundaries: `tests/test_ranking.py`, `tests/test_ranking_contract.py`, `tests/test_pipeline_checkpoint_contract.py`, `tests/test_pipeline_stage_resume_parity.py`, `tests/test_cv_generator.py`, `tests/test_cv_render_acceptance.py`, `tests/test_fitcv_cp/test_run_artifact_contracts.py`, `tests/test_fitcv_cp/test_worker_job.py`, and `tests/test_fitcv_cp/test_sqlite_store.py`.
+- Ranking remains owned by `src/fitcv/ranking.py` and `src/fitcv/ranking_contract.py`. The shortlist capability remains the owner of Pareto admission and promotion.
+- The immutable ranking-to-CV handoff remains produced and persisted by the existing ranking-stage artifact boundary. CV stages consume it; they do not reconstruct mutable ranking context or re-rank jobs.
+- CV analysis and generation remain owned by `src/fitcv/agentic_cv_analysis.py`, `src/fitcv/agentic_cv_generation.py`, and the worker boundary.
+- The intermediate CV model, serializer, Markdown validator, and renderer adapter remain owned by `src/fitcv/cv_generator.py` and the existing render-proof/artifact-contract modules.
+- `config/policy/cv.yaml` remains the configuration owner for renderer strategy, section policy, section ordering, and content budgets.
+- Existing lifecycle and persistence boundaries remain responsible for independent generation, review, PDF, and submission-clearance outcomes.
+
+## Composition Model
+
+The pipeline SHALL build one provenance-preserving composition plan before serialization:
+
+```text
+canonical candidate profile
+        +
+selected job support and supported claims
+        +
+unsupported/unknown job requirements
+        +
+explicit section policies
+        ↓
+CV composition plan
+        ↓
+mycvs_v1 Markdown serializer and validator
+        ↓
+bundled myCVs renderer
+        ↓
+one-page/page-fit/render-proof acceptance
+```
+
+The plan SHALL contain at least:
+
+```text
+baseline_profile_records
+selected_job_support
+supported_job_claims
+unsupported_or_unknown_requirements
+section_policy
+section_priority
+section_budget
+records_selected_for_render
+claims_selected_for_render
+audit_metadata
+```
+
+`baseline_profile_records` are the candidate facts that may be rendered. `selected_job_support` identifies evidence selected for this job. `supported_job_claims` are job-specific assertions that pass the evidence policy. `unsupported_or_unknown_requirements` are retained for analysis/review and cannot become candidate claims. `records_selected_for_render` and `claims_selected_for_render` are the output of section policies, not a copy of `approved_claims`. `audit_metadata` retains provenance without leaking it into visible Markdown.
+
+The composition plan is the single input to initial creation, bounded adjustment, repair, serialization, and final validation. A repair path SHALL use the same section policies rather than rebuilding an evidence-only allowlist.
+
+## Section Policies
+
+Each section has an independent policy with four mandatory parts: source of truth, tailoring behavior, minimum content, and validation rule.
+
+| Section | Source of truth | Tailoring behavior | Minimum/presence | Validation |
+| --- | --- | --- | --- | --- |
+| Header/contact | Canonical profile only | None beyond configured display formatting | Candidate name required; optional contact fields omitted when absent | No invented fields; validated links; maintained Iconify grammar |
+| Summary | Canonical profile plus supported job context | Use grounded JD terminology and positioning | Mandatory, approximately 2–4 sentences | Non-empty, grounded, no unsupported seniority/qualification claims |
+| Education | Canonical education records | Optional grounded details may be selected by explicit policy | Present when canonical records exist | Preserve degree, institution, location, dates; definition-list syntax |
+| Experience | Canonical employment records | Selected evidence may influence supported wording and explicit relevance policy, not record existence | Present when employment exists; one overview and 3–5 bullets when enough content exists | Preserve role/employer/location/dates; no fabricated achievements |
+| Projects | Eligible canonical project records | Explicit job-relevance policy may order or budget records | Present when eligible projects exist; one overview and 2–4 bullets when enough content exists | Validated links; no unsupported project claims |
+| Certifications (`Certificates` wire heading) | Canonical certification records | Optional grounded focus/relevance line | Present when certifications exist and policy permits; otherwise omitted | Preserve name/issuer/date/validated URL; no fabricated credentials |
+| Skills | Canonical grounded skills and languages | Normalize/deduplicate and apply explicit JD relevance policy | Present when grounded skills or languages exist | No job-only skills; proficiency only when supported |
+
+The absence of selected evidence does not remove a canonical record. Any ordering or content budget must be explicit in `section_policy`; it cannot be inferred solely from selection state.
+
+## Serialization and Audit Separation
+
+`mycvs_v1` is a recruiter-facing output format. The serializer SHALL emit:
+
+- UTF-8 text with LF line endings and no trailing whitespace;
+- empty YAML front matter;
+- the maintained section order among sections that are present;
+- Pandoc `  :` definition-list rows for structured records;
+- validated links only;
+- a deterministic hidden audit block after the visible content;
+- the schema/checksum metadata required by `schemas/mycvs_v1.md`.
+
+Visible content SHALL exclude `Not provided`, `N/A`, `Unknown`, `None provided`, equivalent placeholders, evidence IDs, requirement IDs, fingerprints, support states, and internal provenance. The audit block MAY contain those identifiers and SHALL remain outside visible section content.
+
+The wire heading remains `## Certificates` for compatibility with the maintained template, even though the semantic section is Certifications. Optional sections are source-driven: a section with no usable canonical records is omitted rather than rendered with a placeholder heading or placeholder text.
+
+## Validation and PDF Acceptance
+
+Before conversion, the Markdown validator SHALL check grounded content, section presence, placeholder/provenance leakage, definition-list grammar, section order, empty front matter, link validity, audit metadata, handoff identity, and checksum integrity.
+
+The configured `mycvs_v1` strategy SHALL use the bundled myCVs renderer. PDF status becomes generated only after the existing artifact-integrity, render-proof, and one-page/page-fit checks pass. A valid Markdown artifact may be retained when PDF conversion fails. Review-required output may retain a valid PDF, but submission remains blocked until review approval.
+
+## Compatibility and Migration
+
+Historic ranking and CV artifacts remain readable with their original metadata and contracts. The new composition contract applies only to new `mycvs_v1` writes and does not rewrite existing Europass or legacy artifacts. Existing configuration defaults and safe paths remain unchanged until the renderer release gate is satisfied.
 
 ## Decisions
 
-### 1. Version ranking order before retiring personalization
-
-The ranking stage writes one versioned decision envelope containing `ranking_order_version`, the active ranking-policy version, and their provenance. The current personalized order remains authoritative for runs whose persisted order version uses it; a new order version may retire personalization and make the AI compatibility/tie-break order authoritative. A resumed run SHALL use the persisted order and policy versions rather than current defaults, and a strategy change SHALL require a new run/checkpoint identity. Historic personalized fields remain readable in either case.
-
-**Alternative rejected:** removing legacy fields immediately, because historic operator views and persisted artifacts depend on them.
-
-### 2. Use explicit result states instead of score coercion
-
-Missing, invalid, and retryable evaluations remain typed outcomes. The existing three-value `score_status` contract (`valid`, `unscored`, `invalid`) remains unchanged. Retryability is represented by the existing `failure_code`, `disposition=retryable_failure`, and `retry_eligible` fields; it SHALL NOT become a fourth score status. The ranking adapter must not convert failures to `0.0`, because that conflates technical failure, uncertainty, and confirmed incompatibility.
-
-**Alternative rejected:** zero-filling invalid scores for simpler sorting; it damages auditability and hides retryable failures.
-
-### 3. Make the ranking-to-CV handoff immutable and provenance-rich
-
-Persist a handoff object containing job qualifiers, baseline ranking data, evidence IDs, gaps, profile revision, ranking order/policy and score contract versions, and a fingerprint. The handoff SHALL be stored in the persisted ranking stage artifact under `stage_transition_artifacts_json.stages.ranking`, with per-job references retained in the ranking/admission ledger where available. CV analysis consumes this object rather than reconstructing ranking context from mutable source tables.
-
-The handoff fingerprint SHALL use version `ranking_cv_handoff_v1` and SHA-256 over canonical UTF-8 JSON serialized with lexicographically sorted object keys and compact separators (`(',', ':')`, `ensure_ascii=false`). Its input object SHALL contain exactly the canonical job identity and qualifiers, baseline rank and score, `score_status`, `failure_code`, `disposition`, `retry_eligible`, ordered evidence IDs, confirmed gaps/unknowns, candidate profile revision, ranking order version, ranking policy/contract versions, and source provenance references. Optional absent values SHALL be encoded as JSON `null`, not omitted; strings SHALL use the field's normalized value; arrays SHALL use the contract-defined deterministic order. The schema version is part of the hashed object.
-
-**Alternative rejected:** passing only job ID and score; it cannot reproduce the exact decision or explain qualifier-sensitive CV changes.
-
-### 4. Keep CV quality dimensions separate
-
-Analysis, generation, review, PDF, and submission clearance are separate state transitions. Existing persisted/public lifecycle values remain authoritative: `generation_status` uses `pending|running|generated|review_required|validation_failed|generation_failed|persistence_failed|cancelled`, and the canonical review state uses `none|stretch|manual_required|approved|rejected`. A new additive `pdf_status` may use `pending|generated|failed`, and a new additive submission-clearance field may use `blocked|eligible`; neither replaces the existing fields. `generated` is the successful generation state; generic `completed` maps to it only in a new read model, and generic `failed` maps to the specific existing failure state. `none` or explicit `approved` review state clears the review gate; `stretch`, `manual_required`, and `rejected` do not. Hard factual/provenance/schema/template checks and one-page render acceptance gate completion; ATS/recruiter quality is an optimization signal unless policy marks it material. Soft factual concerns may require review and still permit conversion; hard validation failures prevent conversion.
-
-**Alternative rejected:** one combined `cv_status`; it cannot represent a valid Markdown artifact with a failed converter or a review-required CV whose PDF was successfully generated.
-
-### 5. Treat `myCVs` conversion as an external, pinned boundary
-
-Render and validate exact `mycvs_v1` Markdown as defined by `schemas/mycvs_v1.md` before conversion. The external adapter SHALL emit the existing render-proof shape: `render_status`, `page_count`, `page_fit_status`, `artifact_checksum`, `content_sha256`, `template_sha256`, `render_config_fingerprint`, and a registered `renderer_contract_version`. The initial registered external value is `mycvs_external_render_v1`; the existing final-artifact predicate SHALL recognize it before the path can be accepted. Record converter commit/revision, stylesheet/template revision, input checksum, and conditional output checksum in the artifact provenance. Do not promote the path until the adapter, renderer contract, and all inputs are pinned and reproducible.
-
-**Alternative rejected:** silently using the current external converter; it makes PDFs non-reproducible and prevents trustworthy release evidence.
-
-### 6. Make `mycvs_v1` a renderer strategy, not a new preset
-
-`config/policy/cv.yaml` remains the configuration owner. Preserve `cv.preset: europass` and its existing composition/artifacts; introduce an additive renderer strategy key for the new output path, with `mycvs_v1` selecting the deterministic serializer and external adapter. The strategy consumes the canonical intermediate CV model and does not change the meaning of the existing Europass preset. New writes use the renderer strategy only behind its explicit gate; reads and resumes use the persisted preset, renderer strategy, schema, and contract versions.
-
-### 7. Roll out additively and keep shortlist ownership separate
-
-Read paths accept both historic and new artifact shapes. New writes use the versioned contract behind an explicit strategy/configuration gate. Resume uses the persisted strategy and contract versions rather than current defaults. Rollback changes the active strategy, not historic artifacts.
-
-Pareto admission and promotion remain owned by the shortlist capability through `pipeline.shortlist_strategy`. This ranking change consumes the admitted shortlist and SHALL NOT promote, override, or duplicate shortlist strategy gates. Any future ranking-strategy promotion must introduce a separately named ranking strategy and its own contract.
-
-**Alternative rejected:** destructive migration or blanket rewrite of old artifacts.
+1. **Canonical profile is the factual baseline.** Evidence selection changes support and permitted job-specific claims, not whether a canonical fact exists.
+2. **Section policies are explicit.** Each section owns its own source, tailoring, minimum content, presence, and validation behavior.
+3. **No global `approved_claims` allowlist.** The composition plan preserves independent profile records and evidence-backed claims.
+4. **No visible placeholders or provenance.** Missing optional data is omitted; factual or structural deficiencies fail validation or enter review with a specific diagnostic.
+5. **Renderer grammar remains stable.** Empty YAML front matter and Pandoc definition-list syntax are part of the `mycvs_v1` contract. The existing `Certificates` heading is retained for wire compatibility.
+6. **Page fit does not justify silent data loss.** If the explicit section policy cannot fit the one-page contract, the result fails or enters the configured review path rather than deleting facts merely because they were not selected as evidence.
+7. **Ranking ownership is unchanged.** Ranking, AI scoring, Pareto-front admission, shortlist promotion, and the ranking-to-CV handoff remain outside this refinement.
 
 ## Risks / Trade-offs
 
-- [Legacy readers depend on personalized fields] → Keep fields and label them historic; add compatibility tests before changing readers.
-- [Non-deterministic model output] → Persist model/provider/settings, prompt/template revision, normalized inputs, timestamps, and final fingerprints; treat exact replay as an evaluation gate.
-- [Converter drift or unavailable external tooling] → Pin revision/template/checksums and keep the existing safe PDF path until validated.
-- [Review-required output may be mistaken for success] → Store independent review, PDF, and submission-clearance states; block submission until review is explicitly cleared.
-- [One correction pass may leave quality gaps] → Preserve unresolved concerns and surface them for operator review rather than adding unbounded retries.
+- Section-specific policies are more explicit than a single allowlist and therefore require more fixtures and validation cases.
+- Preserving canonical facts can increase page pressure; page-fit failure must remain observable rather than being hidden by destructive filtering.
+- Existing consumers may expect all legacy headings, so the wire heading and historic artifact compatibility must be tested before enabling the new path.
+- The external converter remains a release-gated dependency; a successful Markdown build is not sufficient evidence of a valid one-page PDF.
 
-## Migration Plan
+## Open Questions
 
-1. Add the two capability contracts and compatibility readers without changing the current production default or active personalized order for existing checkpoints.
-2. Implement versioned ranking decision envelopes and the immutable CV handoff, including `ranking_cv_handoff_v1` fingerprinting and persisted order/policy versions.
-3. Add `mycvs_v1` rendering/validation and the registered external render-proof adapter while retaining the current safe Europass preset/path.
-4. Run shadow/replay and representative real-file probes; compare deterministic outputs and failure states.
-5. Pin the converter commit/template/checksum policy, verify the adapter emits accepted render proof, and obtain release evidence.
-6. Enable a new ranking order or CV renderer strategy only after its gates pass; otherwise retain the current strategy and record the blocker.
-
-## Release Gates
-
-- The exact external `myCVs` converter commit and stylesheet/template revision are an enablement gate, not an architectural choice. Implementation may ship the adapter and disabled configuration path with deterministic contract fixtures; production activation of `mycvs_external_render_v1` requires a release record containing the pinned converter revision, stylesheet/template revision, input/output checksum policy, and reproducibility evidence.
-- Until that release record exists and the render-proof acceptance tests pass, retain the current safe Europass/native path and report the external path as not release-ready.
+None for this planning revision. The semantic Certifications section uses the existing `Certificates` wire heading for compatibility.

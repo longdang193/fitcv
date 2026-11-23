@@ -2,120 +2,188 @@
 
 ## Purpose
 
-Defines grounded CV analysis and deterministic CV generation behavior for the final ranked jobs, including review and PDF outcomes.
+Defines grounded, section-specific CV analysis and deterministic `mycvs_v1` generation for final ranked jobs. The canonical candidate profile remains the factual source of truth; selected job evidence supports relevance and job-specific claims without becoming a global content allowlist.
 
 ## ADDED Requirements
 
-### Requirement: CV analysis is grounded in canonical evidence and job requirements
+### Requirement: CV composition uses canonical profile and selected evidence
 
-The system SHALL analyze a ranked job using the canonical candidate profile, attributable evidence, job-specific qualifiers, and the ranking handoff provenance; unsupported claims SHALL be identified rather than invented.
+The system SHALL compose recruiter-facing CV content from the canonical candidate profile, attributable source evidence, job-specific requirements, and the ranking handoff. Selected job evidence MAY tailor wording, relevance, and support for a job claim, but SHALL NOT erase a valid canonical profile fact.
 
-#### Scenario: Grounded analysis succeeds
-- **WHEN** the handoff contains valid profile, job, evidence, and provenance inputs
-- **THEN** the analysis SHALL produce strengths, gaps, unresolved uncertainties, and factual-risk findings tied to source evidence or explicit job requirements.
+#### Scenario: Canonical facts survive partial evidence selection
+- **WHEN** selected evidence covers a project but does not cover the candidate's employment or certifications
+- **THEN** the generated CV SHALL still use the canonical employment and certification records when those records exist, while using the selected evidence only for supported job-specific claims.
 
-#### Scenario: Missing evidence remains unknown
-- **WHEN** a requirement has no attributable evidence
-- **THEN** the analysis SHALL represent it as unknown/not evidenced and SHALL NOT infer absence or add an unsupported claim.
+#### Scenario: Approved claims are not a global content allowlist
+- **WHEN** `approved_claims` contains only a subset of profile-backed records
+- **THEN** the generator SHALL NOT treat the subset as permission to delete unselected canonical education, experience, project, certification, language, or skill records.
 
-### Requirement: CV adjustment is bounded and revalidated
+### Requirement: CV provenance is hidden and unsupported requirements stay gaps
 
-The system SHALL perform the Stage 7 sequence in order: evidence planning, initial CV creation using the fixed template, initial ATS/achievement/impact optimization, and unified validation. It SHALL allow at most one bounded targeted-adjustment pass for material concerns, followed by revalidation of all three validation dimensions: facts/provenance, `mycvs_v1` schema/template, and ATS/recruiter quality.
+The system SHALL keep evidence IDs, requirement IDs, fingerprints, support states, review metadata, and other provenance in hidden audit metadata. Unsupported job requirements SHALL remain gaps and SHALL NOT become candidate claims.
 
-#### Scenario: Material concerns are corrected once
-- **WHEN** material concerns remain after initial analysis and the retry budget permits adjustment
-- **THEN** the system SHALL apply one targeted correction pass and rerun the defined validation checks.
+#### Scenario: Unsupported requirement remains a gap
+- **WHEN** a job requirement has no attributable support or the candidate lacks the required qualification
+- **THEN** the analysis SHALL retain the requirement as unknown, unsupported, or a review gap and SHALL NOT add it to the visible CV as a candidate claim.
 
-#### Scenario: Initial creation follows the fixed sequence
-- **WHEN** a valid ranking handoff enters CV generation
-- **THEN** the system SHALL plan evidence, create the CV with the fixed template, apply the initial ATS/achievement/impact optimization, and run the unified validation before deciding whether targeted correction is needed.
+### Requirement: Header and contact content comes only from the canonical profile
 
-#### Scenario: Budget is exhausted
-- **WHEN** the adjustment budget is exhausted or the correction cannot be applied safely
-- **THEN** the system SHALL stop adjusting, preserve the unresolved concerns, and continue only with the appropriate review status.
+The Header SHALL render the canonical candidate name and only contact fields that are present and validated by the existing profile and URL policies. Missing optional contact fields SHALL be omitted rather than replaced with placeholders. Header formatting SHALL use the maintained `mycvs_v1` Iconify/contact grammar.
 
-#### Scenario: Correction revalidates quality
-- **WHEN** a targeted correction pass completes
-- **THEN** the system SHALL rerun facts/provenance, schema/template, and ATS/recruiter-quality checks; quality remains an optimization signal unless policy marks it material.
+#### Scenario: Missing optional contact data
+- **WHEN** a canonical profile lacks an optional phone, location, LinkedIn, or GitHub value
+- **THEN** the serializer SHALL omit that contact item and SHALL NOT invent or placeholder it.
 
-### Requirement: CV status dimensions are independent
+### Requirement: Summary is mandatory and grounded
 
-The system SHALL persist generation, review, PDF, and submission-clearance outcomes independently without replacing existing persisted/public lifecycle fields. A new additive `pdf_status` MAY use `pending|generated|failed`, and a new additive submission-clearance field MAY use `blocked|eligible`.
+The Summary SHALL be non-empty and contain approximately two to four concise, grounded sentences tailored to the target job. It MAY synthesize multiple canonical profile facts and selected supported evidence, but SHALL NOT claim unsupported seniority, years of experience, certifications, technologies, industries, or responsibilities.
 
-#### Scenario: Review-required CV still attempts PDF
-- **WHEN** analysis identifies unresolved factual or critical concerns
-- **THEN** the system SHALL set `generation_status=review_required` and `review_state=manual_required` (or the applicable existing `stretch` policy state), still attempt PDF generation, and SHALL evaluate PDF acceptance independently from the review state.
+#### Scenario: Summary uses supported job language
+- **WHEN** the profile and selected evidence support relevant job terminology
+- **THEN** the Summary SHALL use that terminology only in a way that remains attributable to the profile or evidence.
 
-#### Scenario: Review-required CV with a valid PDF is persisted
-- **WHEN** a review-required result has valid Markdown and PDF conversion passes the existing render-proof and page-fit checks
-- **THEN** the system SHALL persist both artifacts with `pdf_status=generated`, keep `generation_status=review_required` and the review state requiring follow-up, set submission clearance to `blocked`, and clearly identify the CV as `REVIEW REQUIRED - NOT APPROVED FOR SUBMISSION`.
+#### Scenario: Summary lacks sufficient grounded content
+- **WHEN** the generator cannot produce a non-empty grounded Summary
+- **THEN** generation SHALL fail validation or enter the configured review-required state with a specific diagnostic and SHALL NOT emit filler or a placeholder.
 
-#### Scenario: Existing status values remain readable
-- **WHEN** a reader loads a historical or current CV record
-- **THEN** `generation_status` SHALL accept `pending|running|generated|review_required|validation_failed|generation_failed|persistence_failed|cancelled`, and `review_state` SHALL accept `none|stretch|manual_required|approved|rejected`. A new read model MAY map `generated` to `completed` and a specific failure to `failed`, but storage and public compatibility values SHALL not be renamed.
+### Requirement: Education preserves canonical records
 
-#### Scenario: PDF conversion fails
-- **WHEN** the converter fails after the Markdown artifact is valid
-- **THEN** the system SHALL set additive `pdf_status=failed`, preserve diagnostics and the valid Markdown artifact, and SHALL classify the result as a technical failure requiring recovery or operator action without rewriting the generation lifecycle state into a generic value.
+Education SHALL use canonical education records as its source of truth and SHALL preserve each available degree, institution, location, and date. The section SHALL use Pandoc definition-list rows. Relevant courses, GPA, thesis, specialization, and similar optional details MAY be included only when grounded and supported by the configured content policy. Education SHALL NOT disappear because no education evidence was selected.
 
-#### Scenario: Fully valid CV completes
-- **WHEN** hard factual/provenance and template checks pass and PDF generation succeeds
-- **THEN** `generation_status` SHALL be `generated`, `pdf_status` SHALL be `generated`, and `review_state` SHALL be `none` unless policy requires `stretch` or `manual_required` review. An explicit clearance changes `manual_required` or `stretch` to `approved`; rejection changes it to `rejected`.
+#### Scenario: Education has canonical records but no selected education evidence
+- **WHEN** canonical education records exist and the job evidence selection contains no education item
+- **THEN** the CV SHALL retain the canonical education records in definition-list format.
 
-#### Scenario: Page-fit acceptance is required
-- **WHEN** PDF conversion exits successfully
-- **THEN** the system SHALL set PDF status to `generated` only after the existing render proof passes, including the configured one-page acceptance gate; converter exit success alone SHALL NOT complete the CV.
+#### Scenario: Optional education detail is absent
+- **WHEN** a canonical record lacks GPA, location, or relevant subjects
+- **THEN** the serializer SHALL omit that optional detail without inventing or placeholdering it.
 
-#### Scenario: Review blocks submission
-- **WHEN** review status is `required`, regardless of PDF status
-- **THEN** submission clearance SHALL be `blocked` until an explicit review event records `review_state=approved`; `rejected` remains blocked. A `none` review state is eligible only when generation and PDF acceptance also pass.
+### Requirement: Experience preserves canonical employment and uses supported tailoring
 
-### Requirement: Generated CV uses deterministic `mycvs_v1` Markdown
+Experience SHALL use canonical employment records as its source of truth and SHALL preserve the role, employer, location, and dates when present. Each rendered role SHALL contain one concise overview and three to five achievement-oriented bullets when enough grounded content exists. Selected evidence MAY influence supported wording and explicit relevance, but SHALL NOT determine whether a canonical employment record exists or may be rendered.
 
-The system SHALL render and validate the canonical `mycvs_v1` Markdown schema defined in `schemas/mycvs_v1.md` before invoking the external converter, including stable section ordering, links, source references, UTF-8/LF byte normalization, and checksum metadata whose scope is defined by that schema.
+#### Scenario: No experience evidence is selected
+- **WHEN** canonical employment records exist but no experience evidence is selected for the job
+- **THEN** the generator SHALL retain the canonical employment records and SHALL NOT set `Experience` to an empty list solely because evidence selection is empty.
 
-#### Scenario: Markdown validation passes
-- **WHEN** all required fields and schema constraints are satisfied
-- **THEN** the system SHALL persist the exact Markdown payload, schema version, validation result, and checksum used for conversion.
+#### Scenario: Experience lacks enough grounded achievements
+- **WHEN** a canonical role exists but fewer than three grounded achievements are available
+- **THEN** the generator SHALL render the available truthful content, record the completeness concern for validation or review, and SHALL NOT fabricate achievements to reach the target count.
 
-#### Scenario: Markdown validation fails
-- **WHEN** required content, links, provenance, or checksum constraints fail
-- **THEN** the system SHALL not invoke PDF conversion and SHALL persist a generation failure with actionable validation diagnostics.
+### Requirement: Projects use canonical records with explicit relevance policy
 
-### Requirement: Accepted PDF artifacts remain durable and downloadable
+Projects SHALL use eligible canonical project records and preserve validated project links. The configured project-composition policy MAY order or allocate content using job relevance, but selected evidence SHALL NOT erase a canonical project merely because it was not selected as requirement evidence. Each rendered project SHOULD contain one overview and two to four achievement-oriented bullets when sufficient grounded content exists.
 
-The system SHALL persist a complete accepted PDF artifact and its media type, length, and checksum separately from the Markdown artifact, and SHALL expose the persisted bytes through the existing CV artifact boundary without accepting missing or checksum-mismatched PDF content.
+#### Scenario: Relevant project is selected
+- **WHEN** a canonical project has selected support for a target job
+- **THEN** the generator MAY apply the configured relevance ordering or content budget to that project, while preserving other eligible canonical projects as required by the same policy.
 
-#### Scenario: Accepted PDF survives the generation boundary
-- **WHEN** Markdown validation and one-page render proof pass
-- **THEN** the worker SHALL persist the PDF bytes and matching checksum, and a PDF download SHALL return the same bytes with `application/pdf` media type.
+#### Scenario: Project link is invalid
+- **WHEN** a project URL fails the existing URL validation policy
+- **THEN** the serializer SHALL omit the invalid link or fail the configured validation gate and SHALL NOT emit an unvalidated URL.
 
-#### Scenario: PDF persistence is incomplete
-- **WHEN** render proof passes but the PDF bytes are absent or their checksum does not match
-- **THEN** `pdf_status` SHALL remain failed and submission clearance SHALL remain blocked.
+### Requirement: Certifications use canonical records independently
 
-### Requirement: Historic CV artifacts are preserved
+Certifications SHALL use canonical certification records independently of selected job evidence. When records exist, the CV SHALL preserve the name, issuer, issue date, and validated URL when available.
 
-The system SHALL preserve historic CV artifacts, their original preset/schema and status fields, and SHALL not rewrite them during migration to the new contract.
+The section SHALL be omitted when no canonical certifications exist. The generator SHALL NOT fabricate a certification, and an optional focus line SHALL use only grounded certification metadata. The `mycvs_v1` wire heading remains `## Certificates` for compatibility.
 
-#### Scenario: Historic artifact is opened
-- **WHEN** an operator inspects a CV generated under a legacy preset
-- **THEN** the artifact SHALL remain readable with its original metadata and SHALL be distinguishable from a new `mycvs_v1` artifact.
+#### Scenario: Certifications are suppressed by empty selection
+- **WHEN** canonical certifications exist but the selected certification evidence list is empty
+- **THEN** the generator SHALL still render the canonical certification records and SHALL NOT remove the section solely because selected evidence is empty.
 
-### Requirement: External conversion is a pinned integration boundary
+#### Scenario: Candidate has no certifications
+- **WHEN** the canonical profile contains no certification records
+- **THEN** the generator SHALL omit the Certificates section rather than emit `Not provided` or an invented credential.
 
-The system SHALL identify the converter version/commit, stylesheet or template revision, input checksum, and output checksum for every generated PDF, and SHALL bind external conversion to the existing render-proof contract.
+### Requirement: Skills start from canonical grounded skills
 
-Before an external `myCVs` PDF is accepted, its adapter SHALL emit the existing render-proof fields and the registered `renderer_contract_version=mycvs_external_render_v1`. Converter commit and stylesheet/template revision SHALL be recorded separately as provenance.
+Skills SHALL start from canonical grounded skills, normalize aliases and duplicates through the canonical skill resolver, and group them using the configured skill taxonomy. Job requirements MAY influence relevance ordering or an explicit content budget. Lack of selected requirement evidence SHALL NOT automatically remove a canonical skill. A skill appearing only in the job description SHALL NOT enter the CV without profile or attributable evidence support.
 
-#### Scenario: Converter provenance is complete
-- **WHEN** PDF generation completes or fails
-- **THEN** the artifact SHALL include converter provenance, render-proof fields sufficient to reproduce or diagnose the attempt, and an input checksum; the render proof SHALL be verified only when all required identity fields pass, and an output checksum SHALL be present only when a complete PDF artifact exists.
+#### Scenario: Selected evidence contains only one skill
+- **WHEN** selected evidence supports one skill but the canonical profile contains additional grounded skills and languages
+- **THEN** the generator SHALL retain the additional grounded skills and languages according to the configured taxonomy and content budget.
 
-#### Scenario: External renderer contract is recognized
-- **WHEN** an external adapter returns a candidate PDF
-- **THEN** the existing final-artifact predicate SHALL recognize `mycvs_external_render_v1` only when `render_status=pass`, `page_count=1`, `page_fit_status=pass`, valid artifact/content/template checksums, and a render-config fingerprint are present; an unrecognized renderer contract SHALL remain unaccepted.
+#### Scenario: Job-only skill is unsupported
+- **WHEN** a skill appears in the job description but not in the canonical profile or attributable evidence
+- **THEN** the generator SHALL keep it as an unsupported requirement or gap and SHALL NOT render it as a candidate skill.
 
-#### Scenario: Converter is not pinned
-- **WHEN** a release attempts to enable the external converter without a pinned revision and deterministic stylesheet/template
-- **THEN** release readiness SHALL remain blocked and the system SHALL retain the current safe path.
+### Requirement: Section presence is evaluated independently
+
+The generator SHALL evaluate each section from its canonical source records and section policy, not from global evidence selection. Header and Summary are mandatory; Education, Experience, Projects, and Skills are present when their canonical source records exist; Certificates is present only when canonical certifications exist and policy permits.
+
+#### Scenario: Optional section has no canonical records
+- **WHEN** an optional section has no usable canonical records
+- **THEN** the serializer SHALL omit the section and SHALL NOT emit a placeholder heading or placeholder text.
+
+### Requirement: CV composition plan separates sources and claims
+
+Before serialization, the generator SHALL produce a plan containing `baseline_profile_records`, `selected_job_support`, `supported_job_claims`, `unsupported_or_unknown_requirements`, `section_policy`, `records_selected_for_render`, `claims_selected_for_render`, and `audit_metadata`.
+
+#### Scenario: Plan preserves provenance
+- **WHEN** a plan is created from selected evidence
+- **THEN** it SHALL retain source and claim provenance in the plan or audit metadata.
+
+### Requirement: CV composition plan controls all generation passes
+
+`section_priority` and `section_budget` SHALL come from explicit configuration or policy, never solely from selected evidence. The plan SHALL be the single input for creation, adjustment, repair, serialization, and final validation.
+
+#### Scenario: Adjustment preserves the composition contract
+- **WHEN** a bounded adjustment pass runs
+- **THEN** it SHALL preserve canonical records, provenance, and unsupported-requirement gaps.
+
+### Requirement: `mycvs_v1` Markdown follows the maintained schema
+
+The serializer SHALL emit UTF-8 Markdown with LF line endings, empty YAML front matter, the maintained section order, Pandoc `  :` rows, hidden audit metadata, and the checksum rules in `schemas/mycvs_v1.md`.
+
+#### Scenario: Schema grammar is preserved
+- **WHEN** a rendered record has definition-list metadata
+- **THEN** the serializer SHALL emit the maintained title-plus-definition-row grammar.
+
+### Requirement: Recruiter-facing CV content is clean
+
+Visible recruiter-facing content SHALL NOT contain `Not provided`, `N/A`, `Unknown`, `None provided`, equivalent placeholder tokens, evidence IDs, requirement IDs, fingerprints, or internal provenance fields. The audit block SHALL remain outside visible section content.
+
+#### Scenario: Placeholder or provenance leakage is detected
+- **WHEN** visible Markdown contains a placeholder token or internal evidence/provenance identifier
+- **THEN** Markdown validation SHALL fail before PDF conversion and SHALL persist an actionable diagnostic.
+
+#### Scenario: Definition-list grammar is valid
+- **WHEN** Education, Experience, Projects, or Certificates contains a rendered record
+- **THEN** the serialized rows SHALL conform to the maintained title-plus-two-definition-lines grammar expected by the bundled renderer.
+
+### Requirement: Final validation enforces composition invariants
+
+Before PDF acceptance, validation SHALL confirm a grounded Summary, canonical sections when source records exist, omission of empty optional sections, clean visible content, and valid support for visible facts and tailored claims.
+
+#### Scenario: Unsupported requirement is rejected
+- **WHEN** an unsupported requirement appears in candidate content
+- **THEN** validation SHALL fail before PDF acceptance.
+
+### Requirement: Final validation enforces renderer and page-fit gates
+
+The configured strategy SHALL use the bundled `mycvs_v1` renderer. The final PDF SHALL pass the existing render proof and one-page/page-fit gate before PDF status becomes accepted.
+
+#### Scenario: Mixed-evidence regression passes
+- **WHEN** one project claim is selected while canonical employment, certifications, skills, and education are present
+- **THEN** the final CV SHALL retain those canonical sections and SHALL contain no placeholder text or visible evidence IDs.
+
+#### Scenario: Zero-approved-claims regression passes
+- **WHEN** no approved job claims exist but the canonical profile contains usable records
+- **THEN** the generator SHALL produce a factual baseline CV instead of an empty or placeholder-filled document.
+
+#### Scenario: Partial-support regression remains truthful
+- **WHEN** a candidate has a related project or skill but not the exact JD qualification
+- **THEN** the related fact MAY appear when grounded, the missing qualification SHALL remain a gap, and the CV SHALL NOT assert the unsupported qualification.
+
+#### Scenario: One-page PDF rendering succeeds
+- **WHEN** Markdown validation passes and the bundled renderer produces a PDF
+- **THEN** PDF status SHALL become generated only after the PDF is one page, passes page-fit/render proof, and has matching artifact integrity metadata.
+
+### Requirement: CV adjustment and lifecycle outcomes remain bounded and independent
+
+The system SHALL retain the existing bounded adjustment loop and independent generation, review, PDF, and submission-clearance outcomes. A review-required result MAY persist valid Markdown and attempt PDF generation, but submission SHALL remain blocked until review approval. Converter failure SHALL remain a technical failure and SHALL NOT rewrite a valid Markdown artifact as a generic generation success.
+
+#### Scenario: Review-required output remains grounded
+- **WHEN** factual or critical concerns remain after the bounded adjustment budget
+- **THEN** the system SHALL persist the grounded artifacts and review diagnostics, preserve any valid PDF independently, and keep submission clearance blocked.
