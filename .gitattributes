@@ -1,2 +1,4 @@
 docs/superpowers/plans/audit/**/evidence/results/** binary
 data/fitcv-p0-corpus/** text eol=lf
+scripts/renderers/mycvs_v1/build_refined_converter_generic.py -text
+scripts/renderers/mycvs_v1/long-dang-template.css -text
