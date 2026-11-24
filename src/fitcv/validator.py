@@ -779,6 +779,44 @@ def _normalize_analysis_grounding(
     }
 
 
+def _canonical_profile_support_phrases(profile: dict[str, Any] | None) -> list[str]:
+    """Return canonical profile text that remains valid in myCVs composition mode."""
+    if not isinstance(profile, dict):
+        return []
+
+    phrases: list[str] = []
+
+    def add(value: Any) -> None:
+        if isinstance(value, str) and value.strip():
+            phrases.append(value.strip())
+
+    def add_rows(key: str, fields: tuple[str, ...]) -> None:
+        rows = profile.get(key)
+        if not isinstance(rows, list):
+            return
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            for field in fields:
+                value = row.get(field)
+                if isinstance(value, list):
+                    for item in value:
+                        add(item.get("text") if isinstance(item, dict) else item)
+                else:
+                    add(value)
+
+    add_rows(
+        "experiences",
+        ("role", "title", "company", "overview", "summary", "description", "bullets", "achievements", "highlights"),
+    )
+    add_rows(
+        "projects",
+        ("name", "title", "context", "technologies", "overview", "summary", "description", "bullets", "achievements", "highlights"),
+    )
+    add_rows("education", ("degree", "qualification", "institution", "school", "field", "major", "details", "description"))
+    add_rows("certifications", ("name", "title", "issuer", "organization", "details", "description"))
+    return list(dict.fromkeys(phrases))
+
 def _check_selected_employer_grounding(
     cv_text: str,
     selected_employers: set[str],
@@ -847,6 +885,7 @@ def _check_requirement_grounding(
     structured_cv: dict[str, Any] | None = None,
     evidence_payload: list[dict[str, Any]] | None = None,
     selected_evidence_ids: list[str] | None = None,
+    canonical_skills: set[str] | None = None,
 ) -> list[str]:
     violations: list[str] = []
     claimed_skills = _claimed_skill_items(cv_text, structured_cv, config)
@@ -870,6 +909,8 @@ def _check_requirement_grounding(
                 config,
             )
             if not requirement_canonical or claimed_canonical != requirement_canonical:
+                continue
+            if canonical_skills and claimed_canonical in canonical_skills:
                 continue
             supporting_ids = [
                 str(value).strip()
@@ -1271,10 +1312,22 @@ def run_all_validations(
                 )
                 or []
             ),
+            canonical_skills={
+                canonicalize_skill(skill, config)
+                for skill in candidate_skills
+                if str(skill).strip()
+            }
+            if renderer_strategy == "mycvs_v1"
+            else None,
         )
     )
 
     support_surface = _normalize_analysis_grounding(analysis_grounding, config)
+    if renderer_strategy == "mycvs_v1":
+        support_surface["support_phrases"] = list(dict.fromkeys(
+            list(support_surface["support_phrases"])
+            + _canonical_profile_support_phrases(profile)
+        ))
     support_source_summary = {
         "hard_fact_mode": "profile_fallback",
         "soft_claim_mode": "disabled",
@@ -1291,30 +1344,31 @@ def run_all_validations(
             for skill in candidate_skills
             if str(skill).strip()
         }
-        deterministic_grounding_violations.extend(
-            _check_selected_employer_grounding(
-                cv_text,
-                support_surface["employers"],
-                _normalize_lower_set(known_employers),
+        if renderer_strategy != "mycvs_v1":
+            deterministic_grounding_violations.extend(
+                _check_selected_employer_grounding(
+                    cv_text,
+                    support_surface["employers"],
+                    _normalize_lower_set(known_employers),
+                )
             )
-        )
-        deterministic_grounding_violations.extend(
-            _check_selected_project_grounding(
-                cv_text,
-                support_surface["projects"],
-                _normalize_lower_set(known_projects),
+            deterministic_grounding_violations.extend(
+                _check_selected_project_grounding(
+                    cv_text,
+                    support_surface["projects"],
+                    _normalize_lower_set(known_projects),
+                )
             )
-        )
-        deterministic_grounding_violations.extend(
-            _check_selected_skill_grounding(
-                cv_text,
-                support_surface["skills_lower"],
-                support_surface["skills_canonical"],
-                candidate_skills_lower,
-                candidate_skills_canonical,
-                config,
+            deterministic_grounding_violations.extend(
+                _check_selected_skill_grounding(
+                    cv_text,
+                    support_surface["skills_lower"],
+                    support_surface["skills_canonical"],
+                    candidate_skills_lower,
+                    candidate_skills_canonical,
+                    config,
+                )
             )
-        )
         semantic_grounding_violations, soft_support_summary = _check_soft_claim_grounding(
             cv_text,
             support_surface,

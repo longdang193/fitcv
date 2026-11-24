@@ -11,11 +11,15 @@ FitCV currently admits jobs through bounded vector/lexical retrieval before requ
 - Evaluate candidate evidence per requirement occurrence using source-backed evidence and explicit support states: supported, partial, not evidenced, or unknown; confirmed contradictions remain distinguishable from missing evidence.
 - Treat retrieval as an evidence-candidate mechanism only. The final compact explanation may retain up to three complementary evidence items, but that display limit must not determine whether a requirement is covered.
 - Rank jobs by Pareto fronts over required-coverage and duties-coverage proportions. Preferred coverage may break ties but must not dominate weak core coverage.
-- Resolve overflowing fronts with a documented deterministic evidence-aware comparator: evidence validity/provenance, confirmed critical gaps, balanced core support, assessment completeness, preferred coverage, then canonical job identity.
+- Resolve overflowing fronts with the canonical deterministic comparator: evidence validity/provenance descending, confirmed critical gaps ascending, preferred coverage descending, then canonical job identity ascending. Balanced core support and assessment completeness remain diagnostics and do not add precedence to the canonical tie-break.
 - Preserve the existing shortlist capacity of 50 and keep later AI scoring, ranking, CV analysis, CV generation, checkpoints, resume behavior, and operator diagnostics compatible.
 - Add a versioned shortlist strategy and explainable coverage/admission/exclusion fields so old and new decisions remain inspectable during migration.
 - Run the new selector in shadow mode against a shared recall-safe evaluation pool while preserving the legacy production eligibility policy and recording its exclusions separately. Promote only when evidence correctness, permitted unknown rate, exact determinism, Recall@50, latency, and estimated cost all pass documented thresholds.
 - Do not treat missing evidence as proof that a candidate lacks the skill, and do not turn uncertain metadata into a hard rejection unless the rule is a confirmed hard constraint.
+
+## Scope of this refinement
+
+This refinement is limited to functional correctness of requirement-aware shortlist composition: occurrence isolation, compound-clause semantics and provenance, clause-level `S/P/E/U` coverage, canonical Pareto overflow ordering, bounded admission, and decision traceability. It does not authorize promotion-readiness, Recall@50, latency, cost, shadow-rollout, or production-switch validation; those remain separate follow-up work under the existing rollout requirements.
 
 ## Capabilities
 

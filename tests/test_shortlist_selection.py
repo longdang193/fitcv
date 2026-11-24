@@ -125,6 +125,62 @@ def test_requirement_assessment_ids_match_normalized_and_instance_references() -
     assert [item["state"] for item in assessments] == ["S", "S"]
 
 
+def test_authoritative_identity_mismatch_does_not_fallback_to_duplicate_wording() -> None:
+    occurrences = build_requirement_occurrences(
+        {
+            "job_url": "job-duplicate-wording",
+            "requirement_occurrences": [
+                {"occurrence_id": "req-a", "category": "required", "source_wording": "Python"},
+                {"occurrence_id": "req-b", "category": "required", "source_wording": "Python"},
+            ],
+        }
+    )
+
+    assessments = assess_requirement_occurrences(
+        occurrences,
+        [
+            {"occurrence_id": "req-a", "source_wording": "Python", "support_status": "supported"},
+            {"requirement_id": "unrelated", "source_wording": "Python", "support_status": "supported"},
+        ]
+    )
+
+    by_id = {item["occurrence_id"]: item for item in assessments}
+    assert by_id["req-a"]["state"] == "S"
+    assert by_id["req-b"]["state"] == "E"
+
+
+def test_identity_free_wording_fallback_requires_one_top_level_occurrence() -> None:
+    duplicate = build_requirement_occurrences(
+        {
+            "job_url": "job-duplicate-wording",
+            "requirement_occurrences": [
+                {"occurrence_id": "req-a", "category": "required", "source_wording": "Python"},
+                {"occurrence_id": "req-b", "category": "required", "source_wording": "Python"},
+            ],
+        }
+    )
+    duplicate_result = assess_requirement_occurrences(
+        duplicate,
+        [{"source_wording": "Python", "support_status": "supported"}],
+    )
+    assert [item["state"] for item in duplicate_result] == ["E", "E"]
+
+    unique = build_requirement_occurrences(
+        {
+            "job_url": "job-unique-wording",
+            "requirement_occurrences": [
+                {"occurrence_id": "req-a", "category": "required", "source_wording": "Python"},
+                {"occurrence_id": "req-b", "category": "required", "source_wording": "Tableau"},
+            ],
+        }
+    )
+    unique_result = assess_requirement_occurrences(
+        unique,
+        [{"source_wording": "Python", "support_status": "supported"}],
+    )
+    assert [item["state"] for item in unique_result] == ["S", "E"]
+
+
 def test_mandatory_clause_occurrences_preserve_wording_and_source_span() -> None:
     occurrences = build_requirement_occurrences(
         {
@@ -172,6 +228,80 @@ def test_compound_and_or_logic_and_cycle_guard() -> None:
     by_id = {row["occurrence_id"]: row for row in assessments}
     assert by_id["and"]["state"] == "P"
     assert by_id["or"]["state"] == "S"
+
+
+def test_or_provenance_uses_only_the_best_satisfying_alternative() -> None:
+    occurrences = build_requirement_occurrences(
+        {
+            "job_url": "job-or-provenance",
+            "requirement_occurrences": [
+                {"occurrence_id": "or", "category": "required", "source_wording": "A or B", "compound_operator": "OR", "child_occurrence_ids": ["a", "b"]},
+                {"occurrence_id": "a", "category": "required", "source_wording": "A"},
+                {"occurrence_id": "b", "category": "required", "source_wording": "B"},
+            ],
+        }
+    )
+    assessments = assess_requirement_occurrences(
+        occurrences,
+        [
+            {"occurrence_id": "a", "support_status": "supported", "evidence_id": "ev-a", "provenance_grade": 3},
+            {"occurrence_id": "b", "support_status": "partial", "evidence_id": "ev-b", "provenance_grade": 1, "contradiction": True},
+        ]
+    )
+    compound = next(item for item in assessments if item["occurrence_id"] == "or")
+    assert compound["state"] == "S"
+    assert compound["evidence_ids"] == ["ev-a"]
+    assert compound["provenance"] == 3
+    assert compound["contradiction"] is False
+    assert compound["satisfying_child_ids"] == ["a"]
+
+
+def test_coverage_summary_keeps_only_top_level_states_and_child_diagnostics() -> None:
+    occurrences = build_requirement_occurrences(
+        {
+            "job_url": "job-compound-summary",
+            "requirement_occurrences": [
+                {"occurrence_id": "and", "category": "required", "source_wording": "A and B", "compound_operator": "AND", "child_occurrence_ids": ["a", "b"]},
+                {"occurrence_id": "a", "category": "required", "source_wording": "A"},
+                {"occurrence_id": "b", "category": "required", "source_wording": "B"},
+            ],
+        }
+    )
+    summary = build_coverage_summary(
+        assess_requirement_occurrences(
+            occurrences,
+            [
+                {"occurrence_id": "a", "support_status": "supported", "evidence_id": "ev-a"},
+                {"occurrence_id": "b", "support_status": "supported", "evidence_id": "ev-b"},
+            ],
+        )
+    )
+    assert [item["occurrence_id"] for item in summary["states"]] == ["and"]
+    assert {item["occurrence_id"] for item in summary["compound_diagnostics"]} == {"a", "b"}
+    assert summary["total"] == 1
+
+
+def test_tie_break_ignores_balanced_support_and_assessment_completeness() -> None:
+    def make(identity: str, balanced: float, completeness: float) -> dict:
+        return {
+            "canonical_job_identity": identity,
+            "coverage": {
+                "active_core_mask": {"required": True, "duties": False},
+                "required": {"ratio": 1.0},
+                "duties": {"ratio": None},
+                "preferred": {"ratio": 0.5},
+                "balanced_core_support": balanced,
+                "assessment_completeness": completeness,
+                "evidence_validity_provenance": 2,
+                "confirmed_critical_gaps": 0,
+            },
+        }
+
+    result = select_requirement_aware_jobs(
+        [make("b", 1.0, 1.0), make("a", 0.1, 0.0)],
+        capacity=1,
+    )
+    assert result["admitted"][0]["canonical_job_identity"] == "a"
 
 
 @pytest.mark.parametrize(

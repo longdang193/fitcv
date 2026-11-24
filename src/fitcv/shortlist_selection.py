@@ -85,18 +85,42 @@ def _requirement_reference_variants(value: Any) -> set[str]:
     return variants
 
 
-def _matches(item: Mapping[str, Any], occurrence: RequirementOccurrence) -> bool:
-    item_ids = {
-        str(item.get(key) or "").strip()
-        for key in ("occurrence_id", "requirement_id", "source_requirement_id", "requirement_instance_id")
-    }
-    item_ids.discard("")
-    occurrence_ids = {occurrence.occurrence_id, occurrence.source_requirement_id or ""}
-    item_reference_variants = {
+_AUTHORITATIVE_ID_FIELDS = (
+    "occurrence_id",
+    "requirement_id",
+    "source_requirement_id",
+    "requirement_instance_id",
+)
+_RELATED_ID_FIELDS = (
+    "requirement_ids",
+    "canonical_requirement_ids",
+    "supported_requirement_ids",
+)
+
+
+def _authoritative_reference_variants(item: Mapping[str, Any]) -> set[str]:
+    values: list[Any] = [item.get(key) for key in _AUTHORITATIVE_ID_FIELDS]
+    for key in _RELATED_ID_FIELDS:
+        related = item.get(key)
+        if isinstance(related, (list, tuple, set)):
+            values.extend(related)
+        elif related:
+            values.append(related)
+    return {
         variant
-        for item_id in item_ids
-        for variant in _requirement_reference_variants(item_id)
+        for value in values
+        for variant in _requirement_reference_variants(value)
     }
+
+
+def _matches(
+    item: Mapping[str, Any],
+    occurrence: RequirementOccurrence,
+    *,
+    wording_is_unique: bool = False,
+) -> bool:
+    item_reference_variants = _authoritative_reference_variants(item)
+    occurrence_ids = {occurrence.occurrence_id, occurrence.source_requirement_id or ""}
     occurrence_reference_variants = {
         variant
         for occurrence_id in occurrence_ids
@@ -105,17 +129,11 @@ def _matches(item: Mapping[str, Any], occurrence: RequirementOccurrence) -> bool
     }
     if item_reference_variants & occurrence_reference_variants:
         return True
-    related_ids = item.get("requirement_ids") or item.get("canonical_requirement_ids") or item.get("supported_requirement_ids") or []
-    if isinstance(related_ids, (list, tuple, set)):
-        related_reference_variants = {
-            variant
-            for related_id in related_ids
-            for variant in _requirement_reference_variants(related_id)
-        }
-        if related_reference_variants & occurrence_reference_variants:
-            return True
+    # An explicit but unrelated identity is authoritative; wording must not leak it.
+    if item_reference_variants:
+        return False
     wording = _norm(item.get("requirement") or item.get("source_wording"))
-    return bool(wording and wording == _norm(occurrence.source_wording))
+    return bool(wording_is_unique and wording and wording == _norm(occurrence.source_wording))
 
 
 def _combine(states: list[str], operator: str | None) -> str:
@@ -160,6 +178,16 @@ def assess_requirement_occurrences(
         for occurrence in occurrence_list
         for child_id in occurrence.child_occurrence_ids
     }
+    top_level_occurrences = [
+        occurrence
+        for occurrence in occurrence_list
+        if occurrence.occurrence_id not in compound_child_ids
+    ]
+    wording_counts: dict[str, int] = defaultdict(int)
+    for occurrence in top_level_occurrences:
+        wording = _norm(occurrence.source_wording)
+        if wording:
+            wording_counts[wording] += 1
     results: dict[str, dict[str, Any]] = {}
 
     def assess(occurrence: RequirementOccurrence, stack: tuple[str, ...] = ()) -> dict[str, Any]:
@@ -171,22 +199,44 @@ def assess_requirement_occurrences(
         if children:
             child_results = [assess(child, (*stack, occurrence.occurrence_id)) for child in children]
             state = _combine([str(result["state"]) for result in child_results], occurrence.compound_operator)
-            evidence_ids = sorted({evidence_id for result in child_results for evidence_id in result["evidence_ids"]})
-            contradiction = any(result["contradiction"] for result in child_results)
-            provenance = min((int(result["provenance"]) for result in child_results), default=0)
+            if occurrence.compound_operator == "OR":
+                best_rank = max({"S": 3, "P": 2, "E": 1, "U": 1}.get(str(result["state"]), 1) for result in child_results)
+                satisfying_paths = [
+                    result
+                    for result in child_results
+                    if {"S": 3, "P": 2, "E": 1, "U": 1}.get(str(result["state"]), 1) == best_rank
+                ]
+            else:
+                satisfying_paths = child_results
+            evidence_ids = sorted({evidence_id for result in satisfying_paths for evidence_id in result["evidence_ids"]})
+            contradiction = any(result["contradiction"] for result in satisfying_paths)
+            provenance = min((int(result["provenance"]) for result in satisfying_paths), default=0)
             result = {
                 "occurrence_id": occurrence.occurrence_id,
                 "category": occurrence.category,
                 "state": state,
                 "evidence_ids": evidence_ids,
                 "contradiction": contradiction,
-                "qualifier_failure": any(result["qualifier_failure"] for result in child_results),
+                "qualifier_failure": any(result["qualifier_failure"] for result in satisfying_paths),
                 "provenance": provenance,
                 "compound_child": occurrence.occurrence_id in compound_child_ids,
+                "compound_operator": occurrence.compound_operator,
+                "satisfying_child_ids": [result["occurrence_id"] for result in satisfying_paths],
             }
             results[occurrence.occurrence_id] = result
             return result
-        matches = [item for item in evidence_list if _matches(item, occurrence)]
+        matches = [
+            item
+            for item in evidence_list
+            if _matches(
+                item,
+                occurrence,
+                wording_is_unique=(
+                    occurrence.occurrence_id not in compound_child_ids
+                    and wording_counts.get(_norm(occurrence.source_wording), 0) == 1
+                ),
+            )
+        ]
         states = [_state_for_evidence(item) for item in matches]
         state = _combine(states, None) if matches else ("E" if assessment_complete else "U")
         result = {
@@ -222,13 +272,14 @@ def _category_summary(results: list[Mapping[str, Any]], category: str) -> dict[s
 
 def build_coverage_summary(results: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     rows = [dict(result) for result in results]
+    top_level_rows = [row for row in rows if not row.get("compound_child")]
+    compound_diagnostics = [row for row in rows if row.get("compound_child")]
     categories = {category: _category_summary(rows, category) for category in ("required", "duties", "preferred")}
     active_core = [categories[category] for category in ("required", "duties") if categories[category]["active"]]
     active_results = [
         result
-        for result in rows
+        for result in top_level_rows
         if str(result.get("category") or "") in {"required", "duties", "preferred"}
-        and not result.get("compound_child")
     ]
     total = len(active_results)
     supported = sum(str(result.get("state")) == "S" for result in active_results)
@@ -243,15 +294,16 @@ def build_coverage_summary(results: Iterable[Mapping[str, Any]]) -> dict[str, An
         "balanced_core_support": min((float(metric["ratio"]) for metric in active_core), default=None),
         "assessment_completeness": ((supported + partial + not_evidenced) / total if total else 1.0),
         "unknown_rate": (unknown / total if total else 0.0),
-        "evidence_validity_provenance": min((int(result.get("provenance") or 0) for result in rows if str(result.get("category") or "") in {"required", "duties"}), default=0),
+        "evidence_validity_provenance": min((int(result.get("provenance") or 0) for result in top_level_rows if str(result.get("category") or "") in {"required", "duties"}), default=0),
         "confirmed_critical_gaps": len({
             str(result.get("occurrence_id"))
-            for result in rows
+            for result in top_level_rows
             if str(result.get("category") or "") in {"required", "duties"}
             and (result.get("contradiction") or result.get("qualifier_failure"))
         }),
         "total": total,
-        "states": rows,
+        "states": top_level_rows,
+        "compound_diagnostics": compound_diagnostics,
     }
 
 
@@ -286,13 +338,10 @@ def build_pareto_fronts(rows: Iterable[Mapping[str, Any]]) -> list[list[dict[str
 
 def _sort_key(row: Mapping[str, Any]) -> tuple[Any, ...]:
     coverage = row.get("coverage") or row.get("coverage_summary") or {}
-    balanced = coverage.get("balanced_core_support")
     preferred = _ratio(coverage, "preferred")
     return (
         -int(coverage.get("evidence_validity_provenance") or 0),
         int(coverage.get("confirmed_critical_gaps") or 0),
-        -(float(balanced) if balanced is not None else -1.0),
-        -float(coverage.get("assessment_completeness") or 0.0),
         -(preferred if preferred is not None else -1.0),
         str(row.get("canonical_job_identity") or row.get("job_url") or ""),
     )

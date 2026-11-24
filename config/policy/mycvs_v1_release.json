@@ -1,0 +1,8 @@
+{
+  "schema_version": "mycvs_renderer_release.v1",
+  "renderer_contract_version": "mycvs_external_render_v1",
+  "proof_version": "mycvs_external_render_v1",
+  "release_id": "bundled-2026-11-24",
+  "converter_revision": "7fa2257b670d003598826e4803e98518b2eeba8304b312db1022afe4fa56a490",
+  "stylesheet_revision": "cf64de40c8c051ccc01e820bd2104d619a5e3eed7b7c1b2bd8a6bf9958b3bc3c"
+}

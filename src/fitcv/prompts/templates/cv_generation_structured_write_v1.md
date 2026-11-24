@@ -22,10 +22,12 @@ $analysis_summary
 ## Constraints
 $constraints
 
-## Allow-List Rules (Hard)
-- Skills section MUST contain only skills from **Allowed Skills (selected-evidence only)**. Do not add profile-only skills.
-- Certifications section MUST be omitted when **Allowed Certifications (selected-evidence only)** is `(none)`.
-- Never invent certifications or training.
+## Evidence and Profile Rules
+- In legacy selected-evidence mode, the allowed-skill and allowed-certification lists constrain the corresponding sections.
+- In myCVs composition mode, the canonical candidate profile is the factual baseline for the header, education, experience, projects, certifications, and skills; selected evidence controls job-specific relevance, emphasis, and claim support.
+- Never invent certifications, training, skills, employment, education, projects, or job-specific claims.
+- Never expose evidence IDs, provenance, audit metadata, or implementation details in recruiter-facing content.
+- Omit genuinely empty optional sections instead of emitting placeholders.
 
 ## Markdown Output Standard
 - The persisted markdown renderer expects: `# Candidate Name`, optional subtitle line, then `##` section headings.

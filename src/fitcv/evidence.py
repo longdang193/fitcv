@@ -3700,6 +3700,8 @@ def _build_retrieve_evidence_bundle_payload(
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in selected_evidence],
         "canonical_evidence_ids": [str(item.get("evidence_id") or "") for item in canonical_items],
         "retrieved_evidence_ids": [str(item.get("evidence_id") or "") for item in merged_pool],
+        # Coverage assessment must see the retrieved pool; compact selection is separate.
+        "assessment_candidates": [dict(item) for item in merged_pool],
         "channel_counts": {
             channel: len(channel_pools.get(channel, []))
             for channel in RETRIEVAL_CHANNELS

@@ -73,6 +73,7 @@ from fitcv.agentic_cv_generation import (
 from fitcv.cv_generator import final_artifact_acceptance_passes
 from fitcv_cp.run_artifact_contracts import render_proof_is_verified
 from fitcv.candidate import (
+    canonical_candidate_checksum,
     converge_candidate_profile_for_runtime,
     flatten_rankable_skills,
     flatten_skills,
@@ -182,6 +183,7 @@ from fitcv.late_stage_contract import (
 )
 from fitcv.ranking_contract import (
     AI_ONLY_RANKING_ORDER_VERSION,
+    RANKING_SCORE_CONTRACT_VERSION,
     SCORE_STATUS_INVALID,
     SCORE_STATUS_UNSCORED,
     SCORE_STATUS_VALID,
@@ -2097,18 +2099,36 @@ def _resolve_layer4_fit(
 def _build_ranking_cv_handoff_for_analysis(
     job: dict[str, Any],
     profile: dict[str, Any],
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     profile_revision = runtime_profile_value(profile, "revision")
+    if not str(profile_revision or "").strip() and profile:
+        profile_checksum = runtime_profile_value(profile, "checksum") or canonical_candidate_checksum(profile)
+        profile_revision = f"checksum:{profile_checksum}"
+    ranking_order_version = str(
+        job.get("ranking_order_version") or AI_ONLY_RANKING_ORDER_VERSION
+    ).strip()
+    ranking_policy_version = str(
+        job.get("ranking_policy_version")
+        or (config or {}).get("ranking_policy", {}).get("policy_version")
+        or ""
+    ).strip()
+    ranking_contract_version = str(
+        job.get("ranking_contract_version") or RANKING_SCORE_CONTRACT_VERSION
+    ).strip()
     if (
         not str(profile_revision or "").strip()
         or job.get("baseline_rank") is None
         or job.get("baseline_fit") is None
-        or not str(job.get("ranking_order_version") or "").strip()
-        or not str(job.get("ranking_policy_version") or "").strip()
+        or not ranking_order_version
+        or not ranking_policy_version
     ):
         return None
     handoff_input = {
         **job,
+        "ranking_order_version": ranking_order_version,
+        "ranking_policy_version": ranking_policy_version,
+        "ranking_contract_version": ranking_contract_version,
         "job_qualifiers": job.get("job_qualifiers") or {
             key: job.get(key)
             for key in ("title", "job_title", "seniority", "job_family", "location_type")
@@ -4501,7 +4521,7 @@ def run_pipeline(
                     analysis_input: tuple[dict[str, Any], dict[str, Any] | None],
                 ) -> dict[str, Any]:
                     job, reusable_record = analysis_input
-                    ranking_cv_handoff = _build_ranking_cv_handoff_for_analysis(job, profile)
+                    ranking_cv_handoff = _build_ranking_cv_handoff_for_analysis(job, profile, config)
                     return dict(
                         analyze_ranked_job(
                             job,

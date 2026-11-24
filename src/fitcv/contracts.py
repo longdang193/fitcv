@@ -63,6 +63,9 @@ class Stage6To7Handoff:
     stage5_evidence: tuple[Mapping[str, Any], ...]
     qualifiers: tuple[Mapping[str, Any], ...]
     gaps: tuple[Mapping[str, Any], ...]
+    confirmed_gaps: tuple[Mapping[str, Any], ...]
+    confirmed_unknowns: tuple[Mapping[str, Any], ...]
+    clause_coverage: Mapping[str, Any]
     score_status: str
     ai_score: float | None
     baseline_rank: int | None
@@ -86,6 +89,9 @@ class Stage6To7Handoff:
             "stage5_evidence": [dict(item) for item in self.stage5_evidence],
             "qualifiers": [dict(item) for item in self.qualifiers],
             "gaps": [dict(item) for item in self.gaps],
+            "confirmed_gaps": [dict(item) for item in self.confirmed_gaps],
+            "confirmed_unknowns": [dict(item) for item in self.confirmed_unknowns],
+            "clause_coverage": dict(self.clause_coverage),
             "score_status": self.score_status,
             "ai_score": self.ai_score,
             "baseline_rank": self.baseline_rank,
@@ -129,6 +135,9 @@ class Stage6To7Handoff:
             stage5_evidence=_mappings("stage5_evidence"),
             qualifiers=_mappings("qualifiers"),
             gaps=_mappings("gaps"),
+            confirmed_gaps=_mappings("confirmed_gaps") or _mappings("gaps"),
+            confirmed_unknowns=_mappings("confirmed_unknowns") or _mappings("unknowns"),
+            clause_coverage=dict(raw.get("clause_coverage") or raw.get("coverage") or {}),
             score_status=str(raw.get("score_status") or "unscored"),
             ai_score=normalized_score,
             baseline_rank=int(raw["baseline_rank"]) if raw.get("baseline_rank") is not None else None,
@@ -154,6 +163,9 @@ def build_stage_6_to_7_handoff(
     stage5_evidence = row.get("stage5_evidence") or row.get("evidence") or []
     qualifiers = row.get("qualifiers") or row.get("requirement_qualifiers") or []
     gaps = row.get("gaps") or row.get("requirement_gaps") or []
+    confirmed_gaps = row.get("confirmed_gaps") or gaps
+    confirmed_unknowns = row.get("confirmed_unknowns") or row.get("unknowns") or []
+    clause_coverage = row.get("clause_coverage") or row.get("coverage") or row.get("coverage_summary") or {}
     handoff = Stage6To7Handoff(
         job_identity=str(row.get("job_identity") or row.get("job_url") or row.get("raw_job_fingerprint") or ""),
         job_url=str(row.get("job_url") or ""),
@@ -162,6 +174,9 @@ def build_stage_6_to_7_handoff(
         stage5_evidence=tuple(item for item in stage5_evidence if isinstance(item, Mapping)),
         qualifiers=tuple(item for item in qualifiers if isinstance(item, Mapping)),
         gaps=tuple(item for item in gaps if isinstance(item, Mapping)),
+        confirmed_gaps=tuple(item for item in confirmed_gaps if isinstance(item, Mapping)),
+        confirmed_unknowns=tuple(item for item in confirmed_unknowns if isinstance(item, Mapping)),
+        clause_coverage=dict(clause_coverage) if isinstance(clause_coverage, Mapping) else {},
         score_status=str(row.get("score_status") or "unscored"),
         ai_score=float(row["ai_score"]) if row.get("ai_score") is not None else None,
         baseline_rank=int(row["baseline_rank"]) if row.get("baseline_rank") is not None else None,

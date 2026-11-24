@@ -57,8 +57,16 @@ def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     return bool(stage_block.get("enabled", True))
 
 
-def _stage5_evidence_payload(row: Mapping[str, Any], evidence_items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """Carry the admission evidence into Stage 6 without recomputing it."""
+def _stage5_evidence_payload(
+    row: Mapping[str, Any], evidence_items: list[dict[str, Any]]
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, Any],
+]:
+    """Carry admission evidence and final clause outcomes into Stage 6."""
     coverage = row.get("coverage") or row.get("coverage_summary") or {}
     source_items = evidence_items or [dict(item) for item in row.get("requirement_coverage") or [] if isinstance(item, Mapping)]
     evidence = [dict(item) for item in source_items if isinstance(item, Mapping)]
@@ -66,13 +74,19 @@ def _stage5_evidence_payload(row: Mapping[str, Any], evidence_items: list[dict[s
         item for item in evidence
         if str(item.get("qualifier_status") or "").strip()
     ]
+    states = coverage.get("states") or []
     gaps = [
         dict(state)
-        for state in coverage.get("states") or []
+        for state in states
         if isinstance(state, Mapping)
-        and (str(state.get("state") or "") in {"E", "U"} or state.get("contradiction") or state.get("qualifier_failure"))
+        and (str(state.get("state") or "") == "E" or state.get("contradiction") or state.get("qualifier_failure"))
     ]
-    return evidence, qualifiers, gaps
+    unknowns = [
+        dict(state)
+        for state in states
+        if isinstance(state, Mapping) and str(state.get("state") or "") == "U"
+    ]
+    return evidence, qualifiers, gaps, unknowns, dict(coverage)
 
 def _execute_requirement_aware_shortlist_stage(
     *,
@@ -100,14 +114,18 @@ def _execute_requirement_aware_shortlist_stage(
             bundle = retrieve_evidence_bundle(
                 profile,
                 job,
-                max(3, len(evidence_projection.get("items") or [])),
+                3,
                 config=config,
                 evidence_projection=evidence_projection,
             )
-            assessment_items = [
-                *(bundle.get("selected_evidence") or []),
-                *(bundle.get("unselected_top_candidates") or []),
-            ]
+            assessment_items = list(
+                bundle.get("assessment_candidates")
+                or bundle.get("merged_pool")
+                or [
+                    *(bundle.get("selected_evidence") or []),
+                    *(bundle.get("unselected_top_candidates") or []),
+                ]
+            )
             rows: list[dict[str, Any]] = []
             for item in assessment_items:
                 evidence_id = str(item.get("evidence_id") or "").strip()
@@ -149,7 +167,7 @@ def _execute_requirement_aware_shortlist_stage(
     admitted = []
     for row in decision["admitted"]:
         identity = str(row.get("canonical_job_identity") or row.get("job_url") or "").strip()
-        stage5_evidence, qualifiers, gaps = _stage5_evidence_payload(
+        stage5_evidence, qualifiers, gaps, unknowns, clause_coverage = _stage5_evidence_payload(
             row,
             list(evidence_by_job.get(identity) or []),
         )
@@ -173,6 +191,10 @@ def _execute_requirement_aware_shortlist_stage(
                 "stage5_evidence": stage5_evidence,
                 "qualifiers": qualifiers,
                 "gaps": gaps,
+                "unknowns": unknowns,
+                "confirmed_gaps": gaps,
+                "confirmed_unknowns": unknowns,
+                "clause_coverage": clause_coverage,
             }
         )
     if persist:
@@ -1280,14 +1302,18 @@ def _execute_requirement_aware_shortlist_stage(
             bundle = retrieve_evidence_bundle(
                 profile,
                 job,
-                max(3, len(evidence_projection.get("items") or [])),
+                3,
                 config=config,
                 evidence_projection=evidence_projection,
             )
-            assessment_items = [
-                *(bundle.get("selected_evidence") or []),
-                *(bundle.get("unselected_top_candidates") or []),
-            ]
+            assessment_items = list(
+                bundle.get("assessment_candidates")
+                or bundle.get("merged_pool")
+                or [
+                    *(bundle.get("selected_evidence") or []),
+                    *(bundle.get("unselected_top_candidates") or []),
+                ]
+            )
             rows: list[dict[str, Any]] = []
             for item in assessment_items:
                 evidence_id = str(item.get("evidence_id") or "").strip()
@@ -1348,6 +1374,11 @@ def _execute_requirement_aware_shortlist_stage(
     ).hexdigest()
     admitted = []
     for row in decision["admitted"]:
+        identity = str(row.get("canonical_job_identity") or row.get("job_url") or "").strip()
+        stage5_evidence, qualifiers, gaps, unknowns, clause_coverage = _stage5_evidence_payload(
+            row,
+            list(evidence_by_job.get(identity) or []),
+        )
         admitted.append(
             {
                 **row,
@@ -1356,6 +1387,22 @@ def _execute_requirement_aware_shortlist_stage(
                 "admission_capacity": decision["admission_capacity"],
                 "shortlist_strategy": "core_pareto_evidence_v1",
                 "eligibility_policy": resolve_shortlist_policy(config, strategy="core_pareto_evidence_v1"),
+                "stage5_admission": {
+                    "admitted": True,
+                    "status": "admitted",
+                    "source": "stage5_shortlist",
+                    "strategy": "core_pareto_evidence_v1",
+                    "admission_rank": row.get("admission_rank"),
+                    "pareto_front": row.get("pareto_front"),
+                    "decision_fingerprint": decision.get("decision_fingerprint"),
+                },
+                "stage5_evidence": stage5_evidence,
+                "qualifiers": qualifiers,
+                "gaps": gaps,
+                "unknowns": unknowns,
+                "confirmed_gaps": gaps,
+                "confirmed_unknowns": unknowns,
+                "clause_coverage": clause_coverage,
             }
         )
     ledger_rows = [

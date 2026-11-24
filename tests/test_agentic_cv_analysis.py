@@ -253,6 +253,28 @@ def test_numeric_experience_bounds_use_candidate_years_for_gate(mode: str) -> No
     assert result["status"] == "ready_for_generation"
 
 
+def test_zero_default_experience_minimum_does_not_create_fit_gate() -> None:
+    profile = {**_profile()}
+    profile.pop("years_experience", None)
+    job = {
+        **_job(),
+        "years_experience_min": 0,
+        "years_experience_max": None,
+    }
+
+    result = analyze_ranked_job(job, profile, _config())
+
+    assert result["status"] == "ready_for_generation"
+    assert not any(
+        row["requirement_id"] == "professional_experience:years"
+        for row in result["requirement_coverage"]
+    )
+    assert result["experience_evidence_summary"]["professional_experience"] == {
+        "verified_requirement_ids": [],
+        "unverified_requirement_ids": [],
+    }
+
+
 def test_numeric_experience_resolution_verifies_without_canonical_skill() -> None:
     job = {
         "required_skills": [],

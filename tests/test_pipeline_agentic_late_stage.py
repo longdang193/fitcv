@@ -22,7 +22,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from fitcv import agentic_cv_generation as generation_module
-from fitcv.candidate import converge_candidate_profile_for_runtime
+from fitcv.candidate import canonical_candidate_checksum, converge_candidate_profile_for_runtime
 from fitcv.pipeline import (
     _build_ranking_cv_handoff_for_analysis,
     _is_persistable_cv_generation_result,
@@ -1119,6 +1119,47 @@ def test_ranking_handoff_uses_revision_after_runtime_profile_convergence() -> No
 
     assert handoff is not None
     assert handoff["candidate_profile_revision"] == "profile-v1"
+
+
+def test_ranking_handoff_uses_canonical_profile_checksum_when_revision_is_absent() -> None:
+    profile = converge_candidate_profile_for_runtime(_minimal_profile())
+    job = {
+        **_minimal_job(),
+        "raw_job_fingerprint": "job-fingerprint",
+        "baseline_rank": 1,
+        "baseline_fit": 0.85,
+        "score_status": "valid",
+        "job_qualifiers": {"title": "Data Engineer"},
+        "ranking_order_version": "order-v1",
+        "ranking_policy_version": "policy-v1",
+        "ranking_contract_version": "ranking_score_v1",
+    }
+
+    handoff = _build_ranking_cv_handoff_for_analysis(job, profile)
+
+    assert handoff is not None
+    assert handoff["candidate_profile_revision"] == (
+        f"checksum:{canonical_candidate_checksum(profile)}"
+    )
+
+
+def test_ranking_handoff_uses_current_contract_defaults_when_rank_row_omits_versions() -> None:
+    profile = converge_candidate_profile_for_runtime(_minimal_profile())
+    job = {
+        **_minimal_job(),
+        "raw_job_fingerprint": "job-fingerprint",
+        "baseline_rank": 1,
+        "baseline_fit": 0.85,
+        "score_status": "valid",
+        "job_qualifiers": {"title": "Data Engineer"},
+    }
+
+    handoff = _build_ranking_cv_handoff_for_analysis(job, profile, _minimal_config())
+
+    assert handoff is not None
+    assert handoff["ranking_order_version"] == "ai-only-finite-ai-score-fingerprint-url-v1"
+    assert handoff["ranking_policy_version"] == "ranking-v2"
+    assert handoff["ranking_contract_version"] == "ranking_score_v1"
 
 
 def _minimal_analysis_record() -> dict:

@@ -135,7 +135,15 @@ def _runtime_project_root() -> Path:
     return Path(frozen_root) if frozen_root else Path(__file__).resolve().parents[2]
 
 
-_BUNDLED_MYCVS_RENDERER_DIR = _runtime_project_root() / "scripts" / "renderers" / "mycvs_v1"
+def _bundled_resource_root() -> Path:
+    runtime_root = _runtime_project_root()
+    renderer_dir = runtime_root / "scripts" / "renderers" / "mycvs_v1"
+    if (
+        (renderer_dir / "build_refined_converter_generic.py").is_file()
+        and (runtime_root / "config" / "policy" / "mycvs_v1_release.json").is_file()
+    ):
+        return runtime_root
+    return Path(__file__).resolve().parents[2]
 
 
 def _stable_render_fingerprint(value: Any) -> str:
@@ -312,7 +320,8 @@ def _format_education_lines(profile: dict[str, Any] | None) -> list[str]:
         if field:
             line = f"{line} ({field})"
         if start or end:
-            line = f"{line} [{ '\u2013'.join(part for part in (start, end) if part) }]"
+            date_range = "\u2013".join(part for part in (start, end) if part)
+            line = f"{line} [{date_range}]"
         lines.append(line)
     return lines
 
@@ -966,28 +975,33 @@ def _build_generation_prompt_context(
             "For the Experience section, summarize or combine grounded facts where helpful."
         )
     if evidence:
-        constraint_lines.append(
-            "Stay within the selected evidence bundle for this job."
-        )
-        constraint_lines.append(
-            "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
-        )
         if composition_mode:
             constraint_lines.append(
-                "Selected evidence controls job-specific emphasis and claim support, but canonical profile facts remain eligible even when not selected."
+                "Selected evidence controls job-specific relevance, emphasis, and claim support; canonical profile facts remain eligible even when not selected."
             )
-        elif has_approved_job_claims:
             constraint_lines.append(
-                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
-            )
-        elif allow_baseline_profile:
-            constraint_lines.append(
-                "Use baseline profile records for factual sections, and use the selected evidence bundle only to tailor job-specific positioning; do not invent facts."
+                "Do not invent job-specific claims or present evidence IDs, provenance, or internal metadata in the recruiter-facing CV."
             )
         else:
             constraint_lines.append(
-                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+                "Stay within the selected evidence bundle for this job."
             )
+            constraint_lines.append(
+                "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
+            )
+        if not composition_mode:
+            if has_approved_job_claims:
+                constraint_lines.append(
+                    "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+                )
+            elif allow_baseline_profile:
+                constraint_lines.append(
+                    "Use baseline profile records for factual sections, and use the selected evidence bundle only to tailor job-specific positioning; do not invent facts."
+                )
+            else:
+                constraint_lines.append(
+                    "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+                )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
@@ -2922,11 +2936,12 @@ def _external_renderer_config(config: dict[str, Any]) -> dict[str, str]:
     if not isinstance(external, dict):
         external = {}
     enabled = external.get("enabled") or os.environ.get("FITCV_MYCVS_EXTERNAL_RENDER_ENABLED")
+    bundled_dir = _bundled_resource_root() / "scripts" / "renderers" / "mycvs_v1"
     bundled = {
-        "converter_path": _BUNDLED_MYCVS_RENDERER_DIR / "build_refined_converter_generic.py",
-        "stylesheet_path": _BUNDLED_MYCVS_RENDERER_DIR / "long-dang-template.css",
-        "font_regular_path": _BUNDLED_MYCVS_RENDERER_DIR / "fonts" / "Inter-Regular.ttf",
-        "font_bold_path": _BUNDLED_MYCVS_RENDERER_DIR / "fonts" / "Inter-Bold.ttf",
+        "converter_path": bundled_dir / "build_refined_converter_generic.py",
+        "stylesheet_path": bundled_dir / "long-dang-template.css",
+        "font_regular_path": bundled_dir / "fonts" / "Inter-Regular.ttf",
+        "font_bold_path": bundled_dir / "fonts" / "Inter-Bold.ttf",
     }
     use_bundled = str(enabled or "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -2956,7 +2971,7 @@ def _external_renderer_config(config: dict[str, Any]) -> dict[str, str]:
         or os.environ.get("FITCV_MYCVS_STYLESHEET_REVISION"),
         "release_manifest_path": external.get("release_manifest_path")
         or os.environ.get("FITCV_MYCVS_RELEASE_MANIFEST_PATH")
-        or str(_runtime_project_root() / "config" / "policy" / "mycvs_v1_release.json"),
+        or str(_bundled_resource_root() / "config" / "policy" / "mycvs_v1_release.json"),
     }
     return {key: str(value).strip() for key, value in values.items() if str(value or "").strip()}
 
