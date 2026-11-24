@@ -95,6 +95,23 @@ def test_valid_stage6_handoff_allows_final_top15_job_into_generation() -> None:
     assert result["candidate_profile_revision"] == "7"
 
 
+def test_incomplete_stage6_handoff_is_technical_failure_and_not_generation_eligible() -> None:
+    job, profile = _stage6_handoff_job()
+    job["stage6_to_stage7_handoff"].pop("candidate_profile_revision", None)
+
+    result = analyze_ranked_job(job, profile, _config())
+
+    assert result["status"] == "handoff_contract_failed"
+    assert result["decision_chain"]["cv_analysis"] == {
+        "status": "handoff_contract_failed",
+        "completed": False,
+    }
+    assert result["decision_chain"]["cv_generation"] == {
+        "status": "not_attempted",
+        "attempted": False,
+    }
+
+
 @pytest.mark.parametrize(
     "mutate",
     [

@@ -86,6 +86,7 @@ CV_ANALYSIS_FINAL_STATUSES: Final[frozenset[str]] = frozenset(
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
         CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
         CV_ANALYSIS_FAILED_STATUS,
+        CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     }
 )
 CV_DEBUG_ANALYSIS_OMISSION_STATUSES: Final[frozenset[str]] = frozenset(
@@ -93,6 +94,7 @@ CV_DEBUG_ANALYSIS_OMISSION_STATUSES: Final[frozenset[str]] = frozenset(
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
         CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
         CV_ANALYSIS_FAILED_STATUS,
+        CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     }
 )
 
@@ -304,6 +306,7 @@ def cv_generation_status_for_analysis_status(status: str) -> str:
         CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
         CV_ANALYSIS_FAILED_STATUS,
+        CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     }:
         return "not_attempted"
     return "failed"

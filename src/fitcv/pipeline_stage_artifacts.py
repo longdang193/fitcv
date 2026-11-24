@@ -18,6 +18,7 @@ lifecycle:
 from typing import Any, Callable, Protocol, cast
 
 from fitcv.candidate import runtime_profile_value
+from fitcv.late_stage_contract import CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS
 from fitcv.ranking_contract import (
     RANKING_CV_HANDOFF_VERSION,
     RANKING_DECISION_ENVELOPE_VERSION,
@@ -881,9 +882,22 @@ def build_cv_analysis_stage_block(
 ) -> dict[str, Any]:
     if not cv_analysis_reached:
         return stage_block_not_reached_builder("cv_analysis")
+    handoff_failures = [
+        record
+        for record in cv_analysis_results
+        if str(record.get("status") or "") == CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS
+    ]
+    failure_codes = [
+        str(
+            (record.get("technical_failure") or record.get("error") or {}).get("failure_code")
+            or ""
+        ).strip()
+        for record in handoff_failures
+    ]
+    failure_codes = [code for code in failure_codes if code]
     return stage_block_builder(
         stage_id="cv_analysis",
-        status="completed",
+        status="failed" if handoff_failures else "completed",
         input_counts={"ranked_jobs": len(ranked)},
         output_counts={
             "blocked_by_reranker_fit": sum(
@@ -906,9 +920,12 @@ def build_cv_analysis_stage_block(
                 for record in cv_analysis_results
                 if str(record.get("status") or "") == failed_status
             ),
+            "handoff_contract_failed": len(handoff_failures),
         },
         decision_summary={
             "analysis_records_captured": len(cv_analysis_results),
+            "handoff_contract_failed": len(handoff_failures),
+            "failure_code": failure_codes[0] if failure_codes else None,
             "quality_metrics": cv_analysis_quality_metrics,
             "reuse_metrics": cv_analysis_reuse_metrics,
             "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),

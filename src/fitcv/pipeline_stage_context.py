@@ -136,6 +136,7 @@ class PipelineState:
     ranking_inputs: list[dict[str, Any]] = field(default_factory=list)
     ranked: list[dict[str, Any]] = field(default_factory=list)
     cv_analysis_results: list[dict[str, Any]] = field(default_factory=list)
+    cv_analysis_reached: bool = False
     cv_results: list[dict[str, Any]] = field(default_factory=list)
     cv_generation_debug_records: list[dict[str, Any]] = field(default_factory=list)
     legacy_checkpoint_adaptation_count: int = 0
@@ -196,6 +197,9 @@ class PipelineState:
                 if isinstance(value, str) and value.strip():
                     state.completed_stage = value.strip()
                 continue
+            if key == "cv_analysis_reached":
+                state.cv_analysis_reached = value is True
+                continue
             if isinstance(value, list):
                 if key in {"ranking_inputs", "ranked"}:
                     rows: list[dict[str, Any]] = []
@@ -250,6 +254,7 @@ class PipelineState:
             "ranking_inputs",
             "ranked",
             "cv_analysis_results",
+            "cv_analysis_reached",
             "cv_results",
             "cv_generation_debug_records",
             "resume_contract",
@@ -289,6 +294,7 @@ class PipelineState:
             "ranking_inputs": list(self.ranking_inputs),
             "ranked": list(self.ranked),
             "cv_analysis_results": list(self.cv_analysis_results),
+            "cv_analysis_reached": self.cv_analysis_reached,
             "cv_results": list(self.cv_results),
             "cv_generation_debug_records": list(self.cv_generation_debug_records),
             "legacy_checkpoint_adaptation_count": self.legacy_checkpoint_adaptation_count,

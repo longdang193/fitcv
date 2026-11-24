@@ -634,11 +634,20 @@ def build_decision_chain(
         },
         "cv_analysis": {
             "status": cv_analysis_status,
-            "completed": cv_analysis_status not in {"not_run", "failed", BLOCKED_BY_RERANKER_STATUS},
+            "completed": cv_analysis_status not in {
+                "not_run",
+                "failed",
+                BLOCKED_BY_RERANKER_STATUS,
+                HANDOFF_CONTRACT_FAILED_STATUS,
+            },
         },
         "cv_generation": {
             "status": cv_status,
-            "attempted": cv_status not in {"not_applicable", "not_attempted", SKIPPED_FIT_GATE_STATUS},
+            "attempted": cv_status not in {
+                "not_applicable",
+                "not_attempted",
+                SKIPPED_FIT_GATE_STATUS,
+            },
         },
         "validation": {
             "status": validation_status_for_cv_status(cv_status),
@@ -1491,6 +1500,20 @@ def analyze_ranked_job(
     job = dict(job)
     if isinstance(ranking_cv_handoff, Mapping):
         job["ranking_cv_handoff"] = dict(ranking_cv_handoff)
+    stage6_profile = profile
+    authoritative_stage6_handoff = _valid_stage6_handoff(job, stage6_profile)
+    handoff_payload_present = isinstance(job.get("stage6_to_stage7_handoff"), Mapping)
+    handoff_expected = (
+        handoff_payload_present
+        or str(job.get("stage5_admission", {}).get("admitted") if isinstance(job.get("stage5_admission"), Mapping) else "").lower() == "true"
+        or (isinstance(job.get("final_rank"), int) and 1 <= int(job.get("final_rank") or 0) <= 15)
+    )
+    if handoff_expected and authoritative_stage6_handoff is None:
+        return _handoff_failure_record(
+            job,
+            stage6_profile,
+            "handoff_contract_invalid" if handoff_payload_present else "handoff_missing",
+        )
     raw_requirement_resolutions = [
         dict(item)
         for item in list(config.get("_requirement_resolutions") or [])
@@ -1524,7 +1547,6 @@ def analyze_ranked_job(
         profile_years_experience = profile.get("years_experience")
         candidate_profile_id = str(profile.get("candidate_profile_id") or "")
         candidate_profile_revision = str(profile.get("revision") or "")
-        stage6_profile = profile
         profile = converge_candidate_profile_for_runtime(profile)
         profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(
@@ -1557,19 +1579,6 @@ def analyze_ranked_job(
                     "stage": "ranking",
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
                 },
-            )
-        authoritative_stage6_handoff = _valid_stage6_handoff(job, stage6_profile)
-        handoff_payload_present = isinstance(job.get("stage6_to_stage7_handoff"), Mapping)
-        handoff_expected = (
-            handoff_payload_present
-            or str(job.get("stage5_admission", {}).get("admitted") if isinstance(job.get("stage5_admission"), Mapping) else "").lower() == "true"
-            or (isinstance(job.get("final_rank"), int) and 1 <= int(job.get("final_rank") or 0) <= 15)
-        )
-        if handoff_expected and authoritative_stage6_handoff is None:
-            return _handoff_failure_record(
-                job,
-                stage6_profile,
-                "handoff_contract_invalid" if handoff_payload_present else "handoff_missing",
             )
         resolved_evidence_projection = evidence_projection or build_evidence_projection(profile)
         loose_experience_review = should_route_loose_experience_review(

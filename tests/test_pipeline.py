@@ -254,7 +254,7 @@ _ROLE_TAXONOMY_CONFIG = {
 }
 
 
-# ── create_run_id ─────────────────────────────────────────────────────────────
+# â”€â”€ create_run_id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def test_create_run_id_returns_valid_uuid() -> None:
     run_id = create_run_id()
@@ -266,7 +266,7 @@ def test_create_run_id_unique() -> None:
     assert create_run_id() != create_run_id()
 
 
-# ── build_ranking_features ────────────────────────────────────────────────────
+# â”€â”€ build_ranking_features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_shortlist() -> list[dict]:
     return [
@@ -414,7 +414,7 @@ def test_late_stage_contract_exposes_shared_status_families() -> None:
         {"accepted", "review_required", "pdf_failed", "validation_failed", "generation_failed", "persistence_failed"}
     )
     assert CV_DEBUG_ANALYSIS_OMISSION_STATUSES == frozenset(
-        {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed"}
+        {"blocked_by_reranker_fit", "skipped_fit_gate", "analysis_failed", "handoff_contract_failed"}
     )
 
 
@@ -2145,6 +2145,64 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
     mock_retrieve_evidence.assert_not_called()
 
 
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_incomplete_stage6_handoff_fails_stage7_before_generation(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+) -> None:
+    profile = _minimal_profile()
+    job = {
+        **_minimal_job("https://example.com/contract-failure"),
+        "baseline_fit": 0.9,
+        "ai_score": 0.8,
+        "vector_rank": 1,
+        "ranking_fit_label": "stretch",
+        "baseline_fit_label": "stretch",
+        "stage6_to_stage7_handoff": {"status": "incomplete"},
+    }
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "retrieval_strategy": "lexical_v1"}],
+        "shortlist_diagnostics": {},
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8}],
+        "ranking_inputs": [job],
+        "ranked": [job],
+        "cv_analysis_reached": False,
+    }
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
+    mock_profile_yaml.return_value = profile
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path=".env.yaml",
+        run_id="incomplete-stage6-handoff",
+        start_stage="cv_analysis",
+        stop_after_stage="cv_analysis",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    record = result["checkpoint_payload"]["cv_analysis_results"][0]
+    assert record["status"] == "handoff_contract_failed"
+    assert result["stage_transition_artifacts"]["stages"]["cv_analysis"]["status"] == "failed"
+    assert result["stage_transition_artifacts"]["stages"]["cv_analysis"]["decision_summary"]["handoff_contract_failed"] == 1
+    assert result["stage_transition_artifacts"]["stages"]["cv_generation"]["status"] == "not_reached"
+    assert result["checkpoint_payload"]["cv_analysis_reached"] is True
+    debug_records = result["checkpoint_payload"]["cv_generation_debug_records"]
+    assert len(debug_records) == 1
+    assert debug_records[0]["status"] == "handoff_contract_failed"
+    assert debug_records[0]["cv_generation_attempted"] is False
+
+
 @patch("fitcv.agentic_cv_analysis.compute_gap")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence")
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
@@ -2703,7 +2761,7 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_store_ver.assert_called_once()
 
 
-# ── run_pipeline (integrated, with all I/O mocked) ───────────────────────────
+# â”€â”€ run_pipeline (integrated, with all I/O mocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _minimal_config() -> dict:
     config = _ranking_v2_config()
@@ -3306,7 +3364,7 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
         "baseline_fit_label": "strong",
         "score_status": "valid",
     }
-    profile = _minimal_profile()
+    profile = {**_minimal_profile(), "revision": "profile-v1"}
     config = _minimal_config()
     reused_analysis_record = _canonical_reusable_cv_analysis_record(job, profile, config)
     analysis_fingerprint = str(reused_analysis_record["analysis_input_fingerprint"])
@@ -3391,7 +3449,7 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
         "baseline_fit_label": "strong",
         "score_status": "valid",
     }
-    profile = _minimal_profile()
+    profile = {**_minimal_profile(), "revision": "profile-v1"}
     config = _minimal_config()
     reused_analysis_record = _canonical_reusable_cv_analysis_record(job, profile, config)
     analysis_fingerprint = str(reused_analysis_record["analysis_input_fingerprint"])
@@ -4305,7 +4363,7 @@ def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_genera
         "fit_label": "strong",
         "fit_label_source": "reranker",
     }
-    profile = _minimal_profile()
+    profile = {**_minimal_profile(), "revision": "profile-v1"}
     config = _minimal_config()
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     failed_result = {
@@ -4412,7 +4470,7 @@ def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata()
         "fit_label": "strong",
         "fit_label_source": "reranker",
     }
-    profile = _minimal_profile()
+    profile = {**_minimal_profile(), "revision": "profile-v1"}
     config = _minimal_config()
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     failed_result = {
@@ -5583,7 +5641,7 @@ def test_run_pipeline_returns_correct_schema(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     mock_store_ver.return_value = None
-    # create_cv_version_record is NOT mocked — it runs for real
+    # create_cv_version_record is NOT mocked â€” it runs for real
     with (
         patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
@@ -7739,7 +7797,7 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
 ) -> None:
-    """A per-job exception must not crash the pipeline — only that job is skipped."""
+    """A per-job exception must not crash the pipeline â€” only that job is skipped."""
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
@@ -9638,7 +9696,7 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
     assert record["error_summary"] is None
 
 
-# ── run_pipeline calls load_run_structured_jobs ──────────────────────────────
+# â”€â”€ run_pipeline calls load_run_structured_jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.store_cv_version")

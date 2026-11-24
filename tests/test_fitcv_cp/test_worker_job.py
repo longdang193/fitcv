@@ -2022,6 +2022,64 @@ def test_stage_transition_payload_marks_failed_partial_snapshot_with_reason() ->
     assert payload["degradation_reason"] == "partial_snapshot"
 
 
+def test_worker_preserves_cv_analysis_failure_checkpoint_without_later_stage_completion():
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "run_all"
+    mock_run.checkpoint_payload_json = json.dumps({"checkpoint_payload": {"resume_token": "preserve"}})
+
+    summary = {
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "cv_generation_debug_records": [],
+        "stage_transition_artifacts": {
+            "schema_version": "stage_transition_artifacts_v6",
+            "stages": {
+                "ranking": {"status": "completed"},
+                "cv_analysis": {
+                    "status": "failed",
+                    "error_code": "handoff_contract_failed",
+                    "error_message": "incomplete_stage6_handoff",
+                    "decision_summary": {
+                        "handoff_contract_failed": 1,
+                        "failure_code": "incomplete_stage6_handoff",
+                    },
+                },
+                "cv_generation": {"status": "not_reached"},
+            },
+        },
+    }
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value=summary), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
+         patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.worker_job.update_run_progress") as mock_update_progress:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    failure_call = [
+        call for call in mock_update_status.call_args_list
+        if len(call.args) >= 2 and call.args[1] == RunStatus.FAILED
+    ][-1]
+    assert failure_call.kwargs["error_stage"] == "cv_analysis"
+    assert failure_call.kwargs["error_message"] == "incomplete_stage6_handoff"
+    checkpoint = mock_update_checkpoint.call_args.kwargs
+    assert checkpoint["checkpoint_status"] == "failed"
+    assert checkpoint["next_stage"] == "cv_analysis"
+    assert checkpoint["last_completed_stage"] == "ranking"
+    assert checkpoint["completed_stages"] == [
+        "normalize", "enrich", "rule_filter", "shortlist", "ranking"
+    ]
+    assert checkpoint["checkpoint_payload_json"] == mock_run.checkpoint_payload_json
+    mock_update_progress.assert_not_called()
+
+
 def test_worker_persists_settings_used_json_on_success():
     """@proves settings_system.settings-used-exports
     @proves inspection_debugging.settings-used-export

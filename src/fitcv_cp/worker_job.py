@@ -397,6 +397,20 @@ def _builtin_synonym_triage_runtime() -> dict[str, Any]:
     return snapshot
 
 
+def _stage_handoff_failure(summary: dict[str, Any]) -> dict[str, str] | None:
+    stage_blocks = dict(
+        dict(summary.get("stage_transition_artifacts") or {}).get("stages") or {}
+    )
+    cv_analysis = dict(stage_blocks.get("cv_analysis") or {})
+    if str(cv_analysis.get("status") or "").strip() != "failed":
+        return None
+    decision_summary = dict(cv_analysis.get("decision_summary") or {})
+    if int(decision_summary.get("handoff_contract_failed") or 0) <= 0:
+        return None
+    failure_code = str(decision_summary.get("failure_code") or "handoff_contract_failed").strip()
+    return {"failure_code": failure_code, "stage": "cv_analysis"}
+
+
 def _stage_deterministic_summary(
     *,
     stage_id: str,
@@ -2668,10 +2682,15 @@ def execute_pipeline_run(
                             ),
                             client=client,
                         )
+                technical_failure = _stage_handoff_failure(summary)
                 terminal_status = (
-                    RunStatus.AWAITING_CONTINUE
-                    if pending_review_required > 0
-                    else RunStatus.SUCCEEDED
+                    RunStatus.FAILED
+                    if technical_failure is not None
+                    else (
+                        RunStatus.AWAITING_CONTINUE
+                        if pending_review_required > 0
+                        else RunStatus.SUCCEEDED
+                    )
                 )
                 finished_at = (
                     None
@@ -2732,14 +2751,26 @@ def execute_pipeline_run(
                         run_status=terminal_status,
                         snapshot_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                     )
-                update_run_status(
-                    run_id,
-                    terminal_status,
-                    client=client,
-                    finished_at=finished_at,
-                    summary=summary,
-                )
+                status_kwargs = {
+                    "client": client,
+                    "finished_at": finished_at,
+                    "summary": summary,
+                }
+                if technical_failure is not None:
+                    status_kwargs.update(
+                        {
+                            "error_stage": technical_failure["stage"],
+                            "error_message": technical_failure["failure_code"],
+                        }
+                    )
+                update_run_status(run_id, terminal_status, **status_kwargs)
                 completed_stages = [
+                    "normalize",
+                    "enrich",
+                    "rule_filter",
+                    "shortlist",
+                    "ranking",
+                ] if technical_failure is not None else [
                     "normalize",
                     "enrich",
                     "rule_filter",
@@ -2773,7 +2804,17 @@ def execute_pipeline_run(
                         ),
                         client=client,
                     )
-                if pending_review_required > 0:
+                if technical_failure is not None:
+                    update_run_checkpoint(
+                        run_id,
+                        client=client,
+                        checkpoint_status="failed",
+                        next_stage="cv_analysis",
+                        last_completed_stage="ranking",
+                        completed_stages=completed_stages,
+                        checkpoint_payload_json=checkpoint_payload_json,
+                    )
+                elif pending_review_required > 0:
                     update_run_checkpoint(
                         run_id,
                         client=client,

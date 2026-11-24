@@ -54,6 +54,7 @@ import time
 import uuid
 import datetime
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from collections.abc import Mapping
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any, Callable, cast
@@ -171,6 +172,7 @@ from fitcv.ranking import (
 from fitcv.late_stage_contract import (
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
     CV_ANALYSIS_FAILED_STATUS,
+    CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
     CV_GENERATION_ATTEMPTED_STATUSES,
@@ -1696,6 +1698,9 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
             value = str(state.get(key) or state.get("last_completed_stage") or "").strip()
             payload[key] = value or None
             continue
+        if key == "cv_analysis_reached":
+            payload[key] = bool(state.get(key))
+            continue
         payload[key] = json_safe_value(state.get(key) or [])
     return payload
 
@@ -1907,6 +1912,7 @@ def _build_stage_progress_summary(
         ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
         ranking_admission_manifest=ranking_admission_manifest,
         ranked=ranked,
+        cv_analysis_reached=bool(state.get("cv_analysis_reached")),
         cv_analysis_results=cv_analysis_results,
         enrich_llm_runtime_observations=enrich_llm_runtime_observations,
         ranking_llm_runtime_observations=ranking_llm_runtime_observations,
@@ -2457,7 +2463,12 @@ def _build_decision_chain(
         },
         "cv_analysis": {
             "status": cv_analysis_status,
-            "completed": cv_analysis_status not in {"not_run", "failed", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS},
+            "completed": cv_analysis_status not in {
+                "not_run",
+                "failed",
+                CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
+            },
         },
         "cv_generation": {
             "status": cv_status,
@@ -3219,6 +3230,7 @@ def _build_stage_transition_artifacts(
     candidate_query_debug: dict[str, Any] | None = None,
     shortlist_admission_manifest: dict[str, Any] | None = None,
     ranking_admission_manifest: dict[str, Any] | None = None,
+    cv_analysis_reached: bool | None = None,
     enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
     ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
@@ -3231,7 +3243,8 @@ def _build_stage_transition_artifacts(
     ranking_cv_handoffs_by_identity = _build_ranking_cv_handoffs_by_identity(cv_analysis_results)
     shortlist_reached = len(passed_jobs) > 0
     ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
-    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    if cv_analysis_reached is None:
+        cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     generation_execution_records = [
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in CV_GENERATION_ATTEMPTED_STATUSES
@@ -3546,7 +3559,7 @@ def _build_stage_transition_artifacts(
                 resolved_preference_policy=resolved_preference_policy,
             ),
             "cv_analysis": _build_cv_analysis_stage_block_artifacts(
-                cv_analysis_reached=cv_analysis_reached,
+                cv_analysis_reached=bool(cv_analysis_reached),
                 ranked=ranked,
                 cv_analysis_results=cv_analysis_results,
                 cv_analysis_quality_metrics=cv_analysis_quality_metrics,
@@ -4518,6 +4531,7 @@ def run_pipeline(
                 if cancellation_check and cancellation_check():
                     raise PipelineCancelled("Cancelled before CV analysis")
 
+                state["cv_analysis_reached"] = True
                 cv_analysis_results = []
                 cv_analysis_reuse_enabled = _reuse_stage_enabled(config, "cv_analysis")
                 fresh_analysis_reuse_reason_counts: dict[str, int] = {}
@@ -4537,8 +4551,25 @@ def run_pipeline(
                     analysis_input: tuple[dict[str, Any], dict[str, Any] | None],
                 ) -> dict[str, Any]:
                     job, reusable_record = analysis_input
-                    ranking_cv_handoff = _build_ranking_cv_handoff_for_analysis(job, profile, config)
                     job_for_analysis = dict(job)
+                    existing_stage6_handoff = job_for_analysis.get("stage6_to_stage7_handoff")
+                    if (
+                        isinstance(existing_stage6_handoff, Mapping)
+                        and not str(job_for_analysis.get("canonical_job_identity") or "").strip()
+                    ):
+                        stage6_identity = str(
+                            existing_stage6_handoff.get("job_identity")
+                            or existing_stage6_handoff.get("job_url")
+                            or ""
+                        ).strip()
+                        if stage6_identity:
+                            # Keep the ranking handoff on the same identity as the existing Stage 6 boundary.
+                            job_for_analysis["canonical_job_identity"] = stage6_identity
+                    ranking_cv_handoff = _build_ranking_cv_handoff_for_analysis(
+                        job_for_analysis,
+                        profile,
+                        config,
+                    )
                     if isinstance(ranking_cv_handoff, dict):
                         job_for_analysis["ranking_cv_handoff"] = ranking_cv_handoff
                         if not str(job_for_analysis.get("canonical_job_identity") or "").strip():
@@ -4558,7 +4589,13 @@ def run_pipeline(
                             and "final_rank" not in job
                             and "stage6_to_stage7_handoff" not in job
                         )
-                        if not legacy_baseline_skip:
+                        if (
+                            not legacy_baseline_skip
+                            and not isinstance(
+                                job_for_analysis.get("stage6_to_stage7_handoff"),
+                                Mapping,
+                            )
+                        ):
                             job_for_analysis["stage6_to_stage7_handoff"] = build_stage_6_to_7_handoff(
                                 job_for_analysis,
                                 profile=handoff_profile,
@@ -4768,6 +4805,7 @@ def run_pipeline(
                     }
                 )
                 state["cv_analysis_results"] = cv_analysis_results
+                state["cv_analysis_reached"] = True
                 state["ranking_cv_handoffs_by_identity"] = _build_ranking_cv_handoffs_by_identity(
                     cv_analysis_results
                 )
@@ -5809,6 +5847,7 @@ def run_pipeline(
             }
         )
         state["cv_analysis_results"] = cv_analysis_results
+        state["cv_analysis_reached"] = bool(state.get("cv_analysis_reached"))
         state["ranking_cv_handoffs_by_identity"] = _build_ranking_cv_handoffs_by_identity(
             cv_analysis_results
         )
@@ -5836,6 +5875,7 @@ def run_pipeline(
             ranking_input_diagnostics_by_identity=ranking_input_diagnostics_by_identity,
             ranking_admission_manifest=dict(state.get("ranking_admission_manifest") or {}),
             ranked=ranked,
+            cv_analysis_reached=bool(state.get("cv_analysis_reached")),
             cv_analysis_results=cv_analysis_results,
             enrich_llm_runtime_observations=enrich_llm_runtime_observations,
             ranking_llm_runtime_observations=ranking_llm_runtime_observations,
