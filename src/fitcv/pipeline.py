@@ -101,6 +101,7 @@ from fitcv.config import (
 )
 from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
+    build_stage_6_to_7_handoff,
     normalize_analysis_channel_mapping,
 )
 from fitcv.pipeline_contracts import (
@@ -256,6 +257,7 @@ from fitcv.pipeline_stage_context import (
     PipelineState,
     infer_last_completed_stage_from_state,
 )
+from fitcv.resume_invalidation import decide_resume_invalidation, require_safe_resume
 
 logger = logging.getLogger(__name__)
 _ENRICH_PERSISTENCE_BUFFER_SIZE = 10
@@ -1686,6 +1688,7 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
             "ranking_input_diagnostics_by_identity",
             "ranking_admission_manifest",
             "ranking_cv_handoffs_by_identity",
+            "resume_contract",
         }:
             payload[key] = json_safe_value(state.get(key) or {})
             continue
@@ -1739,6 +1742,19 @@ def _canonical_resume_start_stage(
     validated_start_stage = _validate_pipeline_stage_name(requested_start_stage)
     if not checkpoint_payload:
         return validated_start_stage
+
+    resume_inputs = config.get("resume_inputs") if isinstance(config, dict) else None
+    resume_decision = decide_resume_invalidation(
+        checkpoint_payload,
+        current=resume_inputs,
+        worker_projection=checkpoint_payload.get("worker_projection")
+        if isinstance(checkpoint_payload, dict)
+        else None,
+        recomputation_available=bool((config or {}).get("resume_recomputation_available", True)),
+    )
+    require_safe_resume(resume_decision)
+    if resume_decision["status"] in {"restart", "recompute"}:
+        return _validate_pipeline_stage_name(resume_decision["restart_boundary"])
 
     resume_state = _restore_pipeline_state(
         run_id=run_id,
@@ -4522,9 +4538,34 @@ def run_pipeline(
                 ) -> dict[str, Any]:
                     job, reusable_record = analysis_input
                     ranking_cv_handoff = _build_ranking_cv_handoff_for_analysis(job, profile, config)
+                    job_for_analysis = dict(job)
+                    if isinstance(ranking_cv_handoff, dict):
+                        job_for_analysis["ranking_cv_handoff"] = ranking_cv_handoff
+                        if not str(job_for_analysis.get("canonical_job_identity") or "").strip():
+                            job_for_analysis["canonical_job_identity"] = str(
+                                ranking_cv_handoff.get("canonical_job_identity") or ""
+                            ).strip()
+                        handoff_profile = dict(profile)
+                        if not str(handoff_profile.get("revision") or "").strip():
+                            checksum = runtime_profile_value(handoff_profile, "checksum") or canonical_candidate_checksum(handoff_profile)
+                            if checksum:
+                                handoff_profile["revision"] = f"checksum:{checksum}"
+                        # Legacy baseline-skip checkpoints must still take the historical fit gate;
+                        # only explicit Stage 5/Final Top 15 inputs establish a Stage 6 handoff.
+                        legacy_baseline_skip = (
+                            resolve_ranked_job_fit(job, config) == "skip"
+                            and "stage5_admission" not in job
+                            and "final_rank" not in job
+                            and "stage6_to_stage7_handoff" not in job
+                        )
+                        if not legacy_baseline_skip:
+                            job_for_analysis["stage6_to_stage7_handoff"] = build_stage_6_to_7_handoff(
+                                job_for_analysis,
+                                profile=handoff_profile,
+                            )
                     return dict(
                         analyze_ranked_job(
-                            job,
+                            job_for_analysis,
                             profile,
                             config,
                             reusable_record=reusable_record,

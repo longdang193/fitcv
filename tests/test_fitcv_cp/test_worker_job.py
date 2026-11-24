@@ -467,6 +467,7 @@ def test_execute_cv_regenerate_once_invokes_canonical_generator_and_persists_str
     reserve_version.assert_called_once()
     analyze_job.assert_called_once()
     assert analyze_job.call_args.args[0]["baseline_fit_label"] == "stretch"
+    assert "fit_classification_override" not in analyze_job.call_args.kwargs
     assert analyze_job.call_args.kwargs["ranking_cv_handoff"] == ranking_handoff
     generate_cv.assert_called_once()
     assert generate_cv.call_args.args == (analysis, {"name": "Candidate"}, {})

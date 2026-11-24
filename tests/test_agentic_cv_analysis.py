@@ -109,7 +109,7 @@ def test_invalid_stage6_handoff_does_not_bypass_fit_gate(mutate) -> None:
 
     result = analyze_ranked_job(job, profile, _config())
 
-    assert result["status"] == "skipped_fit_gate"
+    assert result["status"] == "handoff_contract_failed"
 
 
 def test_responsibility_direct_support_reaches_requirement_coverage() -> None:

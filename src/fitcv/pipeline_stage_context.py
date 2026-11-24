@@ -139,6 +139,7 @@ class PipelineState:
     cv_results: list[dict[str, Any]] = field(default_factory=list)
     cv_generation_debug_records: list[dict[str, Any]] = field(default_factory=list)
     legacy_checkpoint_adaptation_count: int = 0
+    resume_contract: dict[str, Any] = field(default_factory=dict)
     completed_stage: str | None = None
 
     @classmethod
@@ -186,6 +187,7 @@ class PipelineState:
                 "ranking_input_diagnostics_by_identity",
                 "ranking_admission_manifest",
                 "ranking_cv_handoffs_by_identity",
+                "resume_contract",
             }:
                 if isinstance(value, dict):
                     setattr(state, key, dict(value))
@@ -250,6 +252,7 @@ class PipelineState:
             "cv_analysis_results",
             "cv_results",
             "cv_generation_debug_records",
+            "resume_contract",
             "completed_stage",
         )
 
@@ -289,6 +292,7 @@ class PipelineState:
             "cv_results": list(self.cv_results),
             "cv_generation_debug_records": list(self.cv_generation_debug_records),
             "legacy_checkpoint_adaptation_count": self.legacy_checkpoint_adaptation_count,
+            "resume_contract": dict(self.resume_contract),
             "completed_stage": self.completed_stage,
         }
 

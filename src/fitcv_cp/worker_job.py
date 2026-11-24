@@ -413,6 +413,7 @@ def _stage_deterministic_summary(
                 "blocked_by_reranker_fit": int(counts.get("blocked_by_reranker_fit") or 0),
                 "skipped_fit_gate": int(counts.get("skipped_fit_gate") or 0),
                 "analysis_failed": int(counts.get("analysis_failed") or 0),
+                "handoff_contract_failed": int(counts.get("handoff_contract_failed") or 0),
             },
         }
     if stage_id == "cv_generation":
@@ -648,16 +649,33 @@ def execute_cv_regenerate_once(
             and analysis_job.get("baseline_fit") is None
         ):
             analysis_job["baseline_fit_label"] = prior_fit_classification
-        analysis_kwargs: dict[str, Any] = {
-            "fit_classification_override": (
-                prior_fit_classification
-                if prior_fit_classification in {"strong", "stretch", "skip"}
-                else None
-            ),
-        }
+        analysis_kwargs: dict[str, Any] = {}
         if ranking_cv_handoff is not None:
             analysis_kwargs["ranking_cv_handoff"] = ranking_cv_handoff
         analysis = dict(analyze_ranked_job(analysis_job, profile, config, **analysis_kwargs))
+        if str(analysis.get("status") or "") == "handoff_contract_failed":
+            technical_failure = dict(analysis.get("technical_failure") or analysis.get("error") or {})
+            update_cv_evaluation(
+                evaluation_id,
+                status="failed",
+                fit_classification=prior_fit_classification or None,
+                reason=json.dumps(technical_failure, sort_keys=True),
+                evidence={"technical_failure": technical_failure},
+            )
+            update_cv_version(
+                reserved_version_id,
+                generation_status="generation_failed",
+                metadata={
+                    "technical_failure": technical_failure,
+                    "submission_clearance": "blocked",
+                    "pdf_status": "failed",
+                    "review_status": "none",
+                    "persistence_status": "persisted",
+                },
+                error_code=str(technical_failure.get("failure_code") or "handoff_contract_failed"),
+                error_message="Stage 6 to Stage 7 handoff contract validation failed.",
+            )
+            return
         with tempfile.TemporaryDirectory(prefix="fitcv-cv-artifact-") as artifact_dir:
             generation = dict(generate_from_analysis(analysis, profile, config, artifact_dir=artifact_dir))
             pdf_path = Path(artifact_dir) / "cv.pdf"

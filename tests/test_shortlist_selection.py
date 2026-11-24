@@ -256,6 +256,68 @@ def test_or_provenance_uses_only_the_best_satisfying_alternative() -> None:
     assert compound["satisfying_child_ids"] == ["a"]
 
 
+def test_supported_or_branch_does_not_inherit_failure_from_unused_branch() -> None:
+    occurrences = build_requirement_occurrences(
+        {
+            "job_url": "job-or-failure",
+            "requirement_occurrences": [
+                {
+                    "occurrence_id": "or",
+                    "category": "required",
+                    "source_wording": "A or B",
+                    "compound_operator": "OR",
+                    "child_occurrence_ids": ["a", "b"],
+                },
+                {"occurrence_id": "a", "category": "required", "source_wording": "A"},
+                {"occurrence_id": "b", "category": "required", "source_wording": "B"},
+            ],
+        }
+    )
+
+    result = {row["occurrence_id"]: row for row in assess_requirement_occurrences(
+        occurrences,
+        [
+            {"occurrence_id": "a", "support_status": "supported", "evidence_id": "ev-a"},
+            {"occurrence_id": "b", "status": "assessment_failed", "failure_derived": True},
+        ],
+    )}
+
+    assert result["or"]["state"] == "S"
+    assert result["or"]["failure_derived"] is False
+    assert result["or"]["assessment_complete"] is True
+    assert result["or"]["retry_eligible"] is False
+
+
+def test_equal_or_branches_union_provenance_and_evidence_deterministically() -> None:
+    occurrences = build_requirement_occurrences(
+        {
+            "job_url": "job-or-tie",
+            "requirement_occurrences": [
+                {
+                    "occurrence_id": "or",
+                    "category": "required",
+                    "source_wording": "A or B",
+                    "compound_operator": "OR",
+                    "child_occurrence_ids": ["b", "a"],
+                },
+                {"occurrence_id": "b", "category": "required", "source_wording": "B"},
+                {"occurrence_id": "a", "category": "required", "source_wording": "A"},
+            ],
+        }
+    )
+    result = {row["occurrence_id"]: row for row in assess_requirement_occurrences(
+        occurrences,
+        [
+            {"occurrence_id": "b", "support_status": "partial", "evidence_id": "ev-b", "provenance_grade": 2},
+            {"occurrence_id": "a", "support_status": "partial", "evidence_id": "ev-a", "provenance_grade": 2},
+        ],
+    )}["or"]
+
+    assert result["satisfying_child_ids"] == ["a", "b"]
+    assert result["evidence_ids"] == ["ev-a", "ev-b"]
+    assert result["display_representative_occurrence_id"] == "a"
+
+
 def test_coverage_summary_keeps_only_top_level_states_and_child_diagnostics() -> None:
     occurrences = build_requirement_occurrences(
         {

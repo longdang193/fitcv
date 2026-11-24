@@ -2,38 +2,43 @@
 
 ## Why
 
-The existing Stage 6/7 and requirement-aware shortlist contracts are directionally correct, but current main still allows fit diagnostics to become a late fail-closed gate and still couples unrelated shortlist jobs through global assessment state. The result is that a valid Final Top 15 job can lose CV generation, while stale or incomplete shortlist evidence can change unrelated admission decisions.
-
-This refinement makes the boundary behavior explicit and migration-safe before further implementation or promotion work.
+The current Stage 6/7 and requirement-aware shortlist direction is sound, but the planning contract still leaves recovery, provenance, and persisted-state behavior ambiguous. Before implementation, the change must make incomplete assessments retryable, define which contract owns resumed decisions, and make handoff, fingerprint, normalization, evidence, and PDF acceptance rules deterministic.
 
 ## What Changes
 
-- Treat fit classification, professional-experience gaps, unsupported JD requirements, and S/P/E/U outcomes as Stage 7 diagnostics or review inputs for a valid Final Top 15 handoff; they SHALL NOT cause a secondary fit rejection.
-- Represent malformed or missing Stage 6 handoffs as a distinct technical contract failure, not as `skipped_fit_gate`.
-- Normalize zero-valued experience bounds at the enrichment/data-contract boundary when zero means unspecified; downstream stages SHALL consume the canonical nullable value.
-- Prevent negative fit-gate records from being reused as current analysis decisions; retain legacy records for inspection and recompute routing from current policy.
-- Track shortlist assessment completeness per job and requirement occurrence so one retrieval failure cannot mark unrelated jobs unknown.
-- Reuse persisted shortlist coverage only when its contract, profile, evidence, retrieval-policy, and support-policy fingerprints are compatible; otherwise recompute.
-- Preserve the occurrence-isolation and OR-provenance corrections from the related shortlist work, and add production-shaped regression coverage for their handoff and compact-evidence behavior.
-- Clarify the Shortlist and Stage 6/7 specifications so hard technical/provenance failures remain blocking while unresolved fit gaps do not block grounded Markdown/PDF generation.
-- Defer broad test-runner optimization, Pareto redesign, rollout/promotion gates, and lifecycle terminalization to follow-up work unless implementation discovery proves they are required for these contracts.
+- Keep valid Final Top 15 handoffs eligible for grounded Stage 7 generation; fit labels, evidence gaps, unsupported requirements, and `S/P/E/U` outcomes remain diagnostics or review inputs rather than secondary fit rejection.
+- Define one authoritative Stage 6 handoff contract, including producer, identity, version, provenance, fingerprint, consistency checks, and the canonical technical failure projection for invalid or missing handoffs.
+- Define Stage 7 technical, review, PDF, persistence, and submission states independently, including terminality, retryability, checkpoint, worker projection, and job scope for technical handoff failures.
+- Make resume ownership and invalidation explicit: compatible checkpoints may resume, while changed upstream assessment inputs invalidate downstream shortlist/ranking/CV decisions at the first affected boundary.
+- Normalize experience bounds once at the enriched-job contract boundary with an explicit truth table for missing, default-zero, valid, invalid, and inverted values; downstream consumers use only canonical nullable values.
+- Persist versioned, deterministic coverage fingerprints covering the semantic requirement contract, profile/evidence revisions, retrieval policy, and support policy. Missing or incompatible fingerprints, or failure-derived uncertainty, force recomputation.
+- Scope assessment completeness to each job and requirement occurrence, preserve uncertainty origin through compound and job-level aggregation, and define deterministic OR winner/union semantics.
+- Persist bounded evidence references with occurrence identity, evidence revision/content integrity, deduplication, explicit missing-reference behavior, and a deterministic overflow/recompute rule.
+- Define the safe outcome when stale or incomplete coverage cannot be recomputed: no new authoritative admission, retryable incomplete assessment state, and invalidation of dependent decisions.
+- Require targeted Markdown/PDF acceptance for both optional-review and mandatory-review outputs before this change can be archived; converter exit alone is insufficient.
+- Preserve historical records and prior OpenSpec change history for inspection, but treat the refined contracts in this change as the active behavior once implemented; do not backfill legacy artifacts.
+- Defer Pareto redesign, ranking/tie-break redesign, broad runner optimization, rollout gates, and lifecycle atomicity except for the minimum lifecycle fields required to represent the new technical failure and resume semantics.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `cv-stage-admission`: Defines the boundary between valid Final Top 15 handoffs, Stage 7 fit diagnostics, technical contract failures, and generation eligibility.
-- `shortlist-assessment-integrity`: Defines per-job assessment completeness and compatibility-gated reuse of persisted requirement coverage.
+- `cv-stage-admission`: Defines authoritative Stage 6 handoff validation, Stage 7 admission, technical/review/PDF state separation, and generation eligibility.
+- `shortlist-assessment-integrity`: Defines scoped assessment completeness, compatibility-gated coverage reuse, occurrence/OR semantics, and bounded evidence references.
 
 ### Modified Capabilities
 
-None. The repository has no archived maintained capability specs under `openspec/specs/`; the completed and in-progress changes remain the source of the current proposal history. This change introduces focused refinement capabilities rather than rewriting those change records.
+None. The repository has no archived maintained capability specs under `openspec/specs/`; the completed and in-progress changes remain historical contract context. This change introduces focused refinement capabilities rather than rewriting those change records.
 
 ## Impact
 
-- Stage 7 analysis and reuse: `src/fitcv/agentic_cv_analysis.py`, late-stage status contracts, pipeline projections, checkpoints, and operator summaries.
-- Requirement normalization: enrichment and downstream experience-coverage consumers, including both minimum and maximum bounds.
-- Requirement-aware shortlist assessment: `src/fitcv/pipeline_stage_runner.py` and `src/fitcv/shortlist_selection.py`, including coverage fingerprints and per-job failure state.
-- Existing Stage 6/7 and shortlist specs, tests, and operator-facing diagnostics will need additive compatibility fields and updated expectations.
+- Stage 6 handoff validation and Stage 7 analysis/generation status contracts, checkpoints, worker projections, operator summaries, and resume paths.
+- Enrichment/data-contract normalization and downstream experience-coverage consumers for both minimum and maximum bounds.
+- Requirement-aware shortlist assessment, coverage persistence, fingerprints, evidence hydration, per-job/per-occurrence failure state, and OR aggregation.
+- Focused unit, integration, replay/resume, persistence, and targeted Markdown/PDF acceptance tests.
 - No new service, provider, dependency, or renderer is proposed.
-- Historical records remain readable; new runs stop emitting fit-gate statuses for valid Final Top 15 flows.
+- Historical statuses and records remain readable; new valid Final Top 15 flows do not emit fit-gate terminal decisions.
+
+## Precedence and compatibility
+
+This change refines the active behavior at the Stage 6/7 and shortlist boundaries. When an in-progress historical change conflicts with these requirements, the implementation SHALL follow this change for the named behavior while preserving historical artifacts and deserialization compatibility. Source code and tests remain authoritative until this change is implemented; archive and spec sync require the acceptance criteria in `tasks.md` to pass.
