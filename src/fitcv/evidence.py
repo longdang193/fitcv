@@ -42,7 +42,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
+from fitcv.candidate import (
+    converge_candidate_profile_for_runtime,
+    flatten_skills,
+    managed_candidate_profile_provenance,
+)
 from fitcv.config import get_embedding_model
 from fitcv.semantic_snapshot import (
     build_semantic_snapshot,
@@ -961,6 +965,7 @@ def build_cv_analysis_input_fingerprint(
     }
     payload = {
         "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
+        **managed_candidate_profile_provenance(profile),
         "profile": _cv_analysis_profile_payload(profile),
         "requirement_resolutions": [
             {

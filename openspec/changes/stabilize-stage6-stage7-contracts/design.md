@@ -86,6 +86,14 @@ Coverage reuse requires all fingerprints, `assessment_completeness=complete`, an
 
 Alternative rejected: one global policy version or the presence of a coverage object. Those cannot prove that one job's profile, evidence, or semantic requirements still match.
 
+### 4.1 Managed candidate profile provenance is a Stage 7 reuse input
+
+The Stage 7 analysis fingerprint payload includes the managed `candidate_profile_id`, `candidate_profile_revision`, and canonical `candidate_profile_checksum` alongside the existing profile, job, contract, policy, and evidence inputs. The values come only from the control-plane provenance attachment; top-level legacy YAML fields, filenames, timestamps, and other profile content do not establish managed authority.
+
+The payload uses the existing canonical JSON serialization and SHA-256 hashing conventions. The runtime marker used to identify the control-plane attachment is compatibility metadata and is excluded from the fingerprint payload. A revision-only change therefore changes the fingerprint even when the canonical checksum is unchanged.
+
+Historical records remain readable. A record missing any required managed provenance field is ineligible for new reuse and is recomputed with the deterministic `managed_profile_provenance_missing` reason. Exact reuse remains available only when all three managed fields and the other fingerprint inputs match.
+
 ### 5. Normalize experience bounds at the enriched-job contract boundary
 
 The enrichment/data-contract owner performs the only normalization before requirement construction. Downstream Stage 5/6/7 consumers read the canonical nullable values and do not reinterpret zero or invalid input.

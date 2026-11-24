@@ -23,6 +23,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from fitcv.candidate import runtime_profile_value
+
 
 RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v2"
 STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
@@ -232,10 +234,10 @@ def validate_stage_6_to_7_handoff(
         if expected_identity and expected_identity != str(handoff.get("job_identity") or "").strip() and expected_identity != str(handoff.get("job_url") or "").strip():
             raise ValueError("handoff_job_identity_conflict")
     if profile is not None:
-        revision = str(profile.get("revision") or profile.get("candidate_profile_revision") or "").strip()
+        revision = str(runtime_profile_value(profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")) or "").strip()
         if revision and revision != str(handoff.get("candidate_profile_revision") or "").strip():
             raise ValueError("handoff_profile_revision_conflict")
-        profile_id = str(profile.get("candidate_profile_id") or "").strip()
+        profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "").strip()
         if profile_id and str(handoff.get("candidate_profile_id") or "").strip() not in {"", profile_id}:
             raise ValueError("handoff_profile_id_conflict")
     ranking_payload = handoff.get("ranking_cv_handoff")
@@ -354,8 +356,8 @@ def build_stage_6_to_7_handoff(
         ai_score=float(row["ai_score"]) if row.get("ai_score") is not None else None,
         baseline_rank=int(row["baseline_rank"]) if row.get("baseline_rank") is not None else None,
         final_rank=int(row["final_rank"]) if row.get("final_rank") is not None else None,
-        candidate_profile_id=str(row.get("candidate_profile_id") or (profile or {}).get("candidate_profile_id") or ""),
-        candidate_profile_revision=str(row.get("candidate_profile_revision") or (profile or {}).get("revision") or ""),
+        candidate_profile_id=str(row.get("candidate_profile_id") or runtime_profile_value(profile or {}, "candidate_profile_id") or ""),
+        candidate_profile_revision=str(row.get("candidate_profile_revision") or runtime_profile_value(profile or {}, "candidate_profile_revision", runtime_profile_value(profile or {}, "revision")) or ""),
         contract_versions={"ranking": str(row.get("ranking_contract_version") or row.get("ranking_policy_version") or "ranking_score_v1"), "shortlist": str(row.get("shortlist_contract_version") or row.get("admission_contract_version") or SHORTLIST_REQUIREMENT_CONTRACT_VERSION)},
         fingerprints={key: str(row.get(key) or "") for key in ("raw_job_fingerprint", "ranking_contract_fingerprint", "eligibility_policy_fingerprint") if str(row.get(key) or "")},
         model_provenance=dict(row.get("model_provenance") or {"provider": row.get("ai_provider"), "model": row.get("ai_model") or row.get("model"), "prompt_version": row.get("prompt_version")}),

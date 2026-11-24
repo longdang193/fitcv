@@ -21,7 +21,11 @@ import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
+from fitcv.candidate import (
+    converge_candidate_profile_for_runtime,
+    flatten_skills,
+    runtime_profile_value,
+)
 from fitcv.contracts import (
     build_stage_6_to_7_failure,
     deserialize_stage_6_to_7_handoff,
@@ -147,8 +151,8 @@ def _handoff_failure_record(job: Mapping[str, Any], profile: Mapping[str, Any], 
         do_not_claim=[],
         fit_classification=None,
         ranking_fit_label=None,
-        candidate_profile_id=str(profile.get("candidate_profile_id") or ""),
-        candidate_profile_revision=str(profile.get("revision") or ""),
+        candidate_profile_id=str(runtime_profile_value(profile, "candidate_profile_id") or ""),
+        candidate_profile_revision=str(runtime_profile_value(profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")) or ""),
         error={"stage": "handoff_contract", "message": code, **failure},
     )
 
@@ -1386,6 +1390,9 @@ def _build_analysis_input_components(
         "contract_fingerprint": str(payload.get("contract_fingerprint") or ""),
         "profile_payload_hash": _hash(dict(payload.get("profile") or {})),
         "job_payload_hash": _hash(dict(payload.get("job") or {})),
+        "candidate_profile_id": str(payload.get("candidate_profile_id") or ""),
+        "candidate_profile_revision": str(payload.get("candidate_profile_revision") or ""),
+        "candidate_profile_checksum": str(payload.get("candidate_profile_checksum") or ""),
     }
     components["requirement_support_policy_version"] = str(
         payload.get("requirement_support_policy_version")
@@ -1425,11 +1432,23 @@ def _reuse_rejection_reason(
         return "no_reusable_snapshot_match"
     if str(reusable_record.get("status") or "") not in _REUSABLE_ANALYSIS_STATUSES:
         return "reusable_status_not_eligible"
-    if str(reusable_record.get("analysis_input_fingerprint") or "") != analysis_input_fingerprint:
-        return "analysis_input_fingerprint_mismatch"
     if not _REUSABLE_RECORD_REQUIRED_FIELDS.issubset(reusable_record):
         return "incomplete_reusable_record"
     prior_components = dict(reusable_record.get("analysis_input_components") or {})
+    provenance_fields = (
+        "candidate_profile_id",
+        "candidate_profile_revision",
+        "candidate_profile_checksum",
+    )
+    if any(not str(analysis_input_components.get(field) or "").strip() for field in provenance_fields):
+        return "managed_profile_provenance_missing"
+    if any(not str(prior_components.get(field) or "").strip() for field in provenance_fields):
+        return "managed_profile_provenance_missing"
+    for field in provenance_fields:
+        if str(prior_components.get(field) or "") != str(analysis_input_components.get(field) or ""):
+            return f"{field}_changed"
+    if str(reusable_record.get("analysis_input_fingerprint") or "") != analysis_input_fingerprint:
+        return "analysis_input_fingerprint_mismatch"
     if str(prior_components.get("contract_fingerprint") or "") != str(
         analysis_input_components.get("contract_fingerprint") or ""
     ):
@@ -1520,8 +1539,13 @@ def analyze_ranked_job(
         if isinstance(item, dict)
     ]
     if raw_requirement_resolutions:
-        profile_id = str(profile.get("candidate_profile_id") or "").strip()
-        profile_revision = str(profile.get("revision") or "").strip()
+        profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "").strip()
+        profile_revision = str(
+            runtime_profile_value(
+                profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")
+            )
+            or ""
+        ).strip()
         source_profile_fingerprint = str(
             (evidence_projection or build_evidence_projection(profile)).get("fingerprint") or ""
         ).strip()
@@ -1545,9 +1569,14 @@ def analyze_ranked_job(
     loose_experience_review = False
     try:
         profile_years_experience = profile.get("years_experience")
-        candidate_profile_id = str(profile.get("candidate_profile_id") or "")
-        candidate_profile_revision = str(profile.get("revision") or "")
         profile = converge_candidate_profile_for_runtime(profile)
+        candidate_profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "")
+        candidate_profile_revision = str(
+            runtime_profile_value(
+                profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")
+            )
+            or ""
+        )
         profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(
             job,

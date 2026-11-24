@@ -68,7 +68,11 @@ from fitcv.contracts import (
     STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
     SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
 )
-from fitcv.candidate import candidate_profile_field_schema, validate_candidate_profile_v2
+from fitcv.candidate import (
+    attach_managed_candidate_profile_provenance,
+    candidate_profile_field_schema,
+    validate_candidate_profile_v2,
+)
 from fitcv.decision_feedback import (
     DecisionRatingEvent,
     RatingEventType,
@@ -10227,7 +10231,12 @@ def create_app(
                     ],
                     action="Shorten Run Name and retry.",
                 )
-            profile_snapshot = dict(profile.get("profile") or {})
+            profile_snapshot = attach_managed_candidate_profile_provenance(
+                dict(profile.get("profile") or {}),
+                candidate_profile_id=candidate_profile_id,
+                revision=profile.get("revision"),
+                checksum=profile.get("checksum"),
+            )
             profile_snapshot.setdefault("name", profile.get("name"))
             fingerprint_payload = {
                 "jobs_sha256": acquisition.artifact.sha256,
@@ -10445,7 +10454,12 @@ def create_app(
                 f"Job file violates the FitCV input contract: {exc}",
                 action="Fix the file and retry.",
             ) from exc
-        profile_snapshot = dict(profile.get("profile") or {})
+        profile_snapshot = attach_managed_candidate_profile_provenance(
+            dict(profile.get("profile") or {}),
+            candidate_profile_id=candidate_profile_id,
+            revision=profile.get("revision"),
+            checksum=profile.get("checksum"),
+        )
         profile_snapshot.setdefault("name", profile.get("name"))
         fingerprint_payload = {
             "jobs_sha256": artifact.sha256,
@@ -10651,10 +10665,13 @@ def create_app(
                 "Candidate Profile is not available for Runs.",
                 action="Refresh Candidate Profiles and select an Active, Succeeded profile.",
             )
-        candidate_snapshot = dict(profile.get("profile") or {})
+        candidate_snapshot = attach_managed_candidate_profile_provenance(
+            dict(profile.get("profile") or {}),
+            candidate_profile_id=candidate_profile_id,
+            revision=profile.get("revision"),
+            checksum=profile.get("checksum"),
+        )
         candidate_snapshot.setdefault("name", profile.get("name"))
-        candidate_snapshot["revision"] = profile.get("revision")
-        candidate_snapshot["candidate_profile_id"] = candidate_profile_id
 
         return _execute_trigger_with_inputs(
             jobs_path=source_path,

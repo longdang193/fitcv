@@ -15,6 +15,7 @@
 - [x] 2.3 Preserve independent technical, review, PDF, persistence, and submission states and project the new technical failure fields through worker, pipeline, checkpoint, and operator surfaces; verify terminality, retryability, scope, and failure-code parity in pipeline and worker tests.
 - [x] 2.4 Implement the resume/invalidation matrix: compatible checkpoints resume, legacy fit-gate records recompute, changed upstream coverage/profile/evidence restarts at the first affected boundary, and conflicting worker/checkpoint state stops safely; verify replay and resume parity for each matrix row.
 - [x] 2.5 Add focused documentation for status precedence, active-contract ownership, checkpoint scope, retry rules, and dependent invalidation; verify examples use emitted status names and payload fields.
+- [x] 2.6 Add managed candidate profile identity, revision, and canonical checksum to the Stage 7 analysis fingerprint/reuse contract; reject legacy records without managed provenance and verify exact reuse, revision-only invalidation, and deterministic recomputation tests.
 
 ## 3. Shortlist assessment and coverage integrity
 

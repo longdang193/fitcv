@@ -76,6 +76,21 @@ The system SHALL keep historical `skipped_fit_gate` and `blocked_by_reranker_fit
 - **WHEN** an operator or migration reader loads a legacy fit-gate record
 - **THEN** the original status and provenance remain inspectable without being emitted as a new valid Final Top 15 decision
 
+### Requirement: Managed candidate provenance gates Stage 7 analysis reuse
+The canonical Stage 7 analysis fingerprint SHALL include managed candidate profile identity, revision, and canonical checksum, and records missing any of them SHALL not authorize new cache reuse.
+
+#### Scenario: Managed provenance matches
+- **WHEN** the current managed candidate profile identity, revision, checksum, contract, evidence, and other analysis inputs match a cached analysis
+- **THEN** Stage 7 reuses the cached analysis with the existing exact-match status
+
+#### Scenario: Managed revision changes without a checksum change
+- **WHEN** only the managed candidate profile revision changes
+- **THEN** Stage 7 rejects the cached analysis with a deterministic revision-change reason and recomputes analysis
+
+#### Scenario: Historical analysis lacks managed provenance
+- **WHEN** a readable historical analysis record has no managed candidate profile identity, revision, or checksum
+- **THEN** Stage 7 preserves the record for inspection but marks reuse ineligible and recomputes from the analysis boundary
+
 ### Requirement: Resume ownership and invalidation are explicit
 A resumed decision SHALL be owned by the active contract; a checkpoint is resumable only when its handoff, contract, policy, profile, evidence, and predecessor state remain compatible, otherwise the system SHALL restart at the first affected boundary.
 

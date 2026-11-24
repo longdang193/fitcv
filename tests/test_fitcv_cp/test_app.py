@@ -16719,7 +16719,9 @@ def test_admin_upload_trigger_stores_selected_profile_snapshot(tmp_path):
     assert captured["run"].candidate_profile_source == "profile-1"
     profile_snapshot = json.loads(captured["run"].candidate_profile_json)
     assert profile_snapshot["preferences"]["domains"] == ["fintech"]
-    assert profile_snapshot["revision"] == 3
+    assert profile_snapshot["_runtime_compatibility"]["managed_candidate_profile_provenance"] is True
+    assert profile_snapshot["_runtime_compatibility"]["candidate_profile_id"] == "profile-1"
+    assert profile_snapshot["_runtime_compatibility"]["candidate_profile_revision"] == 3
 
 
 def test_admin_upload_trigger_keeps_profile_snapshot_after_source_mutation(tmp_path):

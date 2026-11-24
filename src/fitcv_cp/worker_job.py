@@ -28,6 +28,7 @@ from typing import Any
 import yaml
 
 from fitcv.decision_feedback import build_decision_feedback_source
+from fitcv.candidate import runtime_profile_value
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
 from fitcv.cv_generator import final_artifact_acceptance_passes
@@ -172,8 +173,10 @@ _SETTINGS_COMPATIBILITY_KEYS = {
 
 
 def _load_requirement_resolutions(run: Any, profile: dict[str, Any]) -> list[dict[str, Any]]:
-    candidate_profile_id = str(profile.get("candidate_profile_id") or "").strip()
-    candidate_profile_revision = str(profile.get("revision") or "").strip()
+    candidate_profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "").strip()
+    candidate_profile_revision = str(
+        runtime_profile_value(profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")) or ""
+    ).strip()
     if not candidate_profile_id or not candidate_profile_revision:
         return []
     source_profile_fingerprint = str(

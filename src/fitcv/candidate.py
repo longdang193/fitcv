@@ -757,6 +757,18 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
                 "parser": {"name": "fitcv-v1-runtime-adapter", "version": "1"},
             },
         )
+        compatibility = dict(profile.get("_runtime_compatibility") or {})
+        for key in (
+            "candidate_profile_id",
+            "candidate_profile_revision",
+            "candidate_profile_checksum",
+            "revision",
+            "checksum",
+        ):
+            if profile.get(key) is not None:
+                compatibility.setdefault(key, copy.deepcopy(profile[key]))
+        if compatibility:
+            normalized["_runtime_compatibility"] = compatibility
     if profile_revision is not None:
         compatibility = dict(normalized.get("_runtime_compatibility") or {})
         compatibility["revision"] = copy.deepcopy(profile_revision)
@@ -767,11 +779,50 @@ def converge_candidate_profile_for_runtime(profile: dict[str, Any]) -> dict[str,
     return normalized
 
 
+_MANAGED_PROFILE_PROVENANCE_MARKER = "managed_candidate_profile_provenance"
+
+
 def runtime_profile_value(profile: dict[str, Any], key: str, default: Any = None) -> Any:
     value = profile.get(key)
     if value is not None:
         return value
     return (profile.get("_runtime_compatibility") or {}).get(key, default)
+
+def managed_candidate_profile_provenance(profile: dict[str, Any]) -> dict[str, Any]:
+    """Read managed provenance without treating profile content as authority."""
+    compatibility = profile.get("_runtime_compatibility")
+    if not isinstance(compatibility, dict) or compatibility.get(_MANAGED_PROFILE_PROVENANCE_MARKER) is not True:
+        return {
+            "candidate_profile_id": None,
+            "candidate_profile_revision": None,
+            "candidate_profile_checksum": None,
+        }
+    return {
+        "candidate_profile_id": compatibility.get("candidate_profile_id"),
+        "candidate_profile_revision": compatibility.get("candidate_profile_revision"),
+        "candidate_profile_checksum": compatibility.get("candidate_profile_checksum"),
+    }
+
+def attach_managed_candidate_profile_provenance(
+    profile: dict[str, Any],
+    *,
+    candidate_profile_id: Any,
+    revision: Any,
+    checksum: Any,
+) -> dict[str, Any]:
+    """Attach control-plane provenance in the runtime-only compatibility envelope."""
+    snapshot = copy.deepcopy(profile)
+    compatibility = dict(snapshot.get("_runtime_compatibility") or {})
+    compatibility.update(
+        {
+            _MANAGED_PROFILE_PROVENANCE_MARKER: True,
+            "candidate_profile_id": candidate_profile_id,
+            "candidate_profile_revision": revision,
+            "candidate_profile_checksum": checksum,
+        }
+    )
+    snapshot["_runtime_compatibility"] = compatibility
+    return snapshot
 
 def validate_candidate_profile_v2(profile: dict[str, Any]) -> list[str]:
     errors: list[str] = []
