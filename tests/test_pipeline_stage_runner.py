@@ -1,3 +1,4 @@
+from fitcv.contracts import build_stage_6_to_7_handoff, deserialize_stage_6_to_7_handoff
 from fitcv import pipeline_stage_runner
 
 
@@ -164,3 +165,64 @@ def test_requirement_aware_shortlist_display_selection_does_not_change_assessmen
     assert one["coverage"] == three["coverage"]
     assert one_diagnostics["assessment_fingerprint"] == three_diagnostics["assessment_fingerprint"]
     assert one_diagnostics["decision_fingerprint"] == three_diagnostics["decision_fingerprint"]
+
+
+def test_stage5_payload_separates_confirmed_gaps_from_unknowns_and_preserves_clause_coverage() -> None:
+    parent = {
+        "occurrence_id": "req-or",
+        "state": "S",
+        "evidence_ids": ["ev-a"],
+        "satisfying_child_ids": ["req-a"],
+        "provenance": 2,
+    }
+    row = {
+        "coverage": {
+            "states": [
+                parent,
+                {"occurrence_id": "req-e", "state": "E", "evidence_ids": []},
+                {"occurrence_id": "req-u", "state": "U", "evidence_ids": []},
+            ],
+            "compound_diagnostics": [
+                {"occurrence_id": "req-b", "state": "E"},
+            ],
+        }
+    }
+
+    evidence, qualifiers, gaps, unknowns, coverage = pipeline_stage_runner._stage5_evidence_payload(
+        row, [{"evidence_id": "ev-a", "qualifier_status": "supported"}]
+    )
+
+    assert [item["occurrence_id"] for item in gaps] == ["req-e"]
+    assert [item["occurrence_id"] for item in unknowns] == ["req-u"]
+    assert qualifiers[0]["evidence_id"] == "ev-a"
+    assert coverage["states"][0]["satisfying_child_ids"] == ["req-a"]
+
+
+def test_stage6_to_stage7_handoff_roundtrip_preserves_clause_coverage_and_unknowns() -> None:
+    row = {
+        "job_url": "https://example.test/job-1",
+        "score_status": "valid",
+        "final_rank": 1,
+        "candidate_profile_revision": "profile-1",
+        "stage5_admission": {"admitted": True},
+        "stage5_evidence": [{"evidence_id": "ev-a"}],
+        "confirmed_gaps": [{"occurrence_id": "req-e", "state": "E"}],
+        "confirmed_unknowns": [{"occurrence_id": "req-u", "state": "U"}],
+        "clause_coverage": {
+            "states": [{
+                "occurrence_id": "req-or",
+                "state": "S",
+                "evidence_ids": ["ev-a"],
+                "satisfying_child_ids": ["req-a"],
+                "provenance": 2,
+            }]
+        },
+    }
+
+    payload = build_stage_6_to_7_handoff(row)
+    roundtrip = deserialize_stage_6_to_7_handoff(payload)
+
+    assert roundtrip is not None
+    assert roundtrip["confirmed_unknowns"] == [{"occurrence_id": "req-u", "state": "U"}]
+    assert roundtrip["clause_coverage"]["states"][0]["satisfying_child_ids"] == ["req-a"]
+    assert roundtrip["clause_coverage"]["states"][0]["provenance"] == 2
