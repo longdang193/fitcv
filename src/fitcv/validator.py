@@ -23,6 +23,7 @@ from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.candidate_name_policy import is_candidate_name_placeholder
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
+    CV_SECTION_NAME_TO_KEY,
     MYCVS_V1_AUDIT_LINE_RE,
     MYCVS_V1_HEADINGS,
     MYCVS_V1_METADATA_LINE_RE,
@@ -358,8 +359,62 @@ def _structured_section_has_content(section_key: str, section_value: Any) -> boo
         "publications",
         "languages",
     }:
-        return isinstance(section_value, list) and len(section_value) > 0
+        fields = {
+            "experience": ("role", "company", "location", "start", "end", "overview", "bullets"),
+            "projects": ("name", "context", "url", "start", "end", "overview", "bullets"),
+            "education": ("degree", "institution", "field", "start", "end", "details"),
+            "publications": ("title", "publisher", "year", "url", "details"),
+            "languages": ("name", "level", "proficiency", "details"),
+        }[section_key]
+        return isinstance(section_value, list) and any(
+            isinstance(item, dict)
+            and any(not _is_placeholder_token(item.get(field)) for field in fields)
+            for item in section_value
+        )
     return True
+
+
+def _mycvs_required_section_names(
+    profile: dict[str, Any] | None,
+    structured_cv: dict[str, Any] | None,
+) -> list[str]:
+    """Resolve myCVs headings from meaningful source content, not legacy toggles."""
+    profile = profile or {}
+    sections = (structured_cv or {}).get("sections")
+    sections = sections if isinstance(sections, dict) else {}
+    required = ["Summary"]
+
+    def profile_has(section_key: str) -> bool:
+        if section_key == "skills":
+            skills = flatten_skills(profile)
+            return bool(skills or any(str(item or "").strip() for item in list(profile.get("skills") or [])))
+        profile_key = {
+            "education": "education",
+            "experience": "experiences",
+            "projects": "projects",
+            "certifications": "certifications",
+        }.get(section_key, section_key)
+        value = profile.get(profile_key)
+        if section_key == "certifications":
+            return isinstance(value, list) and any(
+                isinstance(item, dict) and is_meaningful_certification_row(item)
+                for item in value
+            )
+        return _structured_section_has_content(section_key, value)
+
+    for section_key, display_name in (
+        ("education", "Education"),
+        ("experience", "Experience"),
+        ("projects", "Projects"),
+        ("skills", "Skills"),
+    ):
+        if profile_has(section_key) or _structured_section_has_content(section_key, sections.get(section_key)):
+            required.append(display_name)
+
+    # Certifications are canonical profile facts and are never selected-evidence gated.
+    if profile_has("certifications"):
+        required.append("Certificates")
+    return required
 
 
 def _find_missing_required_structured_sections(
@@ -370,7 +425,15 @@ def _find_missing_required_structured_sections(
     if structured_cv is None:
         return []
 
-    required_keys = get_required_structured_section_keys(config)
+    renderer_strategy = get_cv_renderer_strategy(config)
+    if renderer_strategy == "mycvs_v1":
+        required_keys = [
+            CV_SECTION_NAME_TO_KEY[name]
+            for name in _mycvs_required_section_names(profile, structured_cv)
+            if name in CV_SECTION_NAME_TO_KEY
+        ]
+    else:
+        required_keys = get_required_structured_section_keys(config)
     if not required_keys:
         return []
 
@@ -379,7 +442,6 @@ def _find_missing_required_structured_sections(
         return [CV_SECTION_KEY_TO_NAME.get(key, key.title()) for key in required_keys]
 
     missing_sections: list[str] = []
-    renderer_strategy = get_cv_renderer_strategy(config)
     allow_empty_sections = renderer_strategy == "mycvs_v1"
     for section_key in required_keys:
         if section_key == "education":
@@ -1148,7 +1210,7 @@ def run_all_validations(
         evidence_selected_certifications=[],
     )
     effective_required_sections = (
-        list(MYCVS_V1_HEADINGS)
+        _mycvs_required_section_names(profile, structured_cv)
         if renderer_strategy == "mycvs_v1"
         else list(required_sections)
     )

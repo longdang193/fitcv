@@ -204,6 +204,22 @@ The configured strategy SHALL use the bundled `mycvs_v1` renderer. The final PDF
 - **WHEN** Markdown validation passes and the bundled renderer produces a PDF
 - **THEN** PDF status SHALL become generated only after the PDF is one page, passes page-fit/render proof, and has matching artifact integrity metadata.
 
+### Requirement: PDF output is validated against the authoritative reference layout
+
+When a reference PDF is configured through the renderer settings or `FITCV_MYCVS_REFERENCE_PDF_PATH`, the renderer SHALL compare each output to that reference before acceptance. The comparison SHALL be text-independent and SHALL fail closed on missing inputs, inspection errors, or material layout mismatch. Without a configured reference, existing renderer behavior SHALL remain unchanged.
+
+#### Scenario: Markdown is rejected before conversion
+- **WHEN** `mycvs_v1` Markdown fails structural, placeholder, provenance, checksum, or canonical-content validation
+- **THEN** the converter SHALL NOT be invoked and PDF acceptance SHALL fail with the Markdown diagnostics.
+
+#### Scenario: Rendered PDF matches the reference layout
+- **WHEN** valid Markdown converts successfully and the rendered PDF matches the configured reference's stable layout facts
+- **THEN** the render acceptance SHALL record a passing reference-layout status and the PDF MAY proceed to artifact acceptance.
+
+#### Scenario: Rendered PDF deviates from the reference layout
+- **WHEN** the candidate PDF is clipped, misaligned, uses different fonts or page geometry, has the wrong section order, or exceeds the reference density/bounds
+- **THEN** PDF acceptance SHALL fail with a reference-layout diagnostic even if conversion and one-page checks succeeded.
+
 ### Requirement: CV adjustment and lifecycle outcomes remain bounded and independent
 
 The system SHALL retain the existing bounded adjustment loop and independent generation, review, PDF, and submission-clearance outcomes. A review-required result MAY persist valid Markdown and attempt PDF generation, but submission SHALL remain blocked until review approval. Converter failure SHALL remain a technical failure and SHALL NOT rewrite a valid Markdown artifact as a generic generation success.

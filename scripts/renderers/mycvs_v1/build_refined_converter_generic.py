@@ -61,7 +61,7 @@ PRINT_CSS = """
 #vue-smart-pages-preview .cv-triple + p {margin-top:2px;}
 #vue-smart-pages-preview .education-subjects {margin:2px 0 0;}
 #vue-smart-pages-preview .education-gpa {margin:4px 0 5px; line-height:1.25;}
-#vue-smart-pages-preview ul:not(.crossref-list) {padding-left:1.8em; list-style-position:outside;}
+#vue-smart-pages-preview ul:not(.crossref-list) {padding-left:1.15em; list-style-position:outside;}
 #vue-smart-pages-preview ul {margin:3px 0 6px; padding-left:1.15em; line-height:1.25; min-width:0; max-width:100%; box-sizing:border-box;}
 #vue-smart-pages-preview li {margin-bottom:2px; min-width:0; max-width:100%; overflow-wrap:break-word; white-space:normal; box-sizing:border-box;}
 #vue-smart-pages-preview .certificate-row {margin:0;line-height:1.2;}

@@ -113,6 +113,13 @@ def test_final_cv_evidence_envelope_rejects_stale_or_invalid_proof(
 def test_external_render_contract_requires_complete_sha256_proof() -> None:
     proof = _native_render_proof()
     proof["renderer_contract_version"] = "mycvs_external_render_v1"
+    proof.update(
+        {
+            "external_release_status": "pass",
+            "expected_text_status": "pass",
+            "record_visibility_status": "pass",
+        }
+    )
 
     assert render_proof_is_verified(proof) is True
     assert render_proof_is_verified(proof, content_checksum="b" * 64) is True
@@ -125,6 +132,14 @@ def test_external_render_contract_requires_complete_sha256_proof() -> None:
     mismatched["content_sha256"] = "e" * 64
     assert render_proof_is_verified(mismatched, content_checksum="b" * 64) is False
 
+
+
+
+def test_external_render_contract_rejects_missing_visibility_proof() -> None:
+    proof = _native_render_proof()
+    proof["renderer_contract_version"] = "mycvs_external_render_v1"
+
+    assert render_proof_is_verified(proof) is False
 
 def test_unrecognized_renderer_contract_is_not_verified() -> None:
     proof = _native_render_proof()

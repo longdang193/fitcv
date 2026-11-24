@@ -174,9 +174,14 @@ def _render_acceptance_is_verified(value: Any) -> bool:
     ):
         return False
     if renderer_contract_version == MYCVS_EXTERNAL_RENDER_CONTRACT_VERSION:
-        return all(
-            bool(_SHA256_PATTERN.fullmatch(str(value.get(field) or "").strip().lower()))
-            for field in ("content_sha256", "template_sha256", "render_config_fingerprint")
+        return (
+            all(
+                bool(_SHA256_PATTERN.fullmatch(str(value.get(field) or "").strip().lower()))
+                for field in ("content_sha256", "template_sha256", "render_config_fingerprint")
+            )
+            and str(value.get("external_release_status") or "").strip().lower() == "pass"
+            and str(value.get("expected_text_status") or "").strip().lower() == "pass"
+            and str(value.get("record_visibility_status") or "").strip().lower() == "pass"
         )
     return (
         bool(str(value.get("content_sha256") or "").strip())

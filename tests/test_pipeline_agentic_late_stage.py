@@ -29,6 +29,11 @@ from fitcv.pipeline import (
     run_pipeline,
 )
 from fitcv.pipeline_stages.common import primary_job_identity_key
+from fitcv.cv_generator import (
+    build_empty_structured_cv,
+    serialize_mycvs_v1,
+    validate_mycvs_v1_markdown,
+)
 from fitcv.agentic_cv_generation import (
     _LIVE_TRACE_DEBUG_ENV_KEYS,
     _backfill_required_sections_from_profile,
@@ -598,12 +603,11 @@ def test_content_plan_orders_claims_and_applies_one_page_section_budget() -> Non
         "ev-4",
         "ev-3",
         "ev-2",
-        "ev-1",
     ]
     assert plan["space_budget"]["page_count"] == 1
     assert plan["space_budget"]["page_fit_status"] == "unverified"
-    assert plan["space_budget"]["section_claim_limits"]["experience"] == 6
-    assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-0"}
+    assert plan["space_budget"]["section_claim_limits"]["experience"] == 5
+    assert {item["evidence_id"] for item in plan["omitted_evidence"]} == {"ev-0", "ev-1"}
     assert plan["omitted_evidence"][0]["reason"] == "space_budget_exceeded"
 
 
@@ -676,6 +680,64 @@ def test_content_plan_treats_malformed_evidence_scores_as_zero() -> None:
     plan = build_cv_content_plan(analysis, {}, {})
 
     assert plan["approved_evidence_ids"] == ["ev-valid", "ev-nan", "ev-none", "ev-text"]
+
+
+def test_zero_selected_evidence_keeps_canonical_records_and_complete_audit_contract() -> None:
+    profile = {
+        "name": "Candidate",
+        "revision": "profile-v1",
+        "education": [{"degree": "MSc", "institution": "Example University"}],
+        "experiences": [{"role": "Data Engineer", "company": "ACME", "start": "2020", "end": "2022"}],
+        "projects": [{"name": "Data Platform", "overview": "Built a platform."}],
+        "certifications": [{"name": "Cloud Certificate", "issuer": "Example"}],
+        "skills": [{"name": "Python"}],
+    }
+    analysis = {
+        **_minimal_analysis_record(),
+        "job_snapshot": {**_minimal_job(), "job_id": "job-1"},
+        "canonical_profile": profile,
+        "profile_revision": "profile-v1",
+        "score_status": "valid",
+        "evidence_payload": [],
+        "requirement_coverage": [],
+        "ranking_cv_handoff": {"handoff_fingerprint": "handoff-1"},
+    }
+
+    plan = build_cv_content_plan(analysis, analysis["job_snapshot"], {"cv": {"renderer": {"strategy": "mycvs_v1"}}}, profile)
+    document = build_empty_structured_cv(
+        jd=analysis["job_snapshot"],
+        profile=profile,
+        config={"cv": {"renderer": {"strategy": "mycvs_v1"}}},
+        fit_classification="strong",
+    )
+    document["ranking_cv_handoff"] = analysis["ranking_cv_handoff"]
+    document["composition_plan"] = plan
+    document["sections"].update(
+        {
+            "summary": {"text": "Data engineer delivering grounded platform improvements."},
+            "education": [{"degree": "MSc", "institution": "Example University"}],
+            "experience": [{"role": "Data Engineer", "company": "ACME", "start": "2020", "end": "2022"}],
+            "projects": [{"name": "Data Platform", "overview": "Built a platform."}],
+            "certifications": [{"name": "Cloud Certificate", "issuer": "Example"}],
+            "skills": {"groups": [{"label": "Core", "items": ["Python"]}]},
+        }
+    )
+    rendered = serialize_mycvs_v1(document)
+
+    result = validate_mycvs_v1_markdown(rendered, content_plan=plan, expected_handoff="handoff-1")
+
+    assert result["valid"] is True
+    assert "Not provided" not in rendered
+    assert "Data Engineer" in rendered
+    assert "Cloud Certificate" in rendered
+    assert set((plan["audit_metadata"] or {})) >= {
+        "job_id",
+        "profile_revision",
+        "score_status",
+        "gaps",
+        "unknowns",
+        "sources",
+    }
 
 
 def test_generation_writer_receives_only_content_plan_approved_evidence() -> None:
@@ -2507,6 +2569,9 @@ def test_reuse_with_missing_render_proof_rerenders_without_provider_call(
 
     mock_generate_cv.assert_not_called()
     mock_render_cv_native_acceptance.assert_called_once()
+    render_input = mock_render_cv_native_acceptance.call_args.args[0]
+    assert isinstance(render_input, dict)
+    assert render_input["composition_plan"]["schema_version"] == "cv_content_plan_v1"
     assert reused["status"] == "accepted"
 
 

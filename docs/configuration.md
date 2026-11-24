@@ -530,6 +530,11 @@ the non-secret routing overlay.
   `FITCV_MYCVS_CONVERTER_PATH`, `FITCV_MYCVS_STYLESHEET_PATH`,
   `FITCV_MYCVS_INTER_REGULAR_PATH`, and `FITCV_MYCVS_INTER_BOLD_PATH`. It writes
   the canonical Markdown input before invoking the converter and records converter
-  and stylesheet SHA-256 revisions in the render proof.
+  and stylesheet SHA-256 revisions in the render proof. A reference PDF may be configured
+  with `cv.renderer.reference_pdf_path`, `cv.renderer.external.reference_pdf_path`, or
+  `FITCV_MYCVS_REFERENCE_PDF_PATH`; when set, the rendered PDF must pass the bundled
+  geometry/font/heading/alignment/bounds comparison before acceptance. A missing or
+  materially mismatched configured reference fails closed. If no reference is configured,
+  the existing one-page/render-proof behavior remains unchanged.
   When the external adapter is enabled without explicit paths, it uses the checked-in
   renderer under `scripts/renderers/mycvs_v1/`; explicit paths still take precedence.

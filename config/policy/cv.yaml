@@ -26,6 +26,8 @@ cv_acceptance_policy:
 
 cv:
   preset: mycvs
+  renderer:
+    strategy: mycvs_v1
   generation:
     model: cx/gpt-5.6-luna
     prompt_version: v1

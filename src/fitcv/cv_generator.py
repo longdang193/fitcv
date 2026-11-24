@@ -24,6 +24,7 @@ import subprocess
 import sys
 import textwrap
 import tempfile
+import xml.etree.ElementTree as ET
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -63,6 +64,7 @@ from fitcv.prompts import render_prompt
 from fitcv.section_policy import (
     certification_evidence_lines,
     certification_policy_decisions,
+    resolve_mycvs_v1_policy,
 )
 from fitcv.llm_runtime import (
     LlmAdapter,
@@ -106,6 +108,28 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 
 _RENDER_CONTRACT_VERSION = "cv_native_render_v2"
 MYCVS_V1_RENDERER_CONTRACT_VERSION = "mycvs_v1"
+CV_CONTENT_PLAN_VERSION = "cv_content_plan_v1"
+_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+
+def _is_mycvs_v1_composition_plan(
+    content_plan: Any,
+    config: dict[str, Any] | None = None,
+) -> bool:
+    return (
+        isinstance(content_plan, dict)
+        and str(content_plan.get("schema_version") or "").strip() == CV_CONTENT_PLAN_VERSION
+        and isinstance(content_plan.get("section_policy"), dict)
+        and (
+            str(content_plan.get("renderer_strategy") or "").strip() == "mycvs_v1"
+            or (
+                "renderer_strategy" not in content_plan
+                and config is not None
+                and get_cv_renderer_strategy(config) == "mycvs_v1"
+            )
+            or "renderer_strategy" not in content_plan and config is None
+        )
+    )
+
 def _runtime_project_root() -> Path:
     frozen_root = getattr(sys, "_MEIPASS", None)
     return Path(frozen_root) if frozen_root else Path(__file__).resolve().parents[2]
@@ -138,7 +162,7 @@ def build_render_proof_identity(structured_cv: dict[str, Any], config: dict[str,
 def _trim_item_identity(item: Any) -> str:
     if not isinstance(item, dict):
         return str(item or "").strip().casefold()
-    for key in ("evidence_id", "claim_id", "id", "name", "title"):
+    for key in ("canonical_record_id", "evidence_id", "claim_id", "id", "name", "title"):
         value = str(item.get(key) or "").strip()
         if value:
             return value.casefold()
@@ -159,6 +183,11 @@ def select_template_variant(jd: dict[str, Any]) -> str:
 def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
     if config is None:
         return []
+    if get_cv_renderer_strategy(config) == "mycvs_v1":
+        return [
+            CV_SECTION_KEY_TO_NAME[key]
+            for key in resolve_mycvs_v1_policy(config)["section_order"]
+        ]
     composition = (config.get("cv") or {}).get("composition") or {}
     enabled_sections: list[str] = []
     preset = str((config.get("cv") or {}).get("preset") or "europass").strip().lower()
@@ -224,7 +253,7 @@ def _format_certification_lines(profile: dict[str, Any] | None) -> list[str]:
         parts = [name]
         if issuer:
             parts.append(issuer)
-        line = " — ".join(parts)
+        line = " \u2014 ".join(parts)
         if year:
             line = f"{line} ({year})"
         lines.append(line)
@@ -279,11 +308,11 @@ def _format_education_lines(profile: dict[str, Any] | None) -> list[str]:
         end = str(education.get("end") or "").strip()
 
         parts = [part for part in (degree, institution) if part]
-        line = " — ".join(parts)
+        line = " \u2014 ".join(parts)
         if field:
             line = f"{line} ({field})"
         if start or end:
-            line = f"{line} [{ '–'.join(part for part in (start, end) if part) }]"
+            line = f"{line} [{ '\u2013'.join(part for part in (start, end) if part) }]"
         lines.append(line)
     return lines
 
@@ -558,9 +587,11 @@ def _profile_contact_value(profile: dict[str, Any] | None, key: str) -> str | No
 def project_authorized_profile(
     profile: dict[str, Any],
     evidence: list[dict[str, Any]] | None = None,
+    *,
+    preserve_canonical: bool = False,
 ) -> dict[str, Any]:
     """Keep identity and only profile records represented by authorized evidence."""
-    if evidence is None:
+    if evidence is None or preserve_canonical:
         return deepcopy(profile)
     selected_ids = {
         str(value)
@@ -653,14 +684,16 @@ def _build_generation_prompt_context(
     required_skills = list(jd.get("required_skills") or [])
     candidate_name = resolved_candidate_profile_name(profile)
 
+    composition_mode = _is_mycvs_v1_composition_plan(content_plan, config)
     enabled_section_names = _get_enabled_section_names(config)
 
     allowed_skill_set = _collect_allowed_skill_set(evidence, config=config)
     allowed_skills = sorted(skill for skill in allowed_skill_set if skill)
 
     allowed_certifications: list[str] = []
-    if "Certifications" in enabled_section_names and not allowed_certifications:
+    if not composition_mode and "Certifications" in enabled_section_names and not allowed_certifications:
         enabled_section_names = [name for name in enabled_section_names if name != "Certifications"]
+    prompt_required_sections = ["Summary"] if composition_mode else enabled_section_names
 
     evidence_lines = _build_selected_evidence_lines(
         evidence,
@@ -737,27 +770,27 @@ def _build_generation_prompt_context(
             and str(item.get("source_section") or "").strip().lower() != "experiences"
             for item in evidence
         )
-        if selected_employers:
+        if not composition_mode and selected_employers:
             constraint_lines.append(
                 "Only use employers named in selected evidence: "
                 + ", ".join(selected_employers)
             )
-        elif evidence:
+        elif not composition_mode and evidence:
             constraint_lines.append(
                 "Do not include employer names unless they appear in selected evidence."
             )
             constraint_lines.append(
                 "No selected experience evidence exists: set the Experience section to [] and do not convert project, education, or achievement evidence into work history."
             )
-        if selected_experience_evidence:
+        if not composition_mode and selected_experience_evidence:
             constraint_lines.append(
                 "Use only selected Experience evidence for the Experience section; never convert education, achievement, volunteering, or project evidence into employment."
             )
-        elif has_non_experience_evidence:
+        elif not composition_mode and has_non_experience_evidence:
             constraint_lines.append(
                 "Non-experience evidence belongs only in its matching section; never convert education, achievement, volunteering, or project evidence into employment."
             )
-        if selected_projects:
+        if not composition_mode and selected_projects:
             constraint_lines.append(
                 "Only use project names named in selected evidence: "
                 + ", ".join(selected_projects)
@@ -765,22 +798,24 @@ def _build_generation_prompt_context(
             constraint_lines.append(
                 "Keep project evidence in the Projects section; never use a project name as an Experience.company or employer."
             )
-        elif evidence:
+        elif not composition_mode and evidence:
             constraint_lines.append(
                 "Do not include project names unless they appear in selected evidence."
             )
-        if allowed_skills:
+        if not composition_mode and allowed_skills:
             constraint_lines.append(
                 "Allowed Skills (selected-evidence only): " + ", ".join(allowed_skills)
             )
             constraint_lines.append(
                 "In the Skills section, list only skills from Allowed Skills. Do not add profile-only skills."
             )
-    if enabled_section_names:
-        constraint_lines.append(
-            "The generated CV MUST include these sections in this order: "
-            + ", ".join(enabled_section_names)
+    if prompt_required_sections:
+        section_requirement = (
+            "The generated CV MUST include these mandatory sections: "
+            if composition_mode
+            else "The generated CV MUST include these sections in this order: "
         )
+        constraint_lines.append(section_requirement + ", ".join(prompt_required_sections))
         constraint_lines.append(
             "Use markdown headings exactly: '# {Candidate Name}', optional one-line subtitle, then each required section as '## Section'."
         )
@@ -805,7 +840,20 @@ def _build_generation_prompt_context(
         and not approved_claims
     )
     if content_plan:
-        if has_approved_job_claims:
+        if composition_mode:
+            constraint_lines.extend(
+                [
+                    "Use the canonical candidate profile as the factual baseline for Header, Education, Experience, Projects, Certifications, and Skills.",
+                    "Use selected job evidence only to tailor relevance and support job-specific claims; selected evidence must not erase canonical profile records.",
+                    "Treat unsupported or unknown requirements as gaps; never turn them into candidate claims.",
+                    "Do not expose evidence IDs, requirement IDs, claim IDs, fingerprints, or provenance in recruiter-facing Markdown.",
+                    "Summary is mandatory and must contain 2-4 grounded tailored sentences.",
+                    "Preserve canonical Experience records with one overview and 3-5 achievement bullets where grounded; preserve canonical Projects and their validated links.",
+                    "Certifications come from the canonical profile independently of selected evidence and are omitted only when no meaningful canonical certifications exist.",
+                    "Skills start from canonical grounded skills, normalized and deduplicated, then prioritized against the JD; do not invent unsupported job-only skills.",
+                ]
+            )
+        elif has_approved_job_claims:
             constraint_lines.append(
                 "Use only approved claims and evidence ids from this cv_content_plan_v1; omit every claim not listed: "
                 + json.dumps(content_plan, sort_keys=True, ensure_ascii=False)
@@ -827,9 +875,14 @@ def _build_generation_prompt_context(
                 + "."
             )
         constraint_lines.append("Do not add unsupported filler or duplicate claims.")
-        constraint_lines.append(
-            "Omit optional sections deterministically when space is constrained: publications, certifications, languages, then projects."
-        )
+        if composition_mode:
+            constraint_lines.append(
+                "Omit optional sections only when their canonical source is genuinely empty; never omit canonical employment, projects, certifications, or grounded Skills to satisfy an evidence allowlist."
+            )
+        else:
+            constraint_lines.append(
+                "Omit optional sections deterministically when space is constrained: publications, certifications, languages, then projects."
+            )
     if target_sections:
         normalized_targets = [str(item).strip().lower() for item in target_sections if str(item).strip()]
         constraint_lines.append(
@@ -919,7 +972,11 @@ def _build_generation_prompt_context(
         constraint_lines.append(
             "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
         )
-        if has_approved_job_claims:
+        if composition_mode:
+            constraint_lines.append(
+                "Selected evidence controls job-specific emphasis and claim support, but canonical profile facts remain eligible even when not selected."
+            )
+        elif has_approved_job_claims:
             constraint_lines.append(
                 "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
             )
@@ -1070,7 +1127,10 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
         "languages",
     ]
     if config is not None:
-        required_sections = ["header", *get_required_structured_section_keys(config)]
+        if get_cv_renderer_strategy(config) == "mycvs_v1":
+            required_sections = ["header", "summary"]
+        else:
+            required_sections = ["header", *get_required_structured_section_keys(config)]
     schema = {
         "type": "object",
         "additionalProperties": False,
@@ -1217,11 +1277,6 @@ def build_live_structured_cv_response_schema(config: dict[str, Any] | None = Non
             },
         },
     }
-    if config is not None:
-        section_properties = schema["properties"]["sections"]["properties"]
-        schema["properties"]["sections"]["properties"] = {
-            key: section_properties[key] for key in required_sections
-        }
     return schema
 
 def validate_structured_cv(
@@ -1248,7 +1303,10 @@ def validate_structured_cv(
 
     required_sections = set(CV_STRUCTURED_SECTION_KEYS)
     if config is not None:
-        required_sections = {"header", *get_required_structured_section_keys(config)}
+        if get_cv_renderer_strategy(config) == "mycvs_v1":
+            required_sections = {"header", "summary"}
+        else:
+            required_sections = {"header", *get_required_structured_section_keys(config)}
     missing_sections = [key for key in required_sections if key not in sections]
     if missing_sections:
         raise ValueError(f"Structured CV missing required sections: {', '.join(missing_sections)}")
@@ -1312,7 +1370,12 @@ def _normalize_contact(raw_header: dict[str, Any], default_header: dict[str, Any
 
 
 def _normalize_bullets(values: Any) -> list[str]:
-    return _coerce_string_list(values)
+    if not isinstance(values, list):
+        return []
+    return _coerce_string_list([
+        value.get("text") if isinstance(value, dict) else value
+        for value in values
+    ])
 
 
 def _coerce_object_list(values: Any) -> list[dict[str, Any]]:
@@ -1402,8 +1465,9 @@ def _sanitize_section_entries(
     entries: list[dict[str, Any]],
     *,
     config: dict[str, Any],
+    ignore_enabled: bool = False,
 ) -> list[dict[str, Any]]:
-    if not _section_enabled(config, section_key):
+    if not ignore_enabled and not _section_enabled(config, section_key):
         return []
     checks = {
         "education": _is_synthetic_education_entry,
@@ -1423,15 +1487,20 @@ def _sanitize_education_entries(
     education_entries: list[dict[str, Any]],
     *,
     config: dict[str, Any],
+    ignore_enabled: bool = False,
 ) -> list[dict[str, Any]]:
-    return _sanitize_section_entries("education", education_entries, config=config)
+    return _sanitize_section_entries(
+        "education", education_entries, config=config, ignore_enabled=ignore_enabled
+    )
 
 def _normalize_header_section(
     raw_sections: dict[str, Any],
     default_sections: dict[str, Any],
+    *,
+    canonical_only: bool = False,
 ) -> dict[str, Any]:
     raw_header = raw_sections.get("header")
-    if not isinstance(raw_header, dict):
+    if canonical_only or not isinstance(raw_header, dict):
         raw_header = {}
     return {
         "name": str(raw_header.get("name") or default_sections["header"]["name"]).strip(),
@@ -1453,29 +1522,34 @@ def _normalize_summary_section(raw_sections: dict[str, Any]) -> dict[str, str]:
 def _normalize_experience_section(raw_sections: dict[str, Any], *, config: dict[str, Any]) -> list[dict[str, Any]]:
     experience_entries: list[dict[str, Any]] = []
     for item in _coerce_object_list(raw_sections.get("experience")):
-        experience_entries.append(
-            {
-                "role": str(item.get("role") or "").strip(),
-                "company": str(item.get("company") or "").strip(),
-                "start": str(item.get("start") or "").strip() or None,
-                "end": str(item.get("end") or "").strip() or None,
-                "location": str(item.get("location") or "").strip() or None,
-                "bullets": _normalize_bullets(item.get("bullets")),
-            }
-        )
+        entry = {
+            "role": str(item.get("role") or "").strip(),
+            "company": str(item.get("company") or "").strip(),
+            "start": str(item.get("start") or "").strip() or None,
+            "end": str(item.get("end") or "").strip() or None,
+            "location": str(item.get("location") or "").strip() or None,
+            "bullets": _normalize_bullets(item.get("bullets")),
+        }
+        if str(item.get("overview") or "").strip():
+            entry["overview"] = str(item.get("overview")).strip()
+        experience_entries.append(entry)
     return _sanitize_section_entries("experience", experience_entries, config=config)
 
 def _normalize_projects_section(raw_sections: dict[str, Any], *, config: dict[str, Any]) -> list[dict[str, Any]]:
     project_entries: list[dict[str, Any]] = []
     for item in _coerce_object_list(raw_sections.get("projects")):
-        project_entries.append(
-            {
-                "name": str(item.get("name") or "").strip(),
-                "context": str(item.get("context") or "").strip() or None,
-                "url": str(item.get("url") or item.get("link") or "").strip() or None,
-                "bullets": _normalize_bullets(item.get("bullets")),
-            }
-        )
+        entry = {
+            "name": str(item.get("name") or "").strip(),
+            "context": str(item.get("context") or "").strip() or None,
+            "url": str(item.get("url") or item.get("link") or "").strip() or None,
+            "bullets": _normalize_bullets(item.get("bullets")),
+        }
+        for date_key in ("start", "end"):
+            if str(item.get(date_key) or "").strip():
+                entry[date_key] = str(item.get(date_key)).strip()
+        if str(item.get("overview") or "").strip():
+            entry["overview"] = str(item.get("overview")).strip()
+        project_entries.append(entry)
     return _sanitize_section_entries("projects", project_entries, config=config)
 
 def _normalize_education_section(raw_sections: dict[str, Any], *, config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1521,6 +1595,116 @@ def _normalize_skills_section(
                 }
             )
     return {"groups": normalized_groups}
+
+
+def _canonical_profile_sections(profile: dict[str, Any] | None, *, config: dict[str, Any]) -> dict[str, Any]:
+    """Project canonical profile records into the structured CV shape."""
+    profile = profile if isinstance(profile, dict) else {}
+
+    def rows(key: str) -> list[dict[str, Any]]:
+        value = profile.get(key)
+        return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+    experiences = []
+    for item in rows("experiences"):
+        experiences.append({
+            "canonical_record_id": item.get("id") or item.get("record_id") or item.get("evidence_id"),
+            "role": str(item.get("role") or item.get("title") or "").strip(),
+            "company": str(item.get("company") or item.get("employer") or "").strip(),
+            "start": str(item.get("start") or item.get("start_date") or "").strip() or None,
+            "end": str(item.get("end") or item.get("end_date") or "").strip() or None,
+            "location": str(item.get("location") or "").strip() or None,
+            "overview": str(item.get("overview") or item.get("summary") or item.get("description") or "").strip() or None,
+            "bullets": _normalize_bullets(item.get("bullets") or item.get("achievements")),
+        })
+    projects = []
+    for item in rows("projects"):
+        projects.append({
+            "canonical_record_id": item.get("id") or item.get("record_id") or item.get("evidence_id"),
+            "name": str(item.get("name") or item.get("title") or "").strip(),
+            "context": str(item.get("context") or item.get("technologies") or "").strip() or None,
+            "overview": str(item.get("overview") or item.get("summary") or item.get("description") or "").strip() or None,
+            "start": str(item.get("start") or item.get("start_date") or "").strip() or None,
+            "end": str(item.get("end") or item.get("end_date") or "").strip() or None,
+            "url": str(item.get("url") or item.get("link") or "").strip() or None,
+            "bullets": _normalize_bullets(item.get("bullets") or item.get("achievements") or item.get("highlights")),
+        })
+    education = []
+    for item in rows("education"):
+        education.append({
+            "canonical_record_id": item.get("id") or item.get("record_id") or item.get("evidence_id"),
+            "degree": str(item.get("degree") or item.get("qualification") or "").strip(),
+            "institution": str(item.get("institution") or item.get("school") or "").strip(),
+            "field": str(item.get("field") or item.get("major") or "").strip() or None,
+            "start": str(item.get("start") or item.get("start_date") or "").strip() or None,
+            "end": str(item.get("end") or item.get("end_date") or "").strip() or None,
+            "details": str(item.get("details") or item.get("description") or "").strip() or None,
+        })
+    certifications = []
+    for item in rows("certifications"):
+        certifications.append({
+            "canonical_record_id": item.get("id") or item.get("record_id") or item.get("evidence_id"),
+            "name": str(item.get("name") or item.get("title") or "").strip(),
+            "issuer": str(item.get("issuer") or item.get("organization") or "").strip() or None,
+            "year": str(item.get("year") or item.get("issue_date") or item.get("date") or "").strip() or None,
+            "url": str(item.get("url") or item.get("link") or "").strip() or None,
+            "details": str(item.get("details") or item.get("description") or "").strip() or None,
+        })
+    skill_names = flatten_skills(profile)
+    skill_items: list[str] = []
+    seen: set[str] = set()
+    for skill in skill_names:
+        value = str(skill).strip()
+        canonical = canonicalize_skill(value, config)
+        if value and canonical not in seen:
+            seen.add(canonical)
+            skill_items.append(value)
+    return {
+        "experience": _sanitize_section_entries("experience", experiences, config=config, ignore_enabled=True),
+        "projects": _sanitize_section_entries("projects", projects, config=config, ignore_enabled=True),
+        "education": _sanitize_education_entries(education, config=config, ignore_enabled=True),
+        "certifications": _sanitize_section_entries("certifications", certifications, config=config, ignore_enabled=True),
+        "skills": {"groups": [{"label": "Skills", "items": skill_items}] if skill_items else []},
+    }
+
+
+def _merge_canonical_section_records(
+    generated: Any,
+    canonical: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    generated_rows = [item for item in generated if isinstance(item, dict)] if isinstance(generated, list) else []
+    if not canonical:
+        return generated_rows
+    by_key: dict[str, dict[str, Any]] = {}
+    for item in generated_rows:
+        for value in (
+            item.get("canonical_record_id"),
+            item.get("id"),
+            item.get("name"),
+            item.get("company"),
+            item.get("role"),
+        ):
+            key = str(value or "").strip().casefold()
+            if key:
+                by_key[key] = item
+    merged: list[dict[str, Any]] = []
+    for item in canonical:
+        candidate = deepcopy(item)
+        generated_item = next(
+            (by_key.get(str(value or "").strip().casefold()) for value in (
+                item.get("canonical_record_id"),
+                item.get("id"),
+                item.get("name"),
+                item.get("company"),
+                item.get("role"),
+            ) if str(value or "").strip().casefold() in by_key),
+            None,
+        )
+        if generated_item is not None:
+            candidate.update({k: v for k, v in generated_item.items() if v not in (None, "", [])})
+        merged.append(candidate)
+    return merged
+
 
 def _normalize_certifications_section(raw_sections: dict[str, Any], *, config: dict[str, Any]) -> list[dict[str, Any]]:
     certification_entries: list[dict[str, Any]] = []
@@ -1568,6 +1752,7 @@ def _normalize_structured_cv(
     config: dict[str, Any],
     fit_classification: str,
     ranking_cv_handoff: dict[str, Any] | None = None,
+    content_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized = build_empty_structured_cv(
         jd=jd,
@@ -1580,23 +1765,54 @@ def _normalize_structured_cv(
         raw_sections = {}
     default_sections = normalized["sections"]
 
-    normalized["sections"]["header"] = _normalize_header_section(raw_sections, default_sections)
+    composition_mode = _is_mycvs_v1_composition_plan(content_plan, config)
+    if composition_mode:
+        canonical_header = deepcopy(default_sections["header"])
+        canonical_profile = profile if isinstance(profile, dict) else {}
+        canonical_header["title"] = str(
+            canonical_profile.get("title")
+            or canonical_profile.get("headline")
+            or canonical_profile.get("role")
+            or ""
+        ).strip()
+        canonical_defaults = {"header": canonical_header}
+        normalized["sections"]["header"] = _normalize_header_section(
+            {}, canonical_defaults, canonical_only=True
+        )
+    else:
+        normalized["sections"]["header"] = _normalize_header_section(raw_sections, default_sections)
     normalized["sections"]["summary"] = _normalize_summary_section(raw_sections)
 
+    canonical_sections = _canonical_profile_sections(profile, config=config) if composition_mode else {}
     normalized["sections"]["experience"] = _normalize_experience_section(raw_sections, config=config)
     normalized["sections"]["projects"] = _normalize_projects_section(raw_sections, config=config)
     normalized["sections"]["education"] = _normalize_education_section(raw_sections, config=config)
     normalized["sections"]["skills"] = _normalize_skills_section(
         raw_sections,
-        allowed_skill_set=_collect_allowed_skill_set(evidence or [], config=config),
+        allowed_skill_set=None if composition_mode else _collect_allowed_skill_set(evidence or [], config=config),
         config=config,
     )
 
+    if composition_mode:
+        for key in ("experience", "projects", "education", "certifications"):
+            generated = normalized["sections"].get(key)
+            canonical = canonical_sections.get(key) or []
+            normalized["sections"][key] = _merge_canonical_section_records(generated, canonical)
+        canonical_skills = canonical_sections.get("skills") or {"groups": []}
+        # Generated skills cannot expand or replace the canonical grounded skill set.
+        normalized["sections"]["skills"] = canonical_skills
+
     normalized["sections"]["certifications"] = _normalize_certifications_section(raw_sections, config=config)
+    if composition_mode:
+        normalized["sections"]["certifications"] = _merge_canonical_section_records(
+            normalized["sections"]["certifications"], canonical_sections.get("certifications") or []
+        )
     normalized["sections"]["publications"] = _normalize_publications_section(raw_sections, config=config)
     normalized["sections"]["languages"] = _normalize_languages_section(raw_sections, config=config)
     if isinstance(ranking_cv_handoff, dict):
         normalized["ranking_cv_handoff"] = deepcopy(ranking_cv_handoff)
+    if composition_mode:
+        normalized["composition_plan"] = deepcopy(content_plan)
 
     validate_structured_cv(normalized, config=config)
     return normalized
@@ -1833,6 +2049,16 @@ def _mycvs_list(value: Any) -> list[str]:
     return list(dict.fromkeys(_mycvs_line(item) for item in value if _mycvs_line(item)))
 
 
+def _append_mycvs_bullets(lines: list[str], value: Any) -> None:
+    bullets = [bullet for bullet in _mycvs_list(value) if not _is_placeholder_token(bullet)]
+    if not bullets:
+        return
+    if lines and lines[-1] != "":
+        lines.append("")
+    lines.extend(f"- {bullet}" for bullet in bullets)
+    lines.append("")
+
+
 def _mycvs_handoff_context(structured_cv: dict[str, Any]) -> tuple[dict[str, Any], str]:
     handoff = next(
         (
@@ -1932,13 +2158,196 @@ def _mycvs_contact_link(icon: str, label: str, target: str) -> str:
     return f'<span class="iconify" data-icon="{icon}"></span> [{label}](<{target}>)'
 
 
-def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
-    """Serialize the canonical intermediate CV model into deterministic myCVs Markdown."""
-    validate_structured_cv(structured_cv)
+def _serialize_mycvs_v1_composed(structured_cv: dict[str, Any]) -> str:
+    """Serialize a composition-plan-backed CV using the myCVs v1 grammar."""
     sections = structured_cv["sections"]
     header = sections["header"]
     candidate_name = _mycvs_line(header.get("name"))
-    if not candidate_name:
+    if not candidate_name or _is_placeholder_token(candidate_name):
+        raise ValueError("mycvs_v1 requires a canonical candidate name")
+    context, handoff = _mycvs_handoff_context(structured_cv)
+    lines = ["---", "---", "", f"# {candidate_name}"]
+
+    contact = header.get("contact") if isinstance(header.get("contact"), dict) else {}
+    contact_values = []
+    for key in ("email", "phone", "linkedin", "github"):
+        value = _mycvs_line(contact.get(key))
+        if not value or _is_placeholder_token(value):
+            continue
+        if key == "email":
+            contact_values.append(_mycvs_contact_link("tabler:mail", value, f"mailto:{value}"))
+        elif key == "phone":
+            contact_values.append(_mycvs_contact_link("tabler:phone", value, f"tel:{re.sub(r'[^+0-9]', '', value)}"))
+        else:
+            target = value if _mycvs_url_is_valid(value) else f"https://{value}"
+            if not _mycvs_url_is_valid(target):
+                raise ValueError(f"mycvs_v1 {key} URL is not validated")
+            icon = "tabler:brand-linkedin" if key == "linkedin" else "tabler:brand-github"
+            contact_values.append(_mycvs_contact_link(icon, value, target))
+    location = _mycvs_line(header.get("location"))
+    if location and not _is_placeholder_token(location):
+        contact_values.append(f'<span class="iconify" data-icon="ic:outline-location-on"></span> {location}')
+    if contact_values:
+        lines.extend(["", "  : ".join(contact_values)])
+
+    summary = _mycvs_line((sections.get("summary") or {}).get("text"))
+    if not summary or _is_placeholder_token(summary):
+        raise ValueError("mycvs_v1 requires a grounded Summary")
+    lines.extend(["", "## Summary", summary])
+
+    def add_heading(heading: str) -> None:
+        if lines and lines[-1] != "":
+            lines.append("")
+        lines.append(f"## {heading}")
+
+    education = [
+        item for item in sections.get("education", [])
+        if isinstance(item, dict) and any(not _is_placeholder_token(item.get(key)) for key in ("degree", "institution", "field", "start", "end", "details"))
+    ]
+    if education:
+        add_heading("Education")
+        for item in education:
+            degree = _mycvs_line(item.get("degree"))
+            institution = _mycvs_line(item.get("institution"))
+            field = _mycvs_line(item.get("field"))
+            title = " - ".join(value for value in (degree, field) if value and not _is_placeholder_token(value))
+            if not title:
+                title = institution
+            if not title:
+                continue
+            lines.append(f"**{title}**")
+            if institution and not _is_placeholder_token(institution):
+                lines.append(f"  : **{institution}**")
+            period = " - ".join(value for value in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if value)
+            if period:
+                lines.append(f"  : **{period}**")
+            details = _mycvs_line(item.get("details"))
+            if details and not _is_placeholder_token(details):
+                lines.extend(["", details])
+
+    experience = [
+        item for item in sections.get("experience", [])
+        if isinstance(item, dict) and any(not _is_placeholder_token(item.get(key)) for key in ("role", "company", "location", "start", "end", "overview"))
+    ]
+    if experience:
+        add_heading("Experience")
+        for index, item in enumerate(experience):
+            if index and lines and lines[-1] != "":
+                lines.append("")
+            role = _mycvs_line(item.get("role"))
+            company = _mycvs_line(item.get("company"))
+            title = " - ".join(value for value in (role, company) if value and not _is_placeholder_token(value))
+            if not title:
+                continue
+            lines.append(f"**{title}**")
+            location = _mycvs_line(item.get("location"))
+            period = " - ".join(value for value in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if value)
+            if location:
+                lines.append(f"  : **{location}**")
+            if period:
+                lines.append(f"  : **{period}**")
+            overview = _mycvs_line(item.get("overview"))
+            if overview and not _is_placeholder_token(overview):
+                lines.extend(["", overview])
+            _append_mycvs_bullets(lines, item.get("bullets"))
+
+    projects = [
+        item for item in sections.get("projects", [])
+        if isinstance(item, dict) and any(not _is_placeholder_token(item.get(key)) for key in ("name", "context", "url", "start", "end", "overview"))
+    ]
+    if projects:
+        add_heading("Projects")
+        for index, item in enumerate(projects):
+            if index and lines and lines[-1] != "":
+                lines.append("")
+            name = _mycvs_line(item.get("name"))
+            if not name or _is_placeholder_token(name):
+                continue
+            url = _mycvs_line(item.get("url"))
+            if url:
+                if not _mycvs_url_is_valid(url):
+                    raise ValueError(f"mycvs_v1 project URL is not validated: {url!r}")
+                name = f"[GitHub icon: {name}](<{url}>)"
+            lines.append(f"**{name}**")
+            context_text = _mycvs_line(item.get("context"))
+            if context_text:
+                lines.append(f"  : **{context_text}**")
+            period = " - ".join(value for value in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if value)
+            if period:
+                lines.append(f"  : **{period}**")
+            overview = _mycvs_line(item.get("overview"))
+            if overview and not _is_placeholder_token(overview):
+                lines.extend(["", overview])
+            _append_mycvs_bullets(lines, item.get("bullets"))
+
+    certificates = [
+        item for item in sections.get("certifications", [])
+        if isinstance(item, dict) and any(not _is_placeholder_token(item.get(key)) for key in ("name", "issuer", "year", "url", "details"))
+    ]
+    if certificates:
+        add_heading("Certificates")
+        for item in certificates:
+            name = _mycvs_line(item.get("name"))
+            if not name or _is_placeholder_token(name):
+                continue
+            url = _mycvs_line(item.get("url"))
+            if url:
+                if not _mycvs_url_is_valid(url):
+                    raise ValueError(f"mycvs_v1 certificate URL is not validated: {url!r}")
+                name = f"[{name}](<{url}>)"
+            lines.append(f"**{name}**")
+            issuer = _mycvs_line(item.get("issuer"))
+            year = _mycvs_line(item.get("year"))
+            if issuer:
+                lines.append(f"  : **{issuer}**")
+            if year:
+                lines.append(f"  : **{year}**")
+            details = _mycvs_line(item.get("details"))
+            if details and not _is_placeholder_token(details):
+                lines.extend(["", details])
+
+    skill_groups = [group for group in list((sections.get("skills") or {}).get("groups") or []) if isinstance(group, dict)]
+    skill_groups = [group for group in skill_groups if _mycvs_list(group.get("items"))]
+    if skill_groups:
+        add_heading("Skills")
+        for group in skill_groups:
+            label = _mycvs_line(group.get("label"))
+            items = _mycvs_list(group.get("items"))
+            if label and items:
+                lines.append(f"**{label}:** {', '.join(items)}")
+
+    sources = _mycvs_sources(structured_cv, experience)
+    audit_payload = structured_cv.get("composition_plan", {}).get("audit_metadata") if isinstance(structured_cv.get("composition_plan"), dict) else None
+    if not isinstance(audit_payload, dict):
+        audit_payload = {
+            "job_id": _mycvs_line(context["job_id"]),
+            "profile_revision": _mycvs_line(context["profile_revision"]),
+            "score_status": _mycvs_line(context["score_status"]),
+            "gaps": _mycvs_list(context["gaps"]),
+            "unknowns": _mycvs_list(context["unknowns"]),
+            "sources": sources,
+        }
+    else:
+        audit_payload = deepcopy(audit_payload)
+        audit_payload.setdefault("sources", sources)
+    audit_json = json.dumps(audit_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if "-->" in audit_json:
+        raise ValueError("mycvs_v1 audit metadata contains an unsafe comment delimiter")
+    lines.extend(["", f"<!-- mycvs_v1_audit: {audit_json} -->"])
+    payload = _normalize_mycvs_v1_text("\n".join(lines))
+    checksum = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return payload + f"<!-- mycvs_v1: schema=mycvs_v1; content_sha256={checksum}; handoff={handoff} -->\n"
+
+
+def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
+    """Serialize the canonical intermediate CV model into deterministic myCVs Markdown."""
+    validate_structured_cv(structured_cv)
+    if _is_mycvs_v1_composition_plan(structured_cv.get("composition_plan")):
+        return _serialize_mycvs_v1_composed(structured_cv)
+    sections = structured_cv["sections"]
+    header = sections["header"]
+    candidate_name = _mycvs_line(header.get("name"))
+    if not candidate_name or _is_placeholder_token(candidate_name):
         raise ValueError("mycvs_v1 requires a canonical candidate name")
     context, handoff = _mycvs_handoff_context(structured_cv)
     experience = [item for item in sections.get("experience", []) if isinstance(item, dict)]
@@ -1975,7 +2384,7 @@ def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
             contact_items.append(f'<span class="iconify" data-icon="ic:outline-location-on"></span> {location}')
         contact_lines.append("\n  : ".join(contact_items))
 
-    lines = [f"# {candidate_name}"]
+    lines = ["---", "---", "", f"# {candidate_name}"]
     if contact_lines:
         lines.extend(["", *contact_lines])
     review_notice = structured_cv.get("artifact_review")
@@ -1988,86 +2397,136 @@ def serialize_mycvs_v1(structured_cv: dict[str, Any]) -> str:
                 f"> {reason}",
             ]
         )
-    lines.extend(["", "## Summary"])
-    lines.append(_mycvs_line((sections.get("summary") or {}).get("text")) or "Not provided.")
-    lines.extend(["", "## Education"])
-    education = [item for item in sections.get("education", []) if isinstance(item, dict)]
+    summary = _mycvs_line((sections.get("summary") or {}).get("text"))
+    if not summary or _is_placeholder_token(summary):
+        raise ValueError("mycvs_v1 requires a grounded Summary")
+    lines.extend(["", "## Summary", summary])
+
+    def add_heading(heading: str) -> None:
+        if lines and lines[-1] != "":
+            lines.append("")
+        lines.append(f"## {heading}")
+
+    education = [
+        item for item in sections.get("education", [])
+        if isinstance(item, dict)
+        and any(not _is_placeholder_token(item.get(key)) for key in ("degree", "institution", "field", "start", "end", "details"))
+    ]
     if education:
+        add_heading("Education")
         for item in education:
-            degree = _mycvs_line(item.get("degree")) or "Not provided"
+            degree = _mycvs_line(item.get("degree"))
             institution = _mycvs_line(item.get("institution"))
             field = _mycvs_line(item.get("field"))
-            dates = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
-            detail = " — ".join(part for part in (degree, institution, field) if part)
-            lines.append(f"- **{detail}**" + (f" ({dates})" if dates else ""))
-    else:
-        lines.append("Not provided.")
+            title = " - ".join(value for value in (degree, field) if value and not _is_placeholder_token(value)) or institution
+            if not title:
+                continue
+            lines.append(f"**{title}**")
+            if institution and not _is_placeholder_token(institution):
+                lines.append(f"  : **{institution}**")
+            period = " - ".join(value for value in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if value)
+            if period:
+                lines.append(f"  : **{period}**")
+            details = _mycvs_line(item.get("details"))
+            if details and not _is_placeholder_token(details):
+                lines.extend(["", details])
 
-    lines.extend(["", "## Experience"])
+    experience = [
+        item for item in sections.get("experience", [])
+        if isinstance(item, dict)
+        and any(not _is_placeholder_token(item.get(key)) for key in ("role", "company", "location", "start", "end", "overview", "bullets"))
+    ]
     if experience:
-        for item in experience:
-            role = _mycvs_line(item.get("role")) or "Not provided"
+        add_heading("Experience")
+        for index, item in enumerate(experience):
+            if index and lines and lines[-1] != "":
+                lines.append("")
+            role = _mycvs_line(item.get("role"))
             company = _mycvs_line(item.get("company"))
+            title = " - ".join(value for value in (role, company) if value and not _is_placeholder_token(value))
+            if not title:
+                continue
+            refs = _mycvs_source_ids(item)
+            if source_ids and not refs:
+                raise ValueError(f"mycvs_v1 experience item lacks source evidence: {title}")
+            lines.append(f"**{title}**")
             location = _mycvs_line(item.get("location"))
-            period = " – ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
-            title = " — ".join(part for part in (role, company) if part)
-            lines.append(f"- **{title}**" + (f" ({period})" if period else ""))
+            period = " - ".join(part for part in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if part)
             if location:
                 lines.append(f"  : **{location}**")
-            bullets = _mycvs_list(item.get("bullets"))
-            lines.extend(f"  - {bullet}" for bullet in bullets)
-            refs = _mycvs_source_ids(item)
-            if refs:
-                lines.append(f"  - Evidence: {', '.join(refs)}")
-            elif source_ids:
-                raise ValueError(f"mycvs_v1 experience item lacks source evidence: {title}")
-    else:
-        lines.append("Not provided.")
+            if period:
+                lines.append(f"  : **{period}**")
+            overview = _mycvs_line(item.get("overview"))
+            if overview and not _is_placeholder_token(overview):
+                lines.extend(["", overview])
+            _append_mycvs_bullets(lines, item.get("bullets"))
 
-    lines.extend(["", "## Projects"])
-    projects = [item for item in sections.get("projects", []) if isinstance(item, dict)]
+    projects = [
+        item for item in sections.get("projects", [])
+        if isinstance(item, dict)
+        and any(not _is_placeholder_token(item.get(key)) for key in ("name", "context", "url", "start", "end", "overview", "bullets"))
+    ]
     if projects:
-        for item in projects:
-            name = _mycvs_line(item.get("name")) or "Not provided"
+        add_heading("Projects")
+        for index, item in enumerate(projects):
+            if index and lines and lines[-1] != "":
+                lines.append("")
+            name = _mycvs_line(item.get("name"))
+            if not name or _is_placeholder_token(name):
+                continue
             url = _mycvs_line(item.get("url"))
             if url:
                 if not _mycvs_url_is_valid(url):
                     raise ValueError(f"mycvs_v1 project URL is not validated: {url!r}")
-                name = f"[{name}](<{url}>)"
-            lines.append(f"- **{name}**")
+                name = f"[GitHub icon: {name}](<{url}>)"
+            lines.append(f"**{name}**")
             context_text = _mycvs_line(item.get("context"))
-            if context_text:
+            if context_text and not _is_placeholder_token(context_text):
                 lines.append(f"  : **{context_text}**")
-            lines.extend(f"  - {bullet}" for bullet in _mycvs_list(item.get("bullets")))
-    else:
-        lines.append("Not provided.")
+            period = " - ".join(value for value in (_mycvs_line(item.get("start")), _mycvs_line(item.get("end"))) if value)
+            if period:
+                lines.append(f"  : **{period}**")
+            overview = _mycvs_line(item.get("overview"))
+            if overview and not _is_placeholder_token(overview):
+                lines.extend(["", overview])
+            _append_mycvs_bullets(lines, item.get("bullets"))
 
-    lines.extend(["", "## Certificates"])
-    certificates = [item for item in sections.get("certifications", []) if isinstance(item, dict)]
+    certificates = [
+        item for item in sections.get("certifications", [])
+        if isinstance(item, dict)
+        and any(not _is_placeholder_token(item.get(key)) for key in ("name", "issuer", "year", "url", "details"))
+    ]
     if certificates:
+        add_heading("Certificates")
         for item in certificates:
-            name = _mycvs_line(item.get("name")) or "Not provided"
+            name = _mycvs_line(item.get("name"))
+            if not name or _is_placeholder_token(name):
+                continue
             url = _mycvs_line(item.get("url"))
             if url:
                 if not _mycvs_url_is_valid(url):
                     raise ValueError(f"mycvs_v1 certificate URL is not validated: {url!r}")
                 name = f"[{name}](<{url}>)"
+            lines.append(f"**{name}**")
             issuer = _mycvs_line(item.get("issuer"))
             year = _mycvs_line(item.get("year"))
-            lines.append(f"- **{name}**" + (f" — {issuer}" if issuer else "") + (f" ({year})" if year else ""))
-    else:
-        lines.append("Not provided.")
+            if issuer and not _is_placeholder_token(issuer):
+                lines.append(f"  : **{issuer}**")
+            if year and not _is_placeholder_token(year):
+                lines.append(f"  : **{year}**")
+            details = _mycvs_line(item.get("details"))
+            if details and not _is_placeholder_token(details):
+                lines.extend(["", details])
 
-    lines.extend(["", "## Skills"])
-    skill_groups = list((sections.get("skills") or {}).get("groups") or [])
+    skill_groups = [group for group in list((sections.get("skills") or {}).get("groups") or []) if isinstance(group, dict)]
+    skill_groups = [group for group in skill_groups if _mycvs_list(group.get("items"))]
     if skill_groups:
+        add_heading("Skills")
         for group in skill_groups:
             label = _mycvs_line(group.get("label"))
             items = _mycvs_list(group.get("items"))
             if label and items:
                 lines.append(f"**{label}:** {', '.join(items)}")
-    else:
-        lines.append("Not provided.")
 
     audit_payload = {
         "job_id": _mycvs_line(context["job_id"]),
@@ -2098,6 +2557,7 @@ def validate_mycvs_v1_markdown(
     markdown: str,
     *,
     expected_handoff: str | None = None,
+    content_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Validate myCVs Markdown and return its normalized checksum metadata."""
     text = str(markdown or "")
@@ -2133,9 +2593,55 @@ def validate_mycvs_v1_markdown(
     else:
         payload, handoff = text, ""
     payload_lines = payload.splitlines()
+    for index, line in enumerate(payload_lines):
+        if not line.startswith("- "):
+            continue
+        previous = payload_lines[index - 1] if index else ""
+        following = payload_lines[index + 1] if index + 1 < len(payload_lines) else ""
+        if previous and not previous.startswith("- "):
+            errors.append("bullet list must start after a blank line")
+        if following and not following.startswith("- "):
+            errors.append("bullet list must end before a blank line")
+    strict_composition = payload.startswith("---\n---\n")
+    visible_payload = "\n".join(
+        line for line in payload_lines if not MYCVS_V1_AUDIT_LINE_RE.fullmatch(line)
+    )
+    if strict_composition:
+        visible_lower = visible_payload.casefold()
+        visible_tokens = (
+            "not provided",
+            "none provided",
+            "n/a",
+            "unknown",
+            "evidence:",
+            "evidence_id",
+            "requirement_id",
+            "claim_id",
+            "fingerprint",
+            "provenance",
+            "selected_support",
+        )
+        if any(token in visible_lower for token in visible_tokens):
+            errors.append("recruiter-facing CV contains a placeholder or provenance token")
+        if not payload_lines or payload_lines[:2] != ["---", "---"]:
+            errors.append("mycvs_v1 composition requires empty YAML front matter")
     headings = [(match.group(1), match.group(2).strip()) for line in payload_lines if (match := re.match(r"^(#{1,6})[ \t]+(.+?)\s*$", line))]
-    expected_headings = [("#", payload_lines[0][2:].strip() if payload_lines and payload_lines[0].startswith("# ") else ""), *[("##", heading) for heading in MYCVS_V1_HEADINGS]]
-    if headings != expected_headings or not expected_headings[0][1]:
+    expected_headings = [("#", payload_lines[3][2:].strip() if strict_composition and len(payload_lines) > 3 and payload_lines[3].startswith("# ") else payload_lines[0][2:].strip() if payload_lines and payload_lines[0].startswith("# ") else ""), *[("##", heading) for heading in MYCVS_V1_HEADINGS]]
+    if strict_composition:
+        allowed = [("##", heading) for heading in MYCVS_V1_HEADINGS]
+        actual_sections = headings[1:]
+        if (
+            not expected_headings[0][1]
+            or any(item not in allowed for item in actual_sections)
+            or len(actual_sections) != len(set(actual_sections))
+            or actual_sections != sorted(actual_sections, key=lambda item: allowed.index(item))
+        ):
+            errors.append("headings must follow the source-driven mycvs_v1 order")
+        if ("##", "Summary") not in actual_sections:
+            errors.append("Summary is mandatory")
+        if any(line.startswith("  :") and not re.match(r"^  : .+", line) for line in payload_lines):
+            errors.append("definition-list rows must use '  : ' grammar")
+    elif headings != expected_headings or not expected_headings[0][1]:
         errors.append("headings must match the fixed mycvs_v1 order")
     for link in re.findall(r"\[[^\]]+\]\((?:<([^>\r\n]+)>|([^\)\r\n]+))\)", payload):
         url = link[0] or link[1]
@@ -2166,6 +2672,75 @@ def validate_mycvs_v1_markdown(
                 errors.append(f"unsupported audit source URL: {source_url!r}")
     if not handoff:
         errors.append("handoff identity is required")
+    if strict_composition and isinstance(content_plan, dict):
+        plan_for_hash = deepcopy(content_plan)
+        expected_plan_fingerprint = str(plan_for_hash.pop("plan_fingerprint", "") or "").strip()
+        plan_for_hash.pop("content_fingerprint", None)
+        if expected_plan_fingerprint:
+            actual_plan_fingerprint = hashlib.sha256(
+                json.dumps(plan_for_hash, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8")
+            ).hexdigest()
+            if actual_plan_fingerprint != expected_plan_fingerprint:
+                errors.append("composition plan fingerprint mismatch")
+        selected_ids = {
+            str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+            for item in list(content_plan.get("selected_job_support") or [])
+            if isinstance(item, dict) and str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+        }
+        claims = list(content_plan.get("supported_job_claims") or content_plan.get("approved_claims") or [])
+        for claim in claims:
+            if not isinstance(claim, dict):
+                errors.append("supported job claims must be objects")
+                continue
+            claim_id = str(claim.get("claim_id") or claim.get("evidence_id") or "").strip()
+            if not claim_id or (selected_ids and claim_id not in selected_ids):
+                errors.append("supported job claim references unknown evidence")
+            if not list(claim.get("supports_requirements") or []):
+                errors.append("supported job claim lacks requirement references")
+        handoff_identity = str(content_plan.get("ranking_handoff_identity") or "").strip()
+        if expected_handoff is not None and handoff_identity and handoff_identity != _mycvs_line(expected_handoff):
+            errors.append("composition plan ranking handoff identity mismatch")
+        visible_ids = selected_ids | {
+            str(item.get("claim_id") or item.get("evidence_id") or "").strip()
+            for item in claims
+            if isinstance(item, dict) and str(item.get("claim_id") or item.get("evidence_id") or "").strip()
+        }
+        if any(identifier.casefold() in visible_payload.casefold() for identifier in visible_ids):
+            errors.append("recruiter-facing CV contains an evidence identifier")
+        baseline = content_plan.get("records_selected_for_render") or content_plan.get("baseline_profile_records") or {}
+        section_map = {
+            "education": "education",
+            "experiences": "experience",
+            "experience": "experience",
+            "projects": "projects",
+            "certifications": "certifications",
+        }
+        for source_key, section_key in section_map.items():
+            records = baseline.get(source_key) if isinstance(baseline, dict) else None
+            if not isinstance(records, list):
+                continue
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                identity_values = (
+                    record.get("name"),
+                    record.get("title"),
+                    record.get("degree"),
+                    record.get("role"),
+                    record.get("company"),
+                    record.get("institution"),
+                    record.get("issuer"),
+                )
+                identity = next(
+                    (
+                        str(value).strip()
+                        for value in identity_values
+                        if str(value or "").strip() and not _is_placeholder_token(value)
+                    ),
+                    "",
+                )
+                if identity and identity.casefold() not in visible_payload.casefold():
+                    errors.append(f"canonical {section_key} record is missing: {identity}")
     if errors:
         raise ValueError("mycvs_v1 validation failed: " + "; ".join(dict.fromkeys(errors)))
     return {"valid": True, "content_sha256": metadata_match.group(1), "handoff": handoff}
@@ -2379,8 +2954,133 @@ def _external_renderer_config(config: dict[str, Any]) -> dict[str, str]:
         or os.environ.get("FITCV_MYCVS_CONVERTER_REVISION"),
         "stylesheet_revision": external.get("stylesheet_revision")
         or os.environ.get("FITCV_MYCVS_STYLESHEET_REVISION"),
+        "release_manifest_path": external.get("release_manifest_path")
+        or os.environ.get("FITCV_MYCVS_RELEASE_MANIFEST_PATH")
+        or str(_runtime_project_root() / "config" / "policy" / "mycvs_v1_release.json"),
     }
     return {key: str(value).strip() for key, value in values.items() if str(value or "").strip()}
+
+
+def _external_release_status(external: dict[str, str]) -> tuple[bool, list[str], dict[str, Any]]:
+    """Require the checked-in converter and stylesheet to match one release pin."""
+    manifest_path = Path(str(external.get("release_manifest_path") or ""))
+    errors: list[str] = []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError):
+        return False, ["release manifest is missing or invalid"], {}
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != "mycvs_renderer_release.v1":
+        errors.append("release manifest schema is invalid")
+    if manifest.get("renderer_contract_version") != "mycvs_external_render_v1":
+        errors.append("release manifest renderer contract is invalid")
+    for key, path_key in (("converter_revision", "converter_path"), ("stylesheet_revision", "stylesheet_path")):
+        expected = str(manifest.get(key) or "").strip().lower()
+        actual = _sha256_file(external.get(path_key, ""))
+        if not _SHA256_PATTERN.fullmatch(expected) or actual != expected:
+            errors.append(f"release manifest {key} does not match the selected asset")
+    if str(manifest.get("proof_version") or "").strip() != "mycvs_external_render_v1":
+        errors.append("release manifest proof version is invalid")
+    return not errors, errors, manifest
+
+
+def _render_visibility_expectations(
+    structured_cv: dict[str, Any],
+    *,
+    certifications_heading: str = "Certificates",
+) -> tuple[list[str], list[str]]:
+    sections = structured_cv.get("sections") if isinstance(structured_cv, dict) else {}
+    if not isinstance(sections, dict):
+        return [], []
+    expected_text: list[str] = []
+    representative_records: list[str] = []
+    header = sections.get("header") if isinstance(sections.get("header"), dict) else {}
+    if str(header.get("name") or "").strip():
+        expected_text.append(str(header["name"]).strip())
+    section_names = {
+        "summary": "Summary",
+        "education": "Education",
+        "experience": "Experience",
+        "projects": "Projects",
+        "certifications": certifications_heading,
+        "skills": "Skills",
+    }
+    identity_fields = {
+        "education": ("degree", "institution", "name"),
+        "experience": ("role", "company", "title", "name"),
+        "projects": ("name", "title"),
+        "certifications": ("name", "title"),
+    }
+    for key, heading in section_names.items():
+        value = sections.get(key)
+        if value in (None, [], {}, ""):
+            continue
+        expected_text.append(heading)
+        if key == "skills":
+            groups = value.get("groups") if isinstance(value, dict) else []
+            first_skill = next(
+                (str(item).strip() for group in groups or [] if isinstance(group, dict) for item in group.get("items") or [] if str(item).strip()),
+                "",
+            )
+            if first_skill:
+                representative_records.append(first_skill)
+            continue
+        records = value if isinstance(value, list) else []
+        if records and isinstance(records[0], dict):
+            representative = next(
+                (str(records[0].get(field)).strip() for field in identity_fields.get(key, ()) if str(records[0].get(field) or "").strip()),
+                "",
+            )
+            if representative:
+                representative_records.append(representative)
+    return expected_text, representative_records
+
+
+def _validate_rendered_pdf_content(
+    extracted_text: str,
+    structured_cv: dict[str, Any] | None,
+    *,
+    certifications_heading: str = "Certificates",
+) -> dict[str, Any]:
+    if not isinstance(structured_cv, dict):
+        return {"status": "not_applicable", "expected_text_errors": [], "record_visibility_errors": []}
+    visible = str(extracted_text or "").casefold()
+    expected_text, representative_records = _render_visibility_expectations(
+        structured_cv,
+        certifications_heading=certifications_heading,
+    )
+    visible_for_match = _normalize_rendered_text_for_match(visible)
+    def is_visible(item: str) -> bool:
+        normalized = _normalize_rendered_text_for_match(item)
+        if normalized in visible_for_match:
+            return True
+        return " " in normalized and normalized.replace(" ", "") in visible_for_match.replace(" ", "")
+
+    expected_errors = [
+        f"expected rendered text is missing: {item}" for item in expected_text if not is_visible(item)
+    ]
+    record_errors = [
+        f"representative canonical record is not visible: {item}"
+        for item in representative_records
+        if not is_visible(item)
+    ]
+    return {
+        "status": "pass" if not expected_errors and not record_errors else "fail",
+        "expected_text_status": "pass" if not expected_errors else "fail",
+        "expected_text_errors": expected_errors,
+        "record_visibility_status": "pass" if not record_errors else "fail",
+        "record_visibility_errors": record_errors,
+    }
+
+
+def _normalize_rendered_text_for_match(value: Any) -> str:
+    """Normalize PDF extraction quirks without changing recruiter-facing text checks."""
+    text = " ".join(str(value or "").casefold().split())
+    return re.sub(
+        r"(?<![a-z0-9])(?:[a-z0-9]\s+){2,}[a-z0-9](?![a-z0-9])",
+        lambda match: re.sub(r"\s+", "", match.group(0)),
+        text,
+        flags=re.IGNORECASE,
+    )
 
 def _external_renderer_command(
     external: dict[str, str],
@@ -2404,6 +3104,265 @@ def _sha256_file(path: str) -> str | None:
         return None
 
 
+def _reference_pdf_path(config: dict[str, Any]) -> str:
+    renderer = ((config.get("cv") or {}).get("renderer") or {})
+    if not isinstance(renderer, dict):
+        renderer = {}
+    external = renderer.get("external") if isinstance(renderer.get("external"), dict) else {}
+    return str(
+        renderer.get("reference_pdf_path")
+        or external.get("reference_pdf_path")
+        or os.environ.get("FITCV_MYCVS_REFERENCE_PDF_PATH")
+        or ""
+    ).strip()
+
+
+def _pdf_info_metrics(page_info: str) -> dict[str, Any]:
+    def number(pattern: str) -> float | None:
+        match = re.search(pattern, page_info, re.MULTILINE)
+        return float(match.group(1)) if match else None
+
+    pages = re.search(r"^Pages:\s+(\d+)$", page_info, re.MULTILINE)
+    return {
+        "pages": int(pages.group(1)) if pages else None,
+        "width": number(r"^Page size:\s+([0-9.]+) x [0-9.]+ pts"),
+        "height": number(r"^Page size:\s+[0-9.]+ x ([0-9.]+) pts"),
+        "rotation": int(number(r"^Page rot:\s+(-?\d+)") or 0),
+    }
+
+
+def _pdf_font_names(font_info: str) -> set[str]:
+    names: set[str] = set()
+    for line in font_info.splitlines():
+        if not line.strip() or line.lstrip().startswith("name ") or line.startswith("-"):
+            continue
+        name = line.split()[0]
+        names.add(re.sub(r"^[A-Z]{6}\+", "", name))
+    return names
+
+
+def _pdf_layout_metrics(bbox_xml: str) -> dict[str, Any]:
+    root = ET.fromstring(bbox_xml)
+    page = next((node for node in root.iter() if node.tag.endswith("page")), None)
+    if page is None:
+        raise ValueError("pdftotext bbox output has no page")
+
+    lines: list[dict[str, Any]] = []
+    words: list[dict[str, float]] = []
+    for line in (node for node in page.iter() if node.tag.endswith("line")):
+        line_words = [word for word in line if word.tag.endswith("word")]
+        text = " ".join(str(word.text or "") for word in line_words).strip()
+        if not text:
+            continue
+        line_record = {
+            "text": text,
+            "x_min": float(line.attrib["xMin"]),
+            "x_max": float(line.attrib["xMax"]),
+            "y_min": float(line.attrib["yMin"]),
+            "y_max": float(line.attrib["yMax"]),
+            "word_starts": [float(word.attrib["xMin"]) for word in line_words],
+        }
+        lines.append(line_record)
+        words.extend(
+            {
+                "x_min": float(word.attrib["xMin"]),
+                "x_max": float(word.attrib["xMax"]),
+                "y_min": float(word.attrib["yMin"]),
+                "y_max": float(word.attrib["yMax"]),
+            }
+            for word in line_words
+        )
+
+    return {
+        "width": float(page.attrib["width"]),
+        "height": float(page.attrib["height"]),
+        "lines": lines,
+        "words": words,
+    }
+
+
+def _layout_x_anchors(layout: dict[str, Any]) -> dict[str, float]:
+    """Return stable template columns, not candidate-dependent word starts."""
+    width = float(layout["width"])
+    lines = layout["lines"]
+
+    def median(values: list[float]) -> float | None:
+        values = sorted(values)
+        if not values:
+            return None
+        middle = len(values) // 2
+        if len(values) % 2:
+            return values[middle]
+        return (values[middle - 1] + values[middle]) / 2
+
+    candidates = {
+        "left": median([float(line["x_min"]) for line in lines if float(line["x_min"]) <= 24.0]),
+        "project_indent": median(
+            [float(line["x_min"]) for line in lines if 24.0 <= float(line["x_min"]) < 30.0]
+        ),
+        "bullet_indent": median(
+            [float(line["x_min"]) for line in lines if 30.0 <= float(line["x_min"]) < 80.0]
+        ),
+        "middle": median(
+            [float(line["x_min"]) for line in lines if 250.0 <= float(line["x_min"]) <= 290.0]
+        ),
+        "right_edge": median(
+            [float(line["x_max"]) for line in lines if float(line["x_max"]) >= width - 20.0]
+        ),
+    }
+    return {key: value for key, value in candidates.items() if value is not None}
+
+
+def _validate_pdf_against_reference(
+    pdf_path: Path,
+    reference_path: Path,
+    *,
+    candidate_page_info: str,
+    work_dir: Path,
+) -> dict[str, Any]:
+    """Compare stable template/layout facts without comparing candidate text."""
+    errors: list[str] = []
+    reference_info = subprocess.run(
+        ["pdfinfo", str(reference_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=work_dir,
+        timeout=30,
+    ).stdout
+    candidate_fonts = subprocess.run(
+        ["pdffonts", str(pdf_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=work_dir,
+        timeout=30,
+    ).stdout
+    reference_fonts = subprocess.run(
+        ["pdffonts", str(reference_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=work_dir,
+        timeout=30,
+    ).stdout
+    candidate_bbox = subprocess.run(
+        ["pdftotext", "-bbox-layout", str(pdf_path), "-"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=work_dir,
+        timeout=30,
+    ).stdout
+    reference_bbox = subprocess.run(
+        ["pdftotext", "-bbox-layout", str(reference_path), "-"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=work_dir,
+        timeout=30,
+    ).stdout
+
+    candidate_info_metrics = _pdf_info_metrics(candidate_page_info)
+    reference_info_metrics = _pdf_info_metrics(reference_info)
+    candidate_layout = _pdf_layout_metrics(candidate_bbox)
+    reference_layout = _pdf_layout_metrics(reference_bbox)
+    candidate_fonts_set = _pdf_font_names(candidate_fonts)
+    reference_fonts_set = _pdf_font_names(reference_fonts)
+
+    if candidate_info_metrics["pages"] != 1:
+        errors.append("rendered PDF must contain exactly one page")
+    for key in ("width", "height"):
+        if (
+            candidate_info_metrics[key] is None
+            or reference_info_metrics[key] is None
+            or abs(float(candidate_info_metrics[key]) - float(reference_info_metrics[key])) > 2.0
+        ):
+            errors.append("rendered PDF page size does not match the A4 reference")
+            break
+    if candidate_info_metrics["rotation"] != reference_info_metrics["rotation"]:
+        errors.append("rendered PDF rotation does not match the reference")
+    if candidate_fonts_set != reference_fonts_set:
+        errors.append("rendered PDF fonts do not match the reference typography")
+
+    candidate_lines = candidate_layout["lines"]
+    reference_lines = reference_layout["lines"]
+    candidate_text = [line["text"].strip() for line in candidate_lines]
+    candidate_heading_sequence = [
+        line["text"].strip()
+        for line in candidate_lines
+        if line["text"].strip() in MYCVS_V1_HEADINGS
+    ]
+    candidate_headings = [
+        heading for heading in MYCVS_V1_HEADINGS if heading in candidate_heading_sequence
+    ]
+    if candidate_heading_sequence != candidate_headings:
+        errors.append("rendered PDF section headings are out of order")
+    reference_heading_x = {
+        line["text"].strip(): line["x_min"]
+        for line in reference_lines
+        if line["text"].strip() in MYCVS_V1_HEADINGS
+    }
+    candidate_heading_x = {
+        line["text"].strip(): line["x_min"]
+        for line in candidate_lines
+        if line["text"].strip() in MYCVS_V1_HEADINGS
+    }
+    for heading, x_min in candidate_heading_x.items():
+        if heading in reference_heading_x and abs(x_min - reference_heading_x[heading]) > 6.0:
+            errors.append(f"rendered PDF heading alignment differs for {heading}")
+
+    if candidate_lines:
+        header = candidate_lines[0]
+        header_center = (header["x_min"] + header["x_max"]) / 2
+        if abs(header_center - candidate_layout["width"] / 2) > 20.0:
+            errors.append("rendered PDF contact header is not centered like the reference")
+    page_width = candidate_layout["width"]
+    page_height = candidate_layout["height"]
+    if any(
+        word["x_min"] < -1 or word["y_min"] < -1 or word["x_max"] > page_width + 1 or word["y_max"] > page_height + 1
+        for word in candidate_layout["words"]
+    ):
+        errors.append("rendered PDF contains clipped or out-of-bounds text")
+
+    reference_anchors = _layout_x_anchors(reference_layout)
+    candidate_anchors = _layout_x_anchors(candidate_layout)
+    for name in reference_anchors.keys() & candidate_anchors.keys():
+        expected = reference_anchors[name]
+        actual = candidate_anchors[name]
+        if abs(actual - expected) > 12.0:
+            errors.append("rendered PDF column or bullet alignment differs from the reference")
+            break
+    reference_bottom = max((word["y_max"] for word in reference_layout["words"]), default=0.0)
+    candidate_bottom = max((word["y_max"] for word in candidate_layout["words"]), default=0.0)
+    if candidate_bottom > page_height - 8.0 or candidate_bottom > reference_bottom + 12.0:
+        errors.append("rendered PDF content exceeds the reference layout bounds")
+
+    fingerprint_payload = {
+        "page": {key: candidate_info_metrics[key] for key in ("pages", "width", "height", "rotation")},
+        "fonts": sorted(candidate_fonts_set),
+        "headings": candidate_headings,
+        "heading_x": {key: round(value, 1) for key, value in sorted(candidate_heading_x.items())},
+        "anchors": {key: round(value, 1) for key, value in sorted(candidate_anchors.items())},
+        "bottom": round(candidate_bottom, 1),
+    }
+    return {
+        "status": "pass" if not errors else "fail",
+        "errors": list(dict.fromkeys(errors)),
+        "reference_pdf_sha256": _sha256_file(str(reference_path)),
+        "reference_layout_fingerprint": hashlib.sha256(
+            json.dumps(fingerprint_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
+        "metrics": {
+            "candidate_fonts": sorted(candidate_fonts_set),
+            "reference_fonts": sorted(reference_fonts_set),
+            "candidate_sections": candidate_headings,
+            "candidate_bottom": round(candidate_bottom, 2),
+            "reference_bottom": round(reference_bottom, 2),
+        },
+    }
+
+
 def render_cv_native_acceptance(
     content: dict[str, Any] | str,
     config: dict[str, Any],
@@ -2414,12 +3373,24 @@ def render_cv_native_acceptance(
     """Render exact markdown through native tools and return final proof."""
     structured_cv = content if isinstance(content, dict) else None
     markdown = render_cv_markdown(structured_cv, config) if structured_cv is not None else str(content or "")
+    markdown_validation: dict[str, Any] | None = None
     if get_cv_renderer_strategy(config) == "mycvs_v1":
-        validate_mycvs_v1_markdown(markdown)
+        markdown_validation = validate_mycvs_v1_markdown(
+            markdown,
+            content_plan=structured_cv.get("composition_plan") if isinstance(structured_cv, dict) else None,
+        )
     external = _external_renderer_config(config)
-    external_enabled = external.get("enabled", "").lower() in {"1", "true", "yes", "on"}
+    reference_path_value = _reference_pdf_path(config)
+    reference_path = Path(reference_path_value) if reference_path_value else None
+    external_requested = external.get("enabled", "").lower() in {"1", "true", "yes", "on"}
+    release_pinned, release_errors, release_manifest = (
+        _external_release_status(external) if external_requested else (False, [], {})
+    )
+    external_enabled = external_requested and release_pinned
     if external_enabled:
         required_tools = ("pdfinfo", "pdftotext")
+        if reference_path is not None:
+            required_tools = (*required_tools, "pdffonts")
         missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
         for key in ("converter_path", "stylesheet_path"):
             if not external.get(key) or not Path(external[key]).is_file():
@@ -2432,6 +3403,8 @@ def render_cv_native_acceptance(
             missing_tools.append("python_runtime")
     else:
         required_tools = ("pandoc", "xelatex", "pdfinfo", "pdftotext")
+        if reference_path is not None:
+            required_tools = (*required_tools, "pdffonts")
         missing_tools = [tool for tool in required_tools if shutil.which(tool) is None]
     base = Path(output_dir) if output_dir is not None else None
     with TemporaryDirectory(dir=str(base) if base else None) as temporary_dir:
@@ -2456,16 +3429,39 @@ def render_cv_native_acceptance(
             "render_config_fingerprint": _render_config_fingerprint(config),
             "content_sha256": hashlib.sha256(str(markdown or "").encode("utf-8")).hexdigest(),
             "missing_tools": missing_tools,
+            "markdown_validation_status": "pass" if markdown_validation is not None else "not_applicable",
+            "reference_pdf_path": str(reference_path) if reference_path is not None else None,
+            "reference_layout_status": "not_configured",
+            "reference_layout_errors": [],
+            "expected_text_status": "not_applicable",
+            "expected_text_errors": [],
+            "record_visibility_status": "not_applicable",
+            "record_visibility_errors": [],
+            "external_renderer_requested": external_requested,
+            "external_release_status": "pass" if external_enabled else ("fail" if external_requested else "not_requested"),
+            "external_release_errors": release_errors,
         }
-        if external_enabled:
+        if external_requested:
             result.update(
                 {
+                    "release_manifest_path": external.get("release_manifest_path"),
+                    "release_manifest": release_manifest or None,
                     "converter_revision": external.get("converter_revision") or _sha256_file(external.get("converter_path", "")),
                     "stylesheet_revision": external.get("stylesheet_revision") or _sha256_file(external.get("stylesheet_path", "")),
                     "converter_input_checksum": result["content_sha256"],
                 }
             )
         if missing_tools:
+            return result
+        if reference_path is not None and not reference_path.is_file():
+            result.update(
+                {
+                    "render_status": "fail",
+                    "page_fit_status": "fail",
+                    "reference_layout_status": "fail",
+                    "reference_layout_errors": ["configured reference PDF does not exist"],
+                }
+            )
             return result
         try:
             if external_enabled:
@@ -2498,15 +3494,22 @@ def render_cv_native_acceptance(
             if page_match is None:
                 return result
             page_count = int(page_match.group(1))
-            subprocess.run(
+            extracted_text = subprocess.run(
                 ["pdftotext", str(pdf_path), "-"],
                 check=True,
                 capture_output=True,
                 text=True,
                 cwd=work_dir,
                 timeout=30,
-            )
+            ).stdout
             checksum = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+            visibility = _validate_rendered_pdf_content(
+                extracted_text,
+                structured_cv,
+                certifications_heading=(
+                    "Certificates" if get_cv_renderer_strategy(config) == "mycvs_v1" else "Certifications"
+                ),
+            )
             result.update(
                 {
                     "render_status": "pass",
@@ -2514,8 +3517,31 @@ def render_cv_native_acceptance(
                     "page_count": page_count,
                     "page_fit_status": "pass" if page_count == 1 else "fail",
                     "artifact_checksum": checksum,
+                    **visibility,
                 }
             )
+            if visibility["status"] == "fail":
+                result["render_status"] = "fail"
+                result["page_fit_status"] = "fail"
+            if reference_path is not None:
+                reference_validation = _validate_pdf_against_reference(
+                    pdf_path,
+                    reference_path,
+                    candidate_page_info=page_info,
+                    work_dir=work_dir,
+                )
+                result.update(
+                    {
+                        "reference_layout_status": reference_validation["status"],
+                        "reference_layout_errors": reference_validation["errors"],
+                        "reference_pdf_sha256": reference_validation["reference_pdf_sha256"],
+                        "reference_layout_fingerprint": reference_validation["reference_layout_fingerprint"],
+                        "reference_layout_metrics": reference_validation["metrics"],
+                    }
+                )
+                if reference_validation["status"] != "pass":
+                    result["render_status"] = "fail"
+                    result["page_fit_status"] = "fail"
             if output_dir is not None:
                 destination = Path(output_dir)
                 destination.mkdir(parents=True, exist_ok=True)
@@ -2639,6 +3665,51 @@ def trim_structured_cv_for_page_fit(
             if str(item.get("claim_id") or item.get("evidence_id") or "").strip()
             and list(item.get("supports_requirements") or [])
         }
+        baseline = content_plan.get("baseline_profile_records") or content_plan.get("records_selected_for_render") or {}
+        baseline_record_ids: set[str] = set()
+        section_source_keys = {
+            "experience": "experiences",
+            "projects": "projects",
+            "certifications": "certifications",
+        }
+        for section_key, source_key in section_source_keys.items():
+            for record in list(baseline.get(source_key) or []) if isinstance(baseline, dict) else []:
+                if not isinstance(record, dict):
+                    continue
+                for key in ("canonical_record_id", "record_id", "id"):
+                    value = str(record.get(key) or "").strip().casefold()
+                    if value:
+                        baseline_record_ids.add(f"{section_key}:{value}")
+        baseline_aliases: set[str] = set()
+        baseline_keys = {
+            "experience": "experiences",
+            "projects": "projects",
+            "certifications": "certifications",
+        }
+        for section_key, source_key in baseline_keys.items():
+            for record in list(baseline.get(source_key) or []) if isinstance(baseline, dict) else []:
+                if not isinstance(record, dict):
+                    continue
+                for key in ("canonical_record_id", "record_id", "id", "evidence_id", "name", "title"):
+                    value = str(record.get(key) or "").strip().casefold()
+                    if value:
+                        baseline_aliases.add(value)
+                if section_key == "experience":
+                    role_company = " ".join(
+                        str(record.get(key) or "").strip().casefold()
+                        for key in ("role", "company")
+                        if str(record.get(key) or "").strip()
+                    )
+                    if role_company:
+                        baseline_aliases.add(role_company)
+        before_record_ids = {
+            f"{section_key}:{str(item.get(key) or '').strip().casefold()}"
+            for section_key in section_source_keys
+            for item in list(sections.get(section_key) or [])
+            if isinstance(item, dict)
+            for key in ("canonical_record_id", "record_id", "id")
+            if f"{section_key}:{str(item.get(key) or '').strip().casefold()}" in baseline_record_ids
+        }
         changes: list[str] = []
         for section_key in ("publications", "certifications", "languages", "projects"):
             items = list(sections.get(section_key) or [])
@@ -2646,6 +3717,15 @@ def trim_structured_cv_for_page_fit(
                 (index, item)
                 for index, item in enumerate(items)
                 if _trim_item_identity(item) not in protected_ids
+                and _trim_item_identity(item) not in baseline_aliases
+                and not (
+                    isinstance(item, dict)
+                    and " ".join(
+                        str(item.get(key) or "").strip().casefold()
+                        for key in ("role", "company")
+                        if str(item.get(key) or "").strip()
+                    ) in baseline_aliases
+                )
                 and not (isinstance(item, dict) and bool(item.get("required")))
             ]
             if not candidates:
@@ -2654,6 +3734,16 @@ def trim_structured_cv_for_page_fit(
             items.pop(index)
             sections[section_key] = items
             changes.append(f"removed_{section_key}:{_trim_item_identity(item)}")
+        after_record_ids = {
+            f"{section_key}:{str(item.get(key) or '').strip().casefold()}"
+            for section_key in section_source_keys
+            for item in list(sections.get(section_key) or [])
+            if isinstance(item, dict)
+            for key in ("canonical_record_id", "record_id", "id")
+            if f"{section_key}:{str(item.get(key) or '').strip().casefold()}" in baseline_record_ids
+        }
+        if before_record_ids != after_record_ids:
+            raise ValueError("page-fit trim removed a canonical profile record")
         return trimmed, changes
     """Remove only unprotected, optional content in deterministic order."""
     trimmed = deepcopy(structured_cv)
@@ -2739,6 +3829,7 @@ def _execute_cv_generation_runtime(
         ),
         schema_name="fitcv_structured_cv_document",
         schema=build_live_structured_cv_response_schema(config=config),
+        schema_strict=False,
         max_output_tokens=max_output_tokens,
     )
 
@@ -2752,6 +3843,7 @@ def _execute_cv_generation_runtime(
             config=config,
             fit_classification=fit_classification,
             ranking_cv_handoff=ranking_cv_handoff,
+            content_plan=content_plan,
         )
         return {
             "structured_cv": structured_cv,

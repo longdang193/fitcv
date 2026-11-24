@@ -666,26 +666,20 @@ def test_run_all_validations_flags_empty_required_summary_from_structured_cv() -
     assert "Summary" in result["missing_sections"]
 
 
-def test_run_all_validations_accepts_empty_mycvs_sections_with_not_provided() -> None:
+def test_run_all_validations_omits_empty_mycvs_sections_without_placeholders() -> None:
     profile = {
         "name": "Jane Doe",
         "experiences": [{"role": "Analyst", "company": "ACME"}],
         "projects": [],
+        "education": [],
+        "certifications": [],
         "languages": [],
         "skills": [],
     }
-    cv_text = (
-        "# Jane Doe\n"
-        "## Summary\nNot provided.\n"
-        "## Education\nNot provided.\n"
-        "## Experience\n- Analyst — ACME\n"
-        "## Projects\nNot provided.\n"
-        "## Certificates\nNot provided.\n"
-        "## Skills\nNot provided.\n"
-    )
+    cv_text = "# Jane Doe\n## Summary\nGrounded summary.\n## Experience\n- Analyst — ACME\n"
     structured_cv = {
         "sections": {
-            "summary": {"text": "Not provided."},
+            "summary": {"text": "Grounded summary."},
             "experience": [{"role": "Analyst", "company": "ACME"}],
             "projects": [],
             "education": [],
@@ -695,50 +689,33 @@ def test_run_all_validations_accepts_empty_mycvs_sections_with_not_provided() ->
         }
     }
     config = {
-        "required_cv_sections": [
-            "Summary",
-            "Education",
-            "Experience",
-            "Projects",
-            "Certifications",
-            "Skills",
-        ],
+        "required_cv_sections": ["Summary", "Education", "Experience", "Projects", "Certifications", "Skills"],
         "cv_max_pages": 2,
         "cv": {"renderer": {"strategy": "mycvs_v1"}},
     }
 
-    result = run_all_validations(
-        cv_text,
-        profile=profile,
-        config=config,
-        structured_cv=structured_cv,
-    )
+    result = run_all_validations(cv_text, profile=profile, config=config, structured_cv=structured_cv)
 
     assert result["valid"] is True
     assert result["missing_sections"] == []
+    assert "Not provided" not in cv_text
 
 
-def test_run_all_validations_uses_mycvs_headings_over_legacy_config_sections() -> None:
+def test_run_all_validations_uses_source_driven_mycvs_presence_over_legacy_config_sections() -> None:
     profile = {
         "name": "Jane Doe",
         "experiences": [{"role": "Analyst", "company": "ACME"}],
         "projects": [],
+        "education": [],
         "languages": [],
         "skills": ["SQL"],
+        "certifications": [],
     }
     cv_text = (
         "# Jane Doe\n"
-        "## Summary\nNot provided.\n"
-        "## Education\nNot provided.\n"
+        "## Summary\nGrounded summary.\n"
         "## Experience\n- Analyst — ACME\n"
-        "## Projects\nNot provided.\n"
-        "## Certificates\nNot provided.\n"
         "## Skills\nSQL\n"
-        '<!-- mycvs_v1_audit: {"job_id":"job-1","profile_revision":"profile-1",'
-        '"score_status":"complete","gaps":[],"unknowns":[],"sources":[]} -->\n'
-        "<!-- mycvs_v1: schema=mycvs_v1; content_sha256="
-        + "0" * 64
-        + "; handoff=handoff-1 -->\n"
     )
     config = {
         "required_cv_sections": [
@@ -759,7 +736,6 @@ def test_run_all_validations_uses_mycvs_headings_over_legacy_config_sections() -
     assert result["valid"] is True
     assert result["missing_sections"] == []
     assert result["skill_violations"] == []
-
 
 def test_run_all_validations_reads_max_pages_from_nested_cv() -> None:
     """run_all_validations must read cv.validation.max_pages from nested config.
@@ -1128,7 +1104,7 @@ def test_run_all_validations_skips_missing_certifications_when_profile_has_no_me
     assert "Certifications" not in result["missing_sections"]
 
 
-def test_run_all_validations_skips_missing_certifications_when_profile_has_meaningful_rows_but_no_selected_evidence() -> None:
+def test_run_all_validations_uses_canonical_certifications_without_selected_evidence() -> None:
     profile = {
         "experiences": [{"role": "Data Analyst", "company": "ACME"}],
         "projects": [],
@@ -1142,13 +1118,14 @@ def test_run_all_validations_skips_missing_certifications_when_profile_has_meani
         "## Experience\n"
         "### Data Analyst — ACME (2022–2024)\n"
         "- Built reporting workflows.\n"
+        "## Certifications\nGoogle Data Analytics — Google (2023)\n"
     )
     structured_cv = {
         "sections": {
             "summary": {"text": "Grounded summary."},
             "skills": {"groups": [{"label": "Core", "items": ["SQL", "Python"]}]},
             "experience": [{"role": "Data Analyst", "company": "ACME"}],
-            "certifications": [{"name": "None", "issuer": "None", "year": "None"}],
+            "certifications": [{"name": "Google Data Analytics", "issuer": "Google", "year": "2023"}],
         }
     }
     config = {

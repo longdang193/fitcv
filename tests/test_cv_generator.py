@@ -43,11 +43,38 @@ from fitcv.cv_generator import (
     validate_mycvs_v1_markdown,
     trim_structured_cv_for_page_fit,
     _normalize_structured_cv,
+    _execute_cv_generation_runtime,
     render_cv_template,
     select_template_variant,
     validate_structured_cv,
+    _canonical_profile_sections,
 )
 from fitcv.ranking_contract import build_ranking_cv_handoff
+from fitcv.section_policy import resolve_mycvs_v1_policy
+
+
+def test_canonical_experience_bullet_records_are_preserved_for_mycvs() -> None:
+    profile = {
+        "experiences": [
+            {
+                "id": "exp-1",
+                "role": "Data Analyst",
+                "company": "Example Co",
+                "bullets": [
+                    {"text": "Built reporting workflows.", "skills": ["SQL"]},
+                    {"text": "Automated data quality checks.", "skills": ["Python"]},
+                ],
+            }
+        ],
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+    }
+
+    sections = _canonical_profile_sections(profile, config={"cv": {"composition": {}}})
+
+    assert sections["experience"][0]["bullets"] == [
+        "Built reporting workflows.",
+        "Automated data quality checks.",
+    ]
 
 
 def test_production_normalization_drops_unsupported_provenance_fields() -> None:
@@ -206,6 +233,19 @@ def test_external_mycvs_renderer_writes_markdown_before_pdf(
     bold_font = tmp_path / "Inter-Bold.ttf"
     for path in (converter, stylesheet, regular_font, bold_font):
         path.write_bytes(path.name.encode("utf-8"))
+    release_manifest = tmp_path / "release.json"
+    release_manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": "mycvs_renderer_release.v1",
+                "renderer_contract_version": "mycvs_external_render_v1",
+                "proof_version": "mycvs_external_render_v1",
+                "converter_revision": hashlib.sha256(converter.read_bytes()).hexdigest(),
+                "stylesheet_revision": hashlib.sha256(stylesheet.read_bytes()).hexdigest(),
+            }
+        ),
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr("fitcv.cv_generator.shutil.which", lambda tool: f"/fake/{tool}")
     commands: list[list[str]] = []
@@ -232,6 +272,7 @@ def test_external_mycvs_renderer_writes_markdown_before_pdf(
                     "stylesheet_path": str(stylesheet),
                     "font_regular_path": str(regular_font),
                     "font_bold_path": str(bold_font),
+                    "release_manifest_path": str(release_manifest),
                 }
             }
         }
@@ -250,6 +291,37 @@ def test_external_mycvs_renderer_writes_markdown_before_pdf(
     assert commands[0][3] == str(stylesheet)
     assert commands[0][4].endswith("cv.pdf")
 
+
+
+
+def test_external_renderer_falls_back_when_release_manifest_is_unpinned(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    converter = tmp_path / "converter.py"
+    stylesheet = tmp_path / "cv.css"
+    converter.write_text("# converter", encoding="utf-8")
+    stylesheet.write_text("/* stylesheet */", encoding="utf-8")
+    monkeypatch.setattr("fitcv.cv_generator.shutil.which", lambda tool: f"/fake/{tool}")
+    result = render_cv_native_acceptance(
+        "# Candidate\n",
+        {
+            "cv": {
+                "renderer": {
+                    "external": {
+                        "enabled": True,
+                        "converter_path": str(converter),
+                        "stylesheet_path": str(stylesheet),
+                        "release_manifest_path": str(tmp_path / "missing.json"),
+                    }
+                }
+            }
+        },
+        output_dir=tmp_path,
+    )
+
+    assert result["external_renderer_requested"] is True
+    assert result["external_release_status"] == "fail"
+    assert result["renderer_contract_version"] == "fitcv_native_render_v1"
 
 def test_external_mycvs_renderer_uses_bundled_assets_when_paths_are_omitted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -320,6 +392,19 @@ def test_frozen_external_renderer_uses_python_for_explicit_converter(
     stylesheet = tmp_path / "cv.css"
     converter.write_text("# converter\n", encoding="utf-8")
     stylesheet.write_text("/* stylesheet */\n", encoding="utf-8")
+    release_manifest = tmp_path / "release.json"
+    release_manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": "mycvs_renderer_release.v1",
+                "renderer_contract_version": "mycvs_external_render_v1",
+                "converter_revision": hashlib.sha256(converter.read_bytes()).hexdigest(),
+                "stylesheet_revision": hashlib.sha256(stylesheet.read_bytes()).hexdigest(),
+                "proof_version": "mycvs_external_render_v1",
+            }
+        ),
+        encoding="utf-8",
+    )
     python_runtime = r"C:\Python311\python.exe"
     commands: list[list[str]] = []
 
@@ -348,6 +433,7 @@ def test_frozen_external_renderer_uses_python_for_explicit_converter(
                         "converter_path": str(converter),
                         "stylesheet_path": str(stylesheet),
                         "python_path": python_runtime,
+                        "release_manifest_path": str(release_manifest),
                     }
                 }
             }
@@ -949,9 +1035,36 @@ def test_live_schema_config_properties_match_required_sections_for_strict_json_s
         }
         sections_schema = build_live_structured_cv_response_schema(config=config)["properties"]["sections"]
 
-        assert set(sections_schema["properties"]) == set(sections_schema["required"])
-        assert ("publications" in sections_schema["properties"]) is publications_enabled
+        expected_required = {"header", "experience", "skills"}
+        if publications_enabled:
+            expected_required.add("publications")
+        assert set(sections_schema["required"]) == expected_required
+        assert set(expected_required).issubset(set(sections_schema["properties"]))
+        assert "publications" in sections_schema["properties"]
 
+
+def test_cv_generation_uses_non_strict_schema_for_optional_section_presence(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_execute(request: object, **_: object) -> object:
+        captured["request"] = request
+        return object()
+
+    monkeypatch.setattr("fitcv.cv_generator.build_structured_generation_prompt", lambda **_: "prompt")
+    monkeypatch.setattr("fitcv.cv_generator.execute_llm_task", fake_execute)
+
+    _execute_cv_generation_runtime(
+        jd={"title": "Data Analyst", "job_url": "https://example.com/jobs/1"},
+        evidence=[],
+        gap={},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"renderer": {"strategy": "mycvs_v1"}}},
+        fit_classification="strong",
+    )
+
+    request = captured["request"]
+    assert request.schema_strict is False  # type: ignore[union-attr]
+    assert request.schema["properties"]["sections"]["required"] == ["header", "summary"]  # type: ignore[union-attr]
 
 def test_live_schema_contact_properties_are_all_required_for_strict_provider_schema() -> None:
     contact_schema = build_live_structured_cv_response_schema()["properties"]["sections"]["properties"]["header"]["properties"]["contact"]
@@ -2081,12 +2194,70 @@ def test_mycvs_v1_serializer_is_deterministic_and_validates_checksum() -> None:
     assert 'data-icon="tabler:mail"' in rendered
     assert 'data-icon="tabler:brand-github"' in rendered
     assert 'data-icon="ic:outline-location-on"' in rendered
-    assert rendered.index("# Test Candidate") < rendered.index("## Summary") < rendered.index("## Education")
-    assert rendered.index("## Education") < rendered.index("## Experience") < rendered.index("## Projects")
-    assert rendered.index("## Projects") < rendered.index("## Certificates") < rendered.index("## Skills")
+    assert rendered.index("# Test Candidate") < rendered.index("## Summary") < rendered.index("## Experience")
+    assert rendered.index("## Experience") < rendered.index("## Projects") < rendered.index("## Certificates")
+    assert "## Education" not in rendered
+    assert "## Skills" not in rendered
     assert "mycvs_v1_audit:" in rendered
     assert "content_sha256=" in rendered
     assert validate_mycvs_v1_markdown(rendered)["handoff"] == "handoff-1"
+
+
+def test_mycvs_v1_composition_separates_bullet_lists_for_renderer_compatibility() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "mycvs", "renderer": {"strategy": "mycvs_v1"}}},
+        fit_classification="strong",
+    )
+    document.update(
+        {
+            "job_id": "job-1",
+            "profile_revision": "profile-1",
+            "score_status": "valid",
+            "handoff": {"handoff_fingerprint": "handoff-1"},
+            "composition_plan": {"schema_version": "cv_content_plan_v1", "section_policy": {}},
+        }
+    )
+    document["sections"]["summary"] = {"text": "Grounded summary."}
+    document["sections"]["experience"] = [
+        {"role": "Analyst", "company": "Acme", "overview": "Owned reporting.", "bullets": ["Built reports."]},
+        {"role": "Senior Analyst", "company": "Beta", "overview": "Led analysis.", "bullets": ["Improved accuracy."]},
+    ]
+    document["sections"]["projects"] = [
+        {"name": "Analytics Platform", "overview": "Built a platform.", "bullets": ["Reduced manual work."]}
+    ]
+
+    rendered = serialize_mycvs_v1(document)
+
+    assert "Owned reporting.\n\n- Built reports." in rendered
+    assert "- Built reports.\n\n**Senior Analyst - Beta**" in rendered
+    assert "Built a platform.\n\n- Reduced manual work." in rendered
+    assert validate_mycvs_v1_markdown(rendered)["valid"] is True
+
+
+def test_mycvs_v1_validator_rejects_bullets_without_paragraph_spacing() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "mycvs", "renderer": {"strategy": "mycvs_v1"}}},
+        fit_classification="strong",
+    )
+    document.update(
+        {
+            "job_id": "job-1",
+            "profile_revision": "profile-1",
+            "score_status": "valid",
+            "handoff": {"handoff_fingerprint": "handoff-1"},
+            "composition_plan": {"schema_version": "cv_content_plan_v1", "section_policy": {}},
+        }
+    )
+    document["sections"]["summary"] = {"text": "Grounded summary."}
+    document["sections"]["experience"] = [{"role": "Analyst", "company": "Acme", "bullets": ["Built reports."]}]
+    rendered = serialize_mycvs_v1(document).replace("\n\n- Built reports.", "\n- Built reports.", 1)
+
+    with pytest.raises(ValueError, match="bullet list"):
+        validate_mycvs_v1_markdown(rendered)
 
 
 def test_mycvs_v1_marks_review_required_artifacts_without_breaking_contract() -> None:
@@ -2154,6 +2325,7 @@ def test_mycvs_v1_rejects_checksum_and_grounding_failures() -> None:
         fit_classification="strong",
     )
     document.update({"job_id": "job-1", "handoff_fingerprint": "handoff-1", "sources": ["ev-1"]})
+    document["sections"]["summary"] = {"text": "Grounded summary."}
     document["sections"]["experience"] = [{"role": "Analyst", "company": "Acme", "bullets": ["Claim"]}]
     with pytest.raises(ValueError, match="lacks source evidence"):
         serialize_mycvs_v1(document)
@@ -2192,3 +2364,115 @@ def test_page_fit_trim_preserves_unique_project_and_required_language_evidence()
     assert trimmed["sections"]["projects"][0]["evidence_id"] == "project-keep"
     assert trimmed["sections"]["languages"]
     assert trimmed["sections"]["languages"][0]["evidence_id"] == "lang-required"
+
+
+def test_mycvs_v1_validator_ignores_placeholder_tokens_in_hidden_audit() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "mycvs"}},
+        fit_classification="strong",
+    )
+    document.update({
+        "job_id": "job-1",
+        "profile_revision": "profile-1",
+        "handoff_fingerprint": "handoff-1",
+        "score_status": "review_required",
+        "confirmed_gaps": ["Unknown data source"],
+        "unknowns": ["N/A salary range"],
+    })
+    document["sections"]["summary"] = {
+        "text": "Analyst delivering grounded reporting. Improves decisions with reliable data."
+    }
+    document["composition_plan"] = {
+        "schema_version": "cv_content_plan_v1",
+        "section_policy": {},
+        "audit_metadata": {
+            "job_id": "job-1",
+            "profile_revision": "profile-1",
+            "score_status": "review_required",
+            "gaps": ["Unknown data source"],
+            "unknowns": ["N/A salary range"],
+            "sources": [],
+        },
+    }
+
+    rendered = serialize_mycvs_v1(document)
+
+    assert validate_mycvs_v1_markdown(rendered)["valid"] is True
+
+
+def test_mycvs_v1_validator_rejects_duplicate_section_headings() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "mycvs"}},
+        fit_classification="strong",
+    )
+    document.update({"job_id": "job-1", "handoff_fingerprint": "handoff-1"})
+    document["sections"]["summary"] = {"text": "Analyst delivering grounded reporting. Improves decisions."}
+    document["sections"]["skills"] = {"groups": [{"label": "Core", "items": ["SQL"]}]}
+    document["composition_plan"] = {"schema_version": "cv_content_plan_v1", "section_policy": {}}
+    rendered = serialize_mycvs_v1(document)
+
+    with pytest.raises(ValueError, match="headings"):
+        validate_mycvs_v1_markdown(rendered.replace("## Skills", "## Skills\n\n## Skills", 1))
+
+
+def test_page_fit_trim_preserves_canonical_project_and_certification_records() -> None:
+    document = build_empty_structured_cv(
+        jd={"title": "Analyst"},
+        profile={"name": "Test Candidate"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    document["sections"]["projects"] = [
+        {"id": "project-canonical", "name": "Canonical Platform", "bullets": ["Built platform"]},
+        {"id": "project-optional", "name": "Optional Platform", "bullets": ["Built demo"]},
+    ]
+    document["sections"]["certifications"] = [
+        {"id": "cert-canonical", "name": "Cloud Certification", "issuer": "Institute", "year": "2024"},
+        {"id": "cert-optional", "name": "Optional Certification", "issuer": "Institute", "year": "2023"},
+    ]
+    plan = {
+        "schema_version": "cv_content_plan_v1",
+        "approved_claims": [],
+        "baseline_profile_records": {
+            "projects": [{"id": "project-canonical", "name": "Canonical Platform"}],
+            "certifications": [{"id": "cert-canonical", "name": "Cloud Certification"}],
+        },
+    }
+
+    trimmed, changes = trim_structured_cv_for_page_fit(document, content_plan=plan)
+
+    assert changes
+    assert {item["id"] for item in trimmed["sections"]["projects"]} == {"project-canonical"}
+    assert {item["id"] for item in trimmed["sections"]["certifications"]} == {"cert-canonical"}
+
+
+def test_mycvs_v1_policy_diagnoses_legacy_certification_controls_without_suppressing_records() -> None:
+    policy = resolve_mycvs_v1_policy({
+        "cv": {
+            "composition": {
+                "certifications": {
+                    "enabled": False,
+                    "max_items": 1,
+                    "display_mode": "combined_with_skills",
+                }
+            }
+        }
+    })
+
+    assert policy["section_priority"] == {
+        "header": 0,
+        "summary": 1,
+        "education": 2,
+        "experience": 3,
+        "projects": 4,
+        "certifications": 5,
+        "skills": 6,
+    }
+    assert policy["section_budget"]["summary"] == {"min_sentences": 2, "max_sentences": 4}
+    assert len(policy["legacy_setting_diagnostics"]) == 3
+    assert policy["section_policy"]["certifications"]["presence"] == "source_driven"
+    assert policy["section_policy"]["certifications"]["validation"] == "canonical_records_not_suppressed_or_truncated"

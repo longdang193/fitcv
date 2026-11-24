@@ -43,8 +43,10 @@ from fitcv.config import (
     get_cv_generation_model,
     get_cv_generation_prompt_version,
     get_cv_generation_structured_prompt_id,
+    get_cv_renderer_strategy,
 )
 from fitcv.contracts import FINAL_ARTIFACT_CONTRACT_VERSION, TRACE_CONTRACT_VERSION
+from fitcv.section_policy import resolve_mycvs_v1_policy
 from fitcv.runtime_routing import resolve_cv_generation_routing_snapshot
 from fitcv.cv_generator import (
     _execute_cv_generation_runtime,
@@ -89,6 +91,26 @@ DEFAULT_SECTION_CLAIM_LIMITS = {
     "education": 2,
     "certifications": 2,
 }
+
+
+def _section_claim_limits(policy: dict[str, Any]) -> dict[str, int]:
+    """Translate the resolved section budgets into evidence-claim caps."""
+    budgets = policy.get("section_budget") if isinstance(policy, dict) else None
+    budgets = budgets if isinstance(budgets, dict) else {}
+    limits = dict(DEFAULT_SECTION_CLAIM_LIMITS)
+    for section, field in (
+        ("summary", "max_sentences"),
+        ("experience", "max_bullets"),
+        ("projects", "max_bullets"),
+        ("education", "max_records"),
+        ("certifications", "max_records"),
+    ):
+        section_budget = budgets.get(section)
+        value = section_budget.get(field) if isinstance(section_budget, dict) else None
+        if isinstance(value, int) and value >= 0:
+            limits[section] = value
+    return limits
+
 
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
 
@@ -260,10 +282,15 @@ def build_cv_content_plan(
     analysis_record: dict[str, Any],
     job: dict[str, Any] | None = None,
     config: dict[str, Any] | None = None,
+    profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build deterministic approved claims from verified requirement coverage."""
+    """Build one immutable, section-aware plan from profile facts and job support."""
     evidence = [item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)]
     coverage = [item for item in list(analysis_record.get("requirement_coverage") or []) if isinstance(item, dict)]
+    profile = profile if isinstance(profile, dict) else dict(analysis_record.get("canonical_profile") or {})
+    job = job or dict(analysis_record.get("job_snapshot") or {})
+    policy = resolve_mycvs_v1_policy(config)
+
     support_by_evidence: dict[str, list[str]] = {}
     requirement_groups: dict[str, str] = {}
     for row in coverage:
@@ -303,15 +330,16 @@ def build_cv_content_plan(
             )
         else:
             omitted_evidence.append({"evidence_id": evidence_id, "reason": "no_verified_requirement_support"})
+
+    section_claim_limits = _section_claim_limits(policy)
     approved_claims: list[dict[str, Any]] = []
     section_counts: dict[str, int] = {}
     remaining = list(approved_candidates)
     covered_groups: set[str] = set()
     while remaining:
         eligible = [
-            candidate
-            for candidate in remaining
-            if section_counts.get(candidate[2], 0) < DEFAULT_SECTION_CLAIM_LIMITS.get(candidate[2], 2)
+            candidate for candidate in remaining
+            if section_counts.get(candidate[2], 0) < section_claim_limits.get(candidate[2], 2)
         ]
         if not eligible:
             break
@@ -326,10 +354,6 @@ def build_cv_content_plan(
         )
         remaining.remove((item, requirement_ids, target_section, groups))
         evidence_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
-        limit = DEFAULT_SECTION_CLAIM_LIMITS.get(target_section, 2)
-        if section_counts.get(target_section, 0) >= limit:
-            omitted_evidence.append({"evidence_id": evidence_id, "reason": "space_budget_exceeded"})
-            continue
         section_counts[target_section] = section_counts.get(target_section, 0) + 1
         covered_groups.update(groups)
         approved_claims.append(
@@ -341,35 +365,121 @@ def build_cv_content_plan(
                 "target_section": target_section,
                 "source_section": str(item.get("source_section") or "").strip().lower() or None,
                 "source_ref": str(item.get("source_ref") or "").strip() or None,
-                "canonical_source_id": str(
-                    item.get("canonical_source_id")
-                    or item.get("parent_id")
-                    or item.get("source_ref")
-                    or evidence_id
-                ).strip(),
-                "canonical_source_label": str(
-                    item.get("parent_title") or item.get("name") or item.get("title") or ""
-                ).strip() or None,
+                "canonical_source_id": str(item.get("canonical_source_id") or item.get("parent_id") or item.get("source_ref") or evidence_id).strip(),
+                "canonical_source_label": str(item.get("parent_title") or item.get("name") or item.get("title") or "").strip() or None,
                 "protected_numbers_dates": _protected_numbers_dates(item),
             }
         )
     for item, _, _, _ in remaining:
-        omitted_evidence.append(
+        omitted_evidence.append({
+            "evidence_id": str(item.get("evidence_id") or item.get("claim_id") or "").strip(),
+            "reason": "space_budget_exceeded",
+        })
+
+    baseline_records = {
+        key: deepcopy(profile.get(key) or [])
+        for key in ("education", "experiences", "projects", "certifications", "skills", "languages")
+        if profile.get(key)
+    }
+    unsupported = [
+        {
+            "requirement": _descriptor_requirement_ref(row),
+            "status": str(row.get("selected_support") or row.get("support_status") or "unknown"),
+        }
+        for row in coverage
+        if str(row.get("selected_support") or "").strip().lower() != "verified"
+    ]
+    gap_summary = dict(analysis_record.get("gap_summary") or {})
+    audit_sources = []
+    for item in evidence:
+        source_id = str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+        if not source_id:
+            continue
+        audit_sources.append(
             {
-                "evidence_id": str(item.get("evidence_id") or item.get("claim_id") or "").strip(),
-                "reason": "space_budget_exceeded",
+                "source_id": source_id,
+                "url": str(item.get("url") or item.get("source_url") or "").strip(),
+                "title": str(item.get("title") or item.get("label") or "").strip(),
             }
         )
+    handoff = analysis_record.get("ranking_cv_handoff") or {}
+    ranking_identity = (
+        handoff.get("handoff_fingerprint") or handoff.get("fingerprint") or handoff.get("identity")
+        if isinstance(handoff, dict) else handoff
+    )
+    section_records = {
+        "education": baseline_records.get("education", []),
+        "experience": baseline_records.get("experiences", []),
+        "projects": baseline_records.get("projects", []),
+        "certifications": baseline_records.get("certifications", []),
+        "skills": baseline_records.get("skills", []),
+        "languages": baseline_records.get("languages", []),
+    }
     plan = {
         "schema_version": CV_CONTENT_PLAN_VERSION,
+        "plan_version": CV_CONTENT_PLAN_VERSION,
+        "renderer_strategy": get_cv_renderer_strategy(config or {}),
         "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+        "profile_revision": str(profile.get("revision") or analysis_record.get("profile_revision") or ""),
+        "ranking_handoff_identity": str(ranking_identity or ""),
+        "baseline_profile_records": baseline_records,
+        "selected_job_support": deepcopy(evidence),
+        "supported_job_claims": deepcopy(approved_claims),
+        "unsupported_or_unknown_requirements": unsupported,
+        "section_policy": policy["section_policy"],
+        "section_priority": policy["section_priority"],
+        "section_budget": policy["section_budget"],
+        "records_selected_for_render": section_records,
+        "render_records": deepcopy(section_records),
+        "claims_selected_for_render": deepcopy(approved_claims),
+        "audit_metadata": {
+            "job_id": str(
+                job.get("job_id")
+                or job.get("id")
+                or job.get("job_url")
+                or analysis_record.get("job_url")
+                or ""
+            ).strip(),
+            "profile_revision": str(
+                profile.get("revision") or analysis_record.get("profile_revision") or ""
+            ).strip(),
+            "score_status": str(
+                analysis_record.get("score_status") or job.get("score_status") or "unscored"
+            ).strip(),
+            "gaps": list(
+                dict.fromkeys(
+                    str(value).strip()
+                    for value in list(
+                        analysis_record.get("confirmed_gaps")
+                        or gap_summary.get("missing")
+                        or []
+                    )
+                    if str(value).strip()
+                )
+            ),
+            "unknowns": list(
+                dict.fromkeys(
+                    str(value).strip()
+                    for value in list(
+                        analysis_record.get("unknowns")
+                        or analysis_record.get("confirmed_unknowns")
+                        or []
+                    )
+                    if str(value).strip()
+                )
+            ),
+            "sources": audit_sources,
+            "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
+            "selected_evidence_ids": [str(item.get("evidence_id") or item.get("claim_id") or "") for item in evidence],
+            "unsupported_requirement_refs": [item["requirement"] for item in unsupported if item["requirement"]],
+        },
         "approved_evidence_ids": [str(item["evidence_id"]) for item in approved_claims],
         "approved_claims": approved_claims,
         "supported_requirements": sorted({req for item in approved_claims for req in item["supports_requirements"]}),
         "target_section": "full_document",
         "space_budget": {
             "max_summary_lines": DEFAULT_MAX_SUMMARY_LINES,
-            "section_claim_limits": dict(DEFAULT_SECTION_CLAIM_LIMITS),
+            "section_claim_limits": dict(section_claim_limits),
             "page_count": 1,
             "page_fit_status": "unverified",
             "enabled_sections": sorted(_get_enabled_section_names(config or {})),
@@ -377,11 +487,11 @@ def build_cv_content_plan(
         "omitted_evidence": omitted_evidence,
     }
     plan["generation_preflight"] = build_generation_preflight(analysis_record, plan)
-    plan["content_fingerprint"] = hashlib.sha256(
-        json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    plan["plan_fingerprint"] = hashlib.sha256(
+        json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8")
     ).hexdigest()
+    plan["content_fingerprint"] = plan["plan_fingerprint"]
     return plan
-
 
 def build_render_item_provenance_v1(
     *,
@@ -756,7 +866,7 @@ def _build_generation_ready_analysis(
                 else "Blocked before generation by FitCV late-stage adapter."
             ),
         },
-        "content_plan": build_cv_content_plan(analysis_record, job, config),
+        "content_plan": build_cv_content_plan(analysis_record, job, config, profile),
     }
 
 def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dict[str, Any]:
@@ -1787,7 +1897,7 @@ def _build_fallback_provider_generator(
         authorized_profile = (
             deepcopy(profile)
             if isinstance(approved_ids, list) and not approved_ids
-            else project_authorized_profile(profile, evidence_payload)
+            else project_authorized_profile(profile, evidence_payload, preserve_canonical=bool(content_plan))
         )
 
     def _call(repair_missing_sections: list[str] | None) -> Any:
@@ -2294,6 +2404,8 @@ def _apply_final_artifact_contract(
         finalized["final_artifact_acceptance"] = {"status": "not_applicable"}
         finalized["trim_attempt_count"] = 0
         return finalized
+    content_plan = analysis_record.get("content_plan") or finalized.get("content_plan")
+    render_structured_cv = _render_payload_with_content_plan(structured_cv, content_plan)
     evidence_payload = [item for item in list(analysis_record.get("evidence_payload") or []) if isinstance(item, dict)]
     requirement_coverage = [item for item in list(analysis_record.get("requirement_coverage") or []) if isinstance(item, dict)]
     provenance = build_render_item_provenance_v1(
@@ -2319,7 +2431,7 @@ def _apply_final_artifact_contract(
     ):
         try:
             render_acceptance = render_cv_native_acceptance(
-                markdown,
+                render_structured_cv,
                 config,
                 output_dir=artifact_dir,
             )
@@ -2335,7 +2447,13 @@ def _apply_final_artifact_contract(
     final_ok = final_artifact_acceptance_passes(content_valid=content_valid, render_acceptance=render_acceptance)
     if not final_ok and content_valid and str(render_acceptance.get("page_fit_status") or "") == "fail":
         before_support = render_item_requirement_support(structured_cv, provenance)
-        trimmed = trim_structured_cv_for_page_fit(structured_cv, provenance)
+        trim_plan = content_plan
+        trimmed_result = trim_structured_cv_for_page_fit(
+            structured_cv,
+            provenance,
+            content_plan=trim_plan if isinstance(trim_plan, dict) and trim_plan.get("schema_version") == "cv_content_plan_v1" else None,
+        )
+        trimmed = trimmed_result[0] if isinstance(trimmed_result, tuple) else trimmed_result
         trimmed_markdown = render_cv_markdown(trimmed, config)
         grounding = _build_validation_grounding_payload(
             analysis_record,
@@ -2354,7 +2472,7 @@ def _apply_final_artifact_contract(
         if trimmed_validation.get("valid") and before_support == after_support and trimmed != structured_cv:
             try:
                 trimmed_render = render_cv_native_acceptance(
-                    trimmed_markdown,
+                    _render_payload_with_content_plan(trimmed, trim_plan),
                     config,
                     output_dir=artifact_dir,
                 )
@@ -2441,6 +2559,22 @@ def _apply_final_artifact_contract(
     return finalized
 
 
+def _render_payload_with_content_plan(
+    structured_cv: dict[str, Any],
+    content_plan: Any,
+) -> dict[str, Any]:
+    """Keep the persisted CV shape stable while giving the renderer its plan."""
+    if (
+        not isinstance(content_plan, dict)
+        or content_plan.get("schema_version") != CV_CONTENT_PLAN_VERSION
+        or "composition_plan" in structured_cv
+    ):
+        return structured_cv
+    payload = deepcopy(structured_cv)
+    payload["composition_plan"] = deepcopy(content_plan)
+    return payload
+
+
 def _reusable_result_or_none(
     *,
     analysis_record: dict[str, Any],
@@ -2480,7 +2614,10 @@ def _reusable_result_or_none(
     page_fit_status = reusable_record.get("page_fit_status")
     if not _render_acceptance_matches_final_content(structured_cv, markdown, config, render_acceptance):
         render_acceptance = render_cv_native_acceptance(
-            structured_cv,
+            _render_payload_with_content_plan(
+                structured_cv,
+                analysis_record.get("content_plan"),
+            ),
             config,
             output_dir=artifact_dir,
         )
@@ -2488,7 +2625,10 @@ def _reusable_result_or_none(
     elif artifact_dir is not None and _native_final_artifact_enabled(config):
         # Re-materialize reusable output for the current pipeline run.
         render_acceptance = render_cv_native_acceptance(
-            structured_cv,
+            _render_payload_with_content_plan(
+                structured_cv,
+                analysis_record.get("content_plan"),
+            ),
             config,
             output_dir=artifact_dir,
         )
@@ -2716,7 +2856,7 @@ def _generate_fresh_from_analysis(
     gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
     fit = str(fit_classification or "skip")
     evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
-    content_plan = dict(analysis_record.get("content_plan") or build_cv_content_plan(analysis_record, job, config))
+    content_plan = dict(analysis_record.get("content_plan") or build_cv_content_plan(analysis_record, job, config, profile))
     if not isinstance(content_plan.get("generation_preflight"), dict):
         content_plan["generation_preflight"] = build_generation_preflight(analysis_record, content_plan)
     analysis_record["content_plan"] = content_plan
@@ -2725,18 +2865,27 @@ def _generate_fresh_from_analysis(
         for item in list(content_plan.get("approved_evidence_ids") or [])
         if str(item).strip()
     }
+    composition_mode = (
+        str(content_plan.get("schema_version") or "").strip() == CV_CONTENT_PLAN_VERSION
+        and str(content_plan.get("renderer_strategy") or get_cv_renderer_strategy(config)).strip()
+        == "mycvs_v1"
+    )
     writer_evidence_payload = (
-        [
-            item
-            for item in evidence_payload
-            if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
-            in approved_evidence_ids
-        ]
-        if approved_evidence_ids
-        else list(evidence_payload)
+        list(evidence_payload)
+        if composition_mode
+        else (
+            [
+                item
+                for item in evidence_payload
+                if str(item.get("evidence_id") or item.get("claim_id") or "").strip()
+                in approved_evidence_ids
+            ]
+            if approved_evidence_ids
+            else list(evidence_payload)
+        )
     )
     authorized_profile = (
-        project_authorized_profile(profile, writer_evidence_payload)
+        project_authorized_profile(profile, writer_evidence_payload, preserve_canonical=bool(content_plan))
         if approved_evidence_ids
         else deepcopy(profile)
     )
@@ -3020,7 +3169,7 @@ def generate_from_analysis(
     job = dict(analysis_record.get("job_snapshot") or {})
     analysis_record.setdefault(
         "content_plan",
-        build_cv_content_plan(analysis_record, job, config),
+        build_cv_content_plan(analysis_record, job, config, profile),
     )
     fingerprint_result = build_cv_generation_input_fingerprint(analysis_record, config)
     if str(analysis_record.get("status") or "") == READY_FOR_GENERATION_STATUS:

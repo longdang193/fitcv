@@ -419,6 +419,11 @@ def test_load_config_defaults_to_repo_config_shape() -> None:
     assert cfg["rerank_top_n"] == cfg["pipeline"]["ai_score_top_n"]
     assert cfg["pipeline"]["shortlist_audit_sample_n"] == 5
 
+def test_load_config_selects_mycvs_renderer_for_canonical_mycvs_preset() -> None:
+    cfg = load_config()
+    assert cfg["cv"]["preset"] == "mycvs"
+    assert cfg["cv"]["renderer"]["strategy"] == "mycvs_v1"
+
 
 @pytest.mark.parametrize("key", ["shortlist_lexical", "retrieval_strategy"])
 def test_load_config_rejects_retired_shortlist_keys(tmp_path: Path, key: str) -> None:
