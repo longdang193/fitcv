@@ -966,28 +966,33 @@ def _build_generation_prompt_context(
             "For the Experience section, summarize or combine grounded facts where helpful."
         )
     if evidence:
-        constraint_lines.append(
-            "Stay within the selected evidence bundle for this job."
-        )
-        constraint_lines.append(
-            "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
-        )
         if composition_mode:
             constraint_lines.append(
-                "Selected evidence controls job-specific emphasis and claim support, but canonical profile facts remain eligible even when not selected."
+                "Selected evidence controls job-specific relevance, emphasis, and claim support; canonical profile facts remain eligible even when not selected."
             )
-        elif has_approved_job_claims:
             constraint_lines.append(
-                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
-            )
-        elif allow_baseline_profile:
-            constraint_lines.append(
-                "Use baseline profile records for factual sections, and use the selected evidence bundle only to tailor job-specific positioning; do not invent facts."
+                "Do not invent job-specific claims or present evidence IDs, provenance, or internal metadata in the recruiter-facing CV."
             )
         else:
             constraint_lines.append(
-                "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+                "Stay within the selected evidence bundle for this job."
             )
+            constraint_lines.append(
+                "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
+            )
+        if not composition_mode:
+            if has_approved_job_claims:
+                constraint_lines.append(
+                    "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+                )
+            elif allow_baseline_profile:
+                constraint_lines.append(
+                    "Use baseline profile records for factual sections, and use the selected evidence bundle only to tailor job-specific positioning; do not invent facts."
+                )
+            else:
+                constraint_lines.append(
+                    "Every summary, experience bullet, and project bullet must be supported by selected evidence text; do not use profile-only technologies or claims."
+                )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)

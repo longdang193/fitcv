@@ -1479,6 +1479,7 @@ def test_retrieve_evidence_bundle_merges_channels_and_dedupes_by_evidence_id() -
     assert bundle["channel_counts"]["domain_alignment"] >= 1
     assert bundle["channel_counts"]["responsibility_alignment"] >= 1
     assert bundle["merged_pool_size"] >= 1
+    assert len(bundle["assessment_candidates"]) == bundle["deduped_pool_size"]
     assert bundle["deduped_pool_size"] == 1
     assert len(bundle["selected_evidence"]) == 1
     assert bundle["selected_evidence_ids"] == [bundle["selected_evidence"][0]["evidence_id"]]

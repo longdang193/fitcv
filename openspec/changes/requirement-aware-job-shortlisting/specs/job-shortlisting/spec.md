@@ -7,18 +7,26 @@ This capability admits the most relevant jobs by validating candidate evidence a
 ## ADDED Requirements
 
 ### Requirement: Stable requirement occurrences
-The system SHALL represent each job requirement as a stable occurrence with a category, required or preferred status, source wording, qualifiers, and any AND/OR relationship needed to evaluate it.
+The system SHALL represent each job requirement as a stable occurrence with a category, required or preferred status, source wording, qualifiers, and compound relationships. Authoritative occurrence or source identity SHALL take precedence over wording fallback.
 
 #### Scenario: Distinct clauses remain distinct
 - **WHEN** a job contains two separate required clauses that mention the same canonical skill
 - **THEN** the system assigns distinct occurrence identities and evaluates each clause independently.
+
+#### Scenario: Authoritative occurrence identity prevents wording leakage
+- **WHEN** two distinct occurrences share the same or similar wording and an evidence item identifies only one occurrence
+- **THEN** the evidence is evaluated only for the identified occurrence, and the other occurrence remains independently assessed.
+
+#### Scenario: Identity-free evidence does not fan out
+- **WHEN** an evidence record has no authoritative occurrence or source identity but its wording matches multiple distinct occurrences
+- **THEN** the matching policy resolves it deterministically without attaching the record to multiple occurrences solely because the wording is similar.
 
 #### Scenario: Compound requirement preserves logic
 - **WHEN** a requirement contains `Python AND REST APIs` or `Power BI OR Tableau`
 - **THEN** the system preserves the compound logic and reports one clause result after evaluating its components.
 
 ### Requirement: Requirement-specific evidence coverage
-The system SHALL evaluate candidate evidence against each requirement occurrence and classify the result as supported, partial, not evidenced, or unknown, while preserving confirmed contradictions separately.
+The system SHALL evaluate candidate evidence against each requirement occurrence and classify the result as supported, partial, not evidenced, or unknown, while preserving confirmed contradictions separately. Each top-level clause SHALL produce exactly one `S`, `P`, `E`, or `U` verdict. The final coverage state list SHALL contain top-level clauses only; child diagnostics, if retained, SHALL be separate and SHALL NOT be counted as additional clauses.
 
 #### Scenario: Qualified evidence is partial
 - **WHEN** a job requires two years of professional Azure deployment and the candidate evidence shows only a student Azure project
@@ -27,6 +35,14 @@ The system SHALL evaluate candidate evidence against each requirement occurrence
 #### Scenario: Missing evidence is not absence
 - **WHEN** no supporting candidate evidence is retrieved for a requirement
 - **THEN** the result is not evidenced and the system does not claim that the candidate lacks the skill.
+
+#### Scenario: Assessment uncertainty is distinct from no evidence
+- **WHEN** assessment or retrieval fails, remains incomplete, or is ambiguous
+- **THEN** the result is `U`; `E` is reserved for a completed assessment that found no supporting evidence.
+
+#### Scenario: OR provenance follows the satisfying path
+- **WHEN** an OR clause has multiple alternatives and one alternative supplies the support that makes the clause fully supported
+- **THEN** the clause verdict and provenance reference the satisfying alternative(s), and weaker provenance from unused alternatives does not downgrade the clause.
 
 ### Requirement: Retrieval does not decide admission
 For production runs using `core_pareto_evidence_v1`, the system SHALL use lexical or semantic retrieval only to find candidate evidence and SHALL NOT use retrieval rank, fused score, or a display evidence limit as the production job-admission criterion. The legacy strategy may retain its existing retrieval admission behavior until promotion, and shadow evaluation SHALL not change downstream inputs.
@@ -59,7 +75,7 @@ The system SHALL exclude a job before requirement-aware shortlisting only for a 
 - **THEN** the system excludes it before shortlisting and records the rule and reason.
 
 ### Requirement: Core coverage metrics
-The system SHALL compute required-coverage and duties-coverage proportions from fully supported distinct clauses, keep partial, not-evidenced, unknown, and preferred results visible, and represent categories with no clauses as `N/A`.
+The system SHALL compute required-coverage and duties-coverage proportions from fully supported distinct clauses, keep partial, not-evidenced, unknown, and preferred results visible, and represent categories with no clauses as `N/A`. For every category, `T` SHALL equal `S + P + E + U` over distinct top-level clauses, and full coverage SHALL be `S / T` when `T > 0`; Required, Duties, and Preferred SHALL remain separate metrics.
 
 #### Scenario: Coverage counts clauses once
 - **WHEN** two evidence items jointly satisfy one AND clause
@@ -89,7 +105,7 @@ The system SHALL construct Pareto fronts using required coverage and duties cove
 - **THEN** front construction produces no dominance cycle and the final order is unchanged under every permutation of the same input rows.
 
 ### Requirement: Deterministic front tie-breaking
-The system SHALL resolve a Pareto-front overflow with this lexicographic tuple: evidence validity/provenance descending, confirmed critical gaps ascending, minimum active core ratio descending, assessment completeness `(S+P+E+U)/T` over active categories descending, preferred coverage descending, and canonical job identity ascending. `N/A` core metrics remain inactive; missing evidence remains `U` and is not imputed.
+The system SHALL resolve a Pareto-front overflow with the canonical lexicographic tuple: evidence validity/provenance descending, confirmed critical gaps ascending, preferred coverage descending, and canonical job identity ascending. `N/A` core metrics remain inactive; missing evidence remains `U` and is not imputed. Balanced core support and assessment completeness remain diagnostics and SHALL NOT introduce additional tie-break precedence.
 
 #### Scenario: Overflow is reproducible
 - **WHEN** a Pareto front contains more jobs than the remaining capacity
@@ -104,7 +120,7 @@ The system SHALL resolve a Pareto-front overflow with this lexicographic tuple: 
 - **THEN** the next tuple component decides in the documented order, and canonical job identity is the final deterministic fallback.
 
 ### Requirement: Bounded and explainable admission
-The system SHALL admit no more than 50 jobs, and every admitted or non-admitted job SHALL retain its strategy version, coverage summary, Pareto front or rank, decision reason, and relevant evidence or exclusion references.
+The system SHALL admit no more than 50 jobs, and every admitted or non-admitted job SHALL retain its strategy version, policy identity, coverage summary, Pareto front or rank, decision reason, relevant evidence or exclusion references, and deterministic assessment/decision fingerprints.
 
 #### Scenario: Capacity is enforced
 - **WHEN** more than 50 jobs are eligible after ordering
@@ -134,7 +150,7 @@ The system SHALL support running the requirement-aware selector in shadow mode a
 - **THEN** the result identifies the strategy and policy version used, and checkpoint resume does not silently switch strategy.
 
 ### Requirement: Downstream contract preservation
-The system SHALL preserve the meaning of downstream ranking, CV analysis, CV generation, checkpoint, resume, and operator inspection contracts while changing only shortlist admission behavior.
+The system SHALL preserve the meaning of downstream ranking, CV analysis, CV generation, checkpoint, resume, and operator inspection contracts while changing only shortlist admission behavior. Shortlist admission and shortlist order SHALL remain diagnostic selection inputs; they SHALL NOT become final ranking truth or override Stage 6 AI scoring and Final Top 15 ordering.
 
 #### Scenario: Resume preserves selection
 - **WHEN** a run resumes after the shortlist stage has completed

@@ -1227,3 +1227,52 @@ def test_run_all_validations_flags_synthetic_experience_rows() -> None:
 
     assert result["valid"] is False
     assert any("Synthetic Experience row detected" in message for message in result["grounding_violations"])
+
+
+def test_mycvs_allows_canonical_skills_and_profile_bullets_outside_selected_evidence() -> None:
+    profile = {
+        "name": "Jane Doe",
+        "experiences": [{
+            "role": "Data Analyst",
+            "company": "ACME",
+            "bullets": [{
+                "text": "Centralized business definitions in modular BigQuery SQL models so downstream reports can draw from consistent data."
+            }],
+        }],
+        "projects": [],
+        "education": [],
+        "certifications": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nData analyst with grounded reporting experience.\n"
+        "## Experience\n"
+        "### Data Analyst — ACME\n"
+        "- Centralized business definitions in modular BigQuery SQL models so downstream reports can draw from consistent data.\n"
+        "## Skills\nSQL, Python\n"
+    )
+    config = {
+        "required_cv_sections": ["Summary", "Experience", "Skills"],
+        "cv_max_pages": 1,
+        "cv": {"renderer": {"strategy": "mycvs_v1"}},
+    }
+    analysis_grounding = {
+        "evidence_payload": [{
+            "evidence_id": "ev-unrelated",
+            "evidence_type": "education_entry",
+            "institution": "Example University",
+        }],
+        "evidence_selection_summary": {"selected_evidence_ids": ["ev-unrelated"]},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=config,
+        analysis_grounding=analysis_grounding,
+    )
+
+    assert result["valid"] is True
+    assert result["grounding_violations"] == []
+    assert result["skill_violations"] == []

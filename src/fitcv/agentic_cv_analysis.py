@@ -1063,7 +1063,8 @@ def _build_requirement_coverage(
             normalized_max = float(years_max) if years_max not in (None, "") else None
         except (TypeError, ValueError):
             normalized_min = normalized_max = None
-        if normalized_min is not None or normalized_max is not None:
+        # Enrichment uses zero as the default for an unspecified minimum.
+        if (normalized_min is not None and normalized_min > 0) or normalized_max is not None:
             if normalized_min is not None and normalized_max is not None:
                 requirement_text = f"At least {years_min} years and no more than {years_max} years of professional experience"
             elif normalized_min is not None:

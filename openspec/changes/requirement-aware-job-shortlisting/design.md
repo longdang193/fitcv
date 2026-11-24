@@ -41,6 +41,13 @@ Build shortlist coverage from one canonical requirement-occurrence builder owned
 
 The shortlist projection maps existing support outcomes into `S`, `P`, `E`, and `U`, keeps `contradicted` as a separate critical-gap signal, and retains occurrence IDs and evidence IDs for traceability. P0b/oracle requirement IDs are correlated to runtime occurrences through the canonical source requirement ID or a deterministic source-span/canonical-identity mapping; they are not assumed to be interchangeable.
 
+Matching is implemented in `assess_requirement_occurrences()` and is identity-first:
+
+- Build the authoritative identity set from `occurrence_id`, `requirement_id`, `source_requirement_id`, `requirement_instance_id`, and supported related-ID fields.
+- If an evidence item contains any authoritative identity, accept it only when an identity variant matches the current occurrence; never fall back to wording or skill concepts after an identity mismatch.
+- For an evidence item with no authoritative identity, permit only exact normalized source-wording fallback when that wording maps to exactly one top-level occurrence in the current job. Zero or multiple candidates produce no occurrence match, never fan-out, and remain eligible for independent `E`/`U` assessment.
+- Do not introduce a new semantic skill-matching path in shortlist selection; candidate retrieval remains responsible for producing evidence candidates.
+
 The projection is deterministic and does not depend on which evidence is shown in the compact explanation:
 
 - `S`: verified support in either selected or unselected assessment-pool evidence.
@@ -48,7 +55,9 @@ The projection is deterministic and does not depend on which evidence is shown i
 - `E`: completed assessment found no support for the occurrence.
 - `U`: retrieval or assessment failure, pending resolution, or unresolved verification.
 
-Contradictions remain independent critical-gap diagnostics. Explanation selection never changes the assessment state.
+Each top-level clause emits one final verdict. Child results used to evaluate an AND/OR tree remain diagnostics and are not additional coverage clauses. `build_coverage_summary()` exposes top-level verdicts in `coverage["states"]` and retains child results in `coverage["compound_diagnostics"]`; Stage 6 handoff and evaluation metrics consume only `states`.
+
+For AND, all required components are needed for `S`; missing qualifiers/components remain visible in `P`. For OR, rank child outcomes by `S > P > E/U`, retain all children at the best state as satisfying paths, and derive compound evidence IDs, provenance, contradiction, and qualifier diagnostics from those paths only. Thus a supported alternative is not downgraded by an unused weaker alternative. `E` is assessed-but-not-evidenced, not a capability-absence claim. Explanation selection never changes the assessment state.
 
 **Alternative rejected:** treating a global candidate summary or a single similarity score as requirement support. It loses qualifiers, source provenance, and AND/OR semantics already represented by the downstream coverage contract.
 
@@ -64,14 +73,25 @@ Represent each core category as an active metric with `supported_count`, `total_
 
 - When both required and duties metrics are active, Pareto dominance requires no lower ratio on either metric and a strictly higher ratio on one.
 - Pareto dominance is only evaluated between jobs with the same active-core mask (`required` present and/or `duties` present). Jobs with different masks are incomparable under dominance, so `N/A` never creates a comparison edge or a cycle.
-- Jobs in the same front are ordered by this exact lexicographic tuple, with higher values preferred unless marked ascending: `(evidence_validity_provenance DESC, confirmed_critical_gaps ASC, balanced_core_support DESC, assessment_completeness DESC, preferred_coverage DESC, canonical_job_identity ASC)`.
+- Jobs in the same front are ordered by this exact canonical lexicographic tuple, with higher values preferred unless marked ascending: `(evidence_validity_provenance DESC, confirmed_critical_gaps ASC, preferred_coverage DESC, canonical_job_identity ASC)`.
 - `evidence_validity_provenance` is a normalized integer grade for the weakest attributable evidence supporting an active core occurrence (`0` none/invalid, `1` derived or unverified, `2` source-backed, `3` independently verified); aggregate by minimum across active core occurrences, with `0` when none has attributable evidence. `confirmed_critical_gaps` is the count of distinct active core occurrence IDs with a confirmed contradiction or confirmed qualifier failure; repeated evidence for one occurrence counts once.
-- `balanced_core_support` is the minimum ratio across the job's active core metrics; it is `N/A` and tied when no core metric is active. `assessment_completeness` is `(S + P + E) / T` across active assessed occurrences, with `T=0` treated as complete, and `unknown_rate` is exposed separately as `U / T`. Missing evidence is represented by `U` and is never imputed into a ratio.
+- `balanced_core_support` is the minimum ratio across the job's active core metrics; it is `N/A` and tied when no core metric is active. `assessment_completeness` is `(S + P + E) / T` across active assessed occurrences, with `T=0` treated as complete, and `unknown_rate` is exposed separately as `U / T`; these are diagnostics, not overflow tie-break components. Missing evidence is represented by `U` and is never imputed into a ratio.
 - The comparator operates on normalized integers and explicit active flags before any display rounding.
 
 **Alternative rejected:** converting `N/A` to zero or one. That would manufacture evidence and distort front membership.
 
-### 5. Keep eligibility and coverage separate
+### 5. Implementation ownership and sequencing
+
+Implement the defect fixes in `src/fitcv/shortlist_selection.py` before changing pipeline orchestration:
+
+1. Harden `_matches()` and the occurrence-assessment setup without changing the `RequirementOccurrence` contract unless a failing fixture proves source identity is lost upstream.
+2. Project compound children into `compound_diagnostics`, keep only top-level clauses in final `states`, and update `src/fitcv/pipeline_stage_runner.py::_stage5_evidence_payload()` plus `src/fitcv/shortlist_evaluation.py::_occurrence_metrics()` to consume final states.
+3. Update `_sort_key()` to the four-component canonical tuple; retain `balanced_core_support` and `assessment_completeness` only as persisted diagnostics.
+4. Preserve the existing decision-envelope, checkpoint, and Stage 6 handoff fields; do not modify ranking, Pareto-front construction, admission capacity, or AI scoring outside the confirmed defects.
+
+Land unit regressions beside the existing shortlist tests in `tests/test_shortlist_selection.py`, then add the handoff/resume assertions in the existing pipeline test modules. Verify the focused shortlist/evaluation/pipeline tests before the broader suite.
+
+### 6. Keep eligibility and coverage separate
 
 Retain confirmed hard constraints as pre-shortlist exclusions. Move uncertain or missing metadata to diagnostics carried into coverage and selection. The selector must not reinterpret a soft filter failure as a confirmed candidate gap. The rollout policy matrix is explicit:
 
@@ -85,7 +105,7 @@ The matrix is persisted with every decision. A fresh run resolves the configured
 
 **Alternative rejected:** removing all rule filtering. Global freshness, applicant-count, contract, location, or policy gates may remain valid hard constraints when explicitly configured and evidenced.
 
-### 6. Extend, do not replace, shortlist artifacts
+### 7. Extend, do not replace, shortlist artifacts
 
 Persist a versioned decision envelope alongside compatible legacy fields:
 
@@ -99,6 +119,8 @@ Persist a versioned decision envelope alongside compatible legacy fields:
   "admitted": true,
   "admission_rank": 7,
   "pareto_front": 1,
+  "decision_fingerprint": "...",
+  "assessment_fingerprint": "...",
   "coverage": {
     "required": {"supported": 3, "partial": 1, "not_evidenced": 1, "unknown": 0, "total": 5, "ratio": 0.6},
     "duties": {"supported": 4, "partial": 1, "not_evidenced": 0, "unknown": 0, "total": 5, "ratio": 0.8},
@@ -112,7 +134,7 @@ Persist a versioned decision envelope alongside compatible legacy fields:
 
 Legacy raw-hit, retrieval cutoff, and backfill diagnostics remain available during migration so old run artifacts are readable and the shadow comparison can explain disagreements. `pipeline.vector_search_top_n` remains the legacy retrieval-depth/cutoff diagnostic; it is never reused as the Pareto `admission_capacity`. The durable writer is `persist_shortlist_admission_ledger()`. The supported operator read path must add a corresponding query/read model alongside `src/fitcv_cp/sqlite_store.py::query_run_jobs()` and expose it through the canonical app/export surface, covering both admitted and non-admitted rows rather than only bounded diagnostic samples.
 
-### 7. Roll out behind a strategy setting
+### 8. Roll out behind a strategy setting
 
 Use `config/runtime/pipeline.yaml:pipeline.shortlist_strategy` as the selector owner, separate from `pipeline.retrieval_strategy`, with `legacy_retrieval_v1` as the rollback selector and `core_pareto_evidence_v1` as the promoted selector. Use `pipeline.shortlist_shadow_enabled` only to enable side-by-side evaluation; shadow mode does not change downstream inputs. Persist selector strategy, eligibility policy, and policy version in shortlist diagnostics and checkpoint state. On resume, the persisted values win; a legacy checkpoint with no selector fields resolves to `legacy_retrieval_v1` plus `legacy_production_v1`, while a new checkpoint/config mismatch fails closed with an explicit diagnostic instead of silently switching policy. Preserve legacy production exclusions, including missing fit context, during rollout. For admission-only comparison, build one recall-safe evaluation pool and record legacy eligibility exclusions separately. The normal promotion path requires every documented acceptance gate to pass; an explicit operator override may switch production earlier only when the blocked evaluation artifact and rollback target are recorded. Rollback is a configuration change to the legacy strategy; no destructive data migration is required.
 
