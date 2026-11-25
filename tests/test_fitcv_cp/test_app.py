@@ -1950,6 +1950,43 @@ def test_real_run_route_accepts_upload_only_and_scan_only(
     assert sqlite_store.query_run_jobs(scan_run.run_id)["items"][0]["title"] == "Scan Job"
 
 
+
+def test_real_run_route_preserves_manual_staged_mode_for_upload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
+    app = _app()
+    profile_id = _seed_active_profile()
+    submission = RunSubmission(
+        run_id="ignored",
+        queue_job_id="queue-staged",
+        backend_run_id="queue-staged",
+        backend="default_queue",
+    )
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), patch(
+        "fitcv_cp.app.load_config", return_value={"pipeline": {"final_top_n": 10}}
+    ), patch("fitcv_cp.app.submit_run", return_value=submission):
+        response = TestClient(app).post(
+            "/runs",
+            data={"profile_id": profile_id, "run_mode": "manual_staged"},
+            files={
+                "jobs_file": (
+                    "jobs.json",
+                    json.dumps([_valid_fitcv_job(title="Staged Upload Job")]),
+                    "application/json",
+                )
+            },
+            headers={"Idempotency-Key": "manual-staged-upload"},
+        )
+
+    assert response.status_code == 201, response.text
+    run = sqlite_store.get_run(response.json()["data"]["run_id"])
+    assert run.run_mode == "manual_staged"
+    assert run.next_stage == "normalize"
+    assert not run.completed_stages
+
+
 def test_real_run_route_accepts_indeed_upload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("FITCV_LOCAL_MODE", raising=False)
     app = _app()

@@ -428,7 +428,7 @@ def test_request_refuses_to_hide_the_only_attributable_evidence() -> None:
         model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
         auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="config",
     )
-    requirement = "Mandatory requirement " + ("context " * 700)
+    requirement = "Mandatory requirement " + ("context " * 3_000)
     ranking_input = {
         "job_requirements": json.dumps({
             "mandatory_clauses": [{
@@ -617,7 +617,7 @@ def test_ranking_input_diagnostics_are_bounded_and_track_the_final_request() -> 
     assert diagnostics["selected_evidence_ids"] == ["ev-1", "ev-2"]
     assert diagnostics["candidate_skill_count"] == 9
     assert diagnostics["request_within_budget"] is True
-    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= ai_score_module.RANKING_REQUEST_MAX_CHARS
 
 
 def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() -> None:
@@ -642,7 +642,7 @@ def test_ranking_input_does_not_reject_nine_mandatory_skills_before_budgeting() 
         resolved_route=route,
     )
     assert request["visibility_manifest"]["mandatory_core_complete"] is True
-    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= ai_score_module.RANKING_REQUEST_MAX_CHARS
 
 
 def test_ranking_request_preserves_full_mandatory_requirement_text() -> None:
@@ -759,8 +759,31 @@ def test_ranking_request_keeps_candidate_skills_and_languages_when_facts_overflo
     assert '"Skill 1"' in request["request"].prompt
     assert "German" in request["request"].prompt
     assert request["prompt_truncated"] is True
-    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= 12_000
+    assert len(json.dumps(request["request_payload"], ensure_ascii=False)) <= ai_score_module.RANKING_REQUEST_MAX_CHARS
 
+
+def test_ranking_request_accepts_measured_failed_input_under_new_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    route = SimpleNamespace(
+        provider="openai_compatible", base_url="https://provider.example/v1", wire_api="responses",
+        model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
+        auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="configuration",
+    )
+    monkeypatch.setattr(ai_score_module, "build_scoring_prompt", lambda *args, **kwargs: "x" * 20_000)
+
+    request = build_ranking_request(
+        {},
+        "candidate",
+        [],
+        {},
+        ranking_input={"job_requirements": "job", "candidate_summary": "candidate", "candidate_evidence": []},
+        resolved_route=route,
+    )
+
+    serialized_size = len(json.dumps(request["request_payload"], ensure_ascii=False))
+    assert serialized_size > 12_000
+    assert serialized_size <= ai_score_module.RANKING_REQUEST_MAX_CHARS
 
 def test_ranking_request_rejects_unbounded_custom_prompt_overflow(monkeypatch: pytest.MonkeyPatch) -> None:
     route = SimpleNamespace(
@@ -768,7 +791,7 @@ def test_ranking_request_rejects_unbounded_custom_prompt_overflow(monkeypatch: p
         model="test-model", timeout_seconds=12.0, request_start_interval_secs=0.0,
         auth_mode="env", temperature=0.0, model_record_id="model-record", configuration_revision="configuration",
     )
-    noisy = ('"\\\n' * 2_000)
+    noisy = ('"\\\n' * 5_000)
     monkeypatch.setattr(ai_score_module, "build_scoring_prompt", lambda *args, **kwargs: noisy)
     with pytest.raises(ValueError, match="mandatory"):
         build_ranking_request(

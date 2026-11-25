@@ -10505,6 +10505,7 @@ def create_app(
                 ),
                 candidate_profile_source=candidate_profile_id,
                 candidate_profile_json=_json.dumps(profile_snapshot, ensure_ascii=False),
+                run_mode=str(form.get("run_mode") or "run_all"),
             )
         except HTTPException as exc:
             detail = exc.detail if isinstance(exc.detail, dict) else {}
