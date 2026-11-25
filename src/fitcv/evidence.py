@@ -274,6 +274,7 @@ def _selection_policy_model(config: dict[str, Any] | None) -> SelectionPolicy:
     channel_weights = dict(selection_policy.get("channel_weights") or {})
     quotas = dict(selection_policy.get("quotas") or {})
     trimming = dict(selection_policy.get("trimming") or {})
+    requirement_gain_weight = selection_policy.get("requirement_gain_weight")
     return SelectionPolicy(
         channel_weights={
             REQUIRED_SKILL_SUPPORT_CHANNEL: float(channel_weights.get(REQUIRED_SKILL_SUPPORT_CHANNEL, 0.40)),

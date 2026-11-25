@@ -534,6 +534,8 @@ def _build_cv_analysis_trace_record(
     identity_keys = job_identity_keys(job)
     canonical_identity = identity_keys[0] if identity_keys else extract_job_title(job)
     normalized_summary = dict(evidence_selection_summary or {})
+    selection_policy = dict(normalized_summary.get("selection_policy") or {})
+    requirement_gain_weight = selection_policy.get("requirement_gain_weight")
     selected_evidence_count = int(normalized_summary.get("selected_evidence_count") or 0)
     fallback_used = bool(normalized_summary.get("fallback_used", False))
     error_summary = dict(error) if isinstance(error, dict) else None
@@ -592,9 +594,7 @@ def _build_cv_analysis_trace_record(
             "unresolved_requirement_count": max(len(coverage_rows) - verified_count, 0),
             "selected_supporting_evidence_ids": selected_support_ids,
             "requirement_gain_weight": float(
-                dict(normalized_summary.get("selection_policy") or {}).get(
-                    "requirement_gain_weight", 0.0
-                )
+                requirement_gain_weight if requirement_gain_weight is not None else 0.10
             ),
             "section_confidence_present": bool(section_confidence_hints),
         },

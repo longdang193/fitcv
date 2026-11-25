@@ -2859,6 +2859,17 @@ def test_effective_stage_concurrency_caps_to_work_items() -> None:
     assert effective_stage_concurrency(4, 3) == 3
     assert effective_stage_concurrency(4, 5) == 4
 
+def _managed_reuse_profile() -> dict[str, Any]:
+    from fitcv.candidate import attach_managed_candidate_profile_provenance
+
+    return attach_managed_candidate_profile_provenance(
+        {**_minimal_profile(), "revision": "profile-v1"},
+        candidate_profile_id="candidate-1",
+        revision="7",
+        checksum="profile-checksum-1",
+    )
+
+
 def _canonical_reusable_cv_analysis_record(
     job: dict[str, Any],
     profile: dict[str, Any],
@@ -3364,7 +3375,7 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
         "baseline_fit_label": "strong",
         "score_status": "valid",
     }
-    profile = {**_minimal_profile(), "revision": "profile-v1"}
+    profile = _managed_reuse_profile()
     config = _minimal_config()
     reused_analysis_record = _canonical_reusable_cv_analysis_record(job, profile, config)
     analysis_fingerprint = str(reused_analysis_record["analysis_input_fingerprint"])
@@ -3449,7 +3460,7 @@ def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -
         "baseline_fit_label": "strong",
         "score_status": "valid",
     }
-    profile = {**_minimal_profile(), "revision": "profile-v1"}
+    profile = _managed_reuse_profile()
     config = _minimal_config()
     reused_analysis_record = _canonical_reusable_cv_analysis_record(job, profile, config)
     analysis_fingerprint = str(reused_analysis_record["analysis_input_fingerprint"])
