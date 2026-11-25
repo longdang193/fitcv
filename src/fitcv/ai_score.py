@@ -65,7 +65,7 @@ from fitcv.ranking_contract import (
 logger = logging.getLogger(__name__)
 
 RANKING_INPUT_CONTRACT_VERSION = "ranking_input_v3"
-RANKING_REQUEST_MAX_CHARS = 12_000
+RANKING_REQUEST_MAX_CHARS = 25_000
 RANKING_TERM_MAX_CHARS = 160
 RANKING_EVIDENCE_TEXT_MAX_CHARS = 400
 RANKING_MAX_SKILLS = 8
@@ -465,7 +465,9 @@ def build_ranking_request(
         return len(json.dumps({**base_request_payload, "prompt": prompt_value}, ensure_ascii=False))
 
     if serialized_request_size("") > RANKING_REQUEST_MAX_CHARS:
-        raise RankingInputBudgetExceeded("ranking request mandatory contract exceeds 12000 characters")
+        raise RankingInputBudgetExceeded(
+            f"ranking request mandatory contract exceeds {RANKING_REQUEST_MAX_CHARS:,} characters"
+        )
     truncation_steps: list[str] = []
     if candidate_summary_truncated:
         truncation_steps.append("candidate_facts:field_aware_bound")
@@ -517,7 +519,7 @@ def build_ranking_request(
             },
         }
         raise RankingInputBudgetExceeded(
-            "ranking request mandatory contract exceeds 12000 characters",
+            f"ranking request mandatory contract exceeds {RANKING_REQUEST_MAX_CHARS:,} characters",
             visibility_manifest=visibility_manifest,
         )
     request = LlmTaskRequest(routing_part="ranking_ai_score", prompt=prompt, response_mode="json_object")

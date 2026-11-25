@@ -41,7 +41,11 @@ from fitcv.rule_filter import (
     shortlist_filter_disposition,
 )
 from fitcv.ranking_contract import AI_ONLY_RANKING_ORDER_VERSION, SCORE_STATUS_VALID, normalize_score_state
-from fitcv.contracts import build_stage_6_to_7_handoff
+from fitcv.contracts import (
+    build_coverage_fingerprints,
+    build_stage_6_to_7_handoff,
+    validate_coverage_fingerprints,
+)
 from fitcv.preference_policy import (
     PreferenceRuntimeContract,
     ResolvedPreferencePolicy,
@@ -50,6 +54,7 @@ from fitcv.preference_policy import (
 )
 from fitcv.runtime_routing import resolve_llm_routing
 from fitcv.vector_search import VECTOR_RETRIEVAL_STRATEGY
+from fitcv.shortlist_selection import build_evidence_manifest
 
 def _reuse_stage_enabled(config: dict[str, Any], stage: str) -> bool:
     reuse_block = dict(config.get("reuse") or {})
@@ -86,7 +91,71 @@ def _stage5_evidence_payload(
         for state in states
         if isinstance(state, Mapping) and str(state.get("state") or "") == "U"
     ]
-    return evidence, qualifiers, gaps, unknowns, dict(coverage)
+    projected_coverage = dict(coverage)
+    projected_coverage["evidence_manifest"] = build_evidence_manifest(evidence)
+    return evidence, qualifiers, gaps, unknowns, projected_coverage
+
+
+def _coverage_fingerprint_components(
+    job: Mapping[str, Any],
+    identity: str,
+    profile: Mapping[str, Any],
+    evidence_projection: Mapping[str, Any],
+    config: Mapping[str, Any],
+    evidence: list[Mapping[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "requirement_contract": "requirement_occurrence_v1",
+        "assessment_inputs": {
+            "job_identity": identity,
+            "requirements": job.get("required_skills") or [],
+            "responsibilities": job.get("responsibilities") or [],
+            "preferred_skills": job.get("preferred_skills") or [],
+            "requirement_occurrences": job.get("requirement_occurrences") or [],
+            "candidate_profile_revision": str(profile.get("revision") or ""),
+            "evidence_projection_fingerprint": str(evidence_projection.get("fingerprint") or ""),
+        },
+        "evidence_compatibility": [
+            {
+                key: item.get(key)
+                for key in (
+                    "occurrence_id",
+                    "evidence_id",
+                    "evidence_revision",
+                    "revision",
+                    "content_hash",
+                    "evidence_content_hash",
+                    "projection_version",
+                )
+            }
+            for item in evidence
+            if isinstance(item, Mapping)
+        ],
+        "retrieval_policy": {"strategy": resolve_retrieval_strategy(dict(config)), "top_k": 3},
+        "support_policy": resolve_shortlist_policy(dict(config), strategy="core_pareto_evidence_v1"),
+    }
+
+
+def _coverage_is_complete(coverage: Mapping[str, Any], evidence: list[Mapping[str, Any]]) -> bool:
+    if "states" not in coverage:
+        return False
+    states = coverage.get("states") or []
+    if not isinstance(states, list):
+        return False
+    items = [item for item in evidence if isinstance(item, Mapping)]
+    if bool(coverage.get("failure_derived")) or coverage.get("assessment_complete") is False:
+        return False
+    if any(
+        bool(item.get("failure_derived") or item.get("assessment_failed") or item.get("retrieval_failed"))
+        for item in items
+    ):
+        return False
+    return all(
+        isinstance(state, Mapping)
+        and state.get("assessment_complete") is not False
+        and not bool(state.get("failure_derived"))
+        for state in states
+    )
 
 def _execute_requirement_aware_shortlist_stage(
     *,
@@ -105,11 +174,42 @@ def _execute_requirement_aware_shortlist_stage(
     evidence_by_job: dict[str, list[dict[str, Any]]] = {}
     evidence_projection = build_evidence_projection(profile)
     assessment_failures = 0
+    assessment_failures_by_job: dict[str, str] = {}
+    coverage_reuse_rejections: dict[str, str] = {}
     for job in passed_jobs:
         identity = str(job.get("canonical_job_identity") or job.get("job_url") or "").strip()
-        if isinstance(job.get("requirement_coverage"), list) and job.get("requirement_coverage"):
-            evidence_by_job[identity] = []
-            continue
+        existing_coverage = job.get("coverage") or job.get("coverage_summary")
+        existing_evidence = [
+            item for item in (job.get("requirement_coverage") or []) if isinstance(item, Mapping)
+        ]
+        if isinstance(existing_coverage, Mapping) or existing_evidence:
+            expected_components = _coverage_fingerprint_components(
+                job, identity, profile, evidence_projection, config, existing_evidence
+            )
+            fingerprints = job.get("coverage_fingerprints") or (
+                existing_coverage.get("coverage_fingerprints")
+                if isinstance(existing_coverage, Mapping)
+                else None
+            )
+            if not isinstance(fingerprints, Mapping):
+                coverage_reuse_rejections[identity] = "coverage_fingerprints_missing"
+            else:
+                try:
+                    validate_coverage_fingerprints(
+                        fingerprints,
+                        expected_components=expected_components,
+                    )
+                    if not isinstance(existing_coverage, Mapping) or not _coverage_is_complete(
+                        existing_coverage, existing_evidence
+                    ):
+                        raise ValueError("coverage_incomplete_or_failure_derived")
+                    job["_assessment_complete"] = True
+                    job["_failure_derived"] = False
+                    job["_retry_eligible"] = False
+                    evidence_by_job[identity] = []
+                    continue
+                except (TypeError, ValueError) as exc:
+                    coverage_reuse_rejections[identity] = str(exc)
         try:
             bundle = retrieve_evidence_bundle(
                 profile,
@@ -132,6 +232,7 @@ def _execute_requirement_aware_shortlist_stage(
                 for requirement_id, assessment in dict(item.get("requirement_assessments") or {}).items():
                     rows.append(
                         {
+                            "occurrence_id": requirement_id,
                             "requirement_id": requirement_id,
                             "support_status": "supported" if assessment.get("qualified_support") else "partial" if assessment.get("canonical_match") else "unsupported",
                             "qualifier_status": assessment.get("qualifier_status"),
@@ -139,17 +240,46 @@ def _execute_requirement_aware_shortlist_stage(
                             "reviewed": True,
                             "contradiction": assessment.get("qualifier_status") == "contradicted",
                             "provenance_grade": 2,
+                            **{
+                                key: item.get(key)
+                                for key in (
+                                    "evidence_revision",
+                                    "revision",
+                                    "content_hash",
+                                    "evidence_content_hash",
+                                    "projection_version",
+                                )
+                                if item.get(key) not in (None, "")
+                            },
                         }
                     )
             evidence_by_job[identity] = rows
-        except Exception:
+            job["_assessment_complete"] = True
+            job["_failure_derived"] = False
+            job["_retry_eligible"] = False
+            job["coverage_fingerprints"] = build_coverage_fingerprints(
+                **_coverage_fingerprint_components(
+                    job, identity, profile, evidence_projection, config, rows
+                ),
+            )
+        except Exception as exc:
             assessment_failures += 1
+            assessment_failures_by_job[identity] = type(exc).__name__
             evidence_by_job[identity] = []
+            job["_assessment_complete"] = False
+            job["_failure_derived"] = True
+            job["_retry_eligible"] = True
+            job["assessment_failure_reason"] = type(exc).__name__
+            job["coverage_fingerprints"] = build_coverage_fingerprints(
+                **_coverage_fingerprint_components(
+                    job, identity, profile, evidence_projection, config, []
+                ),
+            )
 
     rows = build_requirement_aware_rows(
         passed_jobs,
         evidence_by_job,
-        assessment_complete=assessment_failures == 0,
+        assessment_complete=True,
     )
     decision = select_requirement_aware_jobs(rows)
     assessment_input = {
@@ -197,8 +327,6 @@ def _execute_requirement_aware_shortlist_stage(
                 "clause_coverage": clause_coverage,
             }
         )
-    if persist:
-        pipeline_store.store_shortlist(admitted, config)
     ledger_rows = [
         {
             **row,
@@ -230,6 +358,9 @@ def _execute_requirement_aware_shortlist_stage(
         "assessment_input": assessment_input,
         "assessment_input_fingerprint": assessment_input_fingerprint,
         "assessment_failures": assessment_failures,
+        "assessment_failures_by_job": assessment_failures_by_job,
+        "coverage_reuse_rejections": coverage_reuse_rejections,
+        "assessment_scope": "job_and_occurrence",
     }
     persist_ledger = getattr(pipeline_store, "store_shortlist_admission_ledger", None)
     if persist and persist_ledger is not None:
@@ -244,6 +375,8 @@ def _execute_requirement_aware_shortlist_stage(
         "evaluation_pool_id": decision["evaluation_pool_id"],
         "assessment_fingerprint": decision["assessment_fingerprint"],
         "assessment_input_fingerprint": assessment_input_fingerprint,
+        "assessment_failures_by_job": assessment_failures_by_job,
+        "coverage_reuse_rejections": coverage_reuse_rejections,
         "counts": {"eligible": len(rows), "admitted": len(admitted), "not_admitted": len(rows) - len(admitted)},
         "rows": ledger_rows,
     }
@@ -1293,11 +1426,42 @@ def _execute_requirement_aware_shortlist_stage(
     evidence_by_job: dict[str, list[dict[str, Any]]] = {}
     evidence_projection = build_evidence_projection(profile)
     assessment_failures = 0
+    assessment_failures_by_job: dict[str, str] = {}
+    coverage_reuse_rejections: dict[str, str] = {}
     for job in passed_jobs:
         identity = str(job.get("canonical_job_identity") or job.get("job_url") or "").strip()
-        if isinstance(job.get("requirement_coverage"), list) and job.get("requirement_coverage"):
-            evidence_by_job[identity] = []
-            continue
+        existing_coverage = job.get("coverage") or job.get("coverage_summary")
+        existing_evidence = [
+            item for item in (job.get("requirement_coverage") or []) if isinstance(item, Mapping)
+        ]
+        if isinstance(existing_coverage, Mapping) or existing_evidence:
+            expected_components = _coverage_fingerprint_components(
+                job, identity, profile, evidence_projection, config, existing_evidence
+            )
+            fingerprints = job.get("coverage_fingerprints") or (
+                existing_coverage.get("coverage_fingerprints")
+                if isinstance(existing_coverage, Mapping)
+                else None
+            )
+            if not isinstance(fingerprints, Mapping):
+                coverage_reuse_rejections[identity] = "coverage_fingerprints_missing"
+            else:
+                try:
+                    validate_coverage_fingerprints(
+                        fingerprints,
+                        expected_components=expected_components,
+                    )
+                    if not isinstance(existing_coverage, Mapping) or not _coverage_is_complete(
+                        existing_coverage, existing_evidence
+                    ):
+                        raise ValueError("coverage_incomplete_or_failure_derived")
+                    job["_assessment_complete"] = True
+                    job["_failure_derived"] = False
+                    job["_retry_eligible"] = False
+                    evidence_by_job[identity] = []
+                    continue
+                except (TypeError, ValueError) as exc:
+                    coverage_reuse_rejections[identity] = str(exc)
         try:
             bundle = retrieve_evidence_bundle(
                 profile,
@@ -1320,6 +1484,7 @@ def _execute_requirement_aware_shortlist_stage(
                 for requirement_id, assessment in dict(item.get("requirement_assessments") or {}).items():
                     rows.append(
                         {
+                            "occurrence_id": requirement_id,
                             "requirement_id": requirement_id,
                             "support_status": "supported" if assessment.get("qualified_support") else "partial" if assessment.get("canonical_match") else "unsupported",
                             "qualifier_status": assessment.get("qualifier_status"),
@@ -1327,37 +1492,46 @@ def _execute_requirement_aware_shortlist_stage(
                             "reviewed": True,
                             "contradiction": assessment.get("qualifier_status") == "contradicted",
                             "provenance_grade": 2,
+                            **{
+                                key: item.get(key)
+                                for key in (
+                                    "evidence_revision",
+                                    "revision",
+                                    "content_hash",
+                                    "evidence_content_hash",
+                                    "projection_version",
+                                )
+                                if item.get(key) not in (None, "")
+                            },
                         }
                     )
-            responsibility_support = dict(
-                (bundle.get("requirement_support") or {}).get("responsibility") or {}
-            )
-            for support_scope in ("pool", "selected"):
-                for requirement_id, evidence_ids in dict(
-                    responsibility_support.get(support_scope) or {}
-                ).items():
-                    for evidence_id in evidence_ids:
-                        rows.append(
-                            {
-                                "requirement_id": requirement_id,
-                                "supported_requirement_ids": [requirement_id],
-                                "support_status": "supported",
-                                "qualifier_status": "supported",
-                                "evidence_id": evidence_id,
-                                "reviewed": True,
-                                "verified": True,
-                                "provenance_grade": 2,
-                            }
-                        )
             evidence_by_job[identity] = rows
-        except Exception:
+            job["_assessment_complete"] = True
+            job["_failure_derived"] = False
+            job["_retry_eligible"] = False
+            job["coverage_fingerprints"] = build_coverage_fingerprints(
+                **_coverage_fingerprint_components(
+                    job, identity, profile, evidence_projection, config, rows
+                ),
+            )
+        except Exception as exc:
             assessment_failures += 1
+            assessment_failures_by_job[identity] = type(exc).__name__
             evidence_by_job[identity] = []
+            job["_assessment_complete"] = False
+            job["_failure_derived"] = True
+            job["_retry_eligible"] = True
+            job["assessment_failure_reason"] = type(exc).__name__
+            job["coverage_fingerprints"] = build_coverage_fingerprints(
+                **_coverage_fingerprint_components(
+                    job, identity, profile, evidence_projection, config, []
+                ),
+            )
 
     rows = build_requirement_aware_rows(
         passed_jobs,
         evidence_by_job,
-        assessment_complete=assessment_failures == 0,
+        assessment_complete=True,
     )
     decision = select_requirement_aware_jobs(rows)
     assessment_input = {
@@ -1436,6 +1610,9 @@ def _execute_requirement_aware_shortlist_stage(
         "assessment_input": assessment_input,
         "assessment_input_fingerprint": assessment_input_fingerprint,
         "assessment_failures": assessment_failures,
+        "assessment_failures_by_job": assessment_failures_by_job,
+        "coverage_reuse_rejections": coverage_reuse_rejections,
+        "assessment_scope": "job_and_occurrence",
     }
     persist_ledger = getattr(pipeline_store, "store_shortlist_admission_ledger", None)
     if persist and persist_ledger is not None:
@@ -1450,6 +1627,8 @@ def _execute_requirement_aware_shortlist_stage(
         "evaluation_pool_id": decision["evaluation_pool_id"],
         "assessment_fingerprint": decision["assessment_fingerprint"],
         "assessment_input_fingerprint": assessment_input_fingerprint,
+        "assessment_failures_by_job": assessment_failures_by_job,
+        "coverage_reuse_rejections": coverage_reuse_rejections,
         "counts": {"eligible": len(rows), "admitted": len(admitted), "not_admitted": len(rows) - len(admitted)},
         "rows": ledger_rows,
     }

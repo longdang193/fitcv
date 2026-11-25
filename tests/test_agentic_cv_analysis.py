@@ -57,6 +57,12 @@ def _profile() -> dict:
         "years_experience": 4,
         "experiences": [],
         "projects": [],
+        "_runtime_compatibility": {
+            "managed_candidate_profile_provenance": True,
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
+        },
     }
 
 
@@ -95,6 +101,23 @@ def test_valid_stage6_handoff_allows_final_top15_job_into_generation() -> None:
     assert result["candidate_profile_revision"] == "7"
 
 
+def test_incomplete_stage6_handoff_is_technical_failure_and_not_generation_eligible() -> None:
+    job, profile = _stage6_handoff_job()
+    job["stage6_to_stage7_handoff"].pop("candidate_profile_revision", None)
+
+    result = analyze_ranked_job(job, profile, _config())
+
+    assert result["status"] == "handoff_contract_failed"
+    assert result["decision_chain"]["cv_analysis"] == {
+        "status": "handoff_contract_failed",
+        "completed": False,
+    }
+    assert result["decision_chain"]["cv_generation"] == {
+        "status": "not_attempted",
+        "attempted": False,
+    }
+
+
 @pytest.mark.parametrize(
     "mutate",
     [
@@ -109,7 +132,7 @@ def test_invalid_stage6_handoff_does_not_bypass_fit_gate(mutate) -> None:
 
     result = analyze_ranked_job(job, profile, _config())
 
-    assert result["status"] == "skipped_fit_gate"
+    assert result["status"] == "handoff_contract_failed"
 
 
 def test_responsibility_direct_support_reaches_requirement_coverage() -> None:
@@ -972,6 +995,9 @@ def _complete_reusable_record() -> dict:
             "contract_fingerprint": "contract::1",
             "profile_payload_hash": "profile::1",
             "job_payload_hash": "job::1",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
             "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
         },
         "analysis_reuse_status": "fresh_compute",
@@ -1022,6 +1048,32 @@ def test_cv_analysis_fingerprint_changes_when_evidence_bearing_sections_change()
     fingerprint_b = build_cv_analysis_input_fingerprint(profile_b, _job(), _config())
 
     assert fingerprint_a["fingerprint"] != fingerprint_b["fingerprint"]
+
+
+def test_cv_analysis_fingerprint_uses_only_managed_profile_provenance() -> None:
+    managed = build_cv_analysis_input_fingerprint(_profile(), _job(), _config())
+    unmanaged = _profile()
+    unmanaged.pop("_runtime_compatibility")
+    unmanaged.update(
+        {
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
+        }
+    )
+
+    assert managed["payload"]["candidate_profile_id"] == "candidate-1"
+    assert managed["payload"]["candidate_profile_revision"] == "7"
+    assert managed["payload"]["candidate_profile_checksum"] == "profile-checksum-1"
+    unmanaged_fingerprint = build_cv_analysis_input_fingerprint(unmanaged, _job(), _config())
+    assert unmanaged_fingerprint["payload"]["candidate_profile_id"] is None
+    assert unmanaged_fingerprint["payload"]["candidate_profile_revision"] is None
+    assert unmanaged_fingerprint["payload"]["candidate_profile_checksum"] is None
+    revision_only = _profile()
+    revision_only["_runtime_compatibility"]["candidate_profile_revision"] = "8"
+    revision_only_fingerprint = build_cv_analysis_input_fingerprint(revision_only, _job(), _config())
+    assert revision_only_fingerprint["payload"]["candidate_profile_checksum"] == managed["payload"]["candidate_profile_checksum"]
+    assert revision_only_fingerprint["fingerprint"] != managed["fingerprint"]
 
 
 def test_real_canonical_profile_emits_requirement_coverage_without_mocks() -> None:
@@ -1290,6 +1342,9 @@ def test_analyze_ranked_job_emits_canonical_identity_and_reuse_fields(
             "profile": {"name": "Candidate"},
             "job": {"raw_job_fingerprint": "raw-job-1"},
             "contract_fingerprint": "contract::1",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
         },
     }
     mock_bundle.return_value = {"selected_evidence": []}
@@ -1320,6 +1375,9 @@ def test_analyze_ranked_job_rebuilds_complete_exact_reuse_without_analysis(
             "profile": {"name": "Candidate"},
             "job": {"raw_job_fingerprint": "raw-job-1"},
             "contract_fingerprint": "contract::1",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
         },
     }
     job = _job()
@@ -1342,6 +1400,83 @@ def test_analyze_ranked_job_rebuilds_complete_exact_reuse_without_analysis(
     mock_gap.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("changed_field", "changed_value", "expected_reason"),
+    [
+        ("candidate_profile_revision", "8", "candidate_profile_revision_changed"),
+        ("candidate_profile_id", "candidate-2", "candidate_profile_id_changed"),
+        ("candidate_profile_checksum", "profile-checksum-2", "candidate_profile_checksum_changed"),
+    ],
+)
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
+def test_analyze_ranked_job_recomputes_when_managed_profile_provenance_changes(
+    mock_fingerprint,
+    mock_bundle,
+    mock_gap,
+    changed_field,
+    changed_value,
+    expected_reason,
+) -> None:
+    profile = _profile()
+    profile["_runtime_compatibility"][changed_field] = changed_value
+    mock_fingerprint.return_value = {
+        "fingerprint": "analysis::changed-profile",
+        "payload": {
+            "profile": {"name": "Candidate"},
+            "job": {"raw_job_fingerprint": "raw-job-1"},
+            "contract_fingerprint": "contract::1",
+            "candidate_profile_id": profile["_runtime_compatibility"]["candidate_profile_id"],
+            "candidate_profile_revision": profile["_runtime_compatibility"]["candidate_profile_revision"],
+            "candidate_profile_checksum": profile["_runtime_compatibility"]["candidate_profile_checksum"],
+        },
+    }
+    mock_bundle.return_value = {"selected_evidence": []}
+    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+    job = _job()
+    job["raw_job_fingerprint"] = "raw-job-1"
+
+    result = analyze_ranked_job(
+        job,
+        profile,
+        _config(),
+        reusable_record=_complete_reusable_record(),
+    )
+
+    assert result["analysis_reuse_status"] == "fresh_compute"
+    assert result["reuse_decision"]["reason_code"] == expected_reason
+    assert result["analysis_input_components"][changed_field] == changed_value
+    mock_bundle.assert_called_once()
+    mock_gap.assert_called_once()
+
+
+def test_analyze_ranked_job_rejects_historical_record_without_managed_profile_provenance() -> None:
+    reusable_record = _complete_reusable_record()
+    reusable_record["analysis_input_components"] = {
+        key: value
+        for key, value in reusable_record["analysis_input_components"].items()
+        if not key.startswith("candidate_profile_")
+    }
+
+    with patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle") as mock_bundle, patch(
+        "fitcv.agentic_cv_analysis.compute_gap"
+    ) as mock_gap:
+        mock_bundle.return_value = {"selected_evidence": []}
+        mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+        result = analyze_ranked_job(
+            _job(),
+            _profile(),
+            _config(),
+            reusable_record=reusable_record,
+        )
+
+    assert result["analysis_reuse_status"] == "fresh_compute"
+    assert result["reuse_decision"]["reason_code"] == "managed_profile_provenance_missing"
+    mock_bundle.assert_called_once()
+    mock_gap.assert_called_once()
+
+
 @patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
 @patch("fitcv.agentic_cv_analysis.build_cv_analysis_input_fingerprint")
 def test_analyze_ranked_job_preserves_mode_on_exact_reuse(
@@ -1354,6 +1489,9 @@ def test_analyze_ranked_job_preserves_mode_on_exact_reuse(
             "profile": {"name": "Candidate"},
             "job": {"raw_job_fingerprint": "raw-job-1"},
             "contract_fingerprint": "contract::loose",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
         },
     }
     reusable_record = _complete_reusable_record()
@@ -1464,6 +1602,9 @@ def test_analyze_ranked_job_recomputes_incomplete_reuse_candidate(
             "profile": {"name": "Candidate"},
             "job": {"raw_job_fingerprint": "raw-job-1"},
             "contract_fingerprint": "contract::1",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
         },
     }
     mock_bundle.return_value = {"selected_evidence": []}
@@ -1513,6 +1654,9 @@ def test_analyze_ranked_job_reuses_skipped_fit_gate_record(
             "profile": {"name": "Candidate"},
             "job": {"raw_job_fingerprint": "raw-job-1"},
             "contract_fingerprint": "contract::1",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
         },
     }
     reusable_record = _complete_reusable_record()
@@ -1551,6 +1695,9 @@ def test_analyze_ranked_job_recomputes_all_ineligible_reuse_candidates(
             "profile": {"name": "Candidate"},
             "job": {"raw_job_fingerprint": "raw-job-1"},
             "contract_fingerprint": "contract::1",
+            "candidate_profile_id": "candidate-1",
+            "candidate_profile_revision": "7",
+            "candidate_profile_checksum": "profile-checksum-1",
         },
     }
     mock_bundle.return_value = {"selected_evidence": []}

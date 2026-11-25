@@ -3053,6 +3053,9 @@ def test_create_run_bundle_atomically_captures_profile_settings_and_apply_off_bu
     assert row[2] == bundle["active_bundle_revision_id"]
     assert json.loads(row[3])["approved_mapping_projection"]["skills"] == {}
     detail = sqlite_store.get_run_detail(run.run_id)
+    assert detail["input"]["jobs_path"] == run.jobs_path
+    assert detail["input"]["jobs_input_source"] == run.jobs_input_source
+    assert detail["input"]["jobs_sha256"] == detail["input"]["sha256"]
     assert detail["input"]["candidate_profile"]["profile_id"] == profile["profile_id"]
     assert detail["input"]["candidate_profile"]["revision"] == profile["revision"]
 
@@ -6799,6 +6802,9 @@ def test_run_detail_summarizes_inputs_and_preserves_artifact_snapshots() -> None
         "synonym_policy_bundle_revision_id",
         "synonym_policy_bundle_checksum",
         "run_input_contract_version",
+        "jobs_path",
+        "jobs_input_source",
+        "jobs_sha256",
         "created_at",
     }
     assert input_summary["jobs_manifest_json"] == run.jobs_input_manifest_json

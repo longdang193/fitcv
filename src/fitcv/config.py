@@ -1272,6 +1272,11 @@ def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
+def _configured_policy_value(values: dict[str, Any], key: str, default: Any) -> Any:
+    value = values.get(key)
+    return default if value is None else value
+
+
 def _normalize_cv_acceptance_policy_config(cfg: dict[str, Any]) -> dict[str, Any]:
     policy_cfg = dict(cfg.get("cv_acceptance_policy") or {})
     default_required_match = dict(_DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"])
@@ -1280,15 +1285,15 @@ def _normalize_cv_acceptance_policy_config(cfg: dict[str, Any]) -> dict[str, Any
     default_min_ratio = dict(default_required_match["min_ratio_by_fit"])
     min_ratio_cfg = dict(required_match_cfg.get("min_ratio_by_fit") or {})
     normalized_min_ratio = {
-        "strong": float(min_ratio_cfg.get("strong", default_min_ratio["strong"])),
-        "stretch": float(min_ratio_cfg.get("stretch", default_min_ratio["stretch"])),
+        "strong": float(_configured_policy_value(min_ratio_cfg, "strong", default_min_ratio["strong"])),
+        "stretch": float(_configured_policy_value(min_ratio_cfg, "stretch", default_min_ratio["stretch"])),
     }
 
     default_max_missing = dict(default_required_match["max_missing_by_fit"])
     max_missing_cfg = dict(required_match_cfg.get("max_missing_by_fit") or {})
     normalized_max_missing = {
-        "strong": int(max_missing_cfg.get("strong", default_max_missing["strong"])),
-        "stretch": int(max_missing_cfg.get("stretch", default_max_missing["stretch"])),
+        "strong": int(_configured_policy_value(max_missing_cfg, "strong", default_max_missing["strong"])),
+        "stretch": int(_configured_policy_value(max_missing_cfg, "stretch", default_max_missing["stretch"])),
     }
 
     force_review_raw = policy_cfg.get("force_review_when_any_required_missing_for_fits") or []
@@ -1880,12 +1885,12 @@ def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
     merged_policy.update({
         "required_match": {
             "min_ratio_by_fit": {
-                "strong": float(min_ratio.get("strong", default_required_match["min_ratio_by_fit"]["strong"])),
-                "stretch": float(min_ratio.get("stretch", default_required_match["min_ratio_by_fit"]["stretch"])),
+                "strong": float(_configured_policy_value(min_ratio, "strong", default_required_match["min_ratio_by_fit"]["strong"])),
+                "stretch": float(_configured_policy_value(min_ratio, "stretch", default_required_match["min_ratio_by_fit"]["stretch"])),
             },
             "max_missing_by_fit": {
-                "strong": int(max_missing.get("strong", default_required_match["max_missing_by_fit"]["strong"])),
-                "stretch": int(max_missing.get("stretch", default_required_match["max_missing_by_fit"]["stretch"])),
+                "strong": int(_configured_policy_value(max_missing, "strong", default_required_match["max_missing_by_fit"]["strong"])),
+                "stretch": int(_configured_policy_value(max_missing, "stretch", default_required_match["max_missing_by_fit"]["stretch"])),
             },
         },
         "force_review_when_any_required_missing_for_fits": [

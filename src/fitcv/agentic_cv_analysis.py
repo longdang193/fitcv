@@ -21,8 +21,18 @@ import re
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, cast
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
-from fitcv.contracts import deserialize_stage_6_to_7_handoff, normalize_analysis_channel_mapping
+from fitcv.candidate import (
+    converge_candidate_profile_for_runtime,
+    flatten_skills,
+    runtime_profile_value,
+)
+from fitcv.contracts import (
+    build_stage_6_to_7_failure,
+    deserialize_stage_6_to_7_handoff,
+    normalize_analysis_channel_mapping,
+    validate_stage_6_to_7_handoff,
+)
+from fitcv.enrich import normalize_experience_bounds
 from fitcv.evidence import (
     _assess_requirement_support,
     _assess_responsibility_support,
@@ -52,6 +62,7 @@ from fitcv.late_stage_contract import (
     AnalysisStatus,
     CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS as BLOCKED_BY_RERANKER_STATUS,
     CV_ANALYSIS_FAILED_STATUS as ANALYSIS_FAILED_STATUS,
+    CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS as HANDOFF_CONTRACT_FAILED_STATUS,
     CV_ANALYSIS_READY_FOR_GENERATION_STATUS as READY_FOR_GENERATION_STATUS,
     CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS as SKIPPED_FIT_GATE_STATUS,
     cv_generation_status_for_analysis_status,
@@ -111,38 +122,39 @@ def _valid_stage6_handoff(job: Mapping[str, Any], profile: Mapping[str, Any]) ->
     if not isinstance(payload, Mapping):
         return None
     try:
-        handoff = deserialize_stage_6_to_7_handoff(payload)
+        return validate_stage_6_to_7_handoff(payload, job=job, profile=profile)
     except (TypeError, ValueError):
         return None
-    if not handoff:
-        return None
-    if str(handoff.get("score_status") or "") != SCORE_STATUS_VALID:
-        return None
-    final_rank = handoff.get("final_rank")
-    if not isinstance(final_rank, int) or not 1 <= final_rank <= 15:
-        return None
-    admission = handoff.get("stage5_admission")
-    if not isinstance(admission, Mapping):
-        return None
-    if admission.get("admitted") is not True and str(admission.get("status") or "") not in {"admitted", "passed"}:
-        return None
-    job_url = extract_job_url(job)
-    handoff_url = str(handoff.get("job_url") or "").strip()
-    if not job_url or not handoff_url or job_url != handoff_url:
-        return None
-    jd_reference = handoff.get("jd_reference")
-    if not isinstance(jd_reference, Mapping) or str(jd_reference.get("job_url") or "").strip() != job_url:
-        return None
-    profile_revision = str(profile.get("revision") or "").strip()
-    handoff_revision = str(handoff.get("candidate_profile_revision") or "").strip()
-    if not profile_revision or handoff_revision != profile_revision:
-        return None
-    profile_id = str(profile.get("candidate_profile_id") or "").strip()
-    handoff_profile_id = str(handoff.get("candidate_profile_id") or "").strip()
-    if profile_id and handoff_profile_id and profile_id != handoff_profile_id:
-        return None
-    return handoff
 
+
+def _handoff_failure_record(job: Mapping[str, Any], profile: Mapping[str, Any], code: str) -> dict[str, Any]:
+    failure = build_stage_6_to_7_failure(
+        job,
+        failure_code=code,
+        retry_eligible=True,
+        checkpoint={"stage": "stage6_to_stage7_handoff", "job_identity": str(job.get("canonical_job_identity") or job.get("job_url") or "")},
+        worker_status={"status": HANDOFF_CONTRACT_FAILED_STATUS, "failure_code": code, "retry_eligible": True},
+        scope={"job_identity": str(job.get("canonical_job_identity") or job.get("job_url") or ""), "candidate_profile_revision": str(profile.get("revision") or "")},
+    )
+    return build_cv_analysis_record(
+        job=job,
+        status=cast(AnalysisStatus, HANDOFF_CONTRACT_FAILED_STATUS),
+        analysis_input_fingerprint=None,
+        analysis_input_components={},
+        analysis_reuse_status="not_run_handoff_contract_failed",
+        reuse_decision=build_reuse_decision(decision="blocked", reason_code=code, fingerprint=None, source_artifact_type="cv_analysis"),
+        evidence_payload=[],
+        evidence_selection_summary={},
+        gap_summary=None,
+        requirement_coverage=[],
+        section_confidence_hints={},
+        do_not_claim=[],
+        fit_classification=None,
+        ranking_fit_label=None,
+        candidate_profile_id=str(runtime_profile_value(profile, "candidate_profile_id") or ""),
+        candidate_profile_revision=str(runtime_profile_value(profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")) or ""),
+        error={"stage": "handoff_contract", "message": code, **failure},
+    )
 
 def build_evidence_used(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     debug_evidence: list[dict[str, Any]] = []
@@ -522,6 +534,8 @@ def _build_cv_analysis_trace_record(
     identity_keys = job_identity_keys(job)
     canonical_identity = identity_keys[0] if identity_keys else extract_job_title(job)
     normalized_summary = dict(evidence_selection_summary or {})
+    selection_policy = dict(normalized_summary.get("selection_policy") or {})
+    requirement_gain_weight = selection_policy.get("requirement_gain_weight")
     selected_evidence_count = int(normalized_summary.get("selected_evidence_count") or 0)
     fallback_used = bool(normalized_summary.get("fallback_used", False))
     error_summary = dict(error) if isinstance(error, dict) else None
@@ -580,9 +594,7 @@ def _build_cv_analysis_trace_record(
             "unresolved_requirement_count": max(len(coverage_rows) - verified_count, 0),
             "selected_supporting_evidence_ids": selected_support_ids,
             "requirement_gain_weight": float(
-                dict(normalized_summary.get("selection_policy") or {}).get(
-                    "requirement_gain_weight", 0.0
-                )
+                requirement_gain_weight if requirement_gain_weight is not None else 0.10
             ),
             "section_confidence_present": bool(section_confidence_hints),
         },
@@ -626,11 +638,20 @@ def build_decision_chain(
         },
         "cv_analysis": {
             "status": cv_analysis_status,
-            "completed": cv_analysis_status not in {"not_run", "failed", BLOCKED_BY_RERANKER_STATUS},
+            "completed": cv_analysis_status not in {
+                "not_run",
+                "failed",
+                BLOCKED_BY_RERANKER_STATUS,
+                HANDOFF_CONTRACT_FAILED_STATUS,
+            },
         },
         "cv_generation": {
             "status": cv_status,
-            "attempted": cv_status not in {"not_applicable", "not_attempted", SKIPPED_FIT_GATE_STATUS},
+            "attempted": cv_status not in {
+                "not_applicable",
+                "not_attempted",
+                SKIPPED_FIT_GATE_STATUS,
+            },
         },
         "validation": {
             "status": validation_status_for_cv_status(cv_status),
@@ -1055,41 +1076,38 @@ def _build_requirement_coverage(
                 "requirement_priority": "must_have",
             }
         )
-    years_min = job.get("years_experience_min")
-    years_max = job.get("years_experience_max")
-    if years_min not in (None, "") or years_max not in (None, ""):
-        try:
-            normalized_min = float(years_min) if years_min not in (None, "") else None
-            normalized_max = float(years_max) if years_max not in (None, "") else None
-        except (TypeError, ValueError):
-            normalized_min = normalized_max = None
-        # Enrichment uses zero as the default for an unspecified minimum.
-        if (normalized_min is not None and normalized_min > 0) or normalized_max is not None:
-            if normalized_min is not None and normalized_max is not None:
-                requirement_text = f"At least {years_min} years and no more than {years_max} years of professional experience"
-            elif normalized_min is not None:
-                requirement_text = f"At least {years_min} years of professional experience"
-            else:
-                requirement_text = f"No more than {years_max} years of professional experience"
-            if not any(
-                str(item.get("requirement_id") or "") == "professional_experience:years"
-                for item in descriptors
-            ):
-                descriptors.append(
-                    {
-                        "requirement_id": "professional_experience:years",
-                        "requirement_instance_id": "professional_experience:years",
-                        "source_requirement_id": "professional_experience:years",
-                        "requirement": requirement_text,
-                        "original_requirements": [requirement_text],
-                        "canonical_skill": "",
-                        "requirement_type": "professional_experience",
-                        "requirement_priority": "must_have",
-                        "experience_shaped": True,
-                        "years_experience_min": normalized_min,
-                        "years_experience_max": normalized_max,
-                    }
-                )
+    years_bounds = normalize_experience_bounds(
+        job.get("years_experience_min"),
+        job.get("years_experience_max"),
+    )
+    normalized_min = years_bounds["min"]
+    normalized_max = years_bounds["max"]
+    if normalized_min is not None or normalized_max is not None:
+        if normalized_min is not None and normalized_max is not None:
+            requirement_text = f"At least {normalized_min} years and no more than {normalized_max} years of professional experience"
+        elif normalized_min is not None:
+            requirement_text = f"At least {normalized_min} years of professional experience"
+        else:
+            requirement_text = f"No more than {normalized_max} years of professional experience"
+        if not any(
+            str(item.get("requirement_id") or "") == "professional_experience:years"
+            for item in descriptors
+        ):
+            descriptors.append(
+                {
+                    "requirement_id": "professional_experience:years",
+                    "requirement_instance_id": "professional_experience:years",
+                    "source_requirement_id": "professional_experience:years",
+                    "requirement": requirement_text,
+                    "original_requirements": [requirement_text],
+                    "canonical_skill": "",
+                    "requirement_type": "professional_experience",
+                    "requirement_priority": "must_have",
+                    "experience_shaped": True,
+                    "years_experience_min": normalized_min,
+                    "years_experience_max": normalized_max,
+                }
+            )
     responsibility_support = dict(requirement_support.get("responsibility") or {})
     pool_support.update(
         _support_ids_by_requirement([], responsibility_support, "pool")
@@ -1372,6 +1390,9 @@ def _build_analysis_input_components(
         "contract_fingerprint": str(payload.get("contract_fingerprint") or ""),
         "profile_payload_hash": _hash(dict(payload.get("profile") or {})),
         "job_payload_hash": _hash(dict(payload.get("job") or {})),
+        "candidate_profile_id": str(payload.get("candidate_profile_id") or ""),
+        "candidate_profile_revision": str(payload.get("candidate_profile_revision") or ""),
+        "candidate_profile_checksum": str(payload.get("candidate_profile_checksum") or ""),
     }
     components["requirement_support_policy_version"] = str(
         payload.get("requirement_support_policy_version")
@@ -1411,11 +1432,23 @@ def _reuse_rejection_reason(
         return "no_reusable_snapshot_match"
     if str(reusable_record.get("status") or "") not in _REUSABLE_ANALYSIS_STATUSES:
         return "reusable_status_not_eligible"
-    if str(reusable_record.get("analysis_input_fingerprint") or "") != analysis_input_fingerprint:
-        return "analysis_input_fingerprint_mismatch"
     if not _REUSABLE_RECORD_REQUIRED_FIELDS.issubset(reusable_record):
         return "incomplete_reusable_record"
     prior_components = dict(reusable_record.get("analysis_input_components") or {})
+    provenance_fields = (
+        "candidate_profile_id",
+        "candidate_profile_revision",
+        "candidate_profile_checksum",
+    )
+    if any(not str(analysis_input_components.get(field) or "").strip() for field in provenance_fields):
+        return "managed_profile_provenance_missing"
+    if any(not str(prior_components.get(field) or "").strip() for field in provenance_fields):
+        return "managed_profile_provenance_missing"
+    for field in provenance_fields:
+        if str(prior_components.get(field) or "") != str(analysis_input_components.get(field) or ""):
+            return f"{field}_changed"
+    if str(reusable_record.get("analysis_input_fingerprint") or "") != analysis_input_fingerprint:
+        return "analysis_input_fingerprint_mismatch"
     if str(prior_components.get("contract_fingerprint") or "") != str(
         analysis_input_components.get("contract_fingerprint") or ""
     ):
@@ -1486,14 +1519,33 @@ def analyze_ranked_job(
     job = dict(job)
     if isinstance(ranking_cv_handoff, Mapping):
         job["ranking_cv_handoff"] = dict(ranking_cv_handoff)
+    stage6_profile = profile
+    authoritative_stage6_handoff = _valid_stage6_handoff(job, stage6_profile)
+    handoff_payload_present = isinstance(job.get("stage6_to_stage7_handoff"), Mapping)
+    handoff_expected = (
+        handoff_payload_present
+        or str(job.get("stage5_admission", {}).get("admitted") if isinstance(job.get("stage5_admission"), Mapping) else "").lower() == "true"
+        or (isinstance(job.get("final_rank"), int) and 1 <= int(job.get("final_rank") or 0) <= 15)
+    )
+    if handoff_expected and authoritative_stage6_handoff is None:
+        return _handoff_failure_record(
+            job,
+            stage6_profile,
+            "handoff_contract_invalid" if handoff_payload_present else "handoff_missing",
+        )
     raw_requirement_resolutions = [
         dict(item)
         for item in list(config.get("_requirement_resolutions") or [])
         if isinstance(item, dict)
     ]
     if raw_requirement_resolutions:
-        profile_id = str(profile.get("candidate_profile_id") or "").strip()
-        profile_revision = str(profile.get("revision") or "").strip()
+        profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "").strip()
+        profile_revision = str(
+            runtime_profile_value(
+                profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")
+            )
+            or ""
+        ).strip()
         source_profile_fingerprint = str(
             (evidence_projection or build_evidence_projection(profile)).get("fingerprint") or ""
         ).strip()
@@ -1517,10 +1569,14 @@ def analyze_ranked_job(
     loose_experience_review = False
     try:
         profile_years_experience = profile.get("years_experience")
-        candidate_profile_id = str(profile.get("candidate_profile_id") or "")
-        candidate_profile_revision = str(profile.get("revision") or "")
-        stage6_profile = profile
         profile = converge_candidate_profile_for_runtime(profile)
+        candidate_profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "")
+        candidate_profile_revision = str(
+            runtime_profile_value(
+                profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")
+            )
+            or ""
+        )
         profile_years_experience = profile.get("years_experience", profile_years_experience)
         ranking_fit_label = resolve_ranked_job_fit(
             job,
@@ -1553,7 +1609,6 @@ def analyze_ranked_job(
                     "message": f"Skipped {extract_job_url(job)} before CV analysis (ranking_unavailable)",
                 },
             )
-        authoritative_stage6_handoff = _valid_stage6_handoff(job, stage6_profile)
         resolved_evidence_projection = evidence_projection or build_evidence_projection(profile)
         loose_experience_review = should_route_loose_experience_review(
             job,
@@ -1693,11 +1748,15 @@ def analyze_ranked_job(
                     }
                 )
 
+        normalized_years_bounds = normalize_experience_bounds(
+            job.get("years_experience_min"),
+            job.get("years_experience_max"),
+        )
         gap_summary = compute_gap(
             required_skills=job.get("required_skills") or [],
             candidate_skills=_candidate_skill_names(profile),
-            years_experience_min=job.get("years_experience_min"),
-            years_experience_max=job.get("years_experience_max"),
+            years_experience_min=normalized_years_bounds["min"],
+            years_experience_max=normalized_years_bounds["max"],
             years_candidate=profile_years_experience,
             config=config,
         )
@@ -1731,7 +1790,7 @@ def analyze_ranked_job(
         )
         if fit_classification == "skip" and (loose_experience_review or should_surface_loose):
             fit_classification = "stretch"
-        if (fit_classification == "skip" or mandatory_professional_gap) and authoritative_stage6_handoff is None:
+        if (fit_classification == "skip" or mandatory_professional_gap) and authoritative_stage6_handoff is None and not isinstance(job.get("stage6_to_stage7_handoff"), Mapping):
             return build_cv_analysis_record(
                 job=job,
                 status=cast(AnalysisStatus, SKIPPED_FIT_GATE_STATUS),

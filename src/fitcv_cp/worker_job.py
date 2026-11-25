@@ -28,6 +28,7 @@ from typing import Any
 import yaml
 
 from fitcv.decision_feedback import build_decision_feedback_source
+from fitcv.candidate import runtime_profile_value
 from fitcv.agentic_cv_analysis import analyze_ranked_job
 from fitcv.agentic_cv_generation import generate_from_analysis
 from fitcv.cv_generator import final_artifact_acceptance_passes
@@ -172,8 +173,10 @@ _SETTINGS_COMPATIBILITY_KEYS = {
 
 
 def _load_requirement_resolutions(run: Any, profile: dict[str, Any]) -> list[dict[str, Any]]:
-    candidate_profile_id = str(profile.get("candidate_profile_id") or "").strip()
-    candidate_profile_revision = str(profile.get("revision") or "").strip()
+    candidate_profile_id = str(runtime_profile_value(profile, "candidate_profile_id") or "").strip()
+    candidate_profile_revision = str(
+        runtime_profile_value(profile, "candidate_profile_revision", runtime_profile_value(profile, "revision")) or ""
+    ).strip()
     if not candidate_profile_id or not candidate_profile_revision:
         return []
     source_profile_fingerprint = str(
@@ -397,6 +400,79 @@ def _builtin_synonym_triage_runtime() -> dict[str, Any]:
     return snapshot
 
 
+def _stage_handoff_failure(summary: dict[str, Any]) -> dict[str, str] | None:
+    stage_blocks = dict(
+        dict(summary.get("stage_transition_artifacts") or {}).get("stages") or {}
+    )
+    cv_analysis = dict(stage_blocks.get("cv_analysis") or {})
+    if str(cv_analysis.get("status") or "").strip() != "failed":
+        return None
+    decision_summary = dict(cv_analysis.get("decision_summary") or {})
+    if int(decision_summary.get("handoff_contract_failed") or 0) <= 0:
+        return None
+    failure_code = str(decision_summary.get("failure_code") or "handoff_contract_failed").strip()
+    return {"failure_code": failure_code, "stage": "cv_analysis"}
+
+
+def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
+    stage_blocks = dict(
+        dict(summary.get("stage_transition_artifacts") or {}).get("stages") or {}
+    )
+    generation_records = [
+        record
+        for record in list(summary.get("cv_generation_debug_records") or [])
+        if isinstance(record, dict)
+    ]
+    failure_statuses = (
+        "analysis_failed",
+        "validation_failed",
+        "generation_failed",
+        "pdf_failed",
+        "persistence_failed",
+    )
+    for stage_id in (
+        "normalize",
+        "enrich",
+        "rule_filter",
+        "shortlist",
+        "ranking",
+        "cv_analysis",
+        "cv_generation",
+    ):
+        if stage_id == "cv_analysis":
+            handoff_failure = _stage_handoff_failure(summary)
+            if handoff_failure is not None:
+                return handoff_failure
+        block = dict(stage_blocks.get(stage_id) or {})
+        status = str(block.get("status") or "").strip()
+        decision_summary = dict(block.get("decision_summary") or {})
+        output_counts = dict(block.get("output_counts") or {})
+        if status in {"failed", "partial"}:
+            failure_code = str(
+                decision_summary.get("failure_code")
+                or decision_summary.get("reason_code")
+                or next(
+                    (
+                        code
+                        for code in failure_statuses
+                        if int(output_counts.get(code) or output_counts.get(f"{code}_count") or 0) > 0
+                    ),
+                    "",
+                )
+                or ("ranking_partial" if stage_id == "ranking" and status == "partial" else f"{stage_id}_failed")
+            ).strip()
+            return {"failure_code": failure_code, "stage": stage_id}
+        for failure_code in failure_statuses:
+            if int(output_counts.get(failure_code) or output_counts.get(f"{failure_code}_count") or 0) > 0:
+                return {"failure_code": failure_code, "stage": stage_id}
+        if stage_id == "cv_generation":
+            for record in generation_records:
+                failure_code = str(record.get("status") or "").strip()
+                if failure_code in failure_statuses:
+                    return {"failure_code": failure_code, "stage": stage_id}
+    return None
+
+
 def _stage_deterministic_summary(
     *,
     stage_id: str,
@@ -413,6 +489,7 @@ def _stage_deterministic_summary(
                 "blocked_by_reranker_fit": int(counts.get("blocked_by_reranker_fit") or 0),
                 "skipped_fit_gate": int(counts.get("skipped_fit_gate") or 0),
                 "analysis_failed": int(counts.get("analysis_failed") or 0),
+                "handoff_contract_failed": int(counts.get("handoff_contract_failed") or 0),
             },
         }
     if stage_id == "cv_generation":
@@ -648,16 +725,33 @@ def execute_cv_regenerate_once(
             and analysis_job.get("baseline_fit") is None
         ):
             analysis_job["baseline_fit_label"] = prior_fit_classification
-        analysis_kwargs: dict[str, Any] = {
-            "fit_classification_override": (
-                prior_fit_classification
-                if prior_fit_classification in {"strong", "stretch", "skip"}
-                else None
-            ),
-        }
+        analysis_kwargs: dict[str, Any] = {}
         if ranking_cv_handoff is not None:
             analysis_kwargs["ranking_cv_handoff"] = ranking_cv_handoff
         analysis = dict(analyze_ranked_job(analysis_job, profile, config, **analysis_kwargs))
+        if str(analysis.get("status") or "") == "handoff_contract_failed":
+            technical_failure = dict(analysis.get("technical_failure") or analysis.get("error") or {})
+            update_cv_evaluation(
+                evaluation_id,
+                status="failed",
+                fit_classification=prior_fit_classification or None,
+                reason=json.dumps(technical_failure, sort_keys=True),
+                evidence={"technical_failure": technical_failure},
+            )
+            update_cv_version(
+                reserved_version_id,
+                generation_status="generation_failed",
+                metadata={
+                    "technical_failure": technical_failure,
+                    "submission_clearance": "blocked",
+                    "pdf_status": "failed",
+                    "review_status": "none",
+                    "persistence_status": "persisted",
+                },
+                error_code=str(technical_failure.get("failure_code") or "handoff_contract_failed"),
+                error_message="Stage 6 to Stage 7 handoff contract validation failed.",
+            )
+            return
         with tempfile.TemporaryDirectory(prefix="fitcv-cv-artifact-") as artifact_dir:
             generation = dict(generate_from_analysis(analysis, profile, config, artifact_dir=artifact_dir))
             pdf_path = Path(artifact_dir) / "cv.pdf"
@@ -2408,14 +2502,10 @@ def execute_pipeline_run(
                 )
 
             paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
+            if paused_after_stage is not None and _stage_technical_failure(summary) is not None:
+                paused_after_stage = None
             if paused_after_stage is not None:
                 checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
-                update_run_status(
-                    run_id,
-                    RunStatus.AWAITING_CONTINUE,
-                    client=client,
-                    summary=summary,
-                )
                 update_run_checkpoint(
                     run_id,
                     client=client,
@@ -2431,10 +2521,11 @@ def execute_pipeline_run(
                     ),
                 )
                 if isinstance(run_record, PipelineRun):
+                    # Keep the public status non-continuable until every checkpoint projection is durable.
                     persist_pipeline_snapshot(
                         run_id,
                         summary,
-                        run_status=RunStatus.AWAITING_CONTINUE,
+                        run_status=RunStatus.RUNNING,
                         snapshot_at=checkpoint_time,
                     )
                 try:
@@ -2530,6 +2621,12 @@ def execute_pipeline_run(
                     "run_terminal_status": str(RunStatus.AWAITING_CONTINUE),
                     "paused_after_stage": paused_after_stage,
                 })
+                update_run_status(
+                    run_id,
+                    RunStatus.AWAITING_CONTINUE,
+                    client=client,
+                    summary=summary,
+                )
                 return
 
             # ── Step 5: Terminalize or park for review ───────────────────────────
@@ -2650,10 +2747,15 @@ def execute_pipeline_run(
                             ),
                             client=client,
                         )
+                technical_failure = _stage_technical_failure(summary)
                 terminal_status = (
-                    RunStatus.AWAITING_CONTINUE
-                    if pending_review_required > 0
-                    else RunStatus.SUCCEEDED
+                    RunStatus.FAILED
+                    if technical_failure is not None
+                    else (
+                        RunStatus.AWAITING_CONTINUE
+                        if pending_review_required > 0
+                        else RunStatus.SUCCEEDED
+                    )
                 )
                 finished_at = (
                     None
@@ -2714,14 +2816,26 @@ def execute_pipeline_run(
                         run_status=terminal_status,
                         snapshot_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                     )
-                update_run_status(
-                    run_id,
-                    terminal_status,
-                    client=client,
-                    finished_at=finished_at,
-                    summary=summary,
-                )
+                status_kwargs = {
+                    "client": client,
+                    "finished_at": finished_at,
+                    "summary": summary,
+                }
+                if technical_failure is not None:
+                    status_kwargs.update(
+                        {
+                            "error_stage": technical_failure["stage"],
+                            "error_message": technical_failure["failure_code"],
+                        }
+                    )
+                update_run_status(run_id, terminal_status, **status_kwargs)
                 completed_stages = [
+                    "normalize",
+                    "enrich",
+                    "rule_filter",
+                    "shortlist",
+                    "ranking",
+                ] if technical_failure is not None else [
                     "normalize",
                     "enrich",
                     "rule_filter",
@@ -2755,7 +2869,17 @@ def execute_pipeline_run(
                         ),
                         client=client,
                     )
-                if pending_review_required > 0:
+                if technical_failure is not None:
+                    update_run_checkpoint(
+                        run_id,
+                        client=client,
+                        checkpoint_status="failed",
+                        next_stage="cv_analysis",
+                        last_completed_stage="ranking",
+                        completed_stages=completed_stages,
+                        checkpoint_payload_json=checkpoint_payload_json,
+                    )
+                elif pending_review_required > 0:
                     update_run_checkpoint(
                         run_id,
                         client=client,

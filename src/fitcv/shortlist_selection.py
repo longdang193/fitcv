@@ -10,7 +10,9 @@ from typing import Any, Iterable, Mapping
 from fitcv.contracts import (
     SHORTLIST_REQUIREMENT_CONTRACT_VERSION,
     RequirementOccurrence,
+    build_coverage_fingerprints,
     build_requirement_occurrences,
+    validate_coverage_fingerprints,
 )
 
 COVERAGE_STATES = frozenset({"S", "P", "E", "U"})
@@ -169,6 +171,8 @@ def assess_requirement_occurrences(
     evidence: Iterable[Mapping[str, Any]],
     *,
     assessment_complete: bool = True,
+    failure_derived: bool = False,
+    retry_eligible: bool | None = None,
 ) -> list[dict[str, Any]]:
     occurrence_list = list(occurrences)
     evidence_list = list(evidence)
@@ -211,6 +215,11 @@ def assess_requirement_occurrences(
             evidence_ids = sorted({evidence_id for result in satisfying_paths for evidence_id in result["evidence_ids"]})
             contradiction = any(result["contradiction"] for result in satisfying_paths)
             provenance = min((int(result["provenance"]) for result in satisfying_paths), default=0)
+            # A supported OR branch is authoritative; unused failed branches do not
+            # downgrade the compound. If no supported branch qualifies, preserve
+            # failure-derived uncertainty from the full branch set.
+            failure_results = satisfying_paths if state in {"S", "P"} else child_results
+            child_failure = any(bool(result.get("failure_derived")) for result in failure_results)
             result = {
                 "occurrence_id": occurrence.occurrence_id,
                 "category": occurrence.category,
@@ -221,7 +230,11 @@ def assess_requirement_occurrences(
                 "provenance": provenance,
                 "compound_child": occurrence.occurrence_id in compound_child_ids,
                 "compound_operator": occurrence.compound_operator,
-                "satisfying_child_ids": [result["occurrence_id"] for result in satisfying_paths],
+                "satisfying_child_ids": sorted(result["occurrence_id"] for result in satisfying_paths),
+                "display_representative_occurrence_id": min((result["occurrence_id"] for result in satisfying_paths), default=occurrence.occurrence_id),
+                "failure_derived": child_failure,
+                "assessment_complete": not child_failure and all(bool(result.get("assessment_complete", True)) for result in failure_results),
+                "retry_eligible": child_failure or any(bool(result.get("retry_eligible")) for result in failure_results),
             }
             results[occurrence.occurrence_id] = result
             return result
@@ -238,7 +251,8 @@ def assess_requirement_occurrences(
             )
         ]
         states = [_state_for_evidence(item) for item in matches]
-        state = _combine(states, None) if matches else ("E" if assessment_complete else "U")
+        item_failure = failure_derived or any(bool(item.get("failure_derived") or item.get("assessment_failed") or item.get("retrieval_failed")) for item in matches)
+        state = "U" if item_failure else (_combine(states, None) if matches else ("E" if assessment_complete else "U"))
         result = {
             "occurrence_id": occurrence.occurrence_id,
             "category": occurrence.category,
@@ -248,12 +262,125 @@ def assess_requirement_occurrences(
             "qualifier_failure": any(_norm(item.get("qualifier_status")) in {"contradicted", "qualifier_failure", "failed"} for item in matches),
             "provenance": min((_provenance(item) for item in matches), default=0),
             "compound_child": occurrence.occurrence_id in compound_child_ids,
+            "failure_derived": item_failure,
+            "assessment_complete": bool(assessment_complete and not item_failure),
+            "retry_eligible": bool((retry_eligible if retry_eligible is not None else not assessment_complete) or item_failure),
         }
         results[occurrence.occurrence_id] = result
         return result
 
     return [assess(occurrence) for occurrence in occurrence_list]
 
+
+def build_evidence_manifest(
+    evidence: Iterable[Mapping[str, Any]],
+    *,
+    max_items: int | None = None,
+    projection_version: str = "evidence_projection_v1",
+) -> dict[str, Any]:
+    """Build a bounded display manifest plus a complete integrity reference set."""
+    refs: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    invalid_references: list[dict[str, Any]] = []
+    for index, item in enumerate(evidence):
+        if not isinstance(item, Mapping):
+            invalid_references.append({"index": index, "reason": "reference_not_mapping"})
+            continue
+        evidence_id = str(item.get("evidence_id") or "").strip()
+        occurrence_id = str(item.get("occurrence_id") or item.get("requirement_id") or "").strip()
+        if not evidence_id or not occurrence_id:
+            invalid_references.append(
+                {
+                    "index": index,
+                    "reason": "reference_identity_missing",
+                    "occurrence_id": occurrence_id or None,
+                    "evidence_id": evidence_id or None,
+                }
+            )
+            continue
+        explicit_occurrence_ids = {
+            str(item.get(key) or "").strip()
+            for key in ("occurrence_id", "requirement_instance_id")
+            if str(item.get(key) or "").strip()
+        }
+        if len(explicit_occurrence_ids) > 1:
+            invalid_references.append(
+                {"index": index, "reason": "occurrence_identity_conflict", "occurrence_ids": sorted(explicit_occurrence_ids)}
+            )
+            continue
+        revision = str(item.get("evidence_revision") or item.get("revision") or "").strip()
+        content_hash = str(item.get("content_hash") or item.get("evidence_content_hash") or "").strip()
+        if not revision and not content_hash:
+            invalid_references.append(
+                {"index": index, "reason": "evidence_revision_or_content_hash_missing", "occurrence_id": occurrence_id, "evidence_id": evidence_id}
+            )
+            continue
+        key = (occurrence_id, evidence_id, revision, content_hash)
+        refs[key] = {
+            "occurrence_id": occurrence_id,
+            "evidence_id": evidence_id,
+            "evidence_revision": revision or None,
+            "content_hash": content_hash or None,
+            "projection_version": projection_version,
+        }
+    ordered = [refs[key] for key in sorted(refs)]
+    limit = max_items if max_items is not None else len(ordered)
+    overflow = max(0, len(ordered) - max(0, int(limit)))
+    return {
+        "schema_version": "shortlist_evidence_manifest_v1",
+        "projection_version": projection_version,
+        "references": ordered,
+        "display_references": ordered[:max(0, int(limit))],
+        "overflow": overflow,
+        "invalid_references": invalid_references,
+        "integrity_complete": overflow == 0 and not invalid_references,
+    }
+
+
+def validate_evidence_manifest(
+    manifest: Mapping[str, Any],
+    evidence: Iterable[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if str(manifest.get("schema_version") or "") != "shortlist_evidence_manifest_v1":
+        raise ValueError("evidence_manifest_schema_invalid")
+    references = manifest.get("references")
+    display_references = manifest.get("display_references")
+    invalid_references = manifest.get("invalid_references")
+    if not isinstance(references, list) or not isinstance(display_references, list):
+        raise ValueError("evidence_manifest_references_missing")
+    if invalid_references:
+        raise ValueError("evidence_manifest_reference_invalid")
+    try:
+        overflow = int(manifest.get("overflow") or 0)
+    except (TypeError, ValueError):
+        raise ValueError("evidence_manifest_overflow") from None
+    if overflow < 0 or overflow > 0 or manifest.get("integrity_complete") is not True:
+        raise ValueError("evidence_manifest_overflow")
+    seen: set[tuple[str, str, str, str]] = set()
+    for ref in references:
+        if not isinstance(ref, Mapping):
+            raise ValueError("evidence_manifest_reference_invalid")
+        key = tuple(str(ref.get(name) or "") for name in ("occurrence_id", "evidence_id", "evidence_revision", "content_hash"))
+        if not key[0] or not key[1] or key in seen:
+            raise ValueError("evidence_manifest_reference_conflict")
+        seen.add(key)
+    if display_references != references[: len(display_references)]:
+        raise ValueError("evidence_manifest_display_reference_conflict")
+    if evidence is not None:
+        expected = build_evidence_manifest(evidence, projection_version=str(manifest.get("projection_version") or ""))
+        if expected.get("references") != references:
+            raise ValueError("evidence_manifest_reference_stale")
+    return dict(manifest)
+
+
+def validate_shortlist_coverage_fingerprints(
+    coverage: Mapping[str, Any],
+    *,
+    expected_components: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload = coverage.get("coverage_fingerprints") or coverage.get("fingerprints")
+    if not isinstance(payload, Mapping):
+        raise ValueError("coverage_fingerprints_missing")
+    return validate_coverage_fingerprints(payload, expected_components=expected_components)
 
 def _category_summary(results: list[Mapping[str, Any]], category: str) -> dict[str, Any]:
     values = [
@@ -286,6 +413,9 @@ def build_coverage_summary(results: Iterable[Mapping[str, Any]]) -> dict[str, An
     partial = sum(str(result.get("state")) == "P" for result in active_results)
     not_evidenced = sum(str(result.get("state")) == "E" for result in active_results)
     unknown = sum(str(result.get("state")) == "U" for result in active_results)
+    failure_derived = any(bool(result.get("failure_derived")) for result in rows)
+    assessment_complete = all(bool(result.get("assessment_complete", True)) for result in rows)
+    retry_eligible = any(bool(result.get("retry_eligible")) for result in rows)
     return {
         "required": categories["required"],
         "duties": categories["duties"],
@@ -293,6 +423,9 @@ def build_coverage_summary(results: Iterable[Mapping[str, Any]]) -> dict[str, An
         "active_core_mask": {"required": categories["required"]["active"], "duties": categories["duties"]["active"]},
         "balanced_core_support": min((float(metric["ratio"]) for metric in active_core), default=None),
         "assessment_completeness": ((supported + partial + not_evidenced) / total if total else 1.0),
+        "assessment_complete": assessment_complete,
+        "failure_derived": failure_derived,
+        "retry_eligible": retry_eligible,
         "unknown_rate": (unknown / total if total else 0.0),
         "evidence_validity_provenance": min((int(result.get("provenance") or 0) for result in top_level_rows if str(result.get("category") or "") in {"required", "duties"}), default=0),
         "confirmed_critical_gaps": len({
@@ -474,6 +607,18 @@ def build_requirement_aware_rows(
                             "contradiction": item.get("contradicted") or item.get("contradiction"),
                         }
                     )
-        assessments = assess_requirement_occurrences(occurrences, job_evidence, assessment_complete=assessment_complete)
-        rows.append({**dict(job), "canonical_job_identity": identity, "coverage": build_coverage_summary(assessments)})
+        row_complete = bool(job.get("_assessment_complete", assessment_complete))
+        row_failure = bool(job.get("_failure_derived", False))
+        assessments = assess_requirement_occurrences(
+            occurrences,
+            job_evidence,
+            assessment_complete=row_complete,
+            failure_derived=row_failure,
+            retry_eligible=bool(job.get("_retry_eligible", not row_complete)),
+        )
+        coverage = build_coverage_summary(assessments)
+        coverage_fingerprints = job.get("coverage_fingerprints")
+        if isinstance(coverage_fingerprints, Mapping):
+            coverage["coverage_fingerprints"] = dict(coverage_fingerprints)
+        rows.append({**dict(job), "canonical_job_identity": identity, "coverage": coverage})
     return rows

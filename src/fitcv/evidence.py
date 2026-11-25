@@ -42,7 +42,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fitcv.candidate import converge_candidate_profile_for_runtime, flatten_skills
+from fitcv.candidate import (
+    converge_candidate_profile_for_runtime,
+    flatten_skills,
+    managed_candidate_profile_provenance,
+)
 from fitcv.config import get_embedding_model
 from fitcv.semantic_snapshot import (
     build_semantic_snapshot,
@@ -270,6 +274,7 @@ def _selection_policy_model(config: dict[str, Any] | None) -> SelectionPolicy:
     channel_weights = dict(selection_policy.get("channel_weights") or {})
     quotas = dict(selection_policy.get("quotas") or {})
     trimming = dict(selection_policy.get("trimming") or {})
+    requirement_gain_weight = selection_policy.get("requirement_gain_weight")
     return SelectionPolicy(
         channel_weights={
             REQUIRED_SKILL_SUPPORT_CHANNEL: float(channel_weights.get(REQUIRED_SKILL_SUPPORT_CHANNEL, 0.40)),
@@ -282,7 +287,9 @@ def _selection_policy_model(config: dict[str, Any] | None) -> SelectionPolicy:
         residual_score_factor=float(selection_policy.get("residual_score_factor", 0.05)),
         new_type_bonus=float(selection_policy.get("new_type_bonus", 0.03)),
         same_type_penalty=float(selection_policy.get("same_type_penalty", 0.02)),
-        requirement_gain_weight=float(selection_policy.get("requirement_gain_weight", 0.10)),
+        requirement_gain_weight=float(
+            requirement_gain_weight if requirement_gain_weight is not None else 0.10
+        ),
         quotas=SelectionQuotas(
             experience_entry_top_k=int(quotas.get("experience_entry_top_k", DEFAULT_EXPERIENCE_ENTRY_TOP_K)),
             project_entry_top_k=int(quotas.get("project_entry_top_k", DEFAULT_PROJECT_ENTRY_TOP_K)),
@@ -961,6 +968,7 @@ def build_cv_analysis_input_fingerprint(
     }
     payload = {
         "requirement_support_policy_version": REQUIREMENT_SUPPORT_POLICY_VERSION,
+        **managed_candidate_profile_provenance(profile),
         "profile": _cv_analysis_profile_payload(profile),
         "requirement_resolutions": [
             {

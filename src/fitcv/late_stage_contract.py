@@ -23,6 +23,7 @@ CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS = "blocked_by_reranker_fit"
 CV_ANALYSIS_READY_FOR_GENERATION_STATUS = "ready_for_generation"
 CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
 CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
+CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS = "handoff_contract_failed"
 CV_GENERATION_REVIEW_REQUIRED_STATUS = "review_required"
 CV_GENERATION_PDF_FAILED_STATUS: Final[Literal["pdf_failed"]] = "pdf_failed"
 CV_GENERATION_ACCEPTED_STATUS: Final[Literal["accepted"]] = "accepted"
@@ -44,6 +45,7 @@ AnalysisStatus = Literal[
     "ready_for_generation",
     "skipped_fit_gate",
     "analysis_failed",
+    "handoff_contract_failed",
 ]
 
 GenerationStatus = Literal[
@@ -55,6 +57,7 @@ GenerationStatus = Literal[
     "blocked_by_reranker_fit",
     "skipped_fit_gate",
     "analysis_failed",
+    "handoff_contract_failed",
 ]
 
 CV_GENERATION_FINAL_STATUSES: Final[frozenset[str]] = frozenset(
@@ -83,6 +86,7 @@ CV_ANALYSIS_FINAL_STATUSES: Final[frozenset[str]] = frozenset(
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
         CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
         CV_ANALYSIS_FAILED_STATUS,
+        CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     }
 )
 CV_DEBUG_ANALYSIS_OMISSION_STATUSES: Final[frozenset[str]] = frozenset(
@@ -90,6 +94,7 @@ CV_DEBUG_ANALYSIS_OMISSION_STATUSES: Final[frozenset[str]] = frozenset(
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
         CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
         CV_ANALYSIS_FAILED_STATUS,
+        CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     }
 )
 
@@ -196,6 +201,12 @@ def deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
             "stage_owned_subreason": normalized_status,
             "source_stage": "cv_analysis",
         }
+    if normalized_status == CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS:
+        return {
+            "deterministic_outcome": "rejected",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_analysis",
+        }
     if normalized_status == CV_ANALYSIS_FAILED_STATUS:
         return {
             "deterministic_outcome": "rejected",
@@ -243,9 +254,9 @@ def canonical_pipeline_outcome_status(row: dict[str, Any]) -> str:
             return "ranked_blocked_by_reranker_fit"
         if status == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS or stage_owned_subreason == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS:
             return "ranked_skipped_fit_gate"
-        if status in {CV_ANALYSIS_READY_FOR_GENERATION_STATUS, CV_ANALYSIS_FAILED_STATUS}:
+        if status in {CV_ANALYSIS_READY_FOR_GENERATION_STATUS, CV_ANALYSIS_FAILED_STATUS, CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS}:
             return "ranked_no_cv"
-        if stage_owned_subreason in {CV_ANALYSIS_READY_FOR_GENERATION_STATUS, CV_ANALYSIS_FAILED_STATUS}:
+        if stage_owned_subreason in {CV_ANALYSIS_READY_FOR_GENERATION_STATUS, CV_ANALYSIS_FAILED_STATUS, CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS}:
             return "ranked_no_cv"
 
     return pipeline_status
@@ -280,6 +291,8 @@ def pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
             return {"label": "Skipped after CV analysis", "badge_class": "badge-warning"}
         if stage_owned_subreason == CV_ANALYSIS_FAILED_STATUS:
             return {"label": "CV analysis failed", "badge_class": "badge-error"}
+        if stage_owned_subreason == CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS:
+            return {"label": "CV handoff contract failed", "badge_class": "badge-error"}
 
     return {
         "label": pipeline_status or "Unknown pipeline outcome",
@@ -293,6 +306,7 @@ def cv_generation_status_for_analysis_status(status: str) -> str:
         CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
         CV_ANALYSIS_FAILED_STATUS,
+        CV_ANALYSIS_HANDOFF_CONTRACT_FAILED_STATUS,
     }:
         return "not_attempted"
     return "failed"

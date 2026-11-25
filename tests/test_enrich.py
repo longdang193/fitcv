@@ -29,10 +29,34 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
     merge_scraped_and_enriched,
+    normalize_experience_bounds,
     parse_extraction_response,
 )
 from fitcv.prompts.models import PromptDefinition
 from fitcv.runtime_routing import LlmRouting
+
+
+@pytest.mark.parametrize(
+    ("minimum", "maximum", "expected_min", "expected_max", "diagnostics"),
+    [
+        (None, None, None, None, []),
+        ("", " ", None, None, []),
+        (0, 0, None, None, ["min:zero_bound_ignored", "max:zero_bound_ignored"]),
+        (-1, 2, None, 2, ["min:invalid_bound"]),
+        ("not-a-number", float("nan"), None, None, ["min:invalid_bound", "max:invalid_bound"]),
+        (float("inf"), 3, None, 3, ["min:invalid_bound"]),
+        (8, 4, None, None, ["inverted_range"]),
+        (2, 5, 2, 5, []),
+    ],
+)
+def test_normalize_experience_bounds_truth_table(
+    minimum, maximum, expected_min, expected_max, diagnostics
+) -> None:
+    result = normalize_experience_bounds(minimum, maximum)
+
+    assert result["min"] == expected_min
+    assert result["max"] == expected_max
+    assert result["diagnostics"] == diagnostics
 
 
 # ── build_extraction_prompt ───────────────────────────────────────────────────
@@ -1579,13 +1603,13 @@ def test_lookup_reusable_structured_jobs_repairs_sparse_generic_required_skills_
     ]
 
 
-def test_apply_structured_normalization_coerces_fractional_years_in_dict_payload() -> None:
+def test_apply_structured_normalization_preserves_fractional_years_in_dict_payload() -> None:
     result = _apply_structured_normalization(
         {"years_experience_min": 0.5, "years_experience_max": 2.8},
         config=None,
     )
-    assert result["years_experience_min"] == 0
-    assert result["years_experience_max"] == 2
+    assert result["years_experience_min"] == 0.5
+    assert result["years_experience_max"] == 2.8
 
 def test_apply_structured_normalization_emits_domain_and_role_family_mapping_suggestions() -> None:
     output = EnrichmentOutput(
@@ -1884,7 +1908,7 @@ def test_enrich_job_falls_back_when_structured_payload_fails_validation() -> Non
 
     assert result["required_skills"] == ["SQL"]
     assert result["required_skills_canonical"] == ["sql"]
-    assert result["years_experience_min"] == 0
+    assert result["years_experience_min"] == 0.5
 
 # ── per-item parallel enrichment ───────────────────────────────────────────────
 

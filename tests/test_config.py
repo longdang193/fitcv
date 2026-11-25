@@ -108,6 +108,22 @@ def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
     assert policy["enabled"] is False
     assert policy["review_reason_code"] == "policy_acceptance"
 
+def test_get_cv_acceptance_policy_uses_defaults_for_explicit_null_thresholds() -> None:
+    policy = get_cv_acceptance_policy({
+        "cv_acceptance_policy_runtime": {
+            "required_match": {
+                "min_ratio_by_fit": {"strong": None, "stretch": None},
+                "max_missing_by_fit": {"strong": None, "stretch": None},
+            },
+            "force_review_when_any_required_missing_for_fits": [],
+        }
+    })
+
+    assert policy["required_match"] == {
+        "min_ratio_by_fit": {"strong": 0.8, "stretch": 0.5},
+        "max_missing_by_fit": {"strong": 0, "stretch": 1},
+    }
+
 
 def test_load_config_returns_dict() -> None:
     cfg = load_config(Path(__file__).parent.parent / ".env.yaml")

@@ -799,9 +799,9 @@ def adapt_legacy_ranking_row(row: Mapping[str, Any]) -> dict[str, Any]:
         adapted["baseline_fit_label"] = _normalized_alias_value(
             "baseline_fit_label", adapted["baseline_fit_label"]
         )
-    if "baseline_fit" in adapted:
+    if adapted.get("baseline_fit") is not None:
         adapted["baseline_fit"] = float(adapted["baseline_fit"])
-    if "baseline_rank" in adapted:
+    if adapted.get("baseline_rank") is not None:
         adapted["baseline_rank"] = int(adapted["baseline_rank"])
     return adapted
 

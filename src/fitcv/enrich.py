@@ -19,13 +19,14 @@ lifecycle:
 import json
 import hashlib
 import logging
+import math
 import os
 import re
 import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, NotRequired, TypedDict
+from typing import Any, Callable, Mapping, NotRequired, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field, ValidationError as _ValidationError
 from fitcv.config import (
@@ -866,6 +867,47 @@ def _is_semantically_blank_enrichment_row(row: dict[str, Any]) -> bool:
     return True
 
 
+def normalize_experience_bounds(min_value: Any, max_value: Any) -> dict[str, Any]:
+    """Normalize optional experience bounds without creating synthetic requirements."""
+    diagnostics: list[str] = []
+
+    def parse(value: Any, label: str) -> int | float | None:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        if isinstance(value, bool):
+            diagnostics.append(f"{label}:invalid_bound")
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            diagnostics.append(f"{label}:invalid_bound")
+            return None
+        if not math.isfinite(number) or number < 0:
+            diagnostics.append(f"{label}:invalid_bound")
+            return None
+        if number == 0:
+            diagnostics.append(f"{label}:zero_bound_ignored")
+            return None
+        return int(number) if number.is_integer() else number
+
+    minimum = parse(min_value, "min")
+    maximum = parse(max_value, "max")
+    if minimum is not None and maximum is not None and minimum > maximum:
+        minimum = maximum = None
+        diagnostics.append("inverted_range")
+    return {"min": minimum, "max": maximum, "diagnostics": diagnostics}
+
+
+def normalize_experience_bounds_in_job(job: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = dict(job)
+    bounds = normalize_experience_bounds(job.get("years_experience_min"), job.get("years_experience_max"))
+    normalized["years_experience_min"] = bounds["min"]
+    normalized["years_experience_max"] = bounds["max"]
+    if bounds["diagnostics"]:
+        normalized["experience_bounds_diagnostics"] = list(bounds["diagnostics"])
+    return normalized
+
+
 def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
     """Coerce a raw LLM value to its canonical Python type."""
     if key in _ARRAY_FIELDS:
@@ -883,9 +925,7 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
         return _normalize_enum(value, _get_valid_seniority_enrich(config))
 
     if key in ("years_experience_min", "years_experience_max"):
-        if isinstance(value, (int, float)):
-            return int(value)
-        return None
+        return normalize_experience_bounds(value, None)["min"]
 
     if key in ("job_family", "domain"):
         if isinstance(value, str) and value.strip():
@@ -1126,8 +1166,8 @@ class EnrichmentOutput(_BaseModel):
     seniority: str | None = None
     domain: str | None = None
     job_family: str | None = None
-    years_experience_min: int | None = None
-    years_experience_max: int | None = None
+    years_experience_min: int | float | None = None
+    years_experience_max: int | float | None = None
     actual_location: ActualLocationOutput | None = None
     language_requirements: list[LanguageRequirementOutput] = _Field(default_factory=list)
 
@@ -1281,6 +1321,7 @@ def _apply_structured_normalization(
         }
         output = EnrichmentOutput.model_validate(coerced_output)
 
+    bounds = normalize_experience_bounds(output.years_experience_min, output.years_experience_max)
     actual_location = _canonical_actual_location(output.actual_location)
     language_requirements = _canonical_language_requirements(output.language_requirements)
     required_skills = _remove_language_requirements_from_skills(
@@ -1346,8 +1387,9 @@ def _apply_structured_normalization(
         "domain": output.domain.lower().strip() if output.domain else None,
         "job_family_raw": output.job_family,
         "job_family": output.job_family.lower().strip() if output.job_family else None,
-        "years_experience_min": output.years_experience_min,
-        "years_experience_max": output.years_experience_max,
+        "years_experience_min": bounds["min"],
+        "years_experience_max": bounds["max"],
+        "experience_bounds_diagnostics": bounds["diagnostics"],
         **_build_array_companions(
             field_name="required_skills",
             raw_values=required_skills,
@@ -1694,6 +1736,10 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     for field in _KNOWN_FIELDS:
         raw_value = raw.get(field)
         parsed[field] = _coerce_field(field, raw_value, config)
+    bounds = normalize_experience_bounds(parsed.get("years_experience_min"), parsed.get("years_experience_max"))
+    parsed["years_experience_min"] = bounds["min"]
+    parsed["years_experience_max"] = bounds["max"]
+    parsed["experience_bounds_diagnostics"] = bounds["diagnostics"]
     if isinstance(raw.get("location_type"), str) and raw.get("location_type") and parsed.get("location_type") is None:
         errors.append("coercion_warning:location_type:invalid_enum")
     if isinstance(raw.get("seniority"), str) and raw.get("seniority") and parsed.get("seniority") is None:
@@ -1867,6 +1913,7 @@ def merge_scraped_and_enriched(
         Merged dict matching fitcv.structured_jobs schema including audit fields.
     """
     cfg = config or {}
+    enriched = normalize_experience_bounds_in_job(enriched)
     model = str(enriched.get("enrichment_model") or get_enrich_extraction_model(cfg) or cfg.get("ai_score_model") or "")
     version = str(enriched.get("enrichment_version") or cfg.get("enrichment_version", "v1"))
     source_location = (
@@ -2052,8 +2099,9 @@ def _cached_structured_row_to_enriched_payload(row: dict[str, Any]) -> dict[str,
         "domain_raw": row.get("domain_raw"),
         "domain": row.get("domain"),
         "tech_stack": list(row.get("tech_stack") or []),
-        "years_experience_min": row.get("years_experience_min"),
-        "years_experience_max": row.get("years_experience_max"),
+        "years_experience_min": normalize_experience_bounds(row.get("years_experience_min"), row.get("years_experience_max"))["min"],
+        "years_experience_max": normalize_experience_bounds(row.get("years_experience_min"), row.get("years_experience_max"))["max"],
+        "experience_bounds_diagnostics": normalize_experience_bounds(row.get("years_experience_min"), row.get("years_experience_max"))["diagnostics"],
         "keywords": list(row.get("keywords") or []),
         "job_family_raw": row.get("job_family_raw"),
         "job_family": row.get("job_family"),
@@ -2490,8 +2538,8 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("domain", "STRING", "NULLABLE"),
     ("tech_stack", "STRING", "REPEATED"),
     ("tech_stack_canonical", "STRING", "REPEATED"),
-    ("years_experience_min", "INT64", "NULLABLE"),
-    ("years_experience_max", "INT64", "NULLABLE"),
+    ("years_experience_min", "FLOAT64", "NULLABLE"),
+    ("years_experience_max", "FLOAT64", "NULLABLE"),
     ("keywords", "STRING", "REPEATED"),
     ("keywords_canonical", "STRING", "REPEATED"),
     ("job_family_raw", "STRING", "NULLABLE"),
@@ -2628,8 +2676,8 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("domain",               "STRING",    "NULLABLE"),
     ("tech_stack",           "STRING",    "REPEATED"),
     ("tech_stack_canonical", "STRING",    "REPEATED"),
-    ("years_experience_min", "INT64",     "NULLABLE"),
-    ("years_experience_max", "INT64",     "NULLABLE"),
+    ("years_experience_min", "FLOAT64",   "NULLABLE"),
+    ("years_experience_max", "FLOAT64",   "NULLABLE"),
     ("keywords",             "STRING",    "REPEATED"),
     ("keywords_canonical",   "STRING",    "REPEATED"),
     ("job_family_raw",       "STRING",    "NULLABLE"),

@@ -76,6 +76,10 @@ def test_cv_generation_status_for_analysis_status_parity(analysis_status: str, e
     assert cv_generation_status_for_analysis_status(analysis_status) == expected
 
 
+def test_handoff_contract_failure_is_final_analysis_without_generation_attempt() -> None:
+    assert cv_generation_status_for_analysis_status("handoff_contract_failed") == "not_attempted"
+
+
 def test_pipeline_helpers_match_shared_late_stage_contract() -> None:
     job = {"shortlist_origin": "vector_search"}
 
