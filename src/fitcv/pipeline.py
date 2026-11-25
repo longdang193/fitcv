@@ -3242,7 +3242,7 @@ def _build_stage_transition_artifacts(
     cv_analysis_results = list(cv_analysis_results or [])
     ranking_cv_handoffs_by_identity = _build_ranking_cv_handoffs_by_identity(cv_analysis_results)
     shortlist_reached = len(passed_jobs) > 0
-    ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
+    ranking_reached = bool(ranking_admission_manifest or ai_scores or ranking_inputs or ranked)
     if cv_analysis_reached is None:
         cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     generation_execution_records = [

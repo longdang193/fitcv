@@ -5969,6 +5969,72 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     assert ranking_block["dropped_or_changed_sample"][0]["normalized_factors"]["title_relevance"]["value"] == pytest.approx(1.0)
 
 
+def test_stage_artifacts_do_not_promote_pre_ranking_snapshot_to_completed() -> None:
+    job = {"job_url": "https://example.com/pre-ranking", "title": "Data Analyst"}
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[job],
+        normalized=[job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[job],
+        passed_jobs=[job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        shortlist=[{"job_url": job["job_url"], "title": job["title"], "vector_similarity": 0.9}],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
+        vector_top_n=10,
+        candidate_summary="Candidate: Analyst",
+        candidate_query_components={},
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        cv_analysis_results=[],
+        final_top_n=10,
+        cv_generation_debug_records=[],
+        profile=_minimal_profile(),
+        config=_minimal_config(),
+    )
+
+    assert artifacts["stages"]["ranking"]["status"] == "not_reached"
+
+
+def test_stage_artifacts_keep_explicit_empty_ranking_as_completed() -> None:
+    job = {"job_url": "https://example.com/empty-ranking", "title": "Data Analyst"}
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[job],
+        normalized=[job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[job],
+        passed_jobs=[job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
+        vector_top_n=10,
+        candidate_summary="Candidate: Analyst",
+        candidate_query_components={},
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        cv_analysis_results=[],
+        final_top_n=10,
+        cv_generation_debug_records=[],
+        profile=_minimal_profile(),
+        config=_minimal_config(),
+        ranking_admission_manifest={
+            "contract_version": "ranking_admission_manifest_v1",
+            "counts": {"shortlist_admitted": 0},
+            "rows": [],
+        },
+    )
+
+    assert artifacts["stages"]["ranking"]["status"] == "completed"
+    assert artifacts["stages"]["ranking"]["output_counts"]["ranked_jobs"] == 0
+
+
 def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_fields() -> None:
     enriched_job = {
         "job_url": "https://example.com/1",

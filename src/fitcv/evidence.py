@@ -287,7 +287,9 @@ def _selection_policy_model(config: dict[str, Any] | None) -> SelectionPolicy:
         residual_score_factor=float(selection_policy.get("residual_score_factor", 0.05)),
         new_type_bonus=float(selection_policy.get("new_type_bonus", 0.03)),
         same_type_penalty=float(selection_policy.get("same_type_penalty", 0.02)),
-        requirement_gain_weight=float(selection_policy.get("requirement_gain_weight", 0.10)),
+        requirement_gain_weight=float(
+            requirement_gain_weight if requirement_gain_weight is not None else 0.10
+        ),
         quotas=SelectionQuotas(
             experience_entry_top_k=int(quotas.get("experience_entry_top_k", DEFAULT_EXPERIENCE_ENTRY_TOP_K)),
             project_entry_top_k=int(quotas.get("project_entry_top_k", DEFAULT_PROJECT_ENTRY_TOP_K)),

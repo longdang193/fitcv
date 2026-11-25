@@ -13715,6 +13715,9 @@ def get_run_detail(run_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] |
         )
     input_payload = dict(input_row) if input_row is not None else None
     if input_payload is not None:
+        input_payload["jobs_path"] = str(run.jobs_path or "") or None
+        input_payload["jobs_input_source"] = run.jobs_input_source
+        input_payload["jobs_sha256"] = input_payload.get("sha256")
         profile_identity = {
             "profile_id": input_payload.get("candidate_profile_id"),
             "revision_id": input_payload.get("candidate_profile_revision_id"),

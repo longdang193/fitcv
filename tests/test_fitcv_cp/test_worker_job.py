@@ -3014,6 +3014,56 @@ def test_worker_manual_staged_run_pauses_and_persists_checkpoint() -> None:
     assert mock_stage_artifacts.called
 
 
+def test_worker_manual_checkpoint_publishes_awaiting_after_all_projections() -> None:
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
+    run = PipelineRun(
+        run_id="r-checkpoint-order",
+        status=RunStatus.QUEUED,
+        triggered_by="tester",
+        trigger_source="test",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        run_mode="manual_staged",
+        next_stage="enrich",
+    )
+    events: list[str] = []
+
+    def record_status(_run_id: str, status: RunStatus, **_kwargs: object) -> None:
+        events.append(f"status:{status.value}")
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=run), \
+         patch("fitcv_cp.worker_job.run_pipeline", return_value={
+             "run_id": "r-checkpoint-order",
+             "paused_after_stage": "enrich",
+             "next_stage": "rule_filter",
+             "completed_stages": ["normalize", "enrich"],
+             "checkpoint_payload": {"enriched": []},
+             "stage_transition_artifacts": {"schema_version": "stage_transition_artifacts_v3", "stages": {}},
+             "total_jobs": 1,
+             "passed_filter": 0,
+             "ranked": 0,
+             "cvs_generated": 0,
+         }), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=client), \
+         patch("fitcv_cp.worker_job.update_run_status", side_effect=record_status), \
+         patch("fitcv_cp.worker_job.update_run_checkpoint", side_effect=lambda *_args, **_kwargs: events.append("checkpoint")), \
+         patch("fitcv_cp.worker_job.persist_pipeline_snapshot", side_effect=lambda *_args, **_kwargs: events.append("pipeline_snapshot")), \
+         patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts", side_effect=lambda *_args, **_kwargs: events.append("stage_projection")), \
+         patch("fitcv_cp.worker_job._persist_mapping_suggestions_snapshot", side_effect=lambda **_kwargs: events.append("mapping_snapshot")), \
+         patch("fitcv_cp.worker_job.append_event", side_effect=lambda *_args, **_kwargs: events.append("event")):
+        execute_pipeline_run(run_id="r-checkpoint-order", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    awaiting_index = events.index("status:awaiting_continue")
+    assert awaiting_index == len(events) - 1
+    assert awaiting_index > events.index("checkpoint")
+    assert awaiting_index > events.index("pipeline_snapshot")
+    assert awaiting_index > events.index("stage_projection")
+    assert awaiting_index > events.index("mapping_snapshot")
+    assert awaiting_index > events.index("event")
+
+
 def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_suggestions() -> None:
     client = MagicMock()
     client.query.return_value.result.return_value = iter([])

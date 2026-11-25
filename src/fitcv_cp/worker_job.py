@@ -2445,12 +2445,6 @@ def execute_pipeline_run(
             paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
             if paused_after_stage is not None:
                 checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
-                update_run_status(
-                    run_id,
-                    RunStatus.AWAITING_CONTINUE,
-                    client=client,
-                    summary=summary,
-                )
                 update_run_checkpoint(
                     run_id,
                     client=client,
@@ -2466,10 +2460,11 @@ def execute_pipeline_run(
                     ),
                 )
                 if isinstance(run_record, PipelineRun):
+                    # Keep the public status non-continuable until every checkpoint projection is durable.
                     persist_pipeline_snapshot(
                         run_id,
                         summary,
-                        run_status=RunStatus.AWAITING_CONTINUE,
+                        run_status=RunStatus.RUNNING,
                         snapshot_at=checkpoint_time,
                     )
                 try:
@@ -2565,6 +2560,12 @@ def execute_pipeline_run(
                     "run_terminal_status": str(RunStatus.AWAITING_CONTINUE),
                     "paused_after_stage": paused_after_stage,
                 })
+                update_run_status(
+                    run_id,
+                    RunStatus.AWAITING_CONTINUE,
+                    client=client,
+                    summary=summary,
+                )
                 return
 
             # ── Step 5: Terminalize or park for review ───────────────────────────
