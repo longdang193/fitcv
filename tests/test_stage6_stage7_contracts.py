@@ -250,6 +250,31 @@ def test_pipeline_checkpoint_round_trip_preserves_resume_contract():
 
     assert restored.resume_contract == contract
 
+def test_pipeline_checkpoint_restore_preserves_missing_ranking_values():
+    payload = _checkpoint_payload_from_state(
+        PipelineState(
+            run_id="run-resume",
+            ranking_inputs=[
+                {
+                    "job_url": "https://example.com/job/1",
+                    "raw_job_fingerprint": "fp1",
+                    "baseline_fit": None,
+                    "baseline_fit_label": None,
+                    "baseline_rank": None,
+                }
+            ],
+        ).as_state_dict()
+    )
+
+    restored = PipelineState.from_checkpoint_payload(
+        run_id="run-resume",
+        checkpoint_payload=payload,
+    )
+
+    assert restored.ranking_inputs[0]["baseline_fit"] is None
+    assert restored.ranking_inputs[0]["baseline_fit_label"] == ""
+    assert restored.ranking_inputs[0]["baseline_rank"] is None
+
 
 def test_pipeline_resume_entrypoint_applies_matrix_boundary_and_stops_on_conflict():
     checkpoint = _checkpoint()

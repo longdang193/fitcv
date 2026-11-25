@@ -530,6 +530,21 @@ def test_legacy_adapter_normalizes_equivalent_values_and_rejects_conflicts() -> 
             {"baseline_fit": 0.7, "final_score": 0.6}
         )
 
+def test_legacy_adapter_preserves_missing_numeric_ranking_values() -> None:
+    adapted = ranking_contract.adapt_legacy_ranking_row(
+        {
+            "job_url": "u1",
+            "raw_job_fingerprint": "fp1",
+            "baseline_fit": None,
+            "baseline_fit_label": None,
+            "baseline_rank": None,
+        }
+    )
+
+    assert adapted["baseline_fit"] is None
+    assert adapted["baseline_fit_label"] == ""
+    assert adapted["baseline_rank"] is None
+
 
 def test_label_migration_summary_reports_crossings_and_insufficient_evidence() -> None:
     failed = ranking_contract.build_label_migration_summary(
