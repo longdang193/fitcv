@@ -2502,6 +2502,8 @@ def execute_pipeline_run(
                 )
 
             paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
+            if paused_after_stage is not None and _stage_technical_failure(summary) is not None:
+                paused_after_stage = None
             if paused_after_stage is not None:
                 checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
                 update_run_checkpoint(

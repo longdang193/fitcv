@@ -103,6 +103,55 @@ def test_worker_persists_failure_for_partial_ranking_and_generation_failure():
     assert checkpoint["last_completed_stage"] == "ranking"
     update_progress.assert_not_called()
 
+def test_manual_checkpoint_terminalizes_partial_ranking_before_next_stage():
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "manual_staged"
+    mock_run.next_stage = "ranking"
+    mock_run.last_completed_stage = "shortlist"
+    mock_run.completed_stages = ["normalize", "enrich", "rule_filter", "shortlist"]
+    mock_run.checkpoint_payload_json = '{"checkpoint_payload":{"resume_token":"preserve"}}'
+    summary = _summary(ranking_status="partial")
+    summary.update(
+        {
+            "paused_after_stage": "ranking",
+            "next_stage": "cv_analysis",
+            "last_completed_stage": "ranking",
+            "completed_stages": [
+                "normalize",
+                "enrich",
+                "rule_filter",
+                "shortlist",
+                "ranking",
+            ],
+        }
+    )
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value=summary), \
+        patch("fitcv_cp.worker_job._get_bq", return_value=client), \
+        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+        patch("fitcv_cp.worker_job.update_run_status") as update_status, \
+        patch("fitcv_cp.worker_job.update_run_checkpoint") as update_checkpoint:
+        execute_pipeline_run(
+            run_id="run-manual-partial-ranking",
+            jobs_path="data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    failed_calls = [
+        call for call in update_status.call_args_list
+        if len(call.args) >= 2 and call.args[1] == RunStatus.FAILED
+    ]
+    assert failed_calls
+    assert failed_calls[-1].kwargs["error_stage"] == "ranking"
+    assert failed_calls[-1].kwargs["error_message"] == "ranking_partial"
+    checkpoint = update_checkpoint.call_args.kwargs
+    assert checkpoint["checkpoint_status"] == "failed"
+    assert checkpoint["next_stage"] == "cv_analysis"
+    assert checkpoint["last_completed_stage"] == "ranking"
+
 
 def test_worker_preserves_success_for_complete_valid_zero_work():
     client = MagicMock()
