@@ -414,6 +414,65 @@ def _stage_handoff_failure(summary: dict[str, Any]) -> dict[str, str] | None:
     return {"failure_code": failure_code, "stage": "cv_analysis"}
 
 
+def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
+    stage_blocks = dict(
+        dict(summary.get("stage_transition_artifacts") or {}).get("stages") or {}
+    )
+    generation_records = [
+        record
+        for record in list(summary.get("cv_generation_debug_records") or [])
+        if isinstance(record, dict)
+    ]
+    failure_statuses = (
+        "analysis_failed",
+        "validation_failed",
+        "generation_failed",
+        "pdf_failed",
+        "persistence_failed",
+    )
+    for stage_id in (
+        "normalize",
+        "enrich",
+        "rule_filter",
+        "shortlist",
+        "ranking",
+        "cv_analysis",
+        "cv_generation",
+    ):
+        if stage_id == "cv_analysis":
+            handoff_failure = _stage_handoff_failure(summary)
+            if handoff_failure is not None:
+                return handoff_failure
+        block = dict(stage_blocks.get(stage_id) or {})
+        status = str(block.get("status") or "").strip()
+        decision_summary = dict(block.get("decision_summary") or {})
+        output_counts = dict(block.get("output_counts") or {})
+        if status in {"failed", "partial"}:
+            failure_code = str(
+                decision_summary.get("failure_code")
+                or decision_summary.get("reason_code")
+                or next(
+                    (
+                        code
+                        for code in failure_statuses
+                        if int(output_counts.get(code) or output_counts.get(f"{code}_count") or 0) > 0
+                    ),
+                    "",
+                )
+                or ("ranking_partial" if stage_id == "ranking" and status == "partial" else f"{stage_id}_failed")
+            ).strip()
+            return {"failure_code": failure_code, "stage": stage_id}
+        for failure_code in failure_statuses:
+            if int(output_counts.get(failure_code) or output_counts.get(f"{failure_code}_count") or 0) > 0:
+                return {"failure_code": failure_code, "stage": stage_id}
+        if stage_id == "cv_generation":
+            for record in generation_records:
+                failure_code = str(record.get("status") or "").strip()
+                if failure_code in failure_statuses:
+                    return {"failure_code": failure_code, "stage": stage_id}
+    return None
+
+
 def _stage_deterministic_summary(
     *,
     stage_id: str,
@@ -2686,7 +2745,7 @@ def execute_pipeline_run(
                             ),
                             client=client,
                         )
-                technical_failure = _stage_handoff_failure(summary)
+                technical_failure = _stage_technical_failure(summary)
                 terminal_status = (
                     RunStatus.FAILED
                     if technical_failure is not None
