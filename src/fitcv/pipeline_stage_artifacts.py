@@ -998,9 +998,19 @@ def build_cv_generation_stage_block(
         for observation in list(record.get("llm_runtime_observations") or [])
         if isinstance(observation, dict)
     ]
+    generation_failure_statuses = {
+        "validation_failed",
+        "generation_failed",
+        "pdf_failed",
+        "persistence_failed",
+    }
+    has_generation_failure = any(
+        str(record.get("status") or "").strip().lower() in generation_failure_statuses
+        for record in cv_generation_debug_records
+    )
     return stage_block_builder(
         stage_id="cv_generation",
-        status="completed",
+        status="failed" if has_generation_failure else "completed",
         input_counts={
             "analysis_ready_jobs": len(ready_records),
         },

@@ -4344,6 +4344,9 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
     stage_summary = pipeline_result["stage_transition_artifacts"]["stages"]["cv_generation"]["llm_runtime_summary"]
     assert stage_summary["failed_total"] == 1
     assert stage_summary["failure_counts_by_code"] == {"adapter_http_error": 1}
+    cv_generation_stage = pipeline_result["stage_transition_artifacts"]["stages"]["cv_generation"]
+    assert cv_generation_stage["status"] == "failed"
+    assert cv_generation_stage["stage_result"]["status"] == "failed"
     serialized = json.dumps(pipeline_result, sort_keys=True)
     assert "sk-do-not-leak" not in serialized
     assert "provider-secret" not in serialized
