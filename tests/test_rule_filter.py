@@ -58,6 +58,18 @@ def _job(**kwargs) -> dict:
 
 # ── return structure ──────────────────────────────────────────────────────────
 
+def test_seniority_aliases_use_shared_configured_ladder() -> None:
+    config = {
+        "seniority": {
+            "ladder": ["entry", "mid", "senior"],
+            "aliases": {"mid-level": "mid", "sr": "senior"},
+        }
+    }
+
+    assert check_seniority(_job(seniority="mid-level"), _prefs(), config) is True
+    assert check_seniority(_job(seniority="unknown-level"), _prefs(), config) is True
+
+
 def test_apply_rule_filters_returns_passed_and_rejected() -> None:
     """Return value must always be {passed, rejected} dicts, never a flat list."""
     result = apply_rule_filters([_job(seniority="senior")], _prefs())

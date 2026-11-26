@@ -1849,6 +1849,76 @@ def test_enrich_job_uses_structured_runtime_output() -> None:
     assert result["job_family"] == "data_engineering"
 
 
+def test_enrich_result_requires_matching_task_provenance_and_contract() -> None:
+    from fitcv.enrich import EnrichRuntimeError, _enrich_result_to_row
+    from fitcv.llm_runtime import LlmRuntimeProvenance, LlmRuntimeResult, LlmValidationResult
+
+    def result_for(routing_part: str, parsed_value: object) -> LlmRuntimeResult:
+        return LlmRuntimeResult(
+            status="succeeded",
+            parsed_value=parsed_value,
+            validation=LlmValidationResult(valid=True, errors=[], details={}),
+            failure=None,
+            provenance=LlmRuntimeProvenance(
+                routing_part=routing_part,
+                runtime_path="test",
+                adapter="fake",
+                provider="test",
+                model="test",
+                wire_api="responses",
+                attempt_count=1,
+                response_id=None,
+                trace_id=None,
+                latency_ms=1,
+            ),
+            adapter_response=None,
+        )
+
+    valid = result_for(
+        "enrich_extraction",
+        {"parsed": {"required_skills": ["Python"]}, "errors": []},
+    )
+    assert _enrich_result_to_row(_job_fixture(), _config_fixture(), valid)["required_skills"] == ["Python"]
+
+    with pytest.raises(EnrichRuntimeError) as mismatch:
+        _enrich_result_to_row(
+            _job_fixture(),
+            _config_fixture(),
+            result_for("ranking_ai_score", {"parsed": {"required_skills": ["Python"]}, "errors": []}),
+        )
+    assert mismatch.value.failure.code == "enrichment_routing_mismatch"
+
+    with pytest.raises(EnrichRuntimeError) as invalid:
+        _enrich_result_to_row(_job_fixture(), _config_fixture(), result_for("enrich_extraction", {"parsed": []}))
+    assert invalid.value.failure.code == "enrichment_contract_invalid"
+
+
+def test_enrich_partial_unknown_seniority_remains_usable_and_diagnostic() -> None:
+    result = _enrich_job_from_text(
+        '{"required_skills":["Python"],"seniority":"very experienced"}'
+    )
+
+    assert result["required_skills"] == ["Python"]
+    assert result["seniority_raw"] == "very experienced"
+    assert result["seniority"] is None
+    assert result["enrichment_diagnostics"] == ["coercion_warning:seniority:invalid_enum"]
+
+
+def test_enrichment_seniority_uses_shared_aliases() -> None:
+    config = {
+        "seniority": {
+            "ladder": ["entry", "mid", "senior"],
+            "aliases": {"mid-level": "mid", "sr": "senior"},
+        }
+    }
+
+    result = parse_extraction_response('{"seniority":"mid-level"}', config)
+
+    assert result["parsed"]["seniority_raw"] == "mid-level"
+    assert result["parsed"]["seniority"] == "mid"
+    assert result["errors"] == []
+
+
 def test_enrich_job_repairs_malformed_json() -> None:
     """@proves pipeline_performance.fallback-path-for-unparseable-responses"""
     result = _enrich_job_from_text(
@@ -1867,6 +1937,82 @@ def test_enrich_job_rejects_malformed_output_for_batch_retry() -> None:
 
     assert exc_info.value.failure.code == "malformed_extraction"
     assert exc_info.value.failure.retryable is True
+
+
+def test_enrich_batch_isolates_retryable_item_failure() -> None:
+    from fitcv.enrich import ENRICHMENT_FALLBACK_STATUS, EnrichRuntimeError, enrich_batch
+    from fitcv.llm_runtime import LlmRuntimeFailure
+
+    def fake_enrich(job, config, **kwargs):
+        if job["job_url"].startswith("bad"):
+            raise EnrichRuntimeError(
+                LlmRuntimeFailure(
+                    stage="adapter",
+                    code=f"{job['job_url']}_failure",
+                    message="temporary provider failure",
+                    retryable=True,
+                    http_status=503,
+                )
+            )
+        return {**job, "required_skills": ["Python"]}
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich)
+        rows = enrich_batch(
+            [{"job_url": "bad-a"}, {"job_url": "bad-b"}, {"job_url": "good"}],
+            {
+                "stage_runtime": {"enrich": {"concurrency": 1}},
+                "runtime_inputs": {
+                    "system_settings_snapshot": {
+                        "maximum_attempts": 1,
+                        "initial_backoff_seconds": 0,
+                    }
+                },
+            },
+        )
+
+    assert [row["job_url"] for row in rows] == ["bad-a", "bad-b", "good"]
+    assert rows[0]["enrich_reuse_status"] == ENRICHMENT_FALLBACK_STATUS
+    assert rows[0]["enrichment_failure"]["code"] == "bad-a_failure"
+    assert rows[1]["enrichment_failure"]["code"] == "bad-b_failure"
+    assert rows[2]["required_skills"] == ["Python"]
+
+
+def test_enrich_batch_keeps_non_retryable_failure_batch_fatal() -> None:
+    from fitcv.enrich import EnrichRuntimeError, enrich_batch
+    from fitcv.llm_runtime import LlmRuntimeFailure
+
+    def fail_enrich(job, config, **kwargs):
+        raise EnrichRuntimeError(
+            LlmRuntimeFailure(
+                stage="adapter",
+                code="adapter_configuration_error",
+                message="shared route configuration is invalid",
+                retryable=False,
+            )
+        )
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr("fitcv.enrich.enrich_job", fail_enrich)
+        with pytest.raises(EnrichRuntimeError, match="shared route configuration"):
+            enrich_batch(
+                [{"job_url": "job-a"}, {"job_url": "job-b"}],
+                {"stage_runtime": {"enrich": {"concurrency": 1}}},
+            )
+
+
+def test_enrich_batch_propagates_cancellation() -> None:
+    from fitcv.enrich import enrich_batch
+
+    def cancel() -> None:
+        raise RuntimeError("cancelled")
+
+    with pytest.raises(RuntimeError, match="cancelled"):
+        enrich_batch(
+            [{"job_url": "job-a"}],
+            {"stage_runtime": {"enrich": {"concurrency": 1}}},
+            cancellation_callback=cancel,
+        )
 
 
 def test_enrich_batch_returns_raw_preserving_fallback_after_parse_retries() -> None:

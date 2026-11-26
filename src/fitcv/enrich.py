@@ -61,6 +61,7 @@ from fitcv.runtime_routing import LlmRouting, resolve_llm_routing
 from fitcv.pipeline_stages.common import extract_job_url, job_identity_index_keys
 from fitcv.prompts import get_prompt_definition, render_prompt
 from fitcv.prompts.loader import load_prompt_template
+from fitcv.rule_filter import _get_seniority_ladder, _normalise_seniority
 from fitcv.semantic_snapshot import (
     build_semantic_snapshot,
     compile_semantic_policy,
@@ -95,11 +96,12 @@ def _get_valid_location_types(config: dict | None) -> frozenset[str]:
 
 
 def _get_valid_seniority_enrich(config: dict | None) -> frozenset[str]:
-    if config:
-        vals = config.get("valid_seniority_enrich")
-        if vals:
-            return frozenset(str(v).lower() for v in vals)
-    return _FALLBACK_SENIORITY_ENRICH
+    # Keep the legacy accessor, but make the configured screening ladder authoritative.
+    return frozenset(_get_seniority_ladder(config))
+
+def _normalise_enrichment_seniority(value: Any, config: dict | None) -> str | None:
+    raw = _normalize_text_item(value)
+    return _normalise_seniority(raw, config)
 
 def _build_normalization_policy(config: dict | None) -> NormalizationPolicy:
     cfg = config or {}
@@ -922,7 +924,7 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
         return _normalize_enum(value, _get_valid_location_types(config))
 
     if key == "seniority":
-        return _normalize_enum(value, _get_valid_seniority_enrich(config))
+        return _normalise_enrichment_seniority(value, config)
 
     if key in ("years_experience_min", "years_experience_max"):
         return normalize_experience_bounds(value, None)["min"]
@@ -1313,6 +1315,8 @@ def _apply_structured_normalization(
     - domain, job_family: lowercased and stripped
     - list fields: None values removed, items coerced to str
     """
+    raw_location_type = output.get("location_type") if isinstance(output, dict) else output.location_type
+    raw_seniority = output.get("seniority") if isinstance(output, dict) else output.seniority
     if isinstance(output, dict):
         # Keep structured-dict behavior aligned with text-path coercion.
         coerced_output = {
@@ -1375,14 +1379,12 @@ def _apply_structured_normalization(
     return {
         "actual_location": actual_location,
         "language_requirements": language_requirements,
-        "location_type_raw": _normalize_text_item(output.location_type),
+        "location_type_raw": _normalize_text_item(raw_location_type),
         "location_type": _normalize_enum(
             output.location_type, _get_valid_location_types(config)
         ),
-        "seniority_raw": _normalize_text_item(output.seniority),
-        "seniority": _normalize_enum(
-            output.seniority, _get_valid_seniority_enrich(config)
-        ),
+        "seniority_raw": _normalize_text_item(raw_seniority),
+        "seniority": _normalise_enrichment_seniority(output.seniority, config),
         "domain_raw": output.domain,
         "domain": output.domain.lower().strip() if output.domain else None,
         "job_family_raw": output.job_family,
@@ -2198,6 +2200,12 @@ class EnrichRuntimeError(RuntimeError):
         self.failure = failure
 
 
+def _is_item_scoped_recoverable_failure(failure: LlmRuntimeFailure) -> bool:
+    if failure.stage in {"parse", "validate"}:
+        return True
+    return failure.stage == "adapter" and failure.retryable
+
+
 def _execute_enrich_runtime(
     job: dict[str, Any],
     config: dict[str, Any],
@@ -2221,7 +2229,20 @@ def _execute_enrich_runtime(
             parsed = _apply_structured_normalization(decoded, config)
         except _ValidationError:
             return parse_extraction_response(raw_text, config)
-        return {"parsed": parsed, "errors": [], "raw_response": raw_text}
+        errors: list[str] = []
+        if (
+            isinstance(decoded.get("location_type"), str)
+            and decoded.get("location_type")
+            and parsed.get("location_type") is None
+        ):
+            errors.append("coercion_warning:location_type:invalid_enum")
+        if (
+            isinstance(decoded.get("seniority"), str)
+            and decoded.get("seniority")
+            and parsed.get("seniority") is None
+        ):
+            errors.append("coercion_warning:seniority:invalid_enum")
+        return {"parsed": parsed, "errors": errors, "raw_response": raw_text}
 
     def _validator(value: Any) -> LlmValidationResult:
         is_valid = (
@@ -2255,19 +2276,60 @@ def _enrich_result_to_row(
             code="validation_error",
             message="Enrichment runtime returned no parsed value.",
         )
+        if failure.stage == "validate" and failure.code == "validation_error":
+            failure = LlmRuntimeFailure(
+                stage=failure.stage,
+                code="enrichment_contract_invalid",
+                message=failure.message,
+                retryable=failure.retryable,
+                http_status=failure.http_status,
+                provider_diagnostics=failure.provider_diagnostics,
+            )
         raise EnrichRuntimeError(failure)
 
+    if getattr(result.provenance, "routing_part", "") != "enrich_extraction":
+        raise EnrichRuntimeError(
+            LlmRuntimeFailure(
+                stage="validate",
+                code="enrichment_routing_mismatch",
+                message="Enrichment runtime provenance does not match enrich_extraction.",
+            )
+        )
+    if result.validation is not None and not result.validation.valid:
+        raise EnrichRuntimeError(
+            LlmRuntimeFailure(
+                stage="validate",
+                code="enrichment_contract_invalid",
+                message="; ".join(result.validation.errors) or "Enrichment result failed validation.",
+            )
+        )
+
     extraction = result.parsed_value
-    if extraction["errors"]:
+    parsed = extraction.get("parsed")
+    errors = extraction.get("errors")
+    if not isinstance(parsed, dict) or not isinstance(errors, list):
+        raise EnrichRuntimeError(
+            LlmRuntimeFailure(
+                stage="validate",
+                code="enrichment_contract_invalid",
+                message="Enrichment result must contain parsed and errors fields.",
+            )
+        )
+
+    diagnostics = [str(error) for error in errors if str(error).startswith("coercion_warning:")]
+    fatal_errors = [str(error) for error in errors if not str(error).startswith("coercion_warning:")]
+    if fatal_errors:
         raise EnrichRuntimeError(
             LlmRuntimeFailure(
                 stage="parse",
                 code="malformed_extraction",
-                message="; ".join(str(error) for error in extraction["errors"]),
+                message="; ".join(fatal_errors),
                 retryable=True,
             )
         )
-    merged = merge_scraped_and_enriched(job, extraction["parsed"], config)
+    merged = merge_scraped_and_enriched(job, parsed, config)
+    if diagnostics:
+        merged["enrichment_diagnostics"] = diagnostics
     if _is_semantically_blank_enrichment_row(merged):
         raise EnrichRuntimeError(
             LlmRuntimeFailure(
@@ -2375,27 +2437,25 @@ def _enrich_one(
                 and failure.http_status == 429
             )
             retryable_failure = failure.retryable or retryable_rate_limit
-            if not retryable_failure:
+            if not _is_item_scoped_recoverable_failure(failure):
                 raise
-            if attempt_number >= maximum_attempts:
-                if failure.stage not in {"parse", "validate"}:
-                    raise
-                logger.warning(
-                    "Enrichment fallback for job %r after %d attempts: %s",
-                    job.get("title") or job.get("job_url"),
-                    attempt_number,
-                    failure.message,
-                )
-                enriched = _build_enrichment_fallback_row(
-                    job,
-                    config,
-                    failure,
-                    attempts=attempt_number,
-                )
-                break
-            if backoff_seconds > 0:
-                time.sleep(backoff_seconds)
-            continue
+            if attempt_number < maximum_attempts and retryable_failure:
+                if backoff_seconds > 0:
+                    time.sleep(backoff_seconds)
+                continue
+            logger.warning(
+                "Enrichment fallback for job %r after %d attempts: %s",
+                job.get("title") or job.get("job_url"),
+                attempt_number,
+                failure.message,
+            )
+            enriched = _build_enrichment_fallback_row(
+                job,
+                config,
+                failure,
+                attempts=attempt_number,
+            )
+            break
 
         if job_event_callback and job_url:
             try:
