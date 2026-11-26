@@ -79,10 +79,20 @@ from fitcv.late_stage_contract import (
     build_late_stage_state,
     GenerationStatus,
 )
-from fitcv.pipeline_contracts import ReviewRequiredReasonCode, classify_cv_outcome
+from fitcv.pipeline_contracts import (
+    CV_DIAGNOSTIC_SCHEMA_VERSION,
+    ReviewRequiredReasonCode,
+    build_diagnostic_registry,
+    classify_cv_outcome,
+    normalize_diagnostic,
+)
 from fitcv.pipeline_stages.common import job_identity_keys
 from fitcv.reuse import build_reuse_decision
-from fitcv.validator import AnalysisGroundingPayload, run_all_validations
+from fitcv.validator import (
+    AnalysisGroundingPayload,
+    SKILL_PROVENANCE_VERSION,
+    run_all_validations,
+)
 DEFAULT_MAX_SUMMARY_LINES = 3
 CV_CONTENT_PLAN_VERSION = "cv_content_plan_v1"
 DEFAULT_SECTION_CLAIM_LIMITS = {
@@ -225,6 +235,8 @@ class ValidationSnapshot(TypedDict):
 class ErrorPayload(TypedDict, total=False):
     stage: str
     code: str
+    diagnostic_code: str
+    facts: dict[str, Any]
     message: str
 
 
@@ -273,6 +285,10 @@ class CvGenerationResult(TypedDict, total=False):
     render_item_provenance: list[dict[str, Any]]
     content_acceptance: bool
     final_artifact_acceptance: dict[str, Any]
+    diagnostic_registry: dict[str, Any]
+    quarantined_structured_cv: dict[str, Any] | None
+    quarantined_markdown: str | None
+    quarantine_persistence_error: ErrorPayload | None
     render_acceptance: dict[str, Any]
     page_fit_status: str | None
     artifact_checksum: str | None
@@ -1133,13 +1149,22 @@ def _coerce_error_payload(value: Any) -> ErrorPayload | None:
     if not isinstance(value, dict):
         return None
     stage = str(value.get("stage") or "").strip()
+    code = str(value.get("code") or value.get("diagnostic_code") or "").strip()
     message = str(value.get("message") or "").strip()
-    if not stage or not message:
+    facts = value.get("facts")
+    if not stage and not code:
         return None
-    return {
-        "stage": stage,
-        "message": message,
-    }
+    payload: ErrorPayload = {}
+    if stage:
+        payload["stage"] = stage
+    if code:
+        payload["code"] = code
+        payload["diagnostic_code"] = code
+    if isinstance(facts, dict):
+        payload["facts"] = dict(facts)
+    if message:
+        payload["message"] = message
+    return payload
 
 
 
@@ -2004,9 +2029,20 @@ def build_cv_generation_input_fingerprint(
         config,
         default_model=get_cv_generation_model(config),
     )
+    section_policy = resolve_mycvs_v1_policy(config)
+    validation_config = ((config.get("cv") or {}).get("validation") or {})
+    validation_policy_version = str(
+        validation_config.get("policy_version")
+        or config.get("validation_policy_version")
+        or "cv_validation_policy_v1"
+    )
     payload = {
         "schema_version": _CV_GENERATION_FINGERPRINT_SCHEMA_VERSION,
         "generation_contract_version": _CV_GENERATION_RESULT_CONTRACT_VERSION,
+        "diagnostic_schema_version": CV_DIAGNOSTIC_SCHEMA_VERSION,
+        "validation_policy_version": validation_policy_version,
+        "section_policy_version": str(section_policy.get("version") or ""),
+        "skill_provenance_version": SKILL_PROVENANCE_VERSION,
         "analysis_input_fingerprint": str(analysis_record.get("analysis_input_fingerprint") or ""),
         "content_plan": dict(analysis_record.get("content_plan") or {}),
         "uncertainties": [item for item in list(analysis_record.get("uncertainties") or []) if isinstance(item, dict)],
@@ -2080,8 +2116,42 @@ def normalize_review_required_reason_code(
         return ReviewRequiredReasonCode.POST_VALIDATION_FAILED
     if status != "review_required":
         return None
-    stage = str((error or {}).get("stage") or "").strip().lower()
-    message = str((error or {}).get("message") or "").strip().lower()
+    error = error or {}
+    raw_code = str(error.get("diagnostic_code") or error.get("code") or "").strip().lower().replace("-", "_")
+    facts = error.get("facts") if isinstance(error.get("facts"), dict) else {}
+    if raw_code:
+        typed_map = {
+            "provider_timeout": ReviewRequiredReasonCode.TIMEOUT,
+            "timeout": ReviewRequiredReasonCode.TIMEOUT,
+            "provider_error": ReviewRequiredReasonCode.PROVIDER_ERROR,
+            "provider_response_unusable": ReviewRequiredReasonCode.PROVIDER_RESPONSE_UNUSABLE,
+            "empty_output": ReviewRequiredReasonCode.EMPTY_OUTPUT,
+            "template_violation": ReviewRequiredReasonCode.TEMPLATE_CONTRACT_VIOLATION,
+            "markdown_structure_violation": ReviewRequiredReasonCode.MARKDOWN_STRUCTURE_VIOLATION,
+            "invalid_section_order": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+            "unsupported_skill_claim": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+            "skill_projection_mismatch": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+            "validation_failed": ReviewRequiredReasonCode.POST_VALIDATION_FAILED,
+            "unsupported_requirement_gap": ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP,
+            "estimated_length_exceeded": ReviewRequiredReasonCode.QUALITY_GATE_FAILED,
+            "page_fit_failed": ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED,
+            "pdf_render_failed": ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED,
+            "persistence_failed": ReviewRequiredReasonCode.PERSISTENCE_FAILED,
+            "cv_persistence_failed": ReviewRequiredReasonCode.PERSISTENCE_FAILED,
+        }
+        mapped = typed_map.get(raw_code)
+        if mapped is not None:
+            return mapped
+        fact_reason = str(facts.get("review_required_reason_code") or facts.get("reason_code") or "").strip()
+        if fact_reason:
+            try:
+                return ReviewRequiredReasonCode(fact_reason)
+            except ValueError:
+                pass
+        # A typed but unknown code is intentionally not reclassified from display text.
+        return ReviewRequiredReasonCode.MANUAL_REVIEW_OTHER
+    stage = str(error.get("stage") or "").strip().lower()
+    message = str(error.get("message") or "").strip().lower()
     if stage == "final_artifact_acceptance":
         return ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED
     if stage in {"provider", "provider_error", "generation"}:
@@ -2131,7 +2201,8 @@ def build_validation_evidence_fingerprint(
         "markdown_quality_blocking_issues": list(snapshot.get("markdown_quality_blocking_issues") or []),
         "markdown_quality_review_flags": list(snapshot.get("markdown_quality_review_flags") or []),
         "reason_stage": str((error or {}).get("stage") or ""),
-        "reason_code": str((error or {}).get("code") or ""),
+        "reason_code": str((error or {}).get("diagnostic_code") or (error or {}).get("code") or ""),
+        "reason_facts": dict((error or {}).get("facts") or {}) if isinstance((error or {}).get("facts"), dict) else {},
         "reason_message": str((error or {}).get("message") or ""),
     }
     seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -2557,6 +2628,11 @@ def _apply_final_artifact_contract(
         ),
         cv_revision=str(finalized.get("cv_generation_input_fingerprint") or ""),
         pdf_revision=str(finalized.get("artifact_checksum") or ""),
+        validation=finalized.get("validation"),
+        structured_cv_final=finalized.get("structured_cv_final"),
+        markdown_final=finalized.get("markdown_final"),
+        quarantined_structured_cv=finalized.get("quarantined_structured_cv"),
+        quarantined_markdown=finalized.get("quarantined_markdown"),
     )
     return finalized
 
@@ -2722,6 +2798,9 @@ def _build_result(
     trim_reason: str | None = None,
     post_trim_validation_status: str = "not_run",
     post_trim_missing_requirements: list[str] | None = None,
+    quarantined_structured_cv: dict[str, Any] | None = None,
+    quarantined_markdown: str | None = None,
+    quarantine_persistence_error: ErrorPayload | None = None,
 ) -> CvGenerationResult:
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
@@ -2780,12 +2859,23 @@ def _build_result(
             persistence_status=("pending" if status in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS} else "failed"),
             cv_revision=str(analysis_record.get("cv_generation_input_fingerprint") or ""),
             pdf_revision=str((render_acceptance or {}).get("artifact_checksum") or "") if isinstance(render_acceptance, dict) else "",
+            validation=validation,
+            structured_cv_final=structured_cv_final,
+            markdown_final=markdown_final,
+            quarantined_structured_cv=quarantined_structured_cv,
+            quarantined_markdown=quarantined_markdown,
         ),
         "trim_count": int(trim_count),
         "trimmed_claim_ids": list(trimmed_claim_ids or []),
         "trim_reason": trim_reason,
         "post_trim_validation_status": post_trim_validation_status,
         "post_trim_missing_requirements": list(post_trim_missing_requirements or []),
+        "diagnostic_registry": build_diagnostic_registry(
+            [error] if isinstance(error, dict) and (error.get("code") or error.get("diagnostic_code")) else []
+        ),
+        "quarantined_structured_cv": deepcopy(quarantined_structured_cv) if isinstance(quarantined_structured_cv, dict) else None,
+        "quarantined_markdown": quarantined_markdown,
+        "quarantine_persistence_error": quarantine_persistence_error,
     }
     runtime_evidence = [dict(item) for item in (llm_runtime_evidence or []) if isinstance(item, dict)]
     if runtime_evidence:
@@ -3010,6 +3100,15 @@ def _generate_fresh_from_analysis(
         if result_status == VALIDATION_FAILED_STATUS:
             error = {
                 "stage": "validation",
+                "code": "validation_failed",
+                "diagnostic_code": "validation_failed",
+                "facts": {
+                    "missing_sections": list(validation.get("missing_sections") or []),
+                    "failed_rule_ids": _extract_failed_rule_ids(validation),
+                    "first_failing_section_key": _first_failing_section_key(validation),
+                    "draft_structured_available": isinstance(structured_cv, dict),
+                    "draft_markdown_available": bool(str(markdown or "").strip()),
+                },
                 "message": f"CV validation failed for {extract_job_url(job)}",
             }
         if trace_payload is not None:
@@ -3079,6 +3178,8 @@ def _generate_fresh_from_analysis(
             error=error,
             llm_runtime_evidence=runtime_evidence,
             cv_generation_trace=trace_payload,
+            quarantined_structured_cv=structured_cv if result_status == VALIDATION_FAILED_STATUS else None,
+            quarantined_markdown=markdown if result_status == VALIDATION_FAILED_STATUS else None,
         )
     except Exception as exc:
         failed_repair_attempt = getattr(exc, "repair_attempt", None)

@@ -382,6 +382,16 @@ Phase 3 uses one path for every admissible scored job:
 - stage-transition artifacts use v8 and preserve full-run/resume parity
 - CV analysis consumes persisted baseline truth only; gap findings, vector evidence, and AI diagnostics do not override ranking qualification
 
+## CV validation diagnostics and finalization
+
+CV generation records keep independent lifecycle dimensions: `content_validity`, `technical_status`, `draft_disposition`, `review_status`, `pdf_status`, and `persistence_status`. `submission_clearance` is derived from those fields and page-fit evidence; no review event or legacy status can grant clearance by itself.
+
+New failures emit typed diagnostics with a stable `code`, `category`, `severity`, `blocking`, `retryable`, `terminal`, `source`, and structured `facts`. The primary diagnostic is selected by registry precedence after deterministic code/fact deduplication. Human-readable messages are display text only. Unknown producer codes are retained as `unclassified_failure` rather than inferred from message wording. Legacy `status` and `reason_code` fields remain readable as projections.
+
+Validation failures that have usable structured or Markdown drafts are stored separately as quarantined validation drafts. Quarantine is retry/debug context only: it is excluded from accepted CV lists, downloads, exports, review approval, and reuse cache hits. A retry creates a new linked attempt and leaves the original quarantine immutable.
+
+Stage 7 reuse/checkpoint compatibility includes validation-policy, diagnostic-schema, section-policy, and skill-provenance versions. Affected generation/validation work is invalidated without invalidating compatible Stage 6 ranking work.
+
 ## Execution Modes
 
 - full run (`Run All`)

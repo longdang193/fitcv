@@ -254,7 +254,7 @@ _ROLE_TAXONOMY_CONFIG = {
 }
 
 
-# â”€â”€ create_run_id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── create_run_id ─────────────────────────────────────────────────────────────
 
 def test_create_run_id_returns_valid_uuid() -> None:
     run_id = create_run_id()
@@ -266,7 +266,7 @@ def test_create_run_id_unique() -> None:
     assert create_run_id() != create_run_id()
 
 
-# â”€â”€ build_ranking_features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── build_ranking_features ────────────────────────────────────────────────────
 
 def _make_shortlist() -> list[dict]:
     return [
@@ -2761,7 +2761,7 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_store_ver.assert_called_once()
 
 
-# â”€â”€ run_pipeline (integrated, with all I/O mocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── run_pipeline (integrated, with all I/O mocked) ───────────────────────────
 
 def _minimal_config() -> dict:
     config = _ranking_v2_config()
@@ -5655,7 +5655,7 @@ def test_run_pipeline_returns_correct_schema(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     mock_store_ver.return_value = None
-    # create_cv_version_record is NOT mocked â€” it runs for real
+    # create_cv_version_record is NOT mocked — it runs for real
     with (
         patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
         patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
@@ -7877,7 +7877,7 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
 ) -> None:
-    """A per-job exception must not crash the pipeline â€” only that job is skipped."""
+    """A per-job exception must not crash the pipeline — only that job is skipped."""
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
@@ -9776,7 +9776,7 @@ def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
     assert record["error_summary"] is None
 
 
-# â”€â”€ run_pipeline calls load_run_structured_jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── run_pipeline calls load_run_structured_jobs ──────────────────────────────
 
 @patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.store_cv_version")

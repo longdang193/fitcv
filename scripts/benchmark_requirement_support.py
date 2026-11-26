@@ -888,10 +888,12 @@ def _run_validation(
         ),
     }
     started = time.perf_counter()
+    structured_cv = case.get("structured_cv") or validation.get("structured_cv")
     result = run_all_validations(
         str(case.get("cv_text") or validation.get("cv_text") or ""),
         profile=profile,
         config=config,
+        structured_cv=copy.deepcopy(structured_cv) if isinstance(structured_cv, dict) else None,
         analysis_grounding=analysis_grounding,
     )
     return result, (time.perf_counter() - started) * 1000

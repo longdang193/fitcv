@@ -104,6 +104,40 @@ def _map_review_required_reason_code(record: dict[str, Any]) -> str:
     if is_review_required_reason_code(explicit_code):
         return explicit_code
     error = dict(record.get("error") or {})
+    raw_code = str(
+        error.get("diagnostic_code")
+        or error.get("code")
+        or (dict(record.get("diagnostic_registry") or {}).get("primary_code") or "")
+    ).strip().lower().replace("-", "_")
+    facts = error.get("facts") if isinstance(error.get("facts"), dict) else {}
+    typed_map = {
+        "unsupported_requirement_gap": ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP,
+        "provider_timeout": ReviewRequiredReasonCode.TIMEOUT,
+        "timeout": ReviewRequiredReasonCode.TIMEOUT,
+        "provider_error": ReviewRequiredReasonCode.PROVIDER_RESPONSE_UNUSABLE,
+        "provider_response_unusable": ReviewRequiredReasonCode.PROVIDER_RESPONSE_UNUSABLE,
+        "empty_output": ReviewRequiredReasonCode.EMPTY_OUTPUT,
+        "template_violation": ReviewRequiredReasonCode.TEMPLATE_CONTRACT_VIOLATION,
+        "markdown_structure_violation": ReviewRequiredReasonCode.QUALITY_GATE_FAILED,
+        "estimated_length_exceeded": ReviewRequiredReasonCode.QUALITY_GATE_FAILED,
+        "validation_failed": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "invalid_section_order": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "unsupported_skill_claim": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "skill_projection_mismatch": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "page_fit_failed": ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED,
+        "pdf_render_failed": ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED,
+        "persistence_failed": ReviewRequiredReasonCode.PERSISTENCE_FAILED,
+        "cv_persistence_failed": ReviewRequiredReasonCode.PERSISTENCE_FAILED,
+    }
+    if raw_code:
+        mapped = typed_map.get(raw_code)
+        if mapped is not None:
+            return mapped.value
+        fact_reason = str(facts.get("review_required_reason_code") or facts.get("reason_code") or "").strip()
+        if is_review_required_reason_code(fact_reason):
+            return fact_reason
+        # Do not let an unknown typed code be reclassified from mutable display text.
+        return ReviewRequiredReasonCode.MANUAL_REVIEW_OTHER.value
     stage = str(error.get("stage") or "").strip().lower()
     message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
     if "unsupported requirements require review" in message:

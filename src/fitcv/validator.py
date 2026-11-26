@@ -153,12 +153,22 @@ def _role_family_aliases(config: dict[str, Any]) -> dict[str, set[str]]:
     return aliases
 
 
+SKILL_PROVENANCE_VERSION = "skill_provenance_v1"
+
+
 class AnalysisGroundingPayload(TypedDict, total=False):
     evidence_payload: list[dict[str, Any]]
     evidence_used: list[dict[str, Any]]
     evidence_selection_summary: dict[str, Any]
     analysis_input_summary: dict[str, Any]
     requirement_coverage: list[dict[str, Any]]
+
+
+class StructuredSkillClaim(TypedDict, total=False):
+    canonical_skill: str
+    display_label: str
+    evidence_refs: list[str]
+    provenance_version: str
 
 
 class SelectedEvidenceSupport(TypedDict):
@@ -580,25 +590,217 @@ def _extract_skill_section_tokens(
             if not MYCVS_V1_AUDIT_LINE_RE.fullmatch(line.strip())
             and not MYCVS_V1_METADATA_LINE_RE.fullmatch(line.strip())
         ]
-    raw_tokens = re.split(r"[,\n]+", "\n".join(section_lines))
+    normalized_lines = []
+    for line in section_lines:
+        # The canonical grouped renderer prefixes each row with a Markdown label.
+        grouped = re.match(r"^\s*\*\*[^*]+:\*\*\s*(.*)$", line)
+        normalized_lines.append(grouped.group(1) if grouped else line)
+    raw_tokens = re.split(r"[,\n]+", "\n".join(normalized_lines))
     return [token.strip() for token in raw_tokens if token.strip()]
 
 
 def _extract_structured_skill_items(structured_cv: dict[str, Any] | None) -> list[str]:
     sections = (structured_cv or {}).get("sections")
     skills_section = sections.get("skills") if isinstance(sections, dict) else None
-    groups = skills_section.get("groups") if isinstance(skills_section, dict) else None
-    if not isinstance(groups, list):
+    if isinstance(skills_section, list):
+        raw_items = skills_section
+    elif isinstance(skills_section, dict):
+        raw_items = list(skills_section.get("claims") or skills_section.get("items") or [])
+        for group in list(skills_section.get("groups") or []):
+            if isinstance(group, dict):
+                raw_items.extend(list(group.get("items") or []))
+    else:
         return []
     items: list[str] = []
-    for group in groups:
-        if not isinstance(group, dict):
-            continue
-        for item in list(group.get("items") or []):
-            value = str(item or "").strip()
-            if value:
-                items.append(value)
+    for item in raw_items:
+        if isinstance(item, dict):
+            item = (
+                item.get("display_label")
+                or item.get("label")
+                or item.get("name")
+                or item.get("canonical_skill")
+                or item.get("canonical")
+            )
+        value = str(item or "").strip()
+        if value:
+            items.append(value)
     return list(dict.fromkeys(items))
+
+
+def _structured_skill_claims(
+    structured_cv: dict[str, Any] | None,
+    config: dict[str, Any] | None = None,
+) -> tuple[str, list[StructuredSkillClaim]]:
+    """Return the structured skill state and normalized claims.
+
+    ``None`` is intentionally different from an explicit empty Skills section:
+    the former is a legacy Markdown-only record with no factual authority.
+    """
+    if structured_cv is None:
+        return "provenance_unavailable", []
+
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict) or "skills" not in sections:
+        return "missing", []
+    skills_section = sections.get("skills")
+    if skills_section is None:
+        return "missing", []
+
+    raw_items: list[Any] = []
+    explicitly_empty = False
+    if isinstance(skills_section, list):
+        raw_items = list(skills_section)
+        explicitly_empty = len(raw_items) == 0
+    elif isinstance(skills_section, dict):
+        for key in ("claims", "items"):
+            if key in skills_section:
+                values = skills_section.get(key)
+                if isinstance(values, list):
+                    raw_items.extend(values)
+                    explicitly_empty = explicitly_empty or len(values) == 0
+        groups = skills_section.get("groups")
+        if isinstance(groups, list):
+            explicitly_empty = explicitly_empty or len(groups) == 0
+            for group in groups:
+                if isinstance(group, dict):
+                    items = group.get("items")
+                    if isinstance(items, list):
+                        raw_items.extend(items)
+                        explicitly_empty = explicitly_empty or len(items) == 0
+    if not raw_items:
+        return ("empty" if explicitly_empty else "missing"), []
+
+    claims: list[StructuredSkillClaim] = []
+    by_canonical: dict[str, StructuredSkillClaim] = {}
+    for raw_item in raw_items:
+        if isinstance(raw_item, dict):
+            display = str(
+                raw_item.get("display_label")
+                or raw_item.get("label")
+                or raw_item.get("name")
+                or raw_item.get("skill")
+                or raw_item.get("value")
+                or ""
+            ).strip()
+            canonical = str(
+                raw_item.get("canonical_skill")
+                or raw_item.get("canonical")
+                or raw_item.get("normalized_value")
+                or display
+                or ""
+            ).strip()
+            evidence_refs = [
+                str(ref).strip()
+                for ref in list(raw_item.get("evidence_refs") or raw_item.get("source_refs") or [])
+                if str(ref).strip()
+            ]
+            provenance_version = str(
+                raw_item.get("provenance_version")
+                or raw_item.get("provenanceVersion")
+                or raw_item.get("version")
+                or ""
+            ).strip()
+        else:
+            display = str(raw_item or "").strip()
+            canonical = display
+            evidence_refs = []
+            provenance_version = ""
+        canonical = canonicalize_skill(canonical, config)
+        if not canonical:
+            continue
+        existing = by_canonical.get(canonical)
+        if existing is None:
+            existing = {
+                "canonical_skill": canonical,
+                "display_label": display or canonical,
+                "evidence_refs": [],
+                "provenance_version": provenance_version,
+            }
+            by_canonical[canonical] = existing
+            claims.append(existing)
+        existing["evidence_refs"] = list(dict.fromkeys([
+            *list(existing.get("evidence_refs") or []),
+            *evidence_refs,
+        ]))
+        if not existing.get("provenance_version") and provenance_version:
+            existing["provenance_version"] = provenance_version
+    return ("supported" if claims else "empty"), claims
+
+
+def _skill_claim_support(
+    claims: list[StructuredSkillClaim],
+    candidate_skills: list[str],
+    profile: dict[str, Any],
+    analysis_grounding: AnalysisGroundingPayload | None,
+    config: dict[str, Any] | None = None,
+) -> tuple[list[str], list[str]]:
+    candidate_canonical = {
+        canonicalize_skill(str(skill), config)
+        for skill in candidate_skills
+        if str(skill).strip()
+    }
+    evidence_skill_map: dict[str, set[str]] = {}
+    evidence_ids: set[str] = set()
+    for item in list((analysis_grounding or {}).get("evidence_payload") or []) + list(
+        (analysis_grounding or {}).get("evidence_used") or []
+    ):
+        if not isinstance(item, dict):
+            continue
+        evidence_id = str(item.get("evidence_id") or item.get("id") or "").strip()
+        if not evidence_id:
+            continue
+        evidence_ids.add(evidence_id)
+        evidence_skill_map[evidence_id] = {
+            canonicalize_skill(str(skill), config)
+            for skill in list(item.get("skills") or [])
+            if str(skill).strip()
+        }
+    for skill in list(profile.get("skills") or []):
+        if not isinstance(skill, dict):
+            continue
+        for ref in list(skill.get("evidence_refs") or []):
+            evidence_ids.add(str(ref).strip())
+
+    supported: list[str] = []
+    unsupported: list[str] = []
+    for claim in claims:
+        canonical = str(claim.get("canonical_skill") or "").strip()
+        refs = list(claim.get("evidence_refs") or [])
+        evidence_support = any(
+            ref in evidence_ids
+            and (not evidence_skill_map.get(ref) or canonical in evidence_skill_map[ref])
+            for ref in refs
+        )
+        if canonical in candidate_canonical or evidence_support:
+            supported.append(canonical)
+        else:
+            unsupported.append(canonical)
+    return supported, unsupported
+
+
+def _check_skill_projection(
+    cv_text: str,
+    claims: list[StructuredSkillClaim],
+    config: dict[str, Any] | None = None,
+) -> list[str]:
+    """Check rendered Skills as a projection; never use it as factual authority."""
+    structured = {str(claim.get("canonical_skill") or "") for claim in claims}
+    rendered = {
+        canonicalize_skill(skill, config)
+        for skill in _extract_skill_section_tokens(cv_text, config)
+        if not _is_placeholder_token(skill)
+    }
+    unexpected = sorted(rendered - structured)
+    omitted = sorted(structured - rendered)
+    diagnostics = [
+        f"skill_projection_mismatch: rendered Skills contains unexpected skill '{skill}'"
+        for skill in unexpected
+    ]
+    diagnostics.extend(
+        f"skill_projection_mismatch: structured skill '{skill}' is missing from rendered Skills"
+        for skill in omitted
+    )
+    return diagnostics
 
 
 def _claimed_skill_items(
@@ -1296,7 +1498,30 @@ def run_all_validations(
         check_employer_grounding(cv_text, known_employers)
         + check_project_existence(cv_text, known_projects)
     )
-    skill_violations: list[str] = check_skill_provenance(cv_text, candidate_skills, config=config)
+    skill_provenance_status, structured_skill_claims = _structured_skill_claims(
+        structured_cv,
+        config,
+    )
+    skill_projection_mismatches: list[str] = []
+    skill_violations: list[str] = []
+    if skill_provenance_status == "supported":
+        _, unsupported_structured_skills = _skill_claim_support(
+            structured_skill_claims,
+            candidate_skills,
+            profile,
+            analysis_grounding,
+            config,
+        )
+        skill_violations = [
+            f"Structured skill '{skill}' is not supported by candidate knowledge or evidence"
+            for skill in unsupported_structured_skills
+        ]
+        skill_projection_mismatches = _check_skill_projection(
+            cv_text,
+            structured_skill_claims,
+            config,
+        )
+        grounding_violations.extend(skill_projection_mismatches)
     deterministic_grounding_violations: list[str] = []
     semantic_grounding_violations: list[str] = []
     deterministic_grounding_violations.extend(
@@ -1336,6 +1561,8 @@ def run_all_validations(
         "deterministic_supported_soft_claims": 0,
         "semantic_supported_soft_claims": 0,
         "evaluated_soft_claims": 0,
+        "skill_provenance_status": skill_provenance_status,
+        "structured_skill_claim_count": len(structured_skill_claims),
     }
     if support_surface["has_selected_support"]:
         candidate_skills_lower = _normalize_lower_set(candidate_skills)
@@ -1417,6 +1644,16 @@ def run_all_validations(
 
     # Non-blocking warnings
     warnings: list[str] = []
+    if skill_provenance_status == "provenance_unavailable":
+        warnings.append(
+            "Skill provenance unavailable: legacy Markdown-only artifact is readable but cannot authorize factual skill validation."
+        )
+        grounding_violations.append("skill_provenance_unavailable: structured skill provenance is required for fresh factual validation")
+    elif skill_provenance_status == "missing":
+        warnings.append(
+            "Structured skill claims missing: rendered Markdown is not treated as factual skill authority."
+        )
+        grounding_violations.append("skill_provenance_missing: structured skill provenance is required for fresh factual validation")
     if missing_skills_relaxed:
         warnings.append(
             "Relaxed missing Skills section: selected evidence contains no grounded skill entries."
@@ -1451,6 +1688,9 @@ def run_all_validations(
         "deterministic_grounding_violations": deterministic_grounding_violations,
         "semantic_grounding_violations": semantic_grounding_violations,
         "skill_violations": skill_violations,
+        "skill_projection_mismatches": skill_projection_mismatches,
+        "skill_provenance_status": skill_provenance_status,
+        "structured_skill_claims": structured_skill_claims,
         "warnings": warnings,
         "support_source_summary": support_source_summary,
         "markdown_quality_blocking_issues": markdown_quality_blocking_issues,

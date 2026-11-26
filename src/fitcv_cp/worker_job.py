@@ -66,6 +66,7 @@ from fitcv.preference_policy import (
     resolve_zero_residual_policy,
     resolved_preference_policy_from_snapshot,
 )
+from fitcv.pipeline_contracts import build_diagnostic_registry
 from fitcv.telemetry import (
     build_langfuse_trace_attributes,
     observe_span,
@@ -89,6 +90,7 @@ from fitcv_cp.sqlite_store import (
     preflight_synonym_suggestion_automation,
     record_synonym_automation_checkpoint,
     reserve_cv_regeneration,
+    insert_cv_validation_quarantine,
     update_cv_evaluation,
     update_cv_version,
     update_run_checkpoint,
@@ -356,6 +358,109 @@ def _cv_review_state(
     if generation_status == "generated" and has_content:
         return "approved"
     return "none"
+
+
+
+def _persist_cv_validation_quarantine_records(
+    *,
+    run_id: str,
+    records: list[dict[str, Any]],
+) -> None:
+    """Persist validation-failed drafts without changing accepted projections."""
+    for record in records:
+        if str(record.get("status") or "").strip() != "validation_failed":
+            continue
+        structured = record.get("quarantined_structured_cv")
+        if not isinstance(structured, dict):
+            structured = None
+        markdown = record.get("quarantined_markdown")
+        markdown = str(markdown) if isinstance(markdown, str) and markdown.strip() else None
+        availability = (
+            "complete"
+            if structured is not None and markdown is not None
+            else "partial"
+            if structured is not None or markdown is not None
+            else "unavailable"
+        )
+        run_job_id = str(record.get("run_job_id") or "").strip() or None
+        job_url = str(record.get("job_url") or "").strip() or None
+        version_id = str(record.get("cv_version_id") or record.get("version_id") or "").strip() or None
+        parent_version_id = str(
+            record.get("parent_cv_version_id") or record.get("parent_version_id") or ""
+        ).strip() or None
+        attempt_count = max(int(record.get("attempt_count") or 1), 1)
+        attempt_id = str(record.get("attempt_id") or "").strip() or (
+            f"{run_job_id or job_url or run_id}:attempt:{attempt_count}"
+        )
+        fingerprints = {
+            key: record.get(key)
+            for key in (
+                "cv_generation_input_fingerprint",
+                "validation_evidence_fingerprint",
+                "cv_generation_input_components",
+                "result_contract_version",
+                "final_artifact_contract_version",
+                "diagnostic_schema_version",
+            )
+            if record.get(key) is not None
+        }
+        checksums = {
+            "structured_cv_sha256": stable_sha256_fingerprint(structured) if structured is not None else None,
+            "markdown_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest() if markdown is not None else None,
+        }
+        idempotency_key = str(record.get("quarantine_idempotency_key") or "").strip() or (
+            f"cv-validation-quarantine:{run_id}:{job_url or run_job_id or 'unknown'}:"
+            f"{version_id or attempt_id}:{stable_sha256_fingerprint(fingerprints)}"
+        )
+        quarantine_id = str(record.get("quarantine_id") or "").strip() or hashlib.sha256(
+            idempotency_key.encode("utf-8")
+        ).hexdigest()[:32]
+        diagnostic_registry = record.get("diagnostic_registry")
+        diagnostics = (
+            list(diagnostic_registry.get("diagnostics") or [])
+            if isinstance(diagnostic_registry, dict)
+            else []
+        )
+        if not diagnostics and isinstance(record.get("error"), dict):
+            diagnostics = [record["error"]]
+        row = {
+            "quarantine_id": quarantine_id,
+            "run_id": run_id,
+            "job_url": job_url,
+            "attempt_id": attempt_id,
+            "version_id": version_id,
+            "parent_version_id": parent_version_id,
+            "availability": availability,
+            "structured_cv": structured,
+            "markdown": markdown,
+            "validation": record.get("validation") or record.get("validation_final"),
+            "diagnostics": diagnostics,
+            "fingerprints": fingerprints,
+            "trace_ref": record.get("trace_id") or record.get("trace_ref"),
+            "checksums": checksums,
+            "idempotency_key": idempotency_key,
+        }
+        try:
+            stored = insert_cv_validation_quarantine(row)
+        except Exception as exc:
+            persistence_error = {
+                "stage": "persistence",
+                "code": "quarantine_persistence_failed",
+                "diagnostic_code": "quarantine_persistence_failed",
+                "facts": {"availability": availability, "attempt_id": attempt_id},
+                "message": str(exc),
+            }
+            record["diagnostic_registry"] = build_diagnostic_registry(
+                [*diagnostics, persistence_error]
+            )
+            record["quarantine_persistence_status"] = "failed"
+            record["quarantine_persistence_error"] = persistence_error
+            record["submission_clearance"] = "blocked"
+            continue
+        record["quarantine_id"] = stored.get("quarantine_id") or quarantine_id
+        record["quarantine_persistence_status"] = "persisted"
+        record["quarantine_availability"] = availability
+        record["submission_clearance"] = "blocked"
 
 
 def _resolve_worker_preference_policy(
@@ -1455,6 +1560,40 @@ def _map_review_required_reason_code(record: dict[str, Any]) -> str:
     if is_review_required_reason_code(explicit_code):
         return explicit_code
     error = dict(record.get("error") or {})
+    raw_code = str(
+        error.get("diagnostic_code")
+        or error.get("code")
+        or (dict(record.get("diagnostic_registry") or {}).get("primary_code") or "")
+    ).strip().lower().replace("-", "_")
+    facts = error.get("facts") if isinstance(error.get("facts"), dict) else {}
+    typed_map = {
+        "unsupported_requirement_gap": ReviewRequiredReasonCode.UNSUPPORTED_REQUIREMENT_GAP,
+        "provider_timeout": ReviewRequiredReasonCode.TIMEOUT,
+        "timeout": ReviewRequiredReasonCode.TIMEOUT,
+        "provider_error": ReviewRequiredReasonCode.PROVIDER_RESPONSE_UNUSABLE,
+        "provider_response_unusable": ReviewRequiredReasonCode.PROVIDER_RESPONSE_UNUSABLE,
+        "empty_output": ReviewRequiredReasonCode.EMPTY_OUTPUT,
+        "template_violation": ReviewRequiredReasonCode.TEMPLATE_CONTRACT_VIOLATION,
+        "markdown_structure_violation": ReviewRequiredReasonCode.QUALITY_GATE_FAILED,
+        "estimated_length_exceeded": ReviewRequiredReasonCode.QUALITY_GATE_FAILED,
+        "validation_failed": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "invalid_section_order": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "unsupported_skill_claim": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "skill_projection_mismatch": ReviewRequiredReasonCode.VALIDATION_GUARDRAIL_FAILED,
+        "page_fit_failed": ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED,
+        "pdf_render_failed": ReviewRequiredReasonCode.FINAL_ARTIFACT_ACCEPTANCE_FAILED,
+        "persistence_failed": ReviewRequiredReasonCode.PERSISTENCE_FAILED,
+        "cv_persistence_failed": ReviewRequiredReasonCode.PERSISTENCE_FAILED,
+    }
+    if raw_code:
+        mapped = typed_map.get(raw_code)
+        if mapped is not None:
+            return mapped.value
+        fact_reason = str(facts.get("review_required_reason_code") or facts.get("reason_code") or "").strip()
+        if is_review_required_reason_code(fact_reason):
+            return fact_reason
+        # Do not let an unknown typed code be reclassified from mutable display text.
+        return ReviewRequiredReasonCode.MANUAL_REVIEW_OTHER.value
     stage = str(error.get("stage") or "").strip().lower()
     message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
     if "unsupported requirements require review" in message:
@@ -2641,6 +2780,10 @@ def execute_pipeline_run(
                     item for item in list(summary.get("cv_generation_debug_records") or [])
                     if isinstance(item, dict)
                 ]
+                _persist_cv_validation_quarantine_records(
+                    run_id=run_id,
+                    records=cv_debug_records,
+                )
                 auto_accept_enabled = _auto_accept_ai_action_enabled_from_run_record(run_record)
                 auto_accepted_count = 0
                 pending_review_required = 0

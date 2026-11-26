@@ -419,7 +419,18 @@ def test_run_all_validations_flags_shallow_experience_for_review() -> None:
         "skills": ["SQL", "Python"],
     }
     cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\n- Built ETL"
-    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        structured_cv={
+            "sections": {
+                "summary": {"text": "X"},
+                "experience": [{"role": "DE", "company": "ACME", "bullets": ["Built ETL"]}],
+                "skills": {"groups": [{"items": ["SQL", "Python"]}]},
+            }
+        },
+    )
     assert result["valid"] is True
     assert any("shallow" in str(item).lower() for item in result["markdown_quality_review_flags"])
 
@@ -612,7 +623,12 @@ def test_run_all_validations_reads_required_sections_from_nested_cv() -> None:
         "required_cv_sections": ["Skills"],
         "cv_max_pages": 2,
     }
-    result = run_all_validations(cv_text, profile=profile, config=nested_config)
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=nested_config,
+        structured_cv={"sections": {"skills": {"groups": [{"items": ["SQL"]}]}}},
+    )
     # Missing Summary is OK (it's enabled but not required), Skills is present
     assert result["valid"] is True
     assert "Summary" not in result["missing_sections"]
@@ -731,7 +747,12 @@ def test_run_all_validations_uses_source_driven_mycvs_presence_over_legacy_confi
         "cv": {"renderer": {"strategy": "mycvs_v1"}},
     }
 
-    result = run_all_validations(cv_text, profile=profile, config=config)
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=config,
+        structured_cv={"sections": {"skills": {"groups": [{"items": ["SQL"]}]}}},
+    )
 
     assert result["valid"] is True
     assert result["missing_sections"] == []
@@ -908,6 +929,13 @@ def test_run_all_validations_falls_back_to_payload_when_selected_ids_are_missing
         cv_text,
         profile=profile,
         config=_CV_CONFIG,
+        structured_cv={
+            "sections": {
+                "summary": {"text": "Grounded summary"},
+                "experience": [{"role": "Data Engineer", "company": "FintechCo", "bullets": ["Built reporting workflows"]}],
+                "skills": {"groups": [{"items": ["SQL"]}]},
+            }
+        },
         analysis_grounding=analysis_grounding,
     )
 
@@ -986,6 +1014,13 @@ def test_run_all_validations_supports_semantically_close_soft_claim_from_selecte
         cv_text,
         profile=profile,
         config=_CV_CONFIG,
+        structured_cv={
+            "sections": {
+                "summary": {"text": "Delivered stakeholder-facing dashboards and reporting workflows."},
+                "experience": [{"role": "Data Analyst", "company": "ACME", "bullets": ["Built reporting dashboards"]}],
+                "skills": {"groups": [{"items": ["SQL", "Power BI"]}]},
+            }
+        },
         analysis_grounding=analysis_grounding,
     )
 
@@ -1270,6 +1305,13 @@ def test_mycvs_allows_canonical_skills_and_profile_bullets_outside_selected_evid
         cv_text,
         profile=profile,
         config=config,
+        structured_cv={
+            "sections": {
+                "summary": {"text": "X"},
+                "experience": [{"role": "DE", "company": "ACME", "bullets": ["Built ETL"]}],
+                "skills": {"groups": [{"items": ["SQL", "Python"]}]},
+            }
+        },
         analysis_grounding=analysis_grounding,
     )
 
