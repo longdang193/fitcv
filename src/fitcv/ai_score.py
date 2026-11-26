@@ -55,6 +55,7 @@ from fitcv.evidence import bounded_term_values, build_evidence_excerpt, project_
 from fitcv.candidate import flatten_rankable_skills
 from fitcv.semantic_snapshot import compile_semantic_policy, resolve_semantic_value
 from fitcv.prompts import render_prompt
+from fitcv.pipeline_contracts import normalize_diagnostic
 from fitcv.ranking_contract import (
     SCORE_STATUS_INVALID,
     SCORE_STATUS_UNSCORED,
@@ -1103,6 +1104,7 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
         "key_risks": [],
         "score_status": SCORE_STATUS_INVALID,
         "failure_code": None,
+        "diagnostics": [],
     }
 
     def _failure(code: str, reasoning: str) -> dict[str, Any]:
@@ -1138,21 +1140,54 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
     if not math.isfinite(raw_score) or not 0.0 <= raw_score <= 1.0:
         return _failure("invalid_ai_score", "Scoring response parse failure: invalid_ai_score")
     legacy_label = str(data.get("fit_label") or "").lower().strip()
-    missing_fields = [
-        field for field in ("score_reasoning", "matched_strengths", "key_risks")
-        if field not in data
-    ]
+    metadata_diagnostics: list[dict[str, Any]] = []
+    normalized_metadata: dict[str, Any] = {}
+    expected_types = {
+        "score_reasoning": str,
+        "matched_strengths": list,
+        "key_risks": list,
+    }
+    for field, expected_type in expected_types.items():
+        if field not in data:
+            metadata_diagnostics.append(
+                normalize_diagnostic(
+                    code="ranking_metadata_missing",
+                    source="ranking_parser",
+                    facts={"field": field, "expected_type": expected_type.__name__},
+                )
+            )
+            normalized_metadata[field] = "" if expected_type is str else []
+            continue
+        value = data.get(field)
+        if not isinstance(value, expected_type):
+            metadata_diagnostics.append(
+                normalize_diagnostic(
+                    code="ranking_metadata_invalid_type",
+                    source="ranking_parser",
+                    facts={
+                        "field": field,
+                        "expected_type": expected_type.__name__,
+                        "observed_type": type(value).__name__,
+                    },
+                )
+            )
+            normalized_metadata[field] = "" if expected_type is str else []
+        else:
+            normalized_metadata[field] = value
 
     return {
-        "ai_score":          raw_score,
+        "ai_score": raw_score,
         "legacy_model_fit_label": legacy_label if legacy_label in VALID_FIT_LABELS else None,
-        "score_reasoning":   str(data.get("score_reasoning", "")),
-        "matched_strengths": list(data.get("matched_strengths", []) or []),
-        "key_risks":         list(data.get("key_risks", []) or []),
-        "score_status":      SCORE_STATUS_VALID,
-        "failure_code":      None,
-        "missing_fields":    missing_fields,
-        "parser_status":     "ok",
+        **normalized_metadata,
+        "score_status": SCORE_STATUS_VALID,
+        "failure_code": None,
+        "missing_fields": [
+            item["facts"]["field"]
+            for item in metadata_diagnostics
+            if item["code"] == "ranking_metadata_missing"
+        ],
+        "diagnostics": metadata_diagnostics,
+        "parser_status": "ok",
     }
 
 
@@ -1195,9 +1230,6 @@ def _execute_ranking_runtime(
             errors.append("Ranking parser returned no finite numeric ai_score.")
         elif not math.isfinite(float(value["ai_score"])) or not 0.0 <= float(value["ai_score"]) <= 1.0:
             errors.append("Ranking parser returned ai_score outside [0.0, 1.0].")
-        missing_fields = list(value.get("missing_fields") or []) if isinstance(value, dict) else []
-        if missing_fields:
-            errors.append(f"Ranking response missing required fields: {missing_fields}.")
         is_valid = not errors
         return LlmValidationResult(
             valid=is_valid,

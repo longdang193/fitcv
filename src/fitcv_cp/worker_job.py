@@ -553,6 +553,12 @@ def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
         decision_summary = dict(block.get("decision_summary") or {})
         output_counts = dict(block.get("output_counts") or {})
         if status in {"failed", "partial"}:
+            if stage_id == "ranking" and status == "partial" and int(
+                output_counts.get("ranked_jobs") or 0
+            ) > 0:
+                # A partial ranking with usable rows is a resumable checkpoint,
+                # not a terminal failure; downstream stages own later failures.
+                continue
             failure_code = str(
                 decision_summary.get("failure_code")
                 or decision_summary.get("reason_code")

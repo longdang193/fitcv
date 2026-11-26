@@ -5395,6 +5395,7 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
+    invalid_job = _minimal_job("https://example.com/invalid")
     profile = _minimal_profile()
     structured_cv = {
         "schema_version": "cv_doc_v1",
@@ -5420,19 +5421,32 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
 
     config = _minimal_config()
     config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    config.setdefault("pipeline", {})["vector_search_top_n"] = 10
+    config["pipeline"]["ai_score_top_n"] = 10
     mock_config.return_value = config
-    mock_parse.return_value = [job]
-    mock_norm.return_value = [job]
-    mock_norm_with_exclusions.return_value = ([job], [])
-    mock_enrich.return_value = [job]
+    mock_parse.return_value = [job, invalid_job]
+    mock_norm.return_value = [job, invalid_job]
+    mock_norm_with_exclusions.return_value = ([job, invalid_job], [])
+    mock_enrich.return_value = [job, invalid_job]
     mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
-    mock_vec.return_value = _vector_search_envelope([{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}])
-    mock_ai.return_value = [job]
+    mock_filter.return_value = {"passed": [job["job_url"], invalid_job["job_url"]], "rejected": []}
+    mock_vec.return_value = _vector_search_envelope([
+        {"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1},
+        {"job_url": invalid_job["job_url"], "vector_similarity": 0.8, "vector_rank": 2},
+    ])
+    mock_ai.side_effect = lambda scoring_jobs, *_args, **_kwargs: [
+        {
+            **candidate,
+            "ai_score": 0.8 if candidate["job_url"] == job["job_url"] else None,
+            "score_status": "valid" if candidate["job_url"] == job["job_url"] else "invalid",
+            "failure_code": None if candidate["job_url"] == job["job_url"] else "provider_error",
+        }
+        for candidate in scoring_jobs
+    ]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
     with (
-        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)) as mock_analysis,
         patch(
             "fitcv.pipeline.run_agentic_cv_generation",
             return_value=_agentic_generation_result(
@@ -5449,6 +5463,11 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
+    ranking_block = result["stage_transition_artifacts"]["stages"]["ranking"]
+    assert ranking_block["status"] == "partial"
+    assert ranking_block["decision_summary"]["valid_count"] == 1
+    assert ranking_block["decision_summary"]["invalid_count"] == 1
+    assert [call.args[0]["job_url"] for call in mock_analysis.call_args_list] == [job["job_url"]]
     record = debug_records[0]
     assert record["status"] == "validation_failed"
     assert record["structured_cv_initial"] == structured_cv

@@ -52,10 +52,20 @@ def test_generation_failure_is_a_terminal_technical_failure():
     assert failure == {"failure_code": "generation_failed", "stage": "cv_generation"}
 
 
-def test_partial_ranking_is_a_terminal_technical_failure():
+def test_partial_ranking_with_usable_rows_is_not_a_terminal_technical_failure():
     failure = _stage_technical_failure(_summary(ranking_status="partial"))
 
-    assert failure == {"failure_code": "ranking_partial", "stage": "ranking"}
+    assert failure is None
+
+
+def test_partial_ranking_without_usable_rows_is_a_terminal_technical_failure():
+    summary = _summary(ranking_status="partial")
+    summary["stage_transition_artifacts"]["stages"]["ranking"]["output_counts"]["ranked_jobs"] = 0
+
+    assert _stage_technical_failure(summary) == {
+        "failure_code": "ranking_partial",
+        "stage": "ranking",
+    }
 
 
 def test_complete_generation_with_review_required_is_not_a_technical_failure():
@@ -95,15 +105,15 @@ def test_worker_persists_failure_for_partial_ranking_and_generation_failure():
         if len(call.args) >= 2 and call.args[1] == RunStatus.FAILED
     ]
     assert failed_calls
-    assert failed_calls[-1].kwargs["error_stage"] == "ranking"
-    assert failed_calls[-1].kwargs["error_message"] == "ranking_partial"
+    assert failed_calls[-1].kwargs["error_stage"] == "cv_generation"
+    assert failed_calls[-1].kwargs["error_message"] == "generation_failed"
     checkpoint = update_checkpoint.call_args.kwargs
     assert checkpoint["checkpoint_status"] == "failed"
     assert checkpoint["next_stage"] == "cv_analysis"
     assert checkpoint["last_completed_stage"] == "ranking"
     update_progress.assert_not_called()
 
-def test_manual_checkpoint_terminalizes_partial_ranking_before_next_stage():
+def test_manual_checkpoint_continues_after_partial_ranking_with_usable_rows():
     client = MagicMock()
     client.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -140,15 +150,13 @@ def test_manual_checkpoint_terminalizes_partial_ranking_before_next_stage():
             config_path=".env.yaml",
         )
 
-    failed_calls = [
+    awaiting_calls = [
         call for call in update_status.call_args_list
-        if len(call.args) >= 2 and call.args[1] == RunStatus.FAILED
+        if len(call.args) >= 2 and call.args[1] == RunStatus.AWAITING_CONTINUE
     ]
-    assert failed_calls
-    assert failed_calls[-1].kwargs["error_stage"] == "ranking"
-    assert failed_calls[-1].kwargs["error_message"] == "ranking_partial"
+    assert awaiting_calls
     checkpoint = update_checkpoint.call_args.kwargs
-    assert checkpoint["checkpoint_status"] == "failed"
+    assert checkpoint["checkpoint_status"] == "awaiting_continue"
     assert checkpoint["next_stage"] == "cv_analysis"
     assert checkpoint["last_completed_stage"] == "ranking"
 

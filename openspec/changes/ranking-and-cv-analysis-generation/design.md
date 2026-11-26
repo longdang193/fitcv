@@ -4,7 +4,7 @@
 
 Stage 7 receives an immutable ranking-to-CV handoff, the canonical candidate profile, attributable evidence, and the target job requirements. The existing pipeline already owns stage checkpoints, evidence projections, CV analysis/generation, Markdown serialization, PDF conversion, render proof, and persisted lifecycle outcomes.
 
-The current CV composition contract is too coarse: selected job evidence can act as a global content allowlist, certifications can be suppressed when their selected-evidence list is empty, Skills can be restricted to selected evidence, Experience can become empty when no experience evidence is selected, and the serializer can turn missing content into `Not provided.`. The design below makes composition section-specific while preserving the existing ranking, shortlist, persistence, and PDF boundaries.
+The current CV composition contract is too coarse: selected job evidence can act as a global content allowlist, certifications can be suppressed when their selected-evidence list is empty, Skills can be restricted to selected evidence, Experience can become empty when no experience evidence is selected, and the serializer can turn missing content into `Not provided.`. The review also confirmed two ranking boundary defects: a mixed valid/invalid ranking is marked `partial` and then treated as terminal by the worker even when ranked rows exist, and a finite score can be discarded solely because explanatory metadata is absent or malformed. The design below makes composition section-specific and lets usable ranking output continue without weakening score validity or CV handoff gates.
 
 ## Goals / Non-Goals
 
@@ -16,10 +16,12 @@ The current CV composition contract is too coarse: selected job evidence can act
 - Remove visible placeholders and visible evidence/provenance identifiers.
 - Preserve the maintained `mycvs_v1` Markdown grammar, empty YAML front matter, Pandoc definition-list rows, deterministic audit metadata, checksum scope, bundled renderer, and one-page/page-fit acceptance.
 - Keep bounded adjustment, review-required persistence, PDF status, and submission-clearance behavior independent and compatible.
+- Keep `ranking_partial` as truthful stage telemetry while allowing valid ranked rows to continue downstream; all-invalid ranking output remains terminal.
+- Keep finite AI compatibility scores authoritative when explanatory fields are incomplete, with typed diagnostics for the non-authoritative metadata.
 
 **Non-Goals:**
 
-- Changing ranking order, AI-score calculation, score validity, Pareto-front admission/promotion, shortlist generation, or ranking-to-CV handoff semantics.
+- Changing ranking order, authoritative score domain, score-state values, Pareto-front admission/promotion, shortlist generation, or fail-closed ranking-to-CV handoff semantics.
 - Rewriting profile ingestion, evidence projection, or downstream fit truth.
 - Deleting or backfilling historic personalized ranking or legacy CV artifacts.
 - Introducing a new model provider, database, service, or workflow engine.
@@ -27,7 +29,8 @@ The current CV composition contract is too coarse: selected job evidence can act
 
 ## Implementation Boundaries
 
-- Ranking remains owned by `src/fitcv/ranking.py` and `src/fitcv/ranking_contract.py`. The shortlist capability remains the owner of Pareto admission and promotion.
+- Ranking remains owned by `src/fitcv/ranking.py` and `src/fitcv/ranking_contract.py`; score parsing/diagnostics remain in `src/fitcv/ai_score.py`. The shortlist capability remains the owner of Pareto admission and promotion.
+- The worker boundary in `src/fitcv_cp/worker_job.py` decides whether a partial ranking is terminal: it may continue only when the ranking artifact contains usable ranked rows, and it must not let a recoverable ranking partial mask a later technical failure.
 - The immutable ranking-to-CV handoff remains produced and persisted by the existing ranking-stage artifact boundary. CV stages consume it; they do not reconstruct mutable ranking context or re-rank jobs.
 - CV analysis and generation remain owned by `src/fitcv/agentic_cv_analysis.py`, `src/fitcv/agentic_cv_generation.py`, and the worker boundary.
 - The intermediate CV model, serializer, Markdown validator, and renderer adapter remain owned by `src/fitcv/cv_generator.py` and the existing render-proof/artifact-contract modules.
@@ -158,10 +161,12 @@ Historic ranking and CV artifacts remain readable with their original metadata a
 4. **No visible placeholders or provenance.** Missing optional data is omitted; factual or structural deficiencies fail validation or enter review with a specific diagnostic.
 5. **Renderer grammar remains stable.** Empty YAML front matter and Pandoc definition-list syntax are part of the `mycvs_v1` contract. The existing `Certificates` heading is retained for wire compatibility.
 6. **Page fit does not justify silent data loss.** If the explicit section policy cannot fit the one-page contract, the result fails or enters the configured review path rather than deleting facts merely because they were not selected as evidence.
-7. **Ranking ownership is unchanged.** Ranking, AI scoring, Pareto-front admission, shortlist promotion, and the ranking-to-CV handoff remain outside this refinement.
-8. **Plan before prompt.** The composition plan is built before any LLM prompt so generation cannot redefine eligibility. A prompt-only fix was rejected because it would leave serializer, repair, and adjustment paths inconsistent.
-9. **Validator before renderer.** Placeholder/provenance and canonical-retention checks run before PDF conversion. A renderer-only check was rejected because invalid Markdown could still be persisted or rendered by alternate paths.
-10. **Reuse existing policy/config seams.** Section policy is added to the existing `section_policy.py`, preset, and CV configuration seams rather than introducing a parallel policy registry. This preserves one source of truth and keeps rollback to the existing renderer strategy possible.
+7. **Partial ranking is useful degradation, not success.** Mixed valid/invalid results remain `partial`; valid ranked rows may continue, invalid rows and diagnostics remain persisted, and an all-invalid/no-usable result fails closed.
+8. **Authoritative score is separate from explanatory metadata.** A finite in-range AI score remains rankable when optional explanation fields are missing or malformed. The parser records typed metadata diagnostics and never fabricates or normalizes scores.
+9. **Downstream failures retain ownership.** Once a usable ranking partial is allowed through, later CV, Markdown, or PDF failures remain the terminal failure and are not masked by `ranking_partial`.
+10. **Plan before prompt.** The composition plan is built before any LLM prompt so generation cannot redefine eligibility. A prompt-only fix was rejected because it would leave serializer, repair, and adjustment paths inconsistent.
+11. **Validator before renderer.** Placeholder/provenance and canonical-retention checks run before PDF conversion. A renderer-only check was rejected because invalid Markdown could still be persisted or rendered by alternate paths.
+12. **Reuse existing policy/config seams.** Section policy is added to the existing `section_policy.py`, preset, and CV configuration seams rather than introducing a parallel policy registry. This preserves one source of truth and keeps rollback to the existing renderer strategy possible.
 
 ## Risks / Trade-offs
 
@@ -170,7 +175,9 @@ Historic ranking and CV artifacts remain readable with their original metadata a
 - **[Page pressure]** Preserving canonical facts can increase one-page failures → reduce only optional detail through explicit budgets, then fail or enter review with diagnostics; never drop records silently.
 - **[Wire compatibility]** Existing consumers may expect legacy headings → retain `## Certificates` and test historic artifact reads before enabling the new path.
 - **[Converter drift]** A successful Markdown build is not sufficient evidence of a valid one-page PDF → require the existing render-proof identity, checksum, and page-fit gate.
+- **[Ranking coverage]** Continuing a mixed ranking can make the retained rows look like the global top jobs → retain partial status, invalid-row diagnostics, and coverage counts; do not present the result as complete.
+- **[Deferred robustness]** The review also identified bounded provider-format retry and aggregation cardinality checks as follow-ups. They are not part of this minimal contract change until their ownership and compatibility impact are separately confirmed.
 
 ## Open Questions
 
-None for this planning revision. The semantic Certifications section uses the existing `Certificates` wire heading for compatibility.
+The semantic Certifications section uses the existing `Certificates` wire heading for compatibility. The deferred retry and aggregation-cardinality concerns remain review inputs rather than accepted behavior in this change.

@@ -46,6 +46,26 @@ The system SHALL use the finite AI compatibility score in the existing normalize
 - **WHEN** evaluation fails for a retryable provider, transport, or budget reason
 - **THEN** the system SHALL persist `score_status=unscored` with the existing `failure_code`, `disposition=retryable_failure`, and `retry_eligible=true` fields, plus diagnostics, and SHALL distinguish it from a valid low score and from confirmed incompatibility. The system SHALL NOT introduce a fourth `score_status` value for retryability.
 
+#### Scenario: Explanatory metadata is non-blocking
+- **WHEN** a provider returns a finite in-range `ai_score` but `score_reasoning`, `matched_strengths`, or `key_risks` is missing or has the wrong type
+- **THEN** the system SHALL retain the finite score as the authoritative rankable value, persist a typed diagnostic for each malformed or missing explanatory field, and SHALL NOT replace the score with `null`, `invalid`, or a fabricated fallback solely because the explanatory metadata is incomplete.
+
+### Requirement: Usable partial ranking may continue downstream
+
+The ranking stage SHALL preserve explicit invalid/unscored outcomes and `partial` stage status when valid and invalid outcomes coexist, while allowing downstream CV analysis and generation to consume only the valid ranked rows. The worker SHALL treat a partial ranking as terminal only when no usable ranked output remains.
+
+#### Scenario: Mixed ranking outcomes continue with diagnostics
+- **WHEN** at least one selected job has a valid finite score and another selected job is invalid or unscored
+- **THEN** the ranking artifact SHALL remain `partial`, SHALL retain every per-job outcome and coverage diagnostic, and SHALL provide a continuation checkpoint containing only valid ranked rows for downstream stages.
+
+#### Scenario: All ranking outcomes are unusable
+- **WHEN** no selected job has a valid rankable score, or the ranking stage has no legitimately selected jobs to process
+- **THEN** the stage SHALL remain terminal according to the existing zero-work or failure semantics, SHALL preserve diagnostics, and SHALL NOT continue to CV analysis as if a usable ranking existed.
+
+#### Scenario: Recoverable ranking partial does not mask a later failure
+- **WHEN** a usable partial ranking continues and a later CV analysis, Markdown, or PDF operation fails technically
+- **THEN** the later failure SHALL own terminal classification and checkpoint state; the earlier `ranking_partial` diagnostic SHALL remain available as context but SHALL NOT be reported as the root terminal failure.
+
 ### Requirement: Ranking remains deterministic and inspectable
 
 The system SHALL produce a deterministic order from the same job snapshot, candidate profile revision, policy/contract versions, and evaluation outputs, and SHALL retain enough data to explain each ordering decision.

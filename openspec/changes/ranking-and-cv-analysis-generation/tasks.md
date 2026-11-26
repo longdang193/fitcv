@@ -1,6 +1,6 @@
 # Tasks
 
-Tasks 1.x and 2.x are completed historical ranking/handoff prerequisites retained for traceability. This refinement adds no new ranking, Pareto-front, shortlist, or AI-scoring implementation work; remaining tasks are limited to CV composition, rendering, compatibility, and acceptance.
+Tasks 1.x and 2.x are completed historical ranking/handoff prerequisites retained for traceability. This revision adds a narrow ranking-boundary correction for usable partial output and non-authoritative score metadata; Pareto-front and shortlist ownership remain unchanged. The remaining CV tasks are retained below for traceability.
 
 ## 1. Version the ranking contract and persistence
 
@@ -15,6 +15,9 @@ Tasks 1.x and 2.x are completed historical ranking/handoff prerequisites retaine
 - [x] 2.2 Keep Pareto admission and `pipeline.shortlist_strategy` ownership in the shortlist capability; verify ranking consumes admitted rows without promoting, overriding, or duplicating shortlist decisions in `tests/test_shortlist_evaluation.py`, `tests/test_shortlist_selection.py`, and `tests/test_pipeline.py`.
 - [x] 2.3 Wire CV analysis to consume the persisted handoff rather than reconstructing mutable ranking context; verify evidence IDs, job qualifiers, baseline rank/score, and handoff fingerprint survive the worker boundary in `tests/test_agentic_cv_analysis.py` and `tests/test_fitcv_cp/test_worker_job.py`.
 - [x] 2.4 Document the ranking-to-CV handoff fields, ownership, and failure semantics in `docs/pipeline.md` and `docs/observability.md`; verify every documented field and artifact path matches the serialized stage block.
+- [x] 2.5 Update `src/fitcv_cp/worker_job.py` so mixed valid/invalid ranking output remains `partial` but continues when usable ranked rows exist, while all-invalid/no-usable ranking remains terminal; verify manual-staged continuation, latest-checkpoint persistence, zero-work behavior, and downstream failure ownership in `tests/test_fitcv_cp/test_worker_terminal_failure.py` and the focused worker tests.
+- [x] 2.6 Update `src/fitcv/ai_score.py` so finite in-range scores remain rankable when explanatory metadata is missing or malformed, with typed diagnostics and no score fabrication; verify valid-score preservation, malformed metadata normalization, and existing invalid-score behavior in `tests/test_ai_score.py`.
+- [x] 2.7 Add a mixed-provider integration regression proving valid ranked jobs reach CV analysis/generation while invalid rows remain explicit, and proving a later CV/PDF failure is not masked by `ranking_partial`; verify with the existing pipeline/worker artifact-contract suites.
 
 ## 3. Add the gated deterministic CV renderer
 

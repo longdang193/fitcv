@@ -272,6 +272,43 @@ def test_parse_score_response_does_not_derive_fit_label() -> None:
     result = parse_score_response(raw)
     assert result["legacy_model_fit_label"] is None
 
+def test_parse_score_response_keeps_score_when_explanatory_metadata_is_missing() -> None:
+    result = parse_score_response(json.dumps({"ai_score": 0.8}))
+
+    assert result["ai_score"] == 0.8
+    assert result["score_status"] == "valid"
+    assert result["score_reasoning"] == ""
+    assert result["matched_strengths"] == []
+    assert result["key_risks"] == []
+    assert result["missing_fields"] == ["score_reasoning", "matched_strengths", "key_risks"]
+    assert [item["code"] for item in result["diagnostics"]] == [
+        "ranking_metadata_missing",
+        "ranking_metadata_missing",
+        "ranking_metadata_missing",
+    ]
+    assert all(item["blocking"] is False for item in result["diagnostics"])
+
+
+def test_parse_score_response_normalizes_malformed_explanatory_metadata_without_changing_score() -> None:
+    result = parse_score_response(json.dumps({
+        "ai_score": 0.7,
+        "score_reasoning": {"text": "good match"},
+        "matched_strengths": "SQL",
+        "key_risks": None,
+    }))
+
+    assert result["ai_score"] == 0.7
+    assert result["score_status"] == "valid"
+    assert result["score_reasoning"] == ""
+    assert result["matched_strengths"] == []
+    assert result["key_risks"] == []
+    assert [item["facts"]["field"] for item in result["diagnostics"]] == [
+        "score_reasoning",
+        "matched_strengths",
+        "key_risks",
+    ]
+    assert all(item["code"] == "ranking_metadata_invalid_type" for item in result["diagnostics"])
+
 
 @pytest.mark.parametrize(
     ("payload", "failure_code"),
