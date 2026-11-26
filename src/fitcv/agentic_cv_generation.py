@@ -2628,6 +2628,11 @@ def _apply_final_artifact_contract(
         ),
         cv_revision=str(finalized.get("cv_generation_input_fingerprint") or ""),
         pdf_revision=str(finalized.get("artifact_checksum") or ""),
+        validation=finalized.get("validation"),
+        structured_cv_final=finalized.get("structured_cv_final"),
+        markdown_final=finalized.get("markdown_final"),
+        quarantined_structured_cv=finalized.get("quarantined_structured_cv"),
+        quarantined_markdown=finalized.get("quarantined_markdown"),
     )
     return finalized
 
@@ -2854,6 +2859,11 @@ def _build_result(
             persistence_status=("pending" if status in {ACCEPTED_STATUS, REVIEW_REQUIRED_STATUS} else "failed"),
             cv_revision=str(analysis_record.get("cv_generation_input_fingerprint") or ""),
             pdf_revision=str((render_acceptance or {}).get("artifact_checksum") or "") if isinstance(render_acceptance, dict) else "",
+            validation=validation,
+            structured_cv_final=structured_cv_final,
+            markdown_final=markdown_final,
+            quarantined_structured_cv=quarantined_structured_cv,
+            quarantined_markdown=quarantined_markdown,
         ),
         "trim_count": int(trim_count),
         "trimmed_claim_ids": list(trimmed_claim_ids or []),

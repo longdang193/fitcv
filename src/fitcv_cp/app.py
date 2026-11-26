@@ -10545,7 +10545,7 @@ def create_app(
         company_name: str = Form(""),
         careers_url: str = Form(""),
         keywords: str = Form(""),
-        max_jobs: int | None = Form(None),
+        max_jobs: int | None = Form(50),
         timeout_seconds: int = Form(60),
         config_path: str = Form(".env.yaml"),
         run_mode: str = Form("run_all"),

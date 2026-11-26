@@ -514,6 +514,7 @@ def test_validation_uses_production_requirement_coverage_contract() -> None:
             "validation": {
                 "config": {"required_cv_sections": ["Skills"]},
                 "cv_text": "## Skills\nSQL\n",
+                "structured_cv": {"sections": {"skills": {"groups": [{"items": ["SQL"]}]}}},
             }
         },
         {"skills": [{"name": "SQL"}], "experiences": [], "projects": []},

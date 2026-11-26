@@ -27,6 +27,15 @@ def _diagnostic(code: str, *, blocking: bool | None = None) -> dict[str, object]
     return diagnostic
 
 
+def test_technical_failure_flag_blocks_strict_submission_clearance():
+    row = _accepted_row(technical_failure=True)
+
+    clearance = derive_submission_clearance(row)
+
+    assert clearance["submission_permitted"] is False
+    assert "technical_failure" in clearance["submission_blockers"]
+
+
 @pytest.mark.parametrize(
     ("case", "row", "expected_clearance", "expected_blocker", "expected_draft"),
     [

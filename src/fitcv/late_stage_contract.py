@@ -174,6 +174,10 @@ def derive_submission_clearance(row: dict[str, Any]) -> dict[str, Any]:
         (LifecycleDimension.PERSISTENCE.value, dimensions[LifecycleDimension.PERSISTENCE.value] != CV_PERSISTENCE_PERSISTED_STATUS),
     )
     blockers.extend(name for name, blocked in required if blocked)
+    # Preserve the legacy technical-failure veto even when a status was projected
+    # as accepted by an upstream compatibility record.
+    if bool(row.get("technical_failure")):
+        blockers.append("technical_failure")
     mandatory_review = bool(row.get("mandatory_review") or row.get("review_required"))
     review = dimensions[LifecycleDimension.REVIEW.value]
     if mandatory_review and review != CV_REVIEW_APPROVED_STATUS:
@@ -312,6 +316,12 @@ def build_late_stage_state(
     persistence_status: str | None = None,
     cv_revision: str | None = None,
     pdf_revision: str | None = None,
+    validation: dict[str, Any] | None = None,
+    structured_cv_final: dict[str, Any] | None = None,
+    markdown_final: str | None = None,
+    quarantined_structured_cv: dict[str, Any] | None = None,
+    quarantined_markdown: str | None = None,
+    technical_failure: bool = False,
 ) -> dict[str, Any]:
     state = {
         "generation_status": str(generation_status or ""),
@@ -320,6 +330,12 @@ def build_late_stage_state(
         "persistence_status": str(persistence_status or (CV_PERSISTENCE_PENDING_STATUS if generation_status in {CV_GENERATION_ACCEPTED_STATUS, CV_GENERATION_REVIEW_REQUIRED_STATUS} else CV_PERSISTENCE_FAILED_STATUS)),
         "cv_revision": str(cv_revision or ""),
         "pdf_revision": str(pdf_revision or ""),
+        "validation": dict(validation) if isinstance(validation, dict) else None,
+        "structured_cv_final": structured_cv_final,
+        "markdown_final": markdown_final,
+        "quarantined_structured_cv": quarantined_structured_cv,
+        "quarantined_markdown": quarantined_markdown,
+        "technical_failure": bool(technical_failure),
     }
     state.update(derive_lifecycle_dimensions(state))
     state.update(derive_submission_permission(state))

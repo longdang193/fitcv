@@ -207,21 +207,24 @@
       "cv_text": "# Candidate\n## Skills\nKubernetes\n",
       "expected_valid": false,
       "config": {"required_cv_sections": ["Skills"]},
-      "expected_violation_class": "missing_verified_support"
+      "expected_violation_class": "missing_verified_support",
+      "structured_cv": {"sections": {"skills": {"groups": [{"items": ["Kubernetes"]}]}}}
     },
     {
       "case_id": "responsibility_only",
       "cv_text": "# Candidate\n## Skills\nStakeholder coordination\n",
       "config": {"required_cv_sections": ["Skills"]},
       "expected_valid": false,
-      "expected_violation_class": "unrelated_validation"
+      "expected_violation_class": "unrelated_validation",
+      "structured_cv": {"sections": {"skills": {"groups": [{"items": ["Stakeholder coordination"]}]}}}
     },
     {
       "case_id": "responsibility_required_skill",
       "cv_text": "# Candidate\n## Skills\nStakeholder coordination\n",
       "config": {"required_cv_sections": ["Skills"]},
       "expected_valid": false,
-      "expected_violation_class": "missing_verified_support"
+      "expected_violation_class": "missing_verified_support",
+      "structured_cv": {"sections": {"skills": {"groups": [{"items": ["Stakeholder coordination"]}]}}}
     }
   ],
   "validation": {
@@ -229,6 +232,13 @@
     "config": {
       "required_cv_sections": ["Summary", "Skills", "Experience"],
       "cv_max_pages": 2
+    },
+    "structured_cv": {
+      "sections": {
+        "summary": {"text": "Analytics Engineer"},
+        "skills": {"groups": [{"items": ["SQL"]}]},
+        "experience": [{"role": "Analytics Engineer", "company": "Acme"}]
+      }
     }
   }
 }

@@ -590,7 +590,12 @@ def _extract_skill_section_tokens(
             if not MYCVS_V1_AUDIT_LINE_RE.fullmatch(line.strip())
             and not MYCVS_V1_METADATA_LINE_RE.fullmatch(line.strip())
         ]
-    raw_tokens = re.split(r"[,\n]+", "\n".join(section_lines))
+    normalized_lines = []
+    for line in section_lines:
+        # The canonical grouped renderer prefixes each row with a Markdown label.
+        grouped = re.match(r"^\s*\*\*[^*]+:\*\*\s*(.*)$", line)
+        normalized_lines.append(grouped.group(1) if grouped else line)
+    raw_tokens = re.split(r"[,\n]+", "\n".join(normalized_lines))
     return [token.strip() for token in raw_tokens if token.strip()]
 
 
@@ -1643,10 +1648,12 @@ def run_all_validations(
         warnings.append(
             "Skill provenance unavailable: legacy Markdown-only artifact is readable but cannot authorize factual skill validation."
         )
+        grounding_violations.append("skill_provenance_unavailable: structured skill provenance is required for fresh factual validation")
     elif skill_provenance_status == "missing":
         warnings.append(
             "Structured skill claims missing: rendered Markdown is not treated as factual skill authority."
         )
+        grounding_violations.append("skill_provenance_missing: structured skill provenance is required for fresh factual validation")
     if missing_skills_relaxed:
         warnings.append(
             "Relaxed missing Skills section: selected evidence contains no grounded skill entries."
