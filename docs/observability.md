@@ -85,6 +85,14 @@ Write-Host "FITCV_OTEL_EXPORTER_OTLP_ENDPOINT=$env:FITCV_OTEL_EXPORTER_OTLP_ENDP
 Write-Host "FITCV_OTEL_SERVICE_NAME=$env:FITCV_OTEL_SERVICE_NAME"
 ```
 
+## Typed CV diagnostics
+
+Inspect CV generation records through their structured diagnostics and lifecycle fields before reading operator messages. The diagnostic registry is authoritative for classification; messages explain the event but are not parsed to recover a reason. Check `diagnostics`, `primary_diagnostic`, and the independent content, technical, review, PDF, persistence, and draft-disposition fields.
+
+A quarantined validation draft may be inspected or used as retry context when persistence succeeded, but it is never an accepted artifact and must not appear in accepted downloads, submission exports, review approval, or reuse cache results. If quarantine persistence fails, preserve the original validation diagnostic and record the typed persistence failure separately.
+
+Strict OpenSpec validation checks artifact consistency only. Backend evidence still requires focused tests, migration round-trips, lifecycle/failure-path checks, and targeted PDF acceptance; browser output is not backend proof.
+
 ## Core Observation Surfaces
 
 ### Runs list

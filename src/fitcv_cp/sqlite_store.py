@@ -1053,6 +1053,31 @@ def _ensure_control_plane_schema(
     CREATE UNIQUE INDEX IF NOT EXISTS ux_cv_versions_idempotency
         ON cv_versions(run_job_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 
+    CREATE TABLE IF NOT EXISTS cv_validation_quarantine (
+        quarantine_id TEXT PRIMARY KEY,
+        run_id TEXT,
+        job_url TEXT,
+        attempt_id TEXT,
+        version_id TEXT,
+        parent_version_id TEXT,
+        availability TEXT NOT NULL CHECK (availability IN ('complete', 'partial', 'unavailable')),
+        structured_cv_json TEXT CHECK (structured_cv_json IS NULL OR json_valid(structured_cv_json)),
+        markdown_text TEXT,
+        validation_json TEXT CHECK (validation_json IS NULL OR json_valid(validation_json)),
+        diagnostics_json TEXT NOT NULL CHECK (json_valid(diagnostics_json)),
+        fingerprints_json TEXT CHECK (fingerprints_json IS NULL OR json_valid(fingerprints_json)),
+        trace_ref TEXT,
+        checksums_json TEXT CHECK (checksums_json IS NULL OR json_valid(checksums_json)),
+        idempotency_key TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        immutable INTEGER NOT NULL DEFAULT 1 CHECK (immutable = 1),
+        CHECK (availability != 'complete' OR (structured_cv_json IS NOT NULL AND markdown_text IS NOT NULL)),
+        CHECK (availability != 'partial' OR (structured_cv_json IS NOT NULL OR markdown_text IS NOT NULL)),
+        CHECK (availability = 'unavailable' OR structured_cv_json IS NOT NULL OR markdown_text IS NOT NULL)
+    );
+    CREATE INDEX IF NOT EXISTS ix_cv_validation_quarantine_run ON cv_validation_quarantine(run_id, created_at);
+    CREATE INDEX IF NOT EXISTS ix_cv_validation_quarantine_job ON cv_validation_quarantine(job_url, created_at);
+
     CREATE TABLE IF NOT EXISTS cv_evaluations (
         cv_evaluation_id TEXT PRIMARY KEY,
         cv_version_id TEXT NOT NULL REFERENCES cv_versions(version_id) ON DELETE CASCADE,
@@ -1394,6 +1419,7 @@ def _ensure_control_plane_schema(
                     "UPDATE cv_versions SET quality_warnings_json=warning_envelope_json "
                     "WHERE quality_warnings_json IS NULL"
                 )
+        _ensure_cv_validation_quarantine_table(conn)
         _ensure_cv_lifecycle_columns(conn)
         _ensure_run_inputs_snapshot_columns(conn)
         _ensure_scan_execution_columns(conn)
@@ -8916,6 +8942,32 @@ def list_decision_rating_events_for_run(run_id: str) -> list[DecisionRatingEvent
         )
         for row in rows
     ]
+def _ensure_cv_validation_quarantine_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cv_validation_quarantine (
+            quarantine_id TEXT PRIMARY KEY,
+            run_id TEXT, job_url TEXT, attempt_id TEXT, version_id TEXT, parent_version_id TEXT,
+            availability TEXT NOT NULL CHECK (availability IN ('complete', 'partial', 'unavailable')),
+            structured_cv_json TEXT CHECK (structured_cv_json IS NULL OR json_valid(structured_cv_json)),
+            markdown_text TEXT,
+            validation_json TEXT CHECK (validation_json IS NULL OR json_valid(validation_json)),
+            diagnostics_json TEXT NOT NULL CHECK (json_valid(diagnostics_json)),
+            fingerprints_json TEXT CHECK (fingerprints_json IS NULL OR json_valid(fingerprints_json)),
+            trace_ref TEXT,
+            checksums_json TEXT CHECK (checksums_json IS NULL OR json_valid(checksums_json)),
+            idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
+            immutable INTEGER NOT NULL DEFAULT 1 CHECK (immutable = 1),
+            CHECK (availability != 'complete' OR (structured_cv_json IS NOT NULL AND markdown_text IS NOT NULL)),
+            CHECK (availability != 'partial' OR (structured_cv_json IS NOT NULL OR markdown_text IS NOT NULL)),
+            CHECK (availability = 'unavailable' OR structured_cv_json IS NOT NULL OR markdown_text IS NOT NULL)
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_cv_validation_quarantine_run ON cv_validation_quarantine(run_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_cv_validation_quarantine_job ON cv_validation_quarantine(job_url, created_at)")
+
+
 def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -8969,6 +9021,7 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE cv_versions ADD COLUMN submission_clearance TEXT NOT NULL DEFAULT 'blocked'"
         )
+    _ensure_cv_validation_quarantine_table(conn)
 
 def _ensure_local_rule_filter_results_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -14889,6 +14942,95 @@ def _batch_cv_projections(
         )
         for row in rows
     ]
+
+
+def _quarantine_json(value: Any) -> str:
+    return json.dumps(value if value is not None else {}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def insert_cv_validation_quarantine(row: dict[str, Any], *_args: Any, **_kwargs: Any) -> dict[str, Any]:
+    if not isinstance(row, dict):
+        raise TypeError("quarantine row must be a mapping")
+    quarantine_id = str(row.get("quarantine_id") or row.get("id") or uuid.uuid4().hex).strip()
+    structured = row.get("structured_cv", row.get("structured_cv_final"))
+    markdown = row.get("markdown", row.get("markdown_final"))
+    availability = str(row.get("availability") or ("complete" if structured is not None and markdown is not None else "partial" if structured is not None or markdown is not None else "unavailable")).strip().lower()
+    if availability not in {"complete", "partial", "unavailable"}:
+        raise ValueError("invalid quarantine availability")
+    if availability == "complete" and (structured is None or markdown is None):
+        raise ValueError("complete quarantine requires both draft representations")
+    if availability == "partial" and structured is None and markdown is None:
+        raise ValueError("partial quarantine requires an available draft")
+    idempotency_key = str(row.get("idempotency_key") or f"{row.get('run_id','')}:{row.get('attempt_id','')}:{quarantine_id}").strip()
+    created_at = str(row.get("created_at") or datetime.datetime.now(datetime.timezone.utc).isoformat())
+    payload = {
+        "quarantine_id": quarantine_id, "run_id": row.get("run_id"), "job_url": row.get("job_url"),
+        "attempt_id": row.get("attempt_id"), "version_id": row.get("version_id"), "parent_version_id": row.get("parent_version_id"),
+        "availability": availability, "structured_cv": structured, "markdown": markdown,
+        "validation": row.get("validation", row.get("validation_snapshot")),
+        "diagnostics": row.get("diagnostics") or ([row.get("diagnostic")] if row.get("diagnostic") else []),
+        "fingerprints": row.get("fingerprints") or {}, "trace_ref": row.get("trace_ref"),
+        "checksums": row.get("checksums") or {}, "idempotency_key": idempotency_key, "created_at": created_at,
+    }
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        _ensure_control_plane_schema(conn)
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO cv_validation_quarantine (
+                quarantine_id, run_id, job_url, attempt_id, version_id, parent_version_id,
+                availability, structured_cv_json, markdown_text, validation_json,
+                diagnostics_json, fingerprints_json, trace_ref, checksums_json,
+                idempotency_key, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                quarantine_id, row.get("run_id"), row.get("job_url"), row.get("attempt_id"),
+                row.get("version_id"), row.get("parent_version_id"), availability,
+                json.dumps(structured, ensure_ascii=False, sort_keys=True) if structured is not None else None,
+                markdown, _quarantine_json(payload["validation"]), _quarantine_json(payload["diagnostics"]),
+                _quarantine_json(payload["fingerprints"]), row.get("trace_ref"),
+                _quarantine_json(payload["checksums"]), idempotency_key, created_at,
+            ),
+        )
+        conn.commit()
+        stored = conn.execute(
+            "SELECT * FROM cv_validation_quarantine WHERE idempotency_key = ?",
+            (idempotency_key,),
+        ).fetchone()
+    return _decode_cv_validation_quarantine_row(stored)
+
+
+def _decode_cv_validation_quarantine_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    get = row.get if isinstance(row, dict) else row.__getitem__
+    return {"quarantine_id": get("quarantine_id"), "run_id": get("run_id"), "job_url": get("job_url"), "attempt_id": get("attempt_id"), "version_id": get("version_id"), "parent_version_id": get("parent_version_id"), "availability": get("availability"), "structured_cv": json.loads(get("structured_cv_json")) if get("structured_cv_json") else None, "markdown": get("markdown_text"), "validation": _decode_json_or_none(get("validation_json")), "diagnostics": _decode_json_or_none(get("diagnostics_json")) or [], "fingerprints": _decode_json_or_none(get("fingerprints_json")) or {}, "trace_ref": get("trace_ref"), "checksums": _decode_json_or_none(get("checksums_json")) or {}, "idempotency_key": get("idempotency_key"), "created_at": get("created_at")}
+
+
+def get_cv_validation_quarantine(quarantine_id: str, *_args: Any, **_kwargs: Any) -> dict[str, Any] | None:
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        row = conn.execute("SELECT * FROM cv_validation_quarantine WHERE quarantine_id=?", (str(quarantine_id),)).fetchone()
+    return _decode_cv_validation_quarantine_row(row) if row is not None else None
+
+
+def list_cv_validation_quarantines(run_id: str | None = None, job_url: str | None = None, *_args: Any, **_kwargs: Any) -> list[dict[str, Any]]:
+    with _sqlite_connection(Path(_local_sqlite_path())) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_control_plane_schema(conn)
+        clauses, params = [], []
+        if run_id:
+            clauses.append("run_id=?"); params.append(str(run_id))
+        if job_url:
+            clauses.append("job_url=?"); params.append(str(job_url))
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = conn.execute("SELECT * FROM cv_validation_quarantine" + where + " ORDER BY created_at DESC, quarantine_id DESC", params).fetchall()
+    return [_decode_cv_validation_quarantine_row(row) for row in rows]
+
+
+insert_quarantined_cv_draft = insert_cv_validation_quarantine
+get_quarantined_cv_draft = get_cv_validation_quarantine
+list_quarantined_cv_drafts = list_cv_validation_quarantines
 
 
 def list_cv_versions(run_job_id: str, *_args: Any, **_kwargs: Any) -> list[dict[str, Any]]:

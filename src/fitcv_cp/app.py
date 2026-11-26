@@ -990,7 +990,9 @@ def _job_source_api_error(exc: JobSourceError) -> "ApiError":
     )
 
 
-def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, CanonicalJobs]:
+def _resolve_jobs_path_snapshot(
+    jobs_path: str, *, max_jobs: int | None = None
+) -> tuple[str, CanonicalJobs]:
     normalized_jobs_path = str(jobs_path or "").strip()
     if not normalized_jobs_path:
         raise ApiError(422, "validation_failed", "jobs_path is required for path mode.")
@@ -1020,13 +1022,19 @@ def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, CanonicalJobs]:
             f"Invalid jobs JSON at {normalized_jobs_path}: {exc}",
         ) from exc
     try:
-        return normalized_jobs_path, canonicalize_jobs(parsed_jobs)
+        artifact = canonicalize_jobs(parsed_jobs)
     except ValueError as exc:
         raise ApiError(
             422,
             "validation_failed",
             f"Invalid jobs JSON at {normalized_jobs_path}: {exc}",
         ) from exc
+    if max_jobs is not None:
+        if max_jobs <= 0:
+            raise ApiError(422, "validation_failed", "max_jobs must be greater than zero.")
+        if len(artifact.jobs) > max_jobs:
+            artifact = canonicalize_jobs(artifact.jobs[:max_jobs])
+    return normalized_jobs_path, artifact
 
 
 def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
@@ -10537,7 +10545,7 @@ def create_app(
         company_name: str = Form(""),
         careers_url: str = Form(""),
         keywords: str = Form(""),
-        max_jobs: int = Form(50),
+        max_jobs: int | None = Form(None),
         timeout_seconds: int = Form(60),
         config_path: str = Form(".env.yaml"),
         run_mode: str = Form("run_all"),
@@ -10548,7 +10556,10 @@ def create_app(
         manifest: dict[str, Any] = {}
 
         if source_mode == "path":
-            source_path, artifact = _resolve_jobs_path_snapshot(source_path)
+            source_path, artifact = _resolve_jobs_path_snapshot(
+                source_path, max_jobs=max_jobs
+            )
+            manifest = {"source_path": source_path}
         elif source_mode == "upload":
             effective_files = [upload for upload in jobs_files if upload and upload.filename]
             if not effective_files and jobs_file and jobs_file.filename:

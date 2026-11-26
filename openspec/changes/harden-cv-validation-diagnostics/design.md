@@ -2,87 +2,142 @@
 
 ## Context
 
-The current pipeline already has reusable policy and lifecycle primitives, but they are not one contract. `src/fitcv/section_policy.py` defines the myCVs order with Certifications before Skills, while `src/fitcv/validator.py` derives required headings by appending Skills before Certificates. `src/fitcv/cv_generator.py` serializes the structured model directly, so the mismatch is deterministic and independent of provider output.
+See `proposal.md` for the motivation and scope. The repository already has a versioned section-policy module, a CV outcome envelope in `pipeline_contracts.py`, late-stage state/submission helpers, Stage 7 fingerprints and checkpoints, separate pipeline and control-plane persistence paths, and SQLite artifact-integrity checks. The review found that these primitives are not yet one coherent contract for validation failures, projection mismatches, quarantine, and reuse.
 
-Skill validation also has two authorities: structured skill items are preferred, but the validator can extract tokens from rendered Markdown when structured items are absent. Generation currently clears final structured and Markdown fields for `validation_failed`, and persistence accepts only a narrower set of review/PDF outcomes for retained artifacts. Reason normalization and generation-format classification inspect stage and message text, including warning text, which allows non-blocking length information to affect failure classification.
-
-The existing Stage 6/7 change requires independent technical, review, PDF, persistence, and submission states and requires verified final PDF acceptance. This change preserves those contracts and adds the missing validation-draft and diagnostic behavior; it does not change the configured one-page/page-fit policy.
+The existing Stage 6/7 behavior is accepted and remains authoritative: a valid handoff admits Stage 7, hard technical failures remain blocking, verified PDF acceptance is required for completion, persistence is a submission gate, and historical statuses remain readable. The lifecycle and diagnostic additions in this change are proposed behavior until implementation and acceptance tests land.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Make the current versioned myCVs policy the single source for section ordering across all projections.
-- Preserve invalid but useful generated drafts in a visibly quarantined, non-submittable state.
-- Make structured skill claims and provenance authoritative and make rendered Markdown a projection only.
-- Introduce one typed diagnostic envelope that owns classification and stable reason propagation.
-- Keep content, review, artifact/PDF, persistence, and submission outcomes independently inspectable.
-- Retain legacy status/reason fields as deterministic compatibility projections during migration.
+- Extend the existing lifecycle and outcome contracts without creating a second authority.
+- Make section order, section display/presence semantics, skill provenance, diagnostic classification, quarantine, and reuse compatibility deterministic.
+- Preserve useful failed-attempt evidence without exposing it as accepted or review-approved output.
+- Prove the combinations that cross validator, generator, renderer, pipeline, worker, SQLite, review, and reuse boundaries.
 
 **Non-Goals:**
 
-- Do not weaken factual validation, remove structural safeguards, or accept quarantined content.
-- Do not change the existing one-page/page-fit acceptance policy or make a length warning a submission decision.
-- Do not infer the reported run's Python cause, PDF page count, or persistence outcome without run artifacts.
-- Do not redesign requirement-aware shortlisting, Stage 6 handoff admission, or the broader ranking model.
-- Do not backfill or rewrite historical records merely to add new fields.
+- Reworking the ranking model, Stage 6 handoff rules, provider selection, or the configured one-page/page-fit policy.
+- Rewriting historical records or making quarantined content eligible for submission, download, review approval, or cache reuse.
+- Replacing the existing outcome envelope or late-stage helpers with a parallel exception hierarchy.
+- Making all lifecycle writes globally atomic; only the persistence boundaries needed to preserve terminality, identity, and original failure facts are in scope.
 
 ## Decisions
 
-### 1. Reuse the existing section policy as the authority
+### 1. Extend the existing lifecycle authority
 
-Use the existing versioned myCVs section-order list and its key-to-display-name mapping for composition, serialization, required-heading derivation, and structural/PDF checks. The validator filters the same ordered list by meaningful content instead of constructing a separate order. This fixes the verified Certificates/Skills contradiction without removing order validation.
+`late_stage_contract.py` and `pipeline_contracts.py` remain the canonical lifecycle/outcome owners. The proposed semantic state dimensions are:
 
-Alternative rejected: changing the serializer to match the validator only. That would leave other consumers free to drift and would preserve duplicate policy ownership.
+| Dimension | Proposed values | Owner / rule |
+| --- | --- | --- |
+| Content validity | `valid`, `invalid`, `not_evaluated` | Validator and structured provenance checks |
+| Technical/generation | `completed`, `failed`, `not_attempted` | Generation and handoff boundary |
+| Draft disposition | `available`, `quarantined`, `unavailable` | Artifact persistence projection |
+| Review | `not_required`, `pending`, `approved`, `rejected` | Review policy and review events |
+| PDF/artifact | `not_attempted`, `verified`, `failed` | Renderer and post-conversion acceptance |
+| Persistence | `pending`, `persisted`, `failed` | Pipeline, worker, and store write result |
+| Submission | `blocked`, `eligible` | Derived only from authoritative dimensions and page-fit gates |
 
-### 2. Add a typed diagnostic envelope at the failure source
+These names describe the proposed contract, not existing enum values. Each field gets an owner, allowed transitions, and a compatibility projection. Submission is never independently granted by a diagnostic or review event. A hard validation failure cannot become review-approved, and a PDF or persistence failure cannot erase valid content.
 
-Each material outcome writes a versioned diagnostic record with at least `code`, `category`, `severity`, `blocking`, `retryable`, `source`, and structured `facts`. Known codes cover structural serialization, content/provenance, quality, renderer/PDF, provider, and persistence failures. Messages remain optional display text and are never used to select a code or state.
+Alternative rejected: keeping only content, review, artifact/PDF, and submission. That would drop existing technical and persistence authorities and make valid-content/quarantine/persistence combinations ambiguous.
 
-Downstream projections consume the code and state fields. Compatibility labels such as `post_validation_failed` and `manual_review_other` remain readable where required, but no new routing or persistence decision is made from their message text. Unknown failures use an explicit unclassified code rather than a guessed specific category.
+### 2. Make section policy complete, not merely shared
 
-Alternative rejected: a larger exception hierarchy. It would not solve persisted cross-process projections and would require every consumer to understand runtime types.
+Extend the existing versioned myCVs policy with one explicit table containing canonical keys, display headings, order, source-driven/mandatory presence, meaningful-content predicate, and header handling. The canonical order is `summary -> education -> experience -> projects -> certificates -> skills`; the user-visible heading for the `certificates` key is `Certificates`. Generic config aliases and `cv_presets.py` ordering remain legacy or other-preset inputs unless they delegate to this policy.
 
-### 3. Store validation failures as quarantined drafts
+Composition, Markdown serialization, structural validation, and PDF checks all consume the same table and presence predicate. The header is validated separately but uses the same policy version. Optional empty sections are omitted without disturbing relative order; mandatory or canonical-profile sections that are expected but absent produce a deterministic diagnostic. Duplicate, unexpected, malformed-empty, reversed, and Europass-specific headings remain covered by negative tests.
 
-When structured and rendered drafts exist after the bounded repair cycle, persist them in explicit quarantine payload fields alongside the validation snapshot, diagnostic list, input fingerprint, and trace reference. Mark the artifact state as `quarantined`, content validity as `invalid`, review as `not_approved`, and submission clearance as `blocked`. Do not populate accepted-output projections from the quarantine payload.
+Alternative rejected: changing only the serializer or only the validator. Either leaves a second order authority.
 
-When no usable draft exists, persist only the failure scope and diagnostics. Existing `validation_failed` status remains the compatibility status; quarantine is an explicit artifact state, not a replacement status. Readers must distinguish a quarantined draft from an accepted or review-approved artifact.
+### 3. Extend the existing diagnostic registry
 
-Alternative rejected: retaining invalid data in `structured_cv_final`/`markdown_final`. Those fields already imply a final artifact to downstream readers and would make accidental submission or export more likely.
+The proposed diagnostic envelope extends the existing outcome contract. The registry is the single source for code meaning, producer ownership, allowed facts, severity, blocking, retryability, terminality, and legacy projection. The initial registry must cover at least:
 
-### 4. Remove rendered Markdown as a factual skill authority
+| Category | Proposed code | Decision effect |
+| --- | --- | --- |
+| Structural | `invalid_section_order` | Block artifact acceptance |
+| Provenance | `unsupported_skill_claim` | Block content acceptance |
+| Projection | `skill_projection_mismatch` | Block artifact acceptance |
+| Quality | `estimated_length_exceeded` | Warning only |
+| Review | `unsupported_requirement_gap` | Block submission pending review |
+| Artifact | `page_fit_failed` | Block final acceptance |
+| Renderer | `pdf_render_failed` | Technical failure |
+| Provider | `provider_timeout` | Retry under policy |
+| Persistence | `quarantine_persistence_failed` | Preserve original failure and block submission |
+| Unknown | `unclassified_failure` | Fail conservatively |
 
-The normalized structured skill set, canonical skill identity, and attached provenance/evidence references are the source of truth. Renderer checks may verify that Markdown faithfully represents the structured model, but a token found only in rendered text cannot create an unsupported skill claim. A projection mismatch is classified as a serialization/provenance diagnostic.
+These are proposed stable contract names to be confirmed at implementation against existing emitted codes. Existing `classify_cv_outcome()` and reason projections consume the registry; they are not duplicated. Multiple diagnostics are deduplicated by stable identity and ordered by explicit precedence, then code/source/facts. Primary diagnostic selection is deterministic. Unknown codes are retained with source/facts and project conservatively; no message substring can select or refine a code. The worker stores the typed code rather than only a stage label.
 
-Legacy Markdown-only records remain readable but cannot authorize new factual reuse; they are marked provenance-unavailable and require recomputation or explicit review under the existing reuse rules.
+Alternative rejected: an exception hierarchy or independent worker/UI classifiers. Those do not survive persistence boundaries and would repeat the current drift.
 
-Alternative rejected: keeping the Markdown fallback with more aliases. That would reduce some false negatives but leave projection formatting as a hidden factual authority.
+### 4. Define structured skill identity and projection safety
 
-### 5. Map independent states before legacy status
+A structured skill claim must carry a canonical skill identity, display label, provenance/evidence references, and provenance version. The validator distinguishes missing structured claims, explicitly empty claims, supported canonical claims, and unsupported claims. Canonical profile skills remain authoritative; selected evidence is not silently made mandatory where current policy does not require it.
 
-Persist and expose four decision dimensions: content validity, review state, artifact/PDF state, and submission clearance. Derive legacy status and reason fields from those dimensions plus the primary diagnostic code. The mapping must preserve existing behavior for accepted, review-required, PDF-failed, generation-failed, persistence-failed, and validation-failed readers while preventing one dimension from overwriting another.
+Rendered Markdown is checked as a projection. A rendered skill label that canonicalizes to the structured claim is acceptable. An extra, omitted, or unreconcilable material rendered skill is a blocking `skill_projection_mismatch` for final artifact acceptance, while the structured content result remains separately classified. Legacy Markdown-only records remain readable but are provenance-unavailable and cannot authorize new factual reuse.
 
-A valid review-required artifact may retain Markdown/PDF; an invalid validation result may retain only a quarantine draft; a PDF failure does not turn valid content into invalid content. Final submission still requires the existing content, review, PDF, and page-fit gates.
+Alternative rejected: deleting all rendered checks. That would remove the factual-safety guard without making Markdown the authority.
 
-### 6. Migrate by dual-read/dual-write, not by historical rewrite
+### 5. Isolate quarantine from ordinary artifact persistence
 
-New attempts write typed diagnostics and state dimensions together with existing projections. Readers first use the new fields and fall back to legacy status, validation snapshots, and error payloads for historical records. Legacy records are not silently reclassified or rewritten. After focused tests demonstrate parity, new consumers stop branching on message text.
+Quarantine uses additive storage fields or a dedicated quarantine payload associated with the same job, candidate, CV attempt/version, input identity, and validation payload revision. It stores any available structured draft and/or rendered draft, an availability map, validation snapshot, diagnostic list, input and policy fingerprints, trace reference, payload checksum, and idempotency key. Accepted fields such as `structured_cv_final` and `markdown_final` are never populated from quarantine.
+
+Draft semantics are explicit:
+
+- Complete: structured and rendered payloads are both available and bound to the final validation snapshot.
+- Partial: one payload or one inspectable representation is available; missing payloads are not fabricated and the availability map is persisted.
+- Unavailable: no usable payload exists; persist failure scope and diagnostics only.
+
+The current attempt is terminal when validation fails, but the record may be retry-eligible. A retry creates a new attempt/version with a parent link and recomputes the active validation/provenance boundary; it never mutates the historical quarantine. Quarantine is operator-preview-only: it is excluded from accepted lists, ordinary downloads, review approval, submission exports, and reuse cache hits. A failed quarantine write preserves the original validation failure and adds a typed persistence failure; it does not replace the original diagnostic with a generic generation failure.
+
+Both the normal pipeline and the control-plane worker must implement the same read/write semantics. SQLite migrations are additive, preserve historical rows, enforce checksums and identity, and are idempotent for repeated writes.
+
+Alternative rejected: broadening ordinary final-artifact persistence to accept `validation_failed`. That risks exposing invalid content through existing readers.
+
+### 6. Reconcile finalization transitions
+
+Add a transition matrix for fresh generation, bounded repair, exact-match reuse, optional review, mandatory review, page-fit failure, conversion exception, corrupt/mismatched PDF, accepted-artifact persistence failure, quarantine persistence failure, and retry. The matrix must preserve these invariants:
+
+- hard validation failure remains invalid/quarantined or unavailable and cannot become review-approved;
+- valid content remains valid when PDF or persistence fails;
+- estimated length warnings remain non-blocking quality diagnostics;
+- actual page-fit or PDF integrity failure blocks completion through the PDF/artifact dimension;
+- mandatory review blocks submission but does not prevent verified PDF persistence;
+- reused `pdf_failed` remains a PDF/artifact failure rather than being rewritten as a generic generation failure.
+
+Alternative rejected: one finalizer branch that overwrites earlier facts with a single status.
+
+### 7. Version reuse and checkpoint compatibility
+
+Add validation-policy, diagnostic-schema, section-policy, and skill-provenance versions to the Stage 7 generation fingerprint and checkpoint compatibility inputs. A change to these versions invalidates affected Stage 7 validation/generation reuse and checkpoints at the first affected boundary; compatible Stage 6 ranking and handoff work remains reusable. Historical records remain readable but records missing required provenance or compatibility inputs cannot authorize new reuse. Quarantined records are retry context only and never accepted-output cache hits.
+
+Alternative rejected: relying only on revalidation at reuse time. Revalidation cannot establish checkpoint ownership or prove that historical provenance satisfies the new contract.
+
+### 8. Preserve compatibility through explicit projections
+
+New attempts dual-write the proposed fields and current legacy status/reason values. Readers prefer the new fields when present and fall back to legacy status, snapshots, and error payloads for historical rows. The fallback never rewrites history or invents provenance. Legacy projections are deterministic and documented per primary diagnostic/state combination.
 
 ## Risks / Trade-offs
 
-- [Risk] Existing exports or UI code may assume `structured_cv_final` is the only draft field. -> Mitigation: add explicit quarantine projections, keep legacy fields readable, and test export/detail surfaces before switching consumers.
-- [Risk] Removing rendered skill fallback may expose old records with incomplete provenance. -> Mitigation: mark them provenance-unavailable and require recomputation/review instead of accepting weaker evidence.
-- [Risk] Diagnostic code coverage may be incomplete during migration. -> Mitigation: persist an explicit unclassified diagnostic with source/facts and flag the producer for follow-up; never guess from text.
-- [Risk] Existing tests may encode the old Certificates/Skills order or non-persistable validation failure. -> Mitigation: update only tests that assert the corrected contract and retain compatibility assertions for historical status projections.
-- [Risk] Quarantined artifacts increase storage and operator-visible records. -> Mitigation: reuse existing trace/fingerprint retention bounds and keep quarantine separate from accepted-result lists and submission exports.
+- [Risk] Existing readers expose ordinary CV fields without quarantine awareness. -> Mitigation: keep quarantine in distinct fields and add explicit exclusion tests for lists, downloads, exports, review events, and reuse.
+- [Risk] Two persistence paths drift. -> Mitigation: share the semantic projection contract, test pipeline and worker round-trips, and make SQLite migration checksums/idempotency explicit.
+- [Risk] A more complete diagnostic registry changes legacy reason output. -> Mitigation: preserve deterministic compatibility projections and compare historical reader behavior in migration tests.
+- [Risk] Structured provenance is missing from older records. -> Mitigation: mark them provenance-unavailable and require recomputation or explicit policy-approved review; never infer authority from Markdown.
+- [Risk] Strict policy versions cause extra Stage 7 recomputation. -> Mitigation: invalidate only the affected validation/generation boundary and retain compatible Stage 6 work.
+- [Risk] Renderer or environment defects remain difficult to reproduce. -> Mitigation: keep renderer/PDF diagnostics separate, capture tool/reference versions, and retain grounded drafts where persistence permits.
 
 ## Migration Plan
 
-1. Add the diagnostic and independent-state schema, keeping current status/reason projections available.
-2. Make section-order derivation and serialization/validation round-trip from the existing section policy.
-3. Change generation and persistence to write quarantine payloads for validation failures with usable drafts.
-4. Switch skill validation to structured provenance and add projection-mismatch diagnostics for rendered output.
-5. Replace downstream message/warning inference with diagnostic-code mapping and retain compatibility projections.
-6. Run focused validator, renderer, generation-reason, persistence, pipeline-status, and Stage 6/7 tests, then the existing non-render suite. Run the existing targeted PDF acceptance unchanged.
-7. Roll back consumers to legacy projections if required; the additive diagnostic/quarantine fields remain readable and do not authorize submission on their own.
+1. Freeze the lifecycle fields, diagnostic registry, section-policy table, provenance identity, primary-diagnostic precedence, and compatibility mappings.
+2. Add additive diagnostic, lifecycle, quarantine, fingerprint, and SQLite schema fields with backward-compatible readers and idempotent migration.
+3. Route section presence/order and display names through the explicit versioned myCVs policy.
+4. Replace rendered Markdown as a factual authority with structured provenance plus blocking projection checks.
+5. Update generation, pipeline, worker, review-event, export, and reuse projections to respect independent dimensions and quarantine exclusions.
+6. Add versioned Stage 7 invalidation and retry semantics; preserve compatible Stage 6 handoffs and ranking work.
+7. Run the cross-stage acceptance matrix, focused tests, migration tests, non-render suite, and targeted PDF acceptance for optional and mandatory review paths.
+8. If rollback is required, restore consumers to legacy projections through a versioned switch; retain additive fields and historical quarantine records, which never authorize submission on their own.
+
+## Verification Boundary
+
+Strict OpenSpec validation proves artifact consistency only. It does not prove implementation correctness, runtime lifecycle settlement, database migration safety, or PDF acceptance; those require the implementation and acceptance evidence listed in `tasks.md`.

@@ -16637,6 +16637,36 @@ def test_admin_upload_trigger_path_mode_stores_jobs_snapshot(tmp_path):
     ]
 
 
+def test_admin_upload_trigger_path_mode_applies_explicit_max_jobs_without_changing_source_path(tmp_path):
+    jobs = [
+        _valid_fitcv_job(jobUrl=f"http://{name}.com", job_url=f"http://{name}.com")
+        for name in ("a", "b", "c")
+    ]
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text(json.dumps(jobs), encoding="utf-8")
+    captured = {}
+
+    p = _path_mode_patches(profile_path=str(tmp_path / "unused-profile.yaml"))
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app_with_captured_run(captured)).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "max_jobs": "2",
+                "candidate_profile_id": "profile-1",
+            },
+        )
+
+    assert resp.status_code == 201, resp.text
+    run = captured["run"]
+    assert len(json.loads(run.jobs_input_json)) == 2
+    manifest = json.loads(run.jobs_input_manifest_json)
+    assert manifest["source_path"] == str(jobs_file)
+    assert manifest["job_count"] == 2
+    assert Path(run.jobs_path).exists()
+
+
 def test_admin_upload_trigger_path_mode_missing_file_returns_422(tmp_path):
     """path mode: missing file must fail the trigger with 422."""
     profile_file = tmp_path / "profile.yaml"

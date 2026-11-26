@@ -17,7 +17,10 @@ lifecycle:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
+import json
+from types import MappingProxyType
 from typing import Any, Final, Mapping, cast
 
 
@@ -44,6 +47,219 @@ _BLOCKING_DIAGNOSTIC_CODES: Final[frozenset[str]] = frozenset({
 })
 
 
+CV_DIAGNOSTIC_SCHEMA_VERSION: Final[str] = "cv_diagnostic.v1"
+DIAGNOSTIC_SCHEMA_VERSION: Final[str] = CV_DIAGNOSTIC_SCHEMA_VERSION
+
+
+class DiagnosticCategory(str, Enum):
+    STRUCTURAL = "structural"
+    PROVENANCE = "provenance"
+    PROJECTION = "projection"
+    QUALITY = "quality"
+    REVIEW = "review"
+    ARTIFACT = "artifact"
+    RENDERER = "renderer"
+    PROVIDER = "provider"
+    GENERATION = "generation"
+    VALIDATION = "validation"
+    PERSISTENCE = "persistence"
+    UNKNOWN = "unknown"
+
+
+class DiagnosticSeverity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+@dataclass(frozen=True)
+class DiagnosticDefinition:
+    code: str
+    category: str
+    severity: str
+    blocking: bool
+    retryable: bool
+    terminal: bool
+    producer: str
+    precedence: int
+    legacy_reason_code: str | None = None
+    fact_keys: tuple[str, ...] = ()
+
+
+def _diagnostic_definition(
+    code: str,
+    category: DiagnosticCategory,
+    *,
+    severity: DiagnosticSeverity = DiagnosticSeverity.ERROR,
+    blocking: bool = True,
+    retryable: bool = False,
+    terminal: bool = True,
+    producer: str,
+    precedence: int,
+    legacy_reason_code: str | None = None,
+    fact_keys: tuple[str, ...] = (),
+) -> DiagnosticDefinition:
+    return DiagnosticDefinition(
+        code=code,
+        category=category.value,
+        severity=severity.value,
+        blocking=blocking,
+        retryable=retryable,
+        terminal=terminal,
+        producer=producer,
+        precedence=precedence,
+        legacy_reason_code=legacy_reason_code or code,
+        fact_keys=fact_keys,
+    )
+
+
+# Lower precedence numbers win. The order keeps the original content failure
+# ahead of a secondary persistence failure while still treating unknowns as fatal.
+_DIAGNOSTIC_DEFINITIONS: tuple[DiagnosticDefinition, ...] = (
+    _diagnostic_definition("invalid_section_order", DiagnosticCategory.STRUCTURAL, producer="validator", precedence=10),
+    _diagnostic_definition("unsupported_skill_claim", DiagnosticCategory.PROVENANCE, producer="validator", precedence=20),
+    _diagnostic_definition("skill_projection_mismatch", DiagnosticCategory.PROJECTION, producer="validator", precedence=30),
+    _diagnostic_definition("validation_failed", DiagnosticCategory.VALIDATION, producer="validator", precedence=40),
+    _diagnostic_definition("grounding_failed", DiagnosticCategory.VALIDATION, producer="validator", precedence=41),
+    _diagnostic_definition("unsupported_claim", DiagnosticCategory.PROVENANCE, producer="validator", precedence=42),
+    _diagnostic_definition("page_fit_failed", DiagnosticCategory.ARTIFACT, producer="acceptance", precedence=50),
+    _diagnostic_definition("pdf_render_failed", DiagnosticCategory.RENDERER, producer="renderer", precedence=60),
+    _diagnostic_definition("provider_timeout", DiagnosticCategory.PROVIDER, producer="provider", precedence=70, retryable=True, terminal=False),
+    _diagnostic_definition("provider_error", DiagnosticCategory.PROVIDER, producer="provider", precedence=71, retryable=True, terminal=False),
+    _diagnostic_definition("timeout", DiagnosticCategory.PROVIDER, producer="provider", precedence=72, retryable=True, terminal=False),
+    _diagnostic_definition("empty_output", DiagnosticCategory.GENERATION, producer="generator", precedence=80),
+    _diagnostic_definition("template_violation", DiagnosticCategory.STRUCTURAL, producer="generator", precedence=81),
+    _diagnostic_definition("markdown_structure_violation", DiagnosticCategory.STRUCTURAL, producer="validator", precedence=82),
+    _diagnostic_definition("estimated_length_exceeded", DiagnosticCategory.QUALITY, severity=DiagnosticSeverity.WARNING, blocking=False, terminal=False, producer="quality_gate", precedence=200),
+    _diagnostic_definition("unsupported_requirement_gap", DiagnosticCategory.REVIEW, producer="review_gate", precedence=300),
+    _diagnostic_definition("quarantine_persistence_failed", DiagnosticCategory.PERSISTENCE, producer="persistence", precedence=500),
+    _diagnostic_definition("cv_persistence_failed", DiagnosticCategory.PERSISTENCE, producer="persistence", precedence=501),
+    _diagnostic_definition("persistence_failed", DiagnosticCategory.PERSISTENCE, producer="persistence", precedence=502),
+    _diagnostic_definition("unclassified_failure", DiagnosticCategory.UNKNOWN, producer="unknown", precedence=1000),
+)
+
+DIAGNOSTIC_REGISTRY: Mapping[str, DiagnosticDefinition] = MappingProxyType({
+    item.code: item for item in _DIAGNOSTIC_DEFINITIONS
+})
+CV_DIAGNOSTIC_REGISTRY = DIAGNOSTIC_REGISTRY
+
+
+def _canonical_diagnostic_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _canonical_diagnostic_value(value[key]) for key in sorted(value, key=str)}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_diagnostic_value(item) for item in value]
+    if isinstance(value, (str, int, bool)) or value is None:
+        return value
+    if isinstance(value, float):
+        return value if value == value and value not in {float("inf"), float("-inf")} else str(value)
+    return str(value)
+
+
+def _diagnostic_identity(item: Mapping[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(item["code"]),
+        str(item["source"]),
+        json.dumps(item.get("facts") or {}, sort_keys=True, separators=(",", ":"), default=str),
+    )
+
+
+def normalize_diagnostic(
+    diagnostic: Mapping[str, Any] | str | None = None,
+    *,
+    code: str | None = None,
+    diagnostic_code: str | None = None,
+    source: str | None = None,
+    facts: Mapping[str, Any] | None = None,
+    message: str | None = None,
+) -> dict[str, Any]:
+    """Normalize a producer diagnostic without using display text for classification."""
+    if isinstance(diagnostic, Mapping):
+        raw = dict(diagnostic)
+        code = code or diagnostic_code or str(raw.get("code") or raw.get("diagnostic_code") or "")
+        source = source or str(raw.get("source") or raw.get("producer") or "")
+        facts = facts if facts is not None else raw.get("facts") or raw.get("reason_facts") or {}
+        message = message if message is not None else raw.get("message")
+    elif isinstance(diagnostic, str):
+        code = code or diagnostic
+    code = str(code or diagnostic_code or "").strip().lower().replace("-", "_")
+    source = str(source or "unknown").strip() or "unknown"
+    normalized_facts = _canonical_diagnostic_value(dict(facts or {}))
+    definition = DIAGNOSTIC_REGISTRY.get(code)
+    if definition is None:
+        unknown_code = code or "missing_code"
+        normalized_facts = dict(normalized_facts)
+        normalized_facts.setdefault("unclassified_code", unknown_code)
+        definition = DIAGNOSTIC_REGISTRY["unclassified_failure"]
+        code = definition.code
+    return {
+        "schema_version": CV_DIAGNOSTIC_SCHEMA_VERSION,
+        "code": code,
+        "diagnostic_code": code,
+        "category": definition.category,
+        "severity": definition.severity,
+        "blocking": definition.blocking,
+        "retryable": definition.retryable,
+        "terminal": definition.terminal,
+        "source": source,
+        "facts": normalized_facts,
+        "message": str(message).strip() if message is not None and str(message).strip() else None,
+        "legacy_reason_code": definition.legacy_reason_code or code,
+    }
+
+
+def dedupe_diagnostics(diagnostics: Any) -> list[dict[str, Any]]:
+    """Return diagnostics in stable precedence order, independent of input order."""
+    normalized = [normalize_diagnostic(item) for item in (diagnostics or [])]
+    normalized.sort(key=lambda item: (
+        DIAGNOSTIC_REGISTRY.get(str(item["code"]), DIAGNOSTIC_REGISTRY["unclassified_failure"]).precedence,
+        str(item["code"]),
+        str(item["source"]),
+        json.dumps(item.get("facts") or {}, sort_keys=True, separators=(",", ":"), default=str),
+        str(item.get("message") or ""),
+    ))
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in normalized:
+        identity = _diagnostic_identity(item)
+        if identity not in seen:
+            seen.add(identity)
+            result.append(item)
+    return result
+
+
+def select_primary_diagnostic(diagnostics: Any) -> dict[str, Any] | None:
+    ordered = dedupe_diagnostics(diagnostics)
+    return ordered[0] if ordered else None
+
+
+def build_diagnostic_registry(
+    diagnostics: Any,
+    *,
+    compatibility_reason: str | None = None,
+) -> dict[str, Any]:
+    """Build the persisted typed-diagnostic envelope and legacy projection."""
+    ordered = dedupe_diagnostics(diagnostics)
+    primary = select_primary_diagnostic(ordered)
+    return {
+        "schema_version": CV_DIAGNOSTIC_SCHEMA_VERSION,
+        "diagnostics": ordered,
+        "primary_diagnostic": primary,
+        "primary_code": str(primary["code"]) if primary else None,
+        "legacy_reason_code": (
+            compatibility_reason
+            or (str(primary["legacy_reason_code"]) if primary else None)
+            or "unclassified_failure"
+        ),
+    }
+
+
+# Compatibility aliases for callers that use the shorter contract vocabulary.
+normalize_typed_diagnostic = normalize_diagnostic
+dedupe_typed_diagnostics = dedupe_diagnostics
+select_primary_typed_diagnostic = select_primary_diagnostic
+
+
 def classify_cv_outcome(
     *,
     original_outcome: str | None,
@@ -63,7 +279,9 @@ def classify_cv_outcome(
             evidence_state = CVEvidenceState.FAILED
         elif validation_proven:
             evidence_state = CVEvidenceState.PASSED
-    code = str(diagnostic_code or "").strip().lower()
+    raw_code = str(diagnostic_code or "").strip().lower()
+    typed_diagnostic = normalize_diagnostic(code=raw_code) if raw_code else None
+    code = str(typed_diagnostic["code"]) if typed_diagnostic else ""
     validation_failed = bool(
         validation.get("valid") is False
         or validation.get("passed") is False
@@ -72,7 +290,7 @@ def classify_cv_outcome(
         or validation.get("markdown_quality_blocking_issues")
         or validation.get("missing_sections")
     )
-    blocking = code in _BLOCKING_DIAGNOSTIC_CODES or validation_failed or original_outcome in {
+    blocking = bool(typed_diagnostic and typed_diagnostic["blocking"]) or code in _BLOCKING_DIAGNOSTIC_CODES or validation_failed or original_outcome in {
         "failed", "generation_failed", "pdf_failed", "validation_failed", "persistence_failed",
     }
     warnings = sorted({str(item).strip() for item in (quality_warnings or []) if str(item).strip()})
@@ -87,6 +305,10 @@ def classify_cv_outcome(
         "kind": kind.value,
         "evidence_state": evidence_state.value,
         "diagnostic_code": code or None,
+        "diagnostic": typed_diagnostic,
+        "diagnostic_category": typed_diagnostic["category"] if typed_diagnostic else None,
+        "diagnostic_severity": typed_diagnostic["severity"] if typed_diagnostic else None,
+        "diagnostic_blocking": bool(typed_diagnostic and typed_diagnostic["blocking"]),
         "artifact_version": artifact_version,
         "checksum": checksum,
         "quality_warnings": warnings,
