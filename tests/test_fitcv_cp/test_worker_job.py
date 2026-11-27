@@ -4412,6 +4412,30 @@ def test_verify_jobs_input_projection_preserves_legacy_runs() -> None:
     _verify_jobs_input_projection(SimpleNamespace(jobs_input_json=None), "missing.json")
 
 
+def test_verify_jobs_input_projection_resolves_relative_run_path_from_config_directory(tmp_path) -> None:
+    from types import SimpleNamespace
+    from fitcv_cp.worker_job import _verify_jobs_input_projection
+
+    snapshot = '[{"title":"Data Engineer"}]'
+    config_path = tmp_path / "probe" / ".env.yaml"
+    projection = config_path.parent / "data" / "uploads" / "run_jobs.json"
+    projection.parent.mkdir(parents=True)
+    projection.write_text(snapshot, encoding="utf-8")
+    run = SimpleNamespace(
+        jobs_path="data/uploads/run_jobs.json",
+        jobs_input_json=snapshot,
+        jobs_input_manifest_json=json.dumps(
+            {"canonical_sha256": hashlib.sha256(snapshot.encode("utf-8")).hexdigest()}
+        ),
+    )
+
+    _verify_jobs_input_projection(
+        run,
+        str(projection),
+        config_path=str(config_path),
+    )
+
+
 def test_verify_jobs_input_projection_fails_closed_for_incomplete_managed_run() -> None:
     from types import SimpleNamespace
     from fitcv_cp.worker_job import JobsInputIntegrityError, _verify_jobs_input_projection

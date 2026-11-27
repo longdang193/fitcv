@@ -1164,7 +1164,24 @@ class JobsInputIntegrityError(RuntimeError):
     pass
 
 
-def _verify_jobs_input_projection(run_record: Any, jobs_path: str) -> None:
+def _resolve_run_path(path_value: str, *, config_path: str | None = None) -> Path:
+    path = Path(str(path_value or "").strip())
+    if not path.is_absolute():
+        base_path = (
+            Path(config_path).resolve().parent
+            if str(config_path or "").strip()
+            else Path.cwd()
+        )
+        path = base_path / path
+    return path.resolve()
+
+
+def _verify_jobs_input_projection(
+    run_record: Any,
+    jobs_path: str,
+    *,
+    config_path: str | None = None,
+) -> None:
     contract_version = getattr(run_record, "run_input_contract_version", None)
     snapshot_value = getattr(run_record, "jobs_input_json", None)
     if not isinstance(snapshot_value, str) or not snapshot_value:
@@ -1175,8 +1192,9 @@ def _verify_jobs_input_projection(run_record: Any, jobs_path: str) -> None:
     persisted_path_value = getattr(run_record, "jobs_path", None)
     if not isinstance(persisted_path_value, str) or not persisted_path_value.strip():
         raise JobsInputIntegrityError("persisted run projection path is missing")
-    persisted_path = persisted_path_value.strip()
-    if Path(persisted_path).resolve() != Path(jobs_path).resolve():
+    persisted_path = _resolve_run_path(persisted_path_value, config_path=config_path)
+    queued_path = _resolve_run_path(jobs_path, config_path=config_path)
+    if persisted_path != queued_path:
         raise JobsInputIntegrityError("queued jobs_path does not match persisted run projection")
 
     snapshot_bytes = snapshot_value.encode("utf-8")
@@ -1191,7 +1209,7 @@ def _verify_jobs_input_projection(run_record: Any, jobs_path: str) -> None:
     if not isinstance(manifest, dict) or manifest.get("canonical_sha256") != snapshot_digest:
         raise JobsInputIntegrityError("jobs input manifest digest does not match snapshot")
     try:
-        projection_bytes = Path(persisted_path).read_bytes()
+        projection_bytes = persisted_path.read_bytes()
     except OSError as exc:
         raise JobsInputIntegrityError("jobs input projection is missing or unreadable") from exc
     if projection_bytes != snapshot_bytes:
@@ -2466,6 +2484,7 @@ def execute_pipeline_run(
     queue_job_id: str | None = None,
 ) -> None:
     load_dotenv_defaults()
+    jobs_path = str(_resolve_run_path(jobs_path, config_path=config_path))
     from fitcv_cp.reporter import PipelineReporter, ProcessEventDeliveryLoop
 
     delivery_loop: ProcessEventDeliveryLoop | None = None
@@ -2785,7 +2804,7 @@ def execute_pipeline_run(
                             inner,
                         )
 
-            _verify_jobs_input_projection(run_record, jobs_path)
+            _verify_jobs_input_projection(run_record, jobs_path, config_path=config_path)
             run_job_ids = list_run_job_ids_for_run(run_id)
 
             with observe_span(

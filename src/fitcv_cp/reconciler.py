@@ -104,12 +104,9 @@ def reconcile_abandoned_attempts(
         if not latest_by_attempt_id:
             continue
 
-        attempt_ids = sorted(latest_by_attempt_id.keys())
-        attempt_count = len(attempt_ids)
-
-        for attempt_id in attempt_ids:
-            created_at, payload = latest_by_attempt_id[attempt_id]
-            _ = created_at
+        attempt_count = len(latest_by_attempt_id)
+        expired_attempts: list[tuple[str, datetime.datetime, dict[str, Any], dict[str, Any]]] = []
+        for attempt_id, (created_at, payload) in latest_by_attempt_id.items():
             attempt = payload.get("attempt") if isinstance(payload, dict) else None
             if not isinstance(attempt, dict):
                 continue
@@ -119,6 +116,21 @@ def reconcile_abandoned_attempts(
             lease_expires_at = _parse_iso_or_none(attempt.get("lease_expires_at"))
             if lease_expires_at is None or lease_expires_at >= now:
                 continue
+            expired_attempts.append((attempt_id, created_at, payload, attempt))
+
+        if not expired_attempts:
+            continue
+
+        expired_attempts.sort(
+            key=lambda item: (
+                _parse_iso_or_none(item[3].get("lease_started_at")) or item[1],
+                item[1],
+                item[0],
+            )
+        )
+        newest_expired_attempt_id = expired_attempts[-1][0]
+
+        for attempt_id, _created_at, _payload, _attempt in expired_attempts:
 
             abandoned_attempts += 1
 
@@ -144,14 +156,9 @@ def reconcile_abandoned_attempts(
                         ),
                     )
                 )
-                store.update_run_status(
-                    run.run_id,
-                    RunStatus.CANCELLED,
-                    finished_at=now,
-                    error_message="cancel_requested_lease_expired",
-                )
                 continue
 
+            superseded = attempt_id != newest_expired_attempt_id
             store.append_event(
                 RunEvent(
                     run_id=run.run_id,
@@ -166,13 +173,20 @@ def reconcile_abandoned_attempts(
                             status="abandoned",
                             finished_at=now,
                             error_classification="transient",
-                            error_summary="abandoned_lease_expired",
-                            retry_eligible=True,
+                            error_summary=(
+                                "abandoned_lease_expired_superseded"
+                                if superseded
+                                else "abandoned_lease_expired"
+                            ),
+                            retry_eligible=not superseded,
                         ),
                         ensure_ascii=False,
                     ),
                 )
             )
+
+            if superseded:
+                continue
 
             if attempt_count >= settings.maximum_attempts:
                 store.update_run_status(
@@ -199,6 +213,14 @@ def reconcile_abandoned_attempts(
             )
 
             requeued_attempts += 1
+
+        if cancel_requested:
+            store.update_run_status(
+                run.run_id,
+                RunStatus.CANCELLED,
+                finished_at=now,
+                error_message="cancel_requested_lease_expired",
+            )
 
     candidate_summary = store.reconcile_candidate_profile_attempts(now=now)
     return ReconcileSummary(

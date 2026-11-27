@@ -12,7 +12,7 @@ tags:
 import datetime
 import json
 from dataclasses import dataclass, field
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.reconciler import reconcile_abandoned_attempts
@@ -170,6 +170,83 @@ def test_reconcile_abandoned_attempts_requeues_when_retry_enabled() -> None:
 
 
 
+
+
+def test_reconcile_abandoned_attempts_requeues_once_for_duplicate_expired_attempts() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = PipelineRun(
+        run_id="r1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+    )
+    first_started = now - datetime.timedelta(minutes=30)
+    second_started = now - datetime.timedelta(minutes=10)
+    payloads = [
+        run_attempt_payload_v1(
+            attempt_id="a1",
+            status=RunStatus.RUNNING.value,
+            lease_started_at=first_started,
+            lease_expires_at=first_started + datetime.timedelta(minutes=5),
+        ),
+        run_attempt_payload_v1(
+            attempt_id="a2",
+            status=RunStatus.RUNNING.value,
+            lease_started_at=second_started,
+            lease_expires_at=second_started + datetime.timedelta(minutes=5),
+        ),
+    ]
+    store = _FakeStore(
+        runs=[run],
+        events_by_run_id={
+            "r1": [
+                RunEvent(
+                    run_id="r1",
+                    event_id=f"ev-{index}",
+                    stage="run_attempt",
+                    level="info",
+                    message="start",
+                    created_at=started,
+                    payload_json=json.dumps(payload, ensure_ascii=False),
+                )
+                for index, (started, payload) in enumerate(
+                    [(first_started, payloads[0]), (second_started, payloads[1])],
+                    start=1,
+                )
+            ]
+        },
+        appended=[],
+        status_updates=[],
+    )
+
+    with patch(
+        "fitcv_cp.reconciler.get_run_retry_settings",
+        return_value=RetrySettings(
+            maximum_attempts=3,
+            initial_backoff_seconds=0,
+            lease_seconds=900,
+            reconciler_interval_seconds=30,
+            error_detail_limit=2048,
+        ),
+    ), patch("fitcv_cp.reconciler.enqueue_run_with_job_id") as enqueue_mock:
+        summary = reconcile_abandoned_attempts(store, now=now)
+
+    assert summary.abandoned_attempts == 2
+    assert summary.requeued_attempts == 1
+    enqueue_mock.assert_called_once()
+
+    terminal_attempts = [
+        json.loads(event.payload_json)["attempt"] for event in store.appended
+    ]
+    assert {attempt["attempt_id"] for attempt in terminal_attempts} == {"a1", "a2"}
+    retry_flags = {
+        attempt["attempt_id"]: attempt["retry"]["eligible"]
+        for attempt in terminal_attempts
+    }
+    assert retry_flags == {"a1": False, "a2": True}
 
 
 def test_reconcile_abandoned_attempts_honors_cancel_request_and_blocks_retry() -> None:

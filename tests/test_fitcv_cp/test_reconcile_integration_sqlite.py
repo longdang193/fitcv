@@ -96,5 +96,71 @@ def test_reconciler_sqlite_requeues_and_marks_queued() -> None:
             assert refreshed.status == RunStatus.QUEUED
 
 
+def test_reconciler_sqlite_requeues_once_for_duplicate_expired_attempts() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "fitcv_cp.sqlite3"
+        with patch.dict("os.environ", {"FITCV_CP_SQLITE_PATH": str(db_path)}, clear=False):
+            run = PipelineRun(
+                run_id="r1",
+                status=RunStatus.RUNNING,
+                triggered_by="admin",
+                trigger_source="ui",
+                jobs_path="data/jobs.json",
+                config_path=".env.yaml",
+                created_at=now,
+            )
+            insert_run(run)
+
+            for attempt_id, started_at in (
+                ("a1", now - datetime.timedelta(minutes=30)),
+                ("a2", now - datetime.timedelta(minutes=10)),
+            ):
+                append_event(
+                    RunEvent(
+                        run_id="r1",
+                        event_id=f"event-{attempt_id}",
+                        stage="run_attempt",
+                        level="info",
+                        message="start",
+                        created_at=started_at,
+                        payload_json=json.dumps(
+                            run_attempt_payload_v1(
+                                attempt_id=attempt_id,
+                                status=RunStatus.RUNNING.value,
+                                lease_started_at=started_at,
+                                lease_expires_at=started_at + datetime.timedelta(minutes=5),
+                            ),
+                            ensure_ascii=False,
+                        ),
+                    ),
+                    client=None,
+                    project="local",
+                    dataset="local",
+                )
+
+            store = ControlPlaneStore()
+            with patch(
+                "fitcv_cp.reconciler.get_run_retry_settings",
+                return_value=RetrySettings(
+                    maximum_attempts=3,
+                    initial_backoff_seconds=0,
+                    lease_seconds=900,
+                    reconciler_interval_seconds=30,
+                    error_detail_limit=2048,
+                ),
+            ), patch(
+                "fitcv_cp.reconciler.enqueue_run_with_job_id",
+                return_value=("r1", "job-1"),
+            ) as enqueue_mock:
+                summary = reconcile_abandoned_attempts(store, now=now)
+
+            assert summary.abandoned_attempts == 2
+            assert summary.requeued_attempts == 1
+            enqueue_mock.assert_called_once()
+            assert get_run("r1").status == RunStatus.QUEUED
+
+
 
 
