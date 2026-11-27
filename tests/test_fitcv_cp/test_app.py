@@ -3645,6 +3645,46 @@ def test_post_runs_path_trigger_captures_cv_generation_runtime_expectation(tmp_p
     assert expectation["api_key_available"] is False
 
 
+def test_post_runs_path_trigger_applies_max_jobs_to_persisted_input(tmp_path) -> None:
+    captured = {}
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text(
+        json.dumps([
+            _valid_fitcv_job(jobUrl="http://a.com/1", job_url="http://a.com/1"),
+            _valid_fitcv_job(jobUrl="http://a.com/2", job_url="http://a.com/2"),
+            _valid_fitcv_job(jobUrl="http://a.com/3", job_url="http://a.com/3"),
+        ]),
+        encoding="utf-8",
+    )
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.submit_run", return_value=RunSubmission(run_id="run-123", queue_job_id="rq-job-abc", backend_run_id="rq-job-abc", backend="default_queue")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        response = TestClient(_app()).post(
+            "/runs",
+            json={"jobs_path": str(jobs_file), "max_jobs": 2},
+        )
+
+    assert response.status_code == 201, response.text
+    persisted_jobs = json.loads(captured["run"].jobs_input_json)
+    assert len(persisted_jobs) == 2
+    assert [job["jobUrl"] for job in persisted_jobs] == [
+        "http://a.com/1",
+        "http://a.com/2",
+    ]
+
+
 def test_local_runtime_expectation_uses_packaged_llm_snapshot(monkeypatch) -> None:
     from fitcv_cp import app as app_module
 

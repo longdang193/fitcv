@@ -9315,9 +9315,10 @@ def create_app(
         triggered_by: str,
         config_overrides: dict[str, Any],
         *,
+        max_jobs: int | None = None,
         run_mode: str = "run_all",
     ) -> dict:
-        source_path, artifact = _resolve_jobs_path_snapshot(jobs_path)
+        source_path, artifact = _resolve_jobs_path_snapshot(jobs_path, max_jobs=max_jobs)
         if not artifact.jobs:
             raise ApiError(
                 422,
@@ -10043,6 +10044,7 @@ def create_app(
                 config_path=req.config_path,
                 triggered_by=req.triggered_by,
                 config_overrides=req.config_overrides,
+                max_jobs=req.max_jobs,
                 run_mode=req.run_mode,
             )
 
