@@ -66,7 +66,11 @@ from fitcv.preference_policy import (
     resolve_zero_residual_policy,
     resolved_preference_policy_from_snapshot,
 )
-from fitcv.pipeline_contracts import build_diagnostic_registry
+from fitcv.pipeline_contracts import (
+    PIPELINE_STAGE_SEQUENCE,
+    build_diagnostic_registry,
+    normalize_diagnostic,
+)
 from fitcv.telemetry import (
     build_langfuse_trace_attributes,
     observe_span,
@@ -519,6 +523,31 @@ def _stage_handoff_failure(summary: dict[str, Any]) -> dict[str, str] | None:
     return {"failure_code": failure_code, "stage": "cv_analysis"}
 
 
+def _ranking_handoff_is_complete(block: dict[str, Any], expected_count: int) -> bool:
+    handoff = block.get("ranking_cv_handoff")
+    if not isinstance(handoff, dict) or str(handoff.get("status") or "").strip() != "complete":
+        return False
+    items = list(handoff.get("items") or [])
+    if len(items) != expected_count:
+        return False
+    identities: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict) or str(item.get("handoff_status") or "").strip() != "complete":
+            return False
+        try:
+            canonical = validate_ranking_cv_handoff(item)
+            fingerprint = ranking_cv_handoff_sha256(canonical)
+        except (TypeError, ValueError):
+            return False
+        if str(item.get("handoff_fingerprint") or "") != fingerprint:
+            return False
+        identity = str(canonical.get("canonical_job_identity") or "").strip()
+        if not identity or identity in identities:
+            return False
+        identities.add(identity)
+    return True
+
+
 def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
     stage_blocks = dict(
         dict(summary.get("stage_transition_artifacts") or {}).get("stages") or {}
@@ -552,30 +581,35 @@ def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
         status = str(block.get("status") or "").strip()
         decision_summary = dict(block.get("decision_summary") or {})
         output_counts = dict(block.get("output_counts") or {})
+        explicit_failure_code = next(
+            (
+                code
+                for code in failure_statuses
+                if int(output_counts.get(code) or output_counts.get(f"{code}_count") or 0) > 0
+            ),
+            None,
+        )
+        if explicit_failure_code is not None:
+            return {"failure_code": explicit_failure_code, "stage": stage_id}
         if status in {"failed", "partial"}:
             if stage_id == "ranking" and status == "partial" and int(
                 output_counts.get("ranked_jobs") or 0
             ) > 0:
-                # A partial ranking with usable rows is a resumable checkpoint,
-                # not a terminal failure; downstream stages own later failures.
-                continue
+                if _ranking_handoff_is_complete(
+                    block,
+                    int(output_counts.get("ranked_jobs") or 0),
+                ):
+                    # A partial ranking with a complete handoff is resumable;
+                    # downstream stages own later failures.
+                    continue
+                return {"failure_code": "ranking_handoff_incomplete", "stage": stage_id}
             failure_code = str(
                 decision_summary.get("failure_code")
                 or decision_summary.get("reason_code")
-                or next(
-                    (
-                        code
-                        for code in failure_statuses
-                        if int(output_counts.get(code) or output_counts.get(f"{code}_count") or 0) > 0
-                    ),
-                    "",
-                )
+                or explicit_failure_code
                 or ("ranking_partial" if stage_id == "ranking" and status == "partial" else f"{stage_id}_failed")
             ).strip()
             return {"failure_code": failure_code, "stage": stage_id}
-        for failure_code in failure_statuses:
-            if int(output_counts.get(failure_code) or output_counts.get(f"{failure_code}_count") or 0) > 0:
-                return {"failure_code": failure_code, "stage": stage_id}
         if stage_id == "cv_generation":
             for record in generation_records:
                 failure_code = str(record.get("status") or "").strip()
@@ -1395,8 +1429,96 @@ def _build_cv_generation_debug_payload(
     summary: dict[str, Any],
     finished_at: datetime.datetime,
 ) -> str:
+    failure_statuses = {
+        "validation_failed",
+        "generation_failed",
+        "pdf_failed",
+        "persistence_failed",
+    }
+
+    def _safe_provider_diagnostics(value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            return None
+        safe: dict[str, Any] = {}
+        for key in ("request_id", "payload_fingerprint"):
+            item = value.get(key)
+            if item is not None:
+                safe[key] = str(item)[:128]
+        status = value.get("status")
+        if isinstance(status, int) and not isinstance(status, bool):
+            safe["status"] = status
+        return safe or None
+
+    def _safe_failure_error(record: dict[str, Any]) -> dict[str, Any] | None:
+        raw_error = record.get("error") or record.get("error_summary")
+        if not isinstance(raw_error, dict):
+            raw_error = {}
+        code = str(
+            raw_error.get("code")
+            or raw_error.get("diagnostic_code")
+            or record.get("error_code")
+            or record.get("status")
+            or "generation_failed"
+        ).strip()
+        raw_facts = raw_error.get("facts") if isinstance(raw_error.get("facts"), dict) else {}
+        safe_facts: dict[str, Any] = {}
+        for key in ("diagnostic_ref", "detail_length", "exception_type", "field", "expected_type", "observed_type"):
+            value = raw_facts.get(key)
+            if value is None:
+                continue
+            if key == "detail_length":
+                if isinstance(value, int) and not isinstance(value, bool):
+                    safe_facts[key] = max(0, value)
+                continue
+            safe_facts[key] = str(value)[:128]
+        diagnostic = normalize_diagnostic(
+            code=code,
+            source=str(raw_error.get("source") or "cv_generation"),
+            facts=safe_facts,
+        )
+        return {
+            "stage": str(raw_error.get("stage") or "cv_generation")[:64],
+            "code": diagnostic["code"],
+            "diagnostic_code": diagnostic["diagnostic_code"],
+            "facts": diagnostic["facts"],
+        }
+
+    def _sanitize_failure_record(record: dict[str, Any]) -> dict[str, Any]:
+        if str(record.get("status") or "").strip().lower() not in failure_statuses:
+            return record
+        sanitized = dict(record)
+        safe_error = _safe_failure_error(record)
+        if safe_error is not None:
+            sanitized["error"] = safe_error
+            sanitized["error_summary"] = safe_error
+        sanitized.pop("error_message", None)
+        trace = record.get("cv_generation_trace")
+        if isinstance(trace, dict):
+            safe_trace = dict(trace)
+            attempts: list[dict[str, Any]] = []
+            for attempt in list(trace.get("attempts") or []):
+                if not isinstance(attempt, dict):
+                    continue
+                safe_attempt = dict(attempt)
+                safe_attempt.pop("error_message", None)
+                if isinstance(safe_attempt.get("error_summary"), dict):
+                    safe_attempt["error_summary"] = _safe_failure_error(safe_attempt)
+                safe_provider_diagnostics = _safe_provider_diagnostics(
+                    safe_attempt.get("provider_diagnostics")
+                )
+                if safe_provider_diagnostics is None:
+                    safe_attempt.pop("provider_diagnostics", None)
+                else:
+                    safe_attempt["provider_diagnostics"] = safe_provider_diagnostics
+                attempts.append(safe_attempt)
+            safe_trace["attempts"] = attempts
+            if isinstance(safe_trace.get("error_summary"), dict):
+                safe_trace["error_summary"] = safe_error
+            sanitized["cv_generation_trace"] = safe_trace
+        return sanitized
+
     def _truncate_large_fields(record: dict[str, Any]) -> dict[str, Any]:
-        truncated = dict(record)
+        truncated = _sanitize_failure_record(record)
         markdown_final = truncated.get("markdown_final")
         if isinstance(markdown_final, str):
             markdown_preview = markdown_final
@@ -2978,21 +3100,16 @@ def execute_pipeline_run(
                         }
                     )
                 update_run_status(run_id, terminal_status, **status_kwargs)
-                completed_stages = [
-                    "normalize",
-                    "enrich",
-                    "rule_filter",
-                    "shortlist",
-                    "ranking",
-                ] if technical_failure is not None else [
-                    "normalize",
-                    "enrich",
-                    "rule_filter",
-                    "shortlist",
-                    "ranking",
-                    "cv_analysis",
-                    "cv_generation",
-                ]
+                if technical_failure is not None:
+                    failure_stage = technical_failure["stage"]
+                    failure_index = PIPELINE_STAGE_SEQUENCE.index(failure_stage)
+                    completed_stages = list(PIPELINE_STAGE_SEQUENCE[:failure_index])
+                    last_completed_stage = completed_stages[-1] if completed_stages else None
+                    next_stage = failure_stage
+                else:
+                    completed_stages = list(PIPELINE_STAGE_SEQUENCE)
+                    last_completed_stage = completed_stages[-1]
+                    next_stage = None
                 if pending_review_required > 0:
                     append_event(
                         RunEvent(
@@ -3023,8 +3140,8 @@ def execute_pipeline_run(
                         run_id,
                         client=client,
                         checkpoint_status="failed",
-                        next_stage="cv_analysis",
-                        last_completed_stage="ranking",
+                        next_stage=next_stage,
+                        last_completed_stage=last_completed_stage,
                         completed_stages=completed_stages,
                         checkpoint_payload_json=checkpoint_payload_json,
                     )

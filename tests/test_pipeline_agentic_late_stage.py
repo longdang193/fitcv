@@ -2523,11 +2523,11 @@ def test_persistence_failure_transition_preserves_accepted_artifacts() -> None:
     assert failed["structured_cv_final"] == accepted["structured_cv_final"]
     assert failed["markdown_final"] == accepted["markdown_final"]
     assert failed["validation"] == accepted["validation"]
-    assert failed["error"] == {
-        "stage": "persistence",
-        "code": "persistence_failed",
-        "message": "BigQuery insert failed",
-    }
+    assert failed["error"]["stage"] == "persistence"
+    assert failed["error"]["code"] == "persistence_failed"
+    assert failed["error"]["diagnostic_code"] == "persistence_failed"
+    assert failed["error"]["facts"]["detail_length"] == len("BigQuery insert failed")
+    assert "BigQuery insert failed" not in json.dumps(failed["error"])
 
 
 

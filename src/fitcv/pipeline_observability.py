@@ -154,6 +154,17 @@ def render_cv_generation_item_output(
     validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
     error_payload = debug_record.get("error")
     failure_summary = _extract_bounded_error_summary(error_payload, bound_langfuse_excerpt=bound_langfuse_excerpt)
+    if isinstance(error_payload, dict) and not error_payload.get("message"):
+        for observation in reversed(list(debug_record.get("llm_runtime_observations") or [])):
+            evidence = observation.get("evidence") if isinstance(observation, dict) else None
+            runtime_failure = evidence.get("failure") if isinstance(evidence, dict) else None
+            if isinstance(runtime_failure, dict):
+                failure_summary = _extract_bounded_error_summary(
+                    runtime_failure,
+                    bound_langfuse_excerpt=bound_langfuse_excerpt,
+                )
+                if failure_summary:
+                    break
     if status == cv_generation_review_required_status and not review_issue_inputs and failure_summary:
         review_issue_inputs.append(failure_summary)
     review_issues = bound_langfuse_issue_list(review_issue_inputs)
@@ -212,6 +223,17 @@ def build_cv_generation_item_observation_attributes(
     validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
     error_payload = debug_record.get("error")
     failure_summary = _extract_bounded_error_summary(error_payload, bound_langfuse_excerpt=bound_langfuse_excerpt)
+    if isinstance(error_payload, dict) and not error_payload.get("message"):
+        for observation in reversed(list(debug_record.get("llm_runtime_observations") or [])):
+            evidence = observation.get("evidence") if isinstance(observation, dict) else None
+            runtime_failure = evidence.get("failure") if isinstance(evidence, dict) else None
+            if isinstance(runtime_failure, dict):
+                failure_summary = _extract_bounded_error_summary(
+                    runtime_failure,
+                    bound_langfuse_excerpt=bound_langfuse_excerpt,
+                )
+                if failure_summary:
+                    break
     if status == cv_generation_review_required_status and not review_issue_inputs and failure_summary:
         review_issue_inputs.append(failure_summary)
     review_issues = bound_langfuse_issue_list(review_issue_inputs)

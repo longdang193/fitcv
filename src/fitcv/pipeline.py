@@ -5184,6 +5184,7 @@ def run_pipeline(
             failure_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
             failure_debug_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
             failure_debug_record["raw_job_fingerprint"] = str(job.get("raw_job_fingerprint") or "").strip() or None
+            failure_debug_record.setdefault("llm_runtime_observations", job_llm_runtime_observations)
             _emit_cv_generation_result_event(
                 state=state,
                 status=failure_status,

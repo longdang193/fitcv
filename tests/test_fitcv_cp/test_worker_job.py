@@ -4030,6 +4030,70 @@ def test_build_cv_generation_debug_payload_json_safe_values() -> None:
     assert str(record.get("review_item_id") or "").strip()
 
 
+def test_build_cv_generation_debug_payload_sanitizes_failure_diagnostics() -> None:
+    from types import SimpleNamespace
+
+    from fitcv_cp.worker_job import _build_cv_generation_debug_payload
+
+    payload = json.loads(
+        _build_cv_generation_debug_payload(
+            run_id="run-debug-failure-1",
+            run_record=SimpleNamespace(),
+            summary={
+                "ranked": 1,
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "status": "generation_failed",
+                        "error": {
+                            "stage": "cv_generation",
+                            "code": "generation_failed",
+                            "message": "provider secret and full prompt",
+                            "facts": {
+                                "detail": "profile and CV content",
+                                "provider_payload": "raw provider body",
+                            },
+                        },
+                        "error_message": "provider secret and full prompt",
+                        "cv_generation_trace": {
+                            "attempts": [
+                                {
+                                    "error_message": "raw exception with profile",
+                                    "provider_diagnostics": {
+                                        "status": 400,
+                                        "error_body": "raw provider body",
+                                        "request_id": "request-1",
+                                        "payload_fingerprint": "a" * 64,
+                                    },
+                                }
+                            ],
+                            "error_summary": {
+                                "code": "generation_failed",
+                                "message": "raw exception with profile",
+                            },
+                        },
+                    }
+                ],
+            },
+            finished_at=datetime.datetime(2026, 10, 2, 10, 0, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    record = payload["debug_records"][0]
+    assert record["error"] == record["error_summary"]
+    assert record["error"]["code"] == "generation_failed"
+    serialized = json.dumps(record)
+    assert "provider secret" not in serialized
+    assert "full prompt" not in serialized
+    assert "raw provider body" not in serialized
+    assert record["cv_generation_trace"]["attempts"][0]["provider_diagnostics"] == {
+        "request_id": "request-1",
+        "payload_fingerprint": "a" * 64,
+        "status": 400,
+    }
+    assert "error_message" not in record["cv_generation_trace"]["attempts"][0]
+
+
 def test_build_cv_generation_debug_payload_preserves_effort_and_page_fit_telemetry() -> None:
     from types import SimpleNamespace
 

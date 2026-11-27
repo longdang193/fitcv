@@ -1088,6 +1088,37 @@ def _error_code_from_message(message: str) -> str | None:
     return None
 
 
+def _safe_failure_error(*, stage: str, code: str, detail: Any = None, exc_type: str | None = None) -> ErrorPayload:
+    detail_text = str(detail or "")
+    facts: dict[str, Any] = {
+        "diagnostic_ref": hashlib.sha256(detail_text.encode("utf-8", errors="replace")).hexdigest()[:16],
+        "detail_length": len(detail_text),
+    }
+    if exc_type:
+        facts["exception_type"] = exc_type
+    diagnostic = normalize_diagnostic(code=code, source="cv_generation", facts=facts)
+    return {
+        "stage": stage,
+        "code": diagnostic["code"],
+        "diagnostic_code": diagnostic["diagnostic_code"],
+        "facts": cast(dict[str, Any], diagnostic["facts"]),
+    }
+
+
+def _safe_provider_diagnostics(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    safe: dict[str, Any] = {}
+    for key in ("request_id", "payload_fingerprint"):
+        item = value.get(key)
+        if item is not None:
+            safe[key] = str(item)[:128]
+    status = value.get("status")
+    if isinstance(status, int) and not isinstance(status, bool):
+        safe["status"] = status
+    return safe or None
+
+
 def _update_live_trace_validation_cycle(
     trace_payload: dict[str, Any],
     *,
@@ -2767,11 +2798,11 @@ def transition_cv_generation_persistence_failed(
     failed = cast(CvGenerationResult, deepcopy(accepted_result))
     failed["status"] = "persistence_failed"
     failed["outcome_reason"] = None
-    failed["error"] = {
-        "stage": "persistence",
-        "code": "persistence_failed",
-        "message": str(message or "CV persistence failed"),
-    }
+    failed["error"] = _safe_failure_error(
+        stage="persistence",
+        code="persistence_failed",
+        detail=message or "CV persistence failed",
+    )
     failed["review_required_reason_code"] = ReviewRequiredReasonCode.PERSISTENCE_FAILED.value
     return failed
 
@@ -3194,14 +3225,22 @@ def _generate_fresh_from_analysis(
             latest_attempt = trace_payload["attempts"][-1]
             latest_attempt.setdefault("provider_status", "error")
             latest_attempt.setdefault("accepted_output_present", False)
-            latest_attempt.setdefault("error_stage", failure_stage)
-            latest_attempt.setdefault("error_message", str(exc))
-            latest_attempt.setdefault("error_code", _error_code_from_message(str(exc)))
+            failure_error = _safe_failure_error(
+                stage=failure_stage,
+                code="generation_failed",
+                detail=exc,
+                exc_type=type(exc).__name__,
+            )
+            latest_attempt.setdefault("error_stage", failure_error["stage"])
+            latest_attempt.pop("error_message", None)
+            latest_attempt["error_code"] = failure_error["code"]
+            latest_attempt["error_summary"] = failure_error
             provider_diagnostics = ((runtime_failure_evidence or {}).get("failure") or {}).get(
                 "provider_diagnostics"
             )
-            if isinstance(provider_diagnostics, dict):
-                latest_attempt["provider_diagnostics"] = dict(provider_diagnostics)
+            safe_provider_diagnostics = _safe_provider_diagnostics(provider_diagnostics)
+            if safe_provider_diagnostics:
+                latest_attempt["provider_diagnostics"] = safe_provider_diagnostics
             trace_payload["trace_status"] = "degraded"
             trace_payload["input_summary"] = {
                 "attempt_count": len(trace_payload["attempts"]),
@@ -3236,11 +3275,7 @@ def _generate_fresh_from_analysis(
                 status=GENERATION_FAILED_STATUS,
                 review_question_count=len(list(analysis_record.get("uncertainties") or [])),
             )
-            trace_payload["error_summary"] = {
-                "error_stage": failure_stage,
-                "error_code": _error_code_from_message(str(exc)),
-                "error_message": str(exc),
-            }
+            trace_payload["error_summary"] = failure_error
         return _build_result(
             analysis_record=analysis_record,
             job=job,
@@ -3252,7 +3287,7 @@ def _generate_fresh_from_analysis(
             structured_cv_final=None,
             markdown_final=None,
             validation=None,
-            error={"stage": failure_stage, "message": str(exc)},
+            error=failure_error,
             llm_runtime_evidence=runtime_evidence,
             cv_generation_trace=trace_payload,
         )

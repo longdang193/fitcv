@@ -1,3 +1,4 @@
+from fitcv.ai_score import parse_score_response
 from fitcv.candidate import converge_candidate_profile_for_runtime
 import pytest
 
@@ -94,6 +95,7 @@ def test_ranking_stage_persists_handoff_without_promoting_shortlist() -> None:
         "confirmed_unknowns": [],
         "source_provenance": {"source": "fixture"},
     }
+    row.update(parse_score_response('{"ai_score": 0.8, "key_risks": "not-a-list"}'))
     admission_manifest = {"shortlist_status": "shortlist_admitted", "promoted": False}
     block = build_ranking_stage_block(
         ranking_reached=True,
@@ -146,6 +148,13 @@ def test_ranking_stage_persists_handoff_without_promoting_shortlist() -> None:
     assert block["ranking_cv_handoff"]["status"] == "complete"
     assert block["ranking_cv_handoff"]["items"][0]["evidence_ids"] == ["ev-1", "ev-2"]
     assert block["admission_manifest"] == admission_manifest
+    diagnostics = block["scorer_diagnostics_by_identity"]["job-1"]
+    assert [item["code"] for item in diagnostics] == [
+        "ranking_metadata_missing",
+        "ranking_metadata_missing",
+        "ranking_metadata_invalid_type",
+    ]
+    assert diagnostics[-1]["facts"]["field"] == "key_risks"
 
 
 def test_ranking_stage_marks_incomplete_handoff_closed() -> None:

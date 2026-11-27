@@ -1,8 +1,36 @@
 from unittest.mock import MagicMock, patch
 
+from fitcv.ranking_contract import build_ranking_cv_handoff
 from fitcv_cp.models import RunStatus
 from fitcv_cp.worker_job import _stage_technical_failure, execute_pipeline_run
 
+
+def _valid_handoff_items():
+    return [
+        {
+            **build_ranking_cv_handoff(
+                {
+                    "canonical_job_identity": f"job-{index}",
+                    "job_qualifiers": {},
+                    "baseline_rank": index,
+                    "ai_score": 0.8,
+                    "score_status": "valid",
+                    "disposition": "rankable",
+                    "retry_eligible": False,
+                    "candidate_profile_revision": "profile-r1",
+                    "ranking_order_version": "ai-only-v1",
+                    "ranking_policy_version": "ranking-v2",
+                    "source_provenance": {"source": "test"},
+                },
+                candidate_profile_revision="profile-r1",
+                ranking_order_version="ai-only-v1",
+                ranking_policy_version="ranking-v2",
+                source_provenance={"source": "test"},
+            ),
+            "handoff_status": "complete",
+        }
+        for index in (1, 2)
+    ]
 
 def _summary(*, ranking_status="completed", generation_status="completed", generation_records=None):
     return {
@@ -19,6 +47,10 @@ def _summary(*, ranking_status="completed", generation_status="completed", gener
                     "status": ranking_status,
                     "decision_summary": {},
                     "output_counts": {"ranked_jobs": 2},
+                    "ranking_cv_handoff": {
+                        "status": "complete",
+                        "items": _valid_handoff_items(),
+                    },
                 },
                 "cv_analysis": {
                     "status": "completed",
@@ -67,6 +99,24 @@ def test_partial_ranking_without_usable_rows_is_a_terminal_technical_failure():
         "stage": "ranking",
     }
 
+def test_partial_ranking_with_persistence_failure_is_terminal():
+    summary = _summary(ranking_status="partial")
+    summary["stage_transition_artifacts"]["stages"]["ranking"]["output_counts"]["persistence_failed"] = 1
+
+    assert _stage_technical_failure(summary) == {
+        "failure_code": "persistence_failed",
+        "stage": "ranking",
+    }
+
+def test_partial_ranking_with_missing_handoff_fails_closed():
+    summary = _summary(ranking_status="partial")
+    summary["stage_transition_artifacts"]["stages"]["ranking"].pop("ranking_cv_handoff")
+
+    assert _stage_technical_failure(summary) == {
+        "failure_code": "ranking_handoff_incomplete",
+        "stage": "ranking",
+    }
+
 
 def test_complete_generation_with_review_required_is_not_a_technical_failure():
     assert _stage_technical_failure(
@@ -109,8 +159,11 @@ def test_worker_persists_failure_for_partial_ranking_and_generation_failure():
     assert failed_calls[-1].kwargs["error_message"] == "generation_failed"
     checkpoint = update_checkpoint.call_args.kwargs
     assert checkpoint["checkpoint_status"] == "failed"
-    assert checkpoint["next_stage"] == "cv_analysis"
-    assert checkpoint["last_completed_stage"] == "ranking"
+    assert checkpoint["next_stage"] == "cv_generation"
+    assert checkpoint["last_completed_stage"] == "cv_analysis"
+    assert checkpoint["completed_stages"] == [
+        "normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis"
+    ]
     update_progress.assert_not_called()
 
 def test_manual_checkpoint_continues_after_partial_ranking_with_usable_rows():

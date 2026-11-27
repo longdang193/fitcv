@@ -32,6 +32,7 @@ from fitcv.ranking_contract import (
     ranking_cv_handoff_sha256,
     validate_ranking_cv_handoff,
 )
+from fitcv.pipeline_contracts import dedupe_diagnostics
 
 
 def truncate_stage_text(value: str, *, limit: int) -> str:
@@ -630,6 +631,15 @@ def build_ranking_stage_block(
         for identity, diagnostics in (ranking_input_diagnostics_by_identity or {}).items()
         if isinstance(diagnostics, dict)
     }
+    scorer_diagnostics_by_identity = {
+        str(row.get("canonical_job_identity") or row.get("job_identity") or row.get("raw_job_fingerprint") or extract_job_url(row)): dedupe_diagnostics(
+            row.get("diagnostics")
+        )
+        for row in ai_scores
+        if isinstance(row, dict)
+        and row.get("diagnostics")
+        and str(row.get("canonical_job_identity") or row.get("job_identity") or row.get("raw_job_fingerprint") or extract_job_url(row))
+    }
     policy = dict(resolved_preference_policy or {})
     runtime_contract = dict(policy.get("runtime_contract") or {})
     residuals = [float(row.get("preference_residual") or 0.0) for row in ranking_inputs]
@@ -812,6 +822,7 @@ def build_ranking_stage_block(
             "ranking_cv_handoff_status": handoff_status,
             "score_state_diagnostics_count": len(score_state_diagnostics),
             "score_state_diagnostics_truncated": False,
+            "scorer_diagnostics_count": sum(len(items) for items in scorer_diagnostics_by_identity.values()),
             "effective_structured_factor_weights": ranking_contract.get(
                 "effective_structured_factor_weights"
             ),
@@ -842,6 +853,7 @@ def build_ranking_stage_block(
         llm_runtime_observations=llm_runtime_observations,
     )
     block["scorer_input_diagnostics"] = scorer_input_diagnostics
+    block["scorer_diagnostics_by_identity"] = scorer_diagnostics_by_identity
     block["score_state_diagnostics"] = score_state_diagnostics
     block["admission_manifest"] = dict(ranking_admission_manifest or {})
     block["ranking_cv_handoff"] = {

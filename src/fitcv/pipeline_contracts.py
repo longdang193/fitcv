@@ -46,6 +46,11 @@ _BLOCKING_DIAGNOSTIC_CODES: Final[frozenset[str]] = frozenset({
     "unsupported_claim", "cv_persistence_failed", "persistence_failed",
 })
 
+_MAX_DIAGNOSTIC_TEXT_CHARS: Final[int] = 256
+_MAX_DIAGNOSTIC_FACT_KEYS: Final[int] = 24
+_MAX_DIAGNOSTIC_FACT_ITEMS: Final[int] = 24
+_MAX_DIAGNOSTIC_FACT_DEPTH: Final[int] = 3
+
 
 CV_DIAGNOSTIC_SCHEMA_VERSION: Final[str] = "cv_diagnostic.v1"
 DIAGNOSTIC_SCHEMA_VERSION: Final[str] = CV_DIAGNOSTIC_SCHEMA_VERSION
@@ -128,7 +133,8 @@ _DIAGNOSTIC_DEFINITIONS: tuple[DiagnosticDefinition, ...] = (
     _diagnostic_definition("provider_error", DiagnosticCategory.PROVIDER, producer="provider", precedence=71, retryable=True, terminal=False),
     _diagnostic_definition("timeout", DiagnosticCategory.PROVIDER, producer="provider", precedence=72, retryable=True, terminal=False),
     _diagnostic_definition("empty_output", DiagnosticCategory.GENERATION, producer="generator", precedence=80),
-    _diagnostic_definition("template_violation", DiagnosticCategory.STRUCTURAL, producer="generator", precedence=81),
+    _diagnostic_definition("generation_failed", DiagnosticCategory.GENERATION, producer="generator", precedence=81),
+    _diagnostic_definition("template_violation", DiagnosticCategory.STRUCTURAL, producer="generator", precedence=82),
     _diagnostic_definition("markdown_structure_violation", DiagnosticCategory.STRUCTURAL, producer="validator", precedence=82),
     _diagnostic_definition("estimated_length_exceeded", DiagnosticCategory.QUALITY, severity=DiagnosticSeverity.WARNING, blocking=False, terminal=False, producer="quality_gate", precedence=200),
     _diagnostic_definition("unsupported_requirement_gap", DiagnosticCategory.REVIEW, producer="review_gate", precedence=300),
@@ -162,16 +168,33 @@ DIAGNOSTIC_REGISTRY: Mapping[str, DiagnosticDefinition] = MappingProxyType({
 CV_DIAGNOSTIC_REGISTRY = DIAGNOSTIC_REGISTRY
 
 
-def _canonical_diagnostic_value(value: Any) -> Any:
+def _bounded_diagnostic_text(value: Any) -> str:
+    text = str(value).strip()
+    if len(text) <= _MAX_DIAGNOSTIC_TEXT_CHARS:
+        return text
+    return text[:_MAX_DIAGNOSTIC_TEXT_CHARS] + "...[truncated]"
+
+
+def _canonical_diagnostic_value(value: Any, *, depth: int = 0) -> Any:
+    if depth >= _MAX_DIAGNOSTIC_FACT_DEPTH:
+        return _bounded_diagnostic_text(value)
     if isinstance(value, Mapping):
-        return {str(key): _canonical_diagnostic_value(value[key]) for key in sorted(value, key=str)}
+        return {
+            _bounded_diagnostic_text(key): _canonical_diagnostic_value(value[key], depth=depth + 1)
+            for key in sorted(value, key=str)[:_MAX_DIAGNOSTIC_FACT_KEYS]
+        }
     if isinstance(value, (list, tuple)):
-        return [_canonical_diagnostic_value(item) for item in value]
-    if isinstance(value, (str, int, bool)) or value is None:
+        return [
+            _canonical_diagnostic_value(item, depth=depth + 1)
+            for item in value[:_MAX_DIAGNOSTIC_FACT_ITEMS]
+        ]
+    if isinstance(value, str):
+        return _bounded_diagnostic_text(value)
+    if isinstance(value, (int, bool)) or value is None:
         return value
     if isinstance(value, float):
-        return value if value == value and value not in {float("inf"), float("-inf")} else str(value)
-    return str(value)
+        return value if value == value and value not in {float("inf"), float("-inf")} else _bounded_diagnostic_text(value)
+    return _bounded_diagnostic_text(value)
 
 
 def _diagnostic_identity(item: Mapping[str, Any]) -> tuple[str, str, str]:
@@ -203,6 +226,8 @@ def normalize_diagnostic(
     code = str(code or diagnostic_code or "").strip().lower().replace("-", "_")
     source = str(source or "unknown").strip() or "unknown"
     normalized_facts = _canonical_diagnostic_value(dict(facts or {}))
+    if not isinstance(normalized_facts, dict):
+        normalized_facts = {}
     definition = DIAGNOSTIC_REGISTRY.get(code)
     if definition is None:
         unknown_code = code or "missing_code"
@@ -221,7 +246,7 @@ def normalize_diagnostic(
         "terminal": definition.terminal,
         "source": source,
         "facts": normalized_facts,
-        "message": str(message).strip() if message is not None and str(message).strip() else None,
+        "message": _bounded_diagnostic_text(message) if message is not None and str(message).strip() else None,
         "legacy_reason_code": definition.legacy_reason_code or code,
     }
 
