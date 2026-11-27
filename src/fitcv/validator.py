@@ -416,7 +416,6 @@ def _mycvs_required_section_names(
         ("education", "Education"),
         ("experience", "Experience"),
         ("projects", "Projects"),
-        ("skills", "Skills"),
     ):
         if profile_has(section_key) or _structured_section_has_content(section_key, sections.get(section_key)):
             required.append(display_name)
@@ -424,6 +423,8 @@ def _mycvs_required_section_names(
     # Certifications are canonical profile facts and are never selected-evidence gated.
     if profile_has("certifications"):
         required.append("Certificates")
+    if profile_has("skills") or _structured_section_has_content("skills", sections.get("skills")):
+        required.append("Skills")
     return required
 
 

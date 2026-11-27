@@ -381,6 +381,53 @@ _CV_CONFIG: dict = {
 }
 
 
+def test_run_all_validations_accepts_mycvs_canonical_section_order() -> None:
+    profile = {
+        "name": "Candidate",
+        "education": [{"institution": "Uni", "degree": "BS"}],
+        "experiences": [{"role": "Engineer", "company": "ACME", "start": "2020", "end": "2022"}],
+        "projects": [{"name": "Proj"}],
+        "certifications": [{"name": "Cert"}],
+        "skills": ["Python"],
+    }
+    structured_cv = {
+        "sections": {
+            "summary": {"text": "A grounded summary."},
+            "education": [{"institution": "Uni"}],
+            "experience": [{
+                "company": "ACME",
+                "role": "Engineer",
+                "bullets": ["Built systems", "Improved delivery"],
+            }],
+            "projects": [{
+                "name": "Proj",
+                "bullets": ["Built the project", "Led delivery"],
+            }],
+            "certifications": [{"name": "Cert"}],
+            "skills": {"groups": [{"items": ["Python"]}]},
+        }
+    }
+    cv_text = (
+        "# Candidate\n"
+        "## Summary\nA grounded summary.\n"
+        "## Education\nUni\n"
+        "## Experience\nACME\n"
+        "## Projects\nProj\n"
+        "## Certificates\nCert\n"
+        "## Skills\nPython\n"
+    )
+    config = {
+        "required_cv_sections": ["Summary", "Education", "Experience", "Projects", "Certificates", "Skills"],
+        "cv_max_pages": 2,
+        "cv": {"renderer": {"strategy": "mycvs_v1"}, "validation": {"max_pages": 2}},
+    }
+
+    result = run_all_validations(cv_text, profile=profile, config=config, structured_cv=structured_cv)
+
+    assert result["valid"] is True
+    assert "Required section headings are out of configured order." not in result["markdown_quality_blocking_issues"]
+
+
 def test_run_all_validations_output_schema() -> None:
     """run_all_validations must return the full schema."""
     profile = {

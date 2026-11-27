@@ -286,6 +286,9 @@ CV_SECTION_NAME_TO_KEY = {
     display_name.lower(): section_key
     for section_key, display_name in CV_SECTION_KEY_TO_NAME.items()
 }
+# myCVs uses the product heading "Certificates" for the canonical
+# "certifications" section key.
+CV_SECTION_NAME_TO_KEY["certificates"] = "certifications"
 
 
 def _load_yaml_file(
@@ -1671,19 +1674,23 @@ def apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
     cfg["prompt_version"] = str(cv_cfg.get("generation", {}).get("prompt_version", ""))
     cfg["cv_max_pages"] = int(cv_cfg.get("validation", {}).get("max_pages", 2))
 
-    # required_cv_sections: enabled composition sections only.
-    required: list[str] = []
-    comp = cv_cfg.get("composition") or {}
-    preset = str(cv_cfg.get("preset") or "mycvs").strip().lower()
-    ordered_keys = list(get_section_order(preset))
-    ordered_keys.extend(str(key) for key in comp if str(key) not in ordered_keys)
-    for section_name in ordered_keys:
-        section_cfg = comp.get(section_name)
-        if not isinstance(section_cfg, dict):
-            continue
-        enabled = section_cfg.get("enabled", False)
-        if enabled:
-            required.append(section_name.title())
+    # myCVs has a source-driven heading contract that differs from the
+    # legacy preset registry used by the compatibility projection.
+    if get_cv_renderer_strategy(cfg) == "mycvs_v1":
+        required = list(MYCVS_V1_HEADINGS)
+    else:
+        required = []
+        comp = cv_cfg.get("composition") or {}
+        preset = str(cv_cfg.get("preset") or "mycvs").strip().lower()
+        ordered_keys = list(get_section_order(preset))
+        ordered_keys.extend(str(key) for key in comp if str(key) not in ordered_keys)
+        for section_name in ordered_keys:
+            section_cfg = comp.get(section_name)
+            if not isinstance(section_cfg, dict):
+                continue
+            enabled = section_cfg.get("enabled", False)
+            if enabled:
+                required.append(section_name.title())
     cfg["required_cv_sections"] = required
 
     return cfg

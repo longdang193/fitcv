@@ -1519,6 +1519,34 @@ def test_required_cv_sections_includes_summary_when_enabled() -> None:
     assert "Summary" in cfg["required_cv_sections"]
 
 
+def test_mycvs_required_cv_sections_follow_canonical_policy_order() -> None:
+    loaded = config_module.apply_cv_compatibility_projection(
+        {
+            "cv": {
+                "renderer": {"strategy": "mycvs_v1"},
+                "composition": {
+                    "skills": {"enabled": True},
+                    "certifications": {"enabled": True},
+                    "projects": {"enabled": True},
+                    "experience": {"enabled": True},
+                    "education": {"enabled": True},
+                    "summary": {"enabled": True},
+                },
+            }
+        }
+    )
+
+    assert loaded["required_cv_sections"] == list(config_module.MYCVS_V1_HEADINGS)
+    assert config_module.get_required_structured_section_keys(loaded) == [
+        "summary",
+        "education",
+        "experience",
+        "projects",
+        "certifications",
+        "skills",
+    ]
+
+
 def test_required_cv_sections_follow_preset_order_not_yaml_mapping_order(tmp_path: Path) -> None:
     loaded = config_module.apply_cv_compatibility_projection(
         {
