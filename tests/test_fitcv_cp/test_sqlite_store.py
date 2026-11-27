@@ -7499,6 +7499,31 @@ def test_insert_run_rejects_empty_snapshot_without_creating_run() -> None:
     assert sqlite_store.get_run(run.run_id) is None
 
 
+def test_running_snapshot_clears_stale_finished_at() -> None:
+    run_id = "run-stale-finished-at"
+    _create_normalized_run_with_jobs(
+        run_id, [{"title": "Analyst", "job_url": "https://example.com/1"}]
+    )
+    finished_at = datetime.datetime(2026, 11, 27, 12, tzinfo=datetime.timezone.utc)
+
+    sqlite_store.update_run_status(run_id, RunStatus.FAILED, finished_at=finished_at)
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {"total_jobs": 1, "completed_stages": []},
+        run_status=RunStatus.RUNNING,
+        snapshot_at=finished_at + datetime.timedelta(minutes=1),
+    )
+
+    with sqlite_store._sqlite_connection(Path(sqlite_store._local_sqlite_path())) as conn:
+        row = conn.execute(
+            "SELECT backend_status, finished_at FROM pipeline_runs WHERE run_id=?",
+            (run_id,),
+        ).fetchone()
+
+    assert row[0] == RunStatus.RUNNING.value
+    assert row[1] is None
+
+
 def test_persist_pipeline_snapshot_maps_stage_aliases_and_job_outcomes() -> None:
     run_job_id = _create_normalized_run_with_jobs(
         "run-snapshot", [{"title": "Analyst", "job_url": "https://example.com/1"}]

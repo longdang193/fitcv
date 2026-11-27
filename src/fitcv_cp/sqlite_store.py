@@ -16250,12 +16250,16 @@ def persist_pipeline_snapshot(
             total_jobs = int(summary.get("total_jobs") or len(jobs_by_index))
             passed_jobs = terminal_counts["passed"]
             conn.execute(
-                """UPDATE pipeline_runs SET backend_status=?, total_jobs=?, passed_jobs=?,
+                """UPDATE pipeline_runs SET backend_status=?, finished_at=CASE
+                   WHEN ? IN ('cancelled','succeeded','failed') THEN COALESCE(finished_at, ?)
+                   ELSE NULL END, total_jobs=?, passed_jobs=?,
                    rejected_jobs=?, cvs_generated=?, progress_completed=?, progress_total=?,
                    partial_completion=?, status_detail=?, row_revision=row_revision+1
                    WHERE run_id=?""",
                 (
                     run_status.value,
+                    run_status.value,
+                    snapshot_iso,
                     total_jobs,
                     passed_jobs,
                     terminal_counts["rejected"],
