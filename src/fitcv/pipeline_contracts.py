@@ -255,6 +255,7 @@ def dedupe_diagnostics(diagnostics: Any) -> list[dict[str, Any]]:
     """Return diagnostics in stable precedence order, independent of input order."""
     normalized = [normalize_diagnostic(item) for item in (diagnostics or [])]
     normalized.sort(key=lambda item: (
+        not bool(item.get("blocking")),
         DIAGNOSTIC_REGISTRY.get(str(item["code"]), DIAGNOSTIC_REGISTRY["unclassified_failure"]).precedence,
         str(item["code"]),
         str(item["source"]),

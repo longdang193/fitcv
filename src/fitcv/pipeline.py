@@ -1920,6 +1920,7 @@ def _build_stage_progress_summary(
         cv_generation_debug_records=cv_generation_debug_records,
         profile=candidate_profile,
         config=config,
+        last_completed_stage=last_completed_stage,
         resolved_preference_policy=dict(state.get("resolved_preference_policy") or {}),
     )
     return {
@@ -3234,6 +3235,7 @@ def _build_stage_transition_artifacts(
     enrich_llm_runtime_observations: list[dict[str, Any]] | None = None,
     ranking_llm_runtime_observations: list[dict[str, Any]] | None = None,
     resolved_preference_policy: dict[str, Any] | None = None,
+    last_completed_stage: str | None = None,
 ) -> dict[str, Any]:
     """@capability cv_system.stage-artifact-diagnostics"""
     candidate_query_debug = dict(candidate_query_debug or {})
@@ -3455,9 +3457,7 @@ def _build_stage_transition_artifacts(
         int(cv_generation_reuse_metrics["reused_rows"]),
         int(cv_generation_reuse_metrics["total_rows"]),
     )
-    return {
-        "schema_version": STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
-        "stages": {
+    stages = {
             "normalize": _build_normalize_stage_block_artifacts(
                 raw_jobs=raw_jobs,
                 normalized=normalized,
@@ -3595,7 +3595,16 @@ def _build_stage_transition_artifacts(
                 cv_generation_provider_summarizer=_summarize_cv_generation_provider,
                 cv_generation_model_resolver=get_cv_generation_model,
             ),
-        },
+    }
+    normalized_last_completed_stage = str(last_completed_stage or "").strip()
+    if normalized_last_completed_stage in _PIPELINE_STAGE_SET:
+        reached_stages = set(completed_pipeline_stages_through(normalized_last_completed_stage))
+        for stage_id in PIPELINE_STAGE_SEQUENCE:
+            if stage_id not in reached_stages:
+                stages[stage_id] = _stage_block_not_reached(stage_id)
+    return {
+        "schema_version": STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
+        "stages": stages,
     }
 def build_ranking_features(
     shortlist: list[dict[str, Any]],

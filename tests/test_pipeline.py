@@ -6650,6 +6650,39 @@ def test_build_stage_transition_artifacts_rule_filter_default_selected_filters_m
     assert selected_filters == DEFAULT_SELECTED_RULE_FILTERS
 
 
+def test_build_stage_transition_artifacts_marks_future_stages_not_reached_at_checkpoint() -> None:
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[],
+        normalized=[],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[],
+        passed_jobs=[],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        shortlist_audit_rows=[],
+        shortlist_diagnostics={},
+        vector_top_n=10,
+        candidate_summary="candidate summary",
+        candidate_query_components={},
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=5,
+        cv_generation_debug_records=[],
+        profile={},
+        config={"cv": {"generation": {"model": "cx/gpt-5.4-mini", "prompt_version": "v1"}}},
+        last_completed_stage="normalize",
+    )
+
+    assert artifacts["stages"]["normalize"]["status"] == "completed"
+    assert [
+        artifacts["stages"][stage]["status"]
+        for stage in ("enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation")
+    ] == ["not_reached"] * 6
+
+
 def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortlist_counts() -> None:
     passed_jobs = [
         {

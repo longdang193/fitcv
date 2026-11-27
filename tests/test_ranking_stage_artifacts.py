@@ -147,6 +147,7 @@ def test_ranking_stage_persists_handoff_without_promoting_shortlist() -> None:
     assert block["ranking_cv_handoff"]["schema_version"] == RANKING_CV_HANDOFF_VERSION
     assert block["ranking_cv_handoff"]["status"] == "complete"
     assert block["ranking_cv_handoff"]["items"][0]["evidence_ids"] == ["ev-1", "ev-2"]
+    assert block["selected_ranking_identities"] == ["job-1"]
     assert block["admission_manifest"] == admission_manifest
     diagnostics = block["scorer_diagnostics_by_identity"]["job-1"]
     assert [item["code"] for item in diagnostics] == [

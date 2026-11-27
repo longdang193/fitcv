@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-11-27
+goal: Close verified ranking-to-CV continuation, lifecycle persistence, and
+  diagnostic-safety gaps without making optional observability a pipeline
+  bottleneck.

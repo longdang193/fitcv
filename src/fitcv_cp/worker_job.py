@@ -167,6 +167,7 @@ from fitcv_cp.worker_run_support import (
 logger = logging.getLogger(__name__)
 
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
+_MAX_DEBUG_TRACE_ATTEMPTS = 8
 _LATE_STAGE_REUSE_RUN_SCAN_LIMIT = 50
 _SETTINGS_COMPATIBILITY_KEYS = {
     "vector_top_n",
@@ -530,6 +531,12 @@ def _ranking_handoff_is_complete(block: dict[str, Any], expected_count: int) -> 
     items = list(handoff.get("items") or [])
     if len(items) != expected_count:
         return False
+    selected_identities = block.get("selected_ranking_identities")
+    if not isinstance(selected_identities, list) or len(selected_identities) != expected_count:
+        return False
+    selected = [str(identity or "").strip() for identity in selected_identities]
+    if any(not identity for identity in selected) or len(set(selected)) != expected_count:
+        return False
     identities: set[str] = set()
     for item in items:
         if not isinstance(item, dict) or str(item.get("handoff_status") or "").strip() != "complete":
@@ -545,7 +552,7 @@ def _ranking_handoff_is_complete(block: dict[str, Any], expected_count: int) -> 
         if not identity or identity in identities:
             return False
         identities.add(identity)
-    return True
+    return identities == set(selected)
 
 
 def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
@@ -591,6 +598,11 @@ def _stage_technical_failure(summary: dict[str, Any]) -> dict[str, str] | None:
         )
         if explicit_failure_code is not None:
             return {"failure_code": explicit_failure_code, "stage": stage_id}
+        decision_failure_code = str(
+            decision_summary.get("failure_code") or decision_summary.get("reason_code") or ""
+        ).strip()
+        if decision_failure_code in failure_statuses:
+            return {"failure_code": decision_failure_code, "stage": stage_id}
         if status in {"failed", "partial"}:
             if stage_id == "ranking" and status == "partial" and int(
                 output_counts.get("ranked_jobs") or 0
@@ -1209,6 +1221,7 @@ def _build_results_export_payload(
     export_results: list[dict[str, Any]],
     finished_at: datetime.datetime,
     replay_context: dict[str, Any],
+    terminal_status: RunStatus | str = RunStatus.SUCCEEDED,
 ) -> str:
     diagnostic_support = {
         "late_stage_reuse_snapshots": json_safe(summary.get("late_stage_reuse_snapshots") or {}),
@@ -1254,7 +1267,7 @@ def _build_results_export_payload(
         "run_id": run_id,
         "results_schema_version": "results_job_ledger_v4",
         "schema_version": "results_job_ledger_v4",
-        "status": RunStatus.SUCCEEDED.value,
+        "status": terminal_status.value if isinstance(terminal_status, RunStatus) else str(terminal_status),
         "triggered_by": string_or_none(getattr(run_record, "triggered_by", "")) or "",
         "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
         "run_mode_label": run_mode_label(getattr(run_record, "run_mode", None)),
@@ -1428,6 +1441,7 @@ def _build_cv_generation_debug_payload(
     run_record: Any,
     summary: dict[str, Any],
     finished_at: datetime.datetime,
+    terminal_status: RunStatus | str = RunStatus.SUCCEEDED,
 ) -> str:
     failure_statuses = {
         "validation_failed",
@@ -1484,9 +1498,20 @@ def _build_cv_generation_debug_payload(
         }
 
     def _sanitize_failure_record(record: dict[str, Any]) -> dict[str, Any]:
-        if str(record.get("status") or "").strip().lower() not in failure_statuses:
+        status = str(record.get("status") or "").strip().lower()
+        if status not in failure_statuses:
             return record
-        sanitized = dict(record)
+        allowed_fields = {
+            "job_url", "run_job_id", "status", "resolution_status", "review_item_id",
+            "cv_version_id", "generated_at", "accepted_at", "finalized_at",
+            "content_checksum", "cv_generation_input_fingerprint", "trace_id",
+            "page_fit_status", "render_acceptance", "ranking_fit_label", "reranker_fit_label",
+            "error", "error_summary", "cv_generation_trace",
+        }
+        if status == "validation_failed":
+            # Validation failures retain the generated draft for operator review.
+            allowed_fields.add("markdown_final")
+        sanitized = {key: record[key] for key in allowed_fields if key in record}
         safe_error = _safe_failure_error(record)
         if safe_error is not None:
             sanitized["error"] = safe_error
@@ -1494,17 +1519,36 @@ def _build_cv_generation_debug_payload(
         sanitized.pop("error_message", None)
         trace = record.get("cv_generation_trace")
         if isinstance(trace, dict):
-            safe_trace = dict(trace)
+            safe_trace: dict[str, Any] = {}
+            for key in (
+                "trace_id", "trace_status", "attempt_count", "retry_count",
+                "reused_resolution_count", "provider_call_count",
+            ):
+                value = trace.get(key)
+                if isinstance(value, bool):
+                    safe_trace[key] = value
+                elif isinstance(value, int):
+                    safe_trace[key] = max(0, value)
+                elif value is not None:
+                    safe_trace[key] = str(value)[:128]
             attempts: list[dict[str, Any]] = []
-            for attempt in list(trace.get("attempts") or []):
+            for attempt in list(trace.get("attempts") or [])[:_MAX_DEBUG_TRACE_ATTEMPTS]:
                 if not isinstance(attempt, dict):
                     continue
-                safe_attempt = dict(attempt)
-                safe_attempt.pop("error_message", None)
-                if isinstance(safe_attempt.get("error_summary"), dict):
-                    safe_attempt["error_summary"] = _safe_failure_error(safe_attempt)
+                safe_attempt = {
+                    key: attempt[key]
+                    for key in (
+                        "attempt", "attempt_index", "provider_status", "status",
+                        "retryable", "duration_ms", "latency_ms",
+                    )
+                    if key in attempt
+                }
+                if isinstance(attempt.get("error_summary"), dict):
+                    safe_attempt["error_summary"] = _safe_failure_error(
+                        {"error_summary": attempt["error_summary"]}
+                    )
                 safe_provider_diagnostics = _safe_provider_diagnostics(
-                    safe_attempt.get("provider_diagnostics")
+                    attempt.get("provider_diagnostics")
                 )
                 if safe_provider_diagnostics is None:
                     safe_attempt.pop("provider_diagnostics", None)
@@ -1512,7 +1556,7 @@ def _build_cv_generation_debug_payload(
                     safe_attempt["provider_diagnostics"] = safe_provider_diagnostics
                 attempts.append(safe_attempt)
             safe_trace["attempts"] = attempts
-            if isinstance(safe_trace.get("error_summary"), dict):
+            if isinstance(trace.get("error_summary"), dict):
                 safe_trace["error_summary"] = safe_error
             sanitized["cv_generation_trace"] = safe_trace
         return sanitized
@@ -1524,8 +1568,9 @@ def _build_cv_generation_debug_payload(
             markdown_preview = markdown_final
             if len(markdown_preview) > _MAX_DEBUG_MARKDOWN_CHARS:
                 markdown_preview = markdown_preview[:_MAX_DEBUG_MARKDOWN_CHARS] + "\n...[truncated]"
-            # Keep authoritative draft separate from bounded preview/debug payload.
-            truncated["markdown_full"] = markdown_final
+            # Keep authoritative draft separate only for accepted/quarantined records.
+            if str(record.get("status") or "").strip().lower() in {"accepted", "review_required", "validation_failed"}:
+                truncated["markdown_full"] = markdown_final
             truncated["markdown_preview"] = markdown_preview
             # Legacy field remains bounded for compatibility with older readers.
             truncated["markdown_final"] = markdown_preview
@@ -1612,7 +1657,7 @@ def _build_cv_generation_debug_payload(
     non_attempted_ranked_jobs_total = sum(omission_reason_counts.values())
     payload = {
         "run_id": run_id,
-        "status": RunStatus.SUCCEEDED.value,
+        "status": terminal_status.value if isinstance(terminal_status, RunStatus) else str(terminal_status),
         "debug_schema_version": "cv_generation_debug_v3",
         "schema_version": "cv_generation_debug_v3",
         "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
@@ -2773,29 +2818,30 @@ def execute_pipeline_run(
                 paused_after_stage = None
             if paused_after_stage is not None:
                 checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
-                update_run_checkpoint(
-                    run_id,
-                    client=client,
-                    checkpoint_status="awaiting_continue",
-                    next_stage=summary.get("next_stage"),
-                    last_completed_stage=paused_after_stage,
-                    completed_stages=list(summary.get("completed_stages") or []),
-                    checkpoint_payload_json=_build_manual_checkpoint_payload(
-                        run_id=run_id,
-                        summary=summary,
-                        created_at=checkpoint_time,
-                        replay_context=replay_context,
-                    ),
+                checkpoint_payload_json = _build_manual_checkpoint_payload(
+                    run_id=run_id,
+                    summary=summary,
+                    created_at=checkpoint_time,
+                    replay_context=replay_context,
                 )
-                if isinstance(run_record, PipelineRun):
-                    # Keep the public status non-continuable until every checkpoint projection is durable.
-                    persist_pipeline_snapshot(
-                        run_id,
-                        summary,
-                        run_status=RunStatus.RUNNING,
-                        snapshot_at=checkpoint_time,
-                    )
                 try:
+                    update_run_checkpoint(
+                        run_id,
+                        client=client,
+                        checkpoint_status="awaiting_continue",
+                        next_stage=summary.get("next_stage"),
+                        last_completed_stage=paused_after_stage,
+                        completed_stages=list(summary.get("completed_stages") or []),
+                        checkpoint_payload_json=checkpoint_payload_json,
+                    )
+                    if isinstance(run_record, PipelineRun):
+                        # Keep the public status non-continuable until every checkpoint projection is durable.
+                        persist_pipeline_snapshot(
+                            run_id,
+                            summary,
+                            run_status=RunStatus.RUNNING,
+                            snapshot_at=checkpoint_time,
+                        )
                     update_run_stage_transition_artifacts(
                         run_id,
                         _build_stage_transition_artifacts_payload(
@@ -2816,11 +2862,39 @@ def execute_pipeline_run(
                         client=client,
                     )
                 except Exception as exc:
-                    logger.warning(
-                        "[run_id=%s] Failed to persist stage transition artifacts snapshot at checkpoint: %s",
+                    failure_code = "checkpoint_persistence_failed"
+                    logger.exception(
+                        "[run_id=%s] Required continuation persistence failed after %s: %s",
                         run_id,
+                        paused_after_stage,
                         exc,
                     )
+                    try:
+                        update_run_checkpoint(
+                            run_id,
+                            client=client,
+                            checkpoint_status="failed",
+                            next_stage=summary.get("next_stage"),
+                            last_completed_stage=paused_after_stage,
+                            completed_stages=list(summary.get("completed_stages") or []),
+                            checkpoint_payload_json=checkpoint_payload_json,
+                        )
+                    except Exception as checkpoint_exc:
+                        logger.warning(
+                            "[run_id=%s] Failed to persist terminal checkpoint after continuation persistence failure: %s",
+                            run_id,
+                            checkpoint_exc,
+                        )
+                    update_run_status(
+                        run_id,
+                        RunStatus.FAILED,
+                        client=client,
+                        finished_at=checkpoint_time,
+                        summary=summary,
+                        error_stage=paused_after_stage,
+                        error_message=failure_code,
+                    )
+                    return
                 if _summary_has_reached_stage(summary, "enrich"):
                     try:
                         _persist_mapping_suggestions_snapshot(
@@ -3081,12 +3155,20 @@ def execute_pipeline_run(
                     raise RuntimeError("attempt_terminal_event_persist_failed")
 
                 if isinstance(run_record, PipelineRun):
-                    persist_pipeline_snapshot(
-                        run_id,
-                        summary,
-                        run_status=terminal_status,
-                        snapshot_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
-                    )
+                    try:
+                        persist_pipeline_snapshot(
+                            run_id,
+                            summary,
+                            run_status=terminal_status,
+                            snapshot_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
+                        )
+                    except Exception:
+                        if technical_failure is None:
+                            raise
+                        logger.exception(
+                            "[run_id=%s] Failed to persist terminal snapshot after primary technical failure",
+                            run_id,
+                        )
                 status_kwargs = {
                     "client": client,
                     "finished_at": finished_at,
@@ -3185,6 +3267,7 @@ def execute_pipeline_run(
                                 export_results=export_results,
                                 finished_at=artifact_snapshot_at,
                                 replay_context=replay_context,
+                                terminal_status=terminal_status,
                             ),
                             client=client,
                     )
@@ -3198,6 +3281,7 @@ def execute_pipeline_run(
                             run_record=run_record,
                             summary=summary,
                             finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
+                            terminal_status=terminal_status,
                         ),
                         client=client,
                     )
@@ -3314,6 +3398,7 @@ def execute_pipeline_run(
                                 run_record=run_record,
                                 summary=summary,
                                 finished_at=artifact_snapshot_at,
+                                terminal_status=terminal_status,
                             ),
                             client=client,
                         )

@@ -780,6 +780,16 @@ def build_ranking_stage_block(
         if handoff_items
         else "not_available"
     )
+    selected_ranking_identities = [
+        str(
+            row.get("canonical_job_identity")
+            or row.get("job_identity")
+            or row.get("raw_job_fingerprint")
+            or extract_job_url(row)
+            or ""
+        ).strip()
+        for row in ranked
+    ]
     block = stage_block_builder(
         stage_id="ranking",
         status=ranking_status,
@@ -862,6 +872,7 @@ def build_ranking_stage_block(
         "items": handoff_items,
         "references": handoff_references,
     }
+    block["selected_ranking_identities"] = selected_ranking_identities
     evidence_personalization = (
         block.get("stage_result", {})
         .get("evidence", {})

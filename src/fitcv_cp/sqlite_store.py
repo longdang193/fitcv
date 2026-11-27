@@ -9170,6 +9170,23 @@ def _coerce_int_or_none(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
 
+def _terminalize_stage_transition_artifacts(
+    raw_payload: str | None, status: RunStatus
+) -> str | None:
+    payload = _decode_json_or_none(raw_payload)
+    if not isinstance(payload, dict):
+        return raw_payload
+    terminal_payload = dict(payload)
+    terminal_payload.update(
+        {
+            "status": status.value,
+            "snapshot_complete": False,
+            "degradation_reason": "terminal_failure",
+        }
+    )
+    return json.dumps(terminal_payload, ensure_ascii=False, sort_keys=True)
+
+
 def _persistence_result(status: str, reason: str = _DEGRADATION_REASON_NONE) -> PersistenceResult:
     return {"persistence_status": status, "degradation_reason": reason}
 
@@ -11140,6 +11157,13 @@ def update_run_status(
             updated.progress_completed = max(0, int(progress_completed))
         if progress_total is not None:
             updated.progress_total = max(0, int(progress_total))
+        if status in {RunStatus.FAILED, RunStatus.CANCELLED}:
+            updated.checkpoint_status = status.value
+            if error_stage is not None:
+                updated.next_stage = error_stage
+            updated.stage_transition_artifacts_json = _terminalize_stage_transition_artifacts(
+                updated.stage_transition_artifacts_json, status
+            )
         for key in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
             if summary and summary.get(key) is not None:
                 if status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and key == "passed_filter":
@@ -13560,8 +13584,16 @@ def _terminal_counts_for_run(
         ).fetchone()[0]
         or 0
     )
-    if job_count > 0 and evidence_count == job_count:
-        return _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
+    backend_status = conn.execute(
+        "SELECT backend_status FROM pipeline_runs WHERE run_id=?", (run_id,)
+    ).fetchone()
+    if job_count > 0 and (
+        evidence_count == job_count
+        or (backend_status is not None and backend_status[0] == RunStatus.AWAITING_CONTINUE.value)
+    ):
+        counts = _recomputed_terminal_counts(conn, run_id, usable_cv_job_ids)
+        counts["skipped"] = max(0, job_count - counts["passed"] - counts["rejected"])
+        return counts
     total = max(0, int(stored_total or 0))
     passed = max(0, int(stored_passed or 0))
     rejected = max(0, int(stored_rejected or 0))

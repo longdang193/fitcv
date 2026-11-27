@@ -3897,6 +3897,53 @@ def test_update_status_running_clears_terminal_finished_at_for_replay() -> None:
     assert stored.finished_at is None
 
 
+def test_terminal_status_invalidates_stale_continuation_projection() -> None:
+    run_id = "run-terminal-clears-continuation"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Analyst", "job_url": "https://example.com/1"}],
+    )
+    sqlite_store.update_run_checkpoint(
+        run_id,
+        checkpoint_status="queued_for_continue",
+        next_stage="ranking",
+        last_completed_stage="shortlist",
+        completed_stages=["normalize", "shortlist"],
+        checkpoint_payload_json=json.dumps({"remaining_ids": ["job-1"]}),
+    )
+    sqlite_store.update_run_stage_transition_artifacts(
+        run_id,
+        json.dumps(
+            {
+                "run_id": run_id,
+                "status": "awaiting_continue",
+                "snapshot_complete": False,
+                "degradation_reason": "checkpoint_partial_snapshot",
+                "artifacts": {"stages": {"shortlist": {"status": "completed"}}},
+            }
+        ),
+    )
+
+    sqlite_store.update_run_status(
+        run_id,
+        RunStatus.FAILED,
+        finished_at=datetime.datetime.now(datetime.timezone.utc),
+        error_stage="ranking",
+        error_message="ranking_handoff_incomplete",
+    )
+
+    stored = sqlite_store.get_run(run_id)
+    assert stored is not None
+    assert stored.status is RunStatus.FAILED
+    assert stored.checkpoint_status == RunStatus.FAILED.value
+    assert stored.next_stage == "ranking"
+    assert stored.last_completed_stage == "shortlist"
+    stage_projection = json.loads(str(stored.stage_transition_artifacts_json))
+    assert stage_projection["status"] == RunStatus.FAILED.value
+    assert stage_projection["snapshot_complete"] is False
+    assert stage_projection["degradation_reason"] == "terminal_failure"
+
+
 def test_run_json_updates_and_schema_status_use_sqlite_only_terms() -> None:
     run = _make_run("run-json")
     sqlite_store.insert_run(run)
@@ -6600,6 +6647,34 @@ def test_run_detail_uses_terminal_counts_at_an_awaiting_checkpoint() -> None:
         "rejected": 1,
         "skipped": 1,
         "cvs_generated": 1,
+    }
+
+
+def test_awaiting_checkpoint_does_not_count_unobserved_normalized_jobs_as_rejected() -> None:
+    run_id = "run-awaiting-unobserved-jobs"
+    _create_normalized_run_with_jobs(
+        run_id,
+        [
+            {"title": "One", "job_url": "https://example.com/one"},
+            {"title": "Two", "job_url": "https://example.com/two"},
+            {"title": "Three", "job_url": "https://example.com/three"},
+        ],
+    )
+    sqlite_store.update_run_status(
+        run_id,
+        RunStatus.AWAITING_CONTINUE,
+        summary={"total_jobs": 3, "passed_filter": 0},
+    )
+
+    detail = sqlite_store.get_run_detail(run_id)
+
+    assert detail is not None
+    assert detail["counts"] == {
+        "total": 3,
+        "passed": 0,
+        "rejected": 0,
+        "skipped": 3,
+        "cvs_generated": 0,
     }
 
 

@@ -51,6 +51,7 @@ def _summary(*, ranking_status="completed", generation_status="completed", gener
                         "status": "complete",
                         "items": _valid_handoff_items(),
                     },
+                    "selected_ranking_identities": ["job-1", "job-2"],
                 },
                 "cv_analysis": {
                     "status": "completed",
@@ -105,6 +106,31 @@ def test_partial_ranking_with_persistence_failure_is_terminal():
 
     assert _stage_technical_failure(summary) == {
         "failure_code": "persistence_failed",
+        "stage": "ranking",
+    }
+
+
+
+def test_partial_ranking_with_decision_failure_code_is_terminal():
+    summary = _summary(ranking_status="partial")
+    summary["stage_transition_artifacts"]["stages"]["ranking"]["decision_summary"] = {
+        "failure_code": "persistence_failed",
+    }
+
+    assert _stage_technical_failure(summary) == {
+        "failure_code": "persistence_failed",
+        "stage": "ranking",
+    }
+
+
+def test_partial_ranking_with_mismatched_handoff_fails_closed():
+    summary = _summary(ranking_status="partial")
+    summary["stage_transition_artifacts"]["stages"]["ranking"]["selected_ranking_identities"] = [
+        "job-1", "job-other"
+    ]
+
+    assert _stage_technical_failure(summary) == {
+        "failure_code": "ranking_handoff_incomplete",
         "stage": "ranking",
     }
 
@@ -212,6 +238,61 @@ def test_manual_checkpoint_continues_after_partial_ranking_with_usable_rows():
     assert checkpoint["checkpoint_status"] == "awaiting_continue"
     assert checkpoint["next_stage"] == "cv_analysis"
     assert checkpoint["last_completed_stage"] == "ranking"
+
+
+def test_manual_checkpoint_required_persistence_failure_is_terminal():
+    client = MagicMock()
+    client.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "manual_staged"
+    mock_run.next_stage = "ranking"
+    mock_run.last_completed_stage = "shortlist"
+    mock_run.completed_stages = ["normalize", "enrich", "rule_filter", "shortlist"]
+    mock_run.checkpoint_payload_json = None
+    summary = _summary(ranking_status="partial")
+    summary.update(
+        {
+            "paused_after_stage": "ranking",
+            "next_stage": "cv_analysis",
+            "last_completed_stage": "ranking",
+            "completed_stages": [
+                "normalize",
+                "enrich",
+                "rule_filter",
+                "shortlist",
+                "ranking",
+            ],
+        }
+    )
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value=summary), \
+        patch("fitcv_cp.worker_job._get_bq", return_value=client), \
+        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+        patch("fitcv_cp.worker_job.update_run_status") as update_status, \
+        patch("fitcv_cp.worker_job.update_run_checkpoint") as update_checkpoint, \
+        patch(
+            "fitcv_cp.worker_job.update_run_stage_transition_artifacts",
+            side_effect=RuntimeError("stage artifact store unavailable"),
+        ):
+        execute_pipeline_run(
+            run_id="run-checkpoint-persistence-failure",
+            jobs_path="data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    failed_calls = [
+        call for call in update_status.call_args_list
+        if len(call.args) >= 2 and call.args[1] == RunStatus.FAILED
+    ]
+    assert failed_calls
+    assert failed_calls[-1].kwargs["error_stage"] == "ranking"
+    assert failed_calls[-1].kwargs["error_message"] == "checkpoint_persistence_failed"
+    assert not any(
+        len(call.args) >= 2 and call.args[1] == RunStatus.AWAITING_CONTINUE
+        for call in update_status.call_args_list
+    )
+    assert update_checkpoint.call_args.kwargs["checkpoint_status"] == "failed"
 
 
 def test_worker_preserves_success_for_complete_valid_zero_work():
