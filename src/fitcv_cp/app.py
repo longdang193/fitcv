@@ -968,7 +968,9 @@ def _apply_trigger_runtime_envelope(
 
 
 def _materialize_run_jobs_projection(run_id: str, artifact: CanonicalJobs) -> str:
-    path = Path("data/uploads") / f"{run_id}_jobs.json"
+    # Store an absolute path so worker-side config-relative resolution cannot
+    # point at a different projection than the trigger persisted.
+    path = (Path("data/uploads") / f"{run_id}_jobs.json").resolve()
     write_canonical_jobs(path, artifact)
     return str(path)
 

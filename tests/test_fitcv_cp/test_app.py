@@ -16704,6 +16704,7 @@ def test_admin_upload_trigger_path_mode_applies_explicit_max_jobs_without_changi
     manifest = json.loads(run.jobs_input_manifest_json)
     assert manifest["source_path"] == str(jobs_file)
     assert manifest["job_count"] == 2
+    assert Path(run.jobs_path).is_absolute()
     assert Path(run.jobs_path).exists()
 
 
