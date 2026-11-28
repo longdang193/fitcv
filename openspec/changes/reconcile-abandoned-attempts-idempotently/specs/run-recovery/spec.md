@@ -17,6 +17,14 @@ The reconciler MUST terminalize every expired `running` attempt it observes for 
 - **WHEN** a run has expired attempts and the configured maximum attempt count is reached
 - **THEN** the run becomes failed and no retry is enqueued
 
+#### Scenario: Owner or dispatch state is uncertain
+- **WHEN** an inline attempt lease expires but a worker may still be active or dispatch ownership cannot be established as abandoned
+- **THEN** the run is not terminalized and no replacement execution is enqueued
+
+#### Scenario: Abandoned inline owner is established
+- **WHEN** an inline attempt lease expires and the existing ownership evidence shows that no worker remains responsible for it
+- **THEN** the attempt becomes eligible for the same single-owner reconciliation rules without starting more than one replacement execution
+
 ### Requirement: Relative persisted paths resolve from the run configuration
 The recovery worker MUST resolve a relative persisted jobs projection path against the persisted run configuration directory before reading it, while preserving the original stored path value for integrity checks and lifecycle evidence.
 
