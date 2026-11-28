@@ -4,7 +4,7 @@
   "request": {
     "ref": "fitcv",
     "pageSize": 100,
-    "maxJobs": 100
+    "maxJobs": 20
   },
   "details": {
     "require": true,

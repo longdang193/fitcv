@@ -1353,7 +1353,7 @@ def test_load_config_ignores_retired_live_smoke_surface(tmp_path: Path, caplog: 
 def test_model_routing_part_owner_is_control_plane_not_pipeline_fallback() -> None:
     routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
     assert routing["provider"] == "openai_compatible"
-    assert routing["model"] == "cx/gpt-5.6-luna"
+    assert routing["model"] == "cx/gpt-6-luna"
 
 def test_model_routing_part_includes_provider_timeout_seconds() -> None:
     routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
@@ -1649,7 +1649,7 @@ def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() ->
     """@proves pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids"""
     cfg = load_config()
 
-    assert get_ranking_ai_score_model(cfg) == "cx/gpt-5.6-luna"
+    assert get_ranking_ai_score_model(cfg) == "cx/gpt-6-luna"
     assert get_ranking_prompt_id(cfg) == "ranking.ai_score.v2"
     assert get_cv_generation_structured_prompt_id(cfg) == "cv_generation.structured_write.v1"
 

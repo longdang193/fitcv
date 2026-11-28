@@ -9,7 +9,7 @@
         "datePosted": "r86400",
         "easyApply": false,
         "keywords": "student",
-        "limit": 80,
+        "limit": 10,
         "location": "Germany",
         "under10Applicants": false
       }
@@ -20,7 +20,7 @@
         "datePosted": "r86400",
         "easyApply": false,
         "keywords": "Praktikum",
-        "limit": 80,
+        "limit": 10,
         "location": "Germany",
         "under10Applicants": false
       }

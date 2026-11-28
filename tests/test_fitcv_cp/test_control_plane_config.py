@@ -45,7 +45,7 @@ def test_live_openai_compatible_routes_use_supported_model() -> None:
     cfg = load_control_plane_config()
 
     parts = cfg["model_routing"]["parts"]
-    assert {part["model"] for part in parts.values()} == {"cx/gpt-5.6-luna"}
+    assert {part["model"] for part in parts.values()} == {"cx/gpt-6-luna"}
 
 def test_load_control_plane_config_ignores_deprecated_route_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FITCV_CP_OPENAI_COMPATIBLE_BASE_URL", "http://override.local/v1")
