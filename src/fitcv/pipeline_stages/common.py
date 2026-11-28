@@ -416,6 +416,7 @@ def debug_record_output_sample(
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
         "cv_generation_reuse_status": record.get("cv_generation_reuse_status"),
         "cv_generation_input_fingerprint": record.get("cv_generation_input_fingerprint"),
+        "failure_diagnostic": record.get("failure_diagnostic"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
 
@@ -449,6 +450,7 @@ def debug_record_changed_sample(
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
         "cv_generation_reuse_status": record.get("cv_generation_reuse_status"),
         "cv_generation_input_fingerprint": record.get("cv_generation_input_fingerprint"),
+        "failure_diagnostic": record.get("failure_diagnostic"),
         "error": record.get("error"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}

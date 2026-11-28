@@ -744,6 +744,12 @@ def test_build_export_results_preserves_matching_generation_failure_debug_status
     matching_debug = {
         **raw_job,
         "status": "generation_failed",
+        "failure_diagnostic": {
+            "stage": "generation",
+            "code": "adapter_http_error",
+            "diagnostic_ref": "a1b2c3d4e5f60708",
+            "provider": {"status": 400, "request_id": "req-123"},
+        },
         "decision_chain": {
             "cv_generation": {"status": "generation_failed", "attempted": True},
         },
@@ -4185,6 +4191,17 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
     from fitcv.pipeline import run_pipeline
 
     observed_calls: list[tuple[str, dict[str, Any]]] = []
+    reporter_events: list[tuple[str, str, str, dict[str, Any] | None]] = []
+
+    class _Reporter:
+        def emit(
+            self,
+            stage: str,
+            level: str,
+            message: str,
+            payload: dict[str, Any] | None = None,
+        ) -> None:
+            reporter_events.append((stage, level, message, payload))
 
     @contextmanager
     def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
@@ -4317,7 +4334,22 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
         pipeline_result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
+            reporter=_Reporter(),
         )
+
+    cv_error_events = [event for event in reporter_events if event[0] == "layer4_cv_error"]
+    assert len(cv_error_events) == 1
+    assert cv_error_events[0][3]["output_snapshot"]["error_stage"] == "generation_failed"
+    result_events = [event for event in reporter_events if event[0] == "layer4_cv_generation_result"]
+    assert result_events
+    failure_diagnostic = result_events[-1][3]["output_snapshot"]["failure_diagnostic"]
+    assert failure_diagnostic["stage"] == "generation"
+    assert failure_diagnostic["code"] == "generation_failed"
+    assert len(failure_diagnostic["diagnostic_ref"]) == 16
+    assert failure_diagnostic["provider"]["status"] == 400
+    assert failure_diagnostic["provider"]["request_id"] == "trace-http"
+    assert "raw_body" not in failure_diagnostic["provider"]
+    assert len(failure_diagnostic["provider"]["request_id"]) <= 128
 
     item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
     assert len(item_calls) == 1
@@ -4328,6 +4360,16 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
     assert metadata["output_structured"]["failure_summary"] == "http error"
     assert metadata["output_structured"]["persistence_outcome"] == "generation_failed"
     assert "## Failure Summary" in item_attributes["langfuse.observation.output"]
+
+    debug_record = pipeline_result["cv_generation_debug_records"][0]
+    assert debug_record["status"] == "generation_failed"
+    assert debug_record["error"]["stage"] == "generation"
+    cv_generation_stage = pipeline_result["stage_transition_artifacts"]["stages"]["cv_generation"]
+    assert cv_generation_stage["status"] == "failed"
+    assert cv_generation_stage["stage_result"]["status"] == "failed"
+    assert cv_generation_stage["error_code"] == "generation_failed"
+    assert len(cv_generation_stage["error_message"]) <= 128
+    assert cv_generation_stage["evidence_ref"]["diagnostic_ref"] == failure_diagnostic["diagnostic_ref"]
 
     record = pipeline_result["cv_generation_debug_records"][0]
     observation = record["llm_runtime_observations"][0]

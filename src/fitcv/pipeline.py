@@ -1260,6 +1260,14 @@ def _build_export_results(
                 else {}
             ),
         }
+        failure_diagnostic = (
+            dict(debug_row.get("failure_diagnostic"))
+            if isinstance(debug_row, dict)
+            and isinstance(debug_row.get("failure_diagnostic"), dict)
+            else None
+        )
+        if failure_diagnostic:
+            evidence_record["failure_diagnostic"] = failure_diagnostic
         evidence_bytes = json.dumps(
             evidence_record,
             ensure_ascii=False,
@@ -1294,7 +1302,15 @@ def _build_export_results(
             stage=outcome_projection["stage"],
             outcome=outcome_projection["outcome"],
             reason_code=reason_code,
-            reason_facts={},
+            reason_facts=(
+                {
+                    "failure_stage": failure_diagnostic.get("stage"),
+                    "failure_code": failure_diagnostic.get("code"),
+                    "failure_diagnostic_ref": failure_diagnostic.get("diagnostic_ref"),
+                }
+                if failure_diagnostic
+                else {}
+            ),
             policy_version=(
                 str(debug_row.get("policy_version") or "").strip() or None
                 if isinstance(debug_row, dict)
@@ -1391,6 +1407,7 @@ def _build_export_results(
                     else None
                 ),
                 "decision_chain": decision_chain,
+                "failure_diagnostic": failure_diagnostic,
                 "rank": score_source.get("personalized_rank") or score_source.get("baseline_rank"),
                 "cv": (
                     {
@@ -2516,6 +2533,61 @@ def _build_cv_generation_debug_record(
     return payload
 
 
+def _build_cv_generation_failure_diagnostic(
+    *,
+    generation_result: dict[str, Any],
+    cv_generation_trace: dict[str, Any] | None,
+    llm_runtime_observations: list[dict[str, Any]],
+) -> dict[str, Any]:
+    error = generation_result.get("error")
+    error_payload = dict(error) if isinstance(error, Mapping) else {}
+    stage = str(error_payload.get("stage") or "generation")
+    code = str(
+        error_payload.get("code")
+        or error_payload.get("diagnostic_code")
+        or generation_result.get("status")
+        or "generation_failed"
+    ).strip() or "generation_failed"
+    stage = "".join(char if char.isalnum() or char in "._-" else "_" for char in stage)[:64] or "generation"
+    code = "".join(char if char.isalnum() or char in "._-" else "_" for char in code)[:64] or "generation_failed"
+    facts = error_payload.get("facts")
+    diagnostic_ref = str(facts.get("diagnostic_ref") or "")[:16] if isinstance(facts, Mapping) else ""
+    if not diagnostic_ref:
+        diagnostic_ref = hashlib.sha256(f"{stage}:{code}".encode("utf-8")).hexdigest()[:16]
+
+    provider_diagnostics: dict[str, Any] = {}
+    attempts = list(dict(cv_generation_trace or {}).get("attempts") or [])
+    for attempt in reversed(attempts):
+        if isinstance(attempt, Mapping) and isinstance(attempt.get("provider_diagnostics"), Mapping):
+            provider_diagnostics = dict(attempt["provider_diagnostics"])
+            break
+    if not provider_diagnostics:
+        for observation in reversed(llm_runtime_observations):
+            evidence = observation.get("evidence") if isinstance(observation, Mapping) else None
+            failure = evidence.get("failure") if isinstance(evidence, Mapping) else None
+            candidate = failure.get("provider_diagnostics") if isinstance(failure, Mapping) else None
+            if isinstance(candidate, Mapping):
+                provider_diagnostics = dict(candidate)
+                break
+
+    safe_provider: dict[str, Any] = {}
+    status = provider_diagnostics.get("status")
+    if isinstance(status, int) and not isinstance(status, bool):
+        safe_provider["status"] = status
+    for key in ("request_id", "payload_fingerprint"):
+        value = provider_diagnostics.get(key)
+        if isinstance(value, str) and value.strip():
+            safe_provider[key] = value.strip()[:128]
+    diagnostic = {
+        "stage": stage,
+        "code": code,
+        "diagnostic_ref": diagnostic_ref,
+    }
+    if safe_provider:
+        diagnostic["provider"] = safe_provider
+    return diagnostic
+
+
 def _build_incomplete_description_debug_record(
     analysis_record: dict[str, Any],
 ) -> dict[str, Any]:
@@ -3600,7 +3672,11 @@ def _build_stage_transition_artifacts(
     if normalized_last_completed_stage in _PIPELINE_STAGE_SET:
         reached_stages = set(completed_pipeline_stages_through(normalized_last_completed_stage))
         for stage_id in PIPELINE_STAGE_SEQUENCE:
-            if stage_id not in reached_stages:
+            existing_stage = stages.get(stage_id)
+            if stage_id not in reached_stages and not (
+                isinstance(existing_stage, dict)
+                and str(existing_stage.get("status") or "").strip().lower() == "failed"
+            ):
                 stages[stage_id] = _stage_block_not_reached(stage_id)
     return {
         "schema_version": STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
@@ -4994,6 +5070,7 @@ def run_pipeline(
             cv_generation_input_fingerprint: str | None = None,
             review_required_reason_code: str | None = None,
             validation_evidence_fingerprint: str | None = None,
+            failure_diagnostic: dict[str, Any] | None = None,
         ) -> None:
             if reporter is None:
                 return
@@ -5026,6 +5103,7 @@ def run_pipeline(
                         "cv_generation_input_fingerprint": str(cv_generation_input_fingerprint or ""),
                         "review_required_reason_code": str(review_required_reason_code or ""),
                         "validation_evidence_fingerprint": str(validation_evidence_fingerprint or ""),
+                        "failure_diagnostic": dict(failure_diagnostic or {}),
                         "attempt_count": int(attempt_count),
                         "retry_count": int(retry_count),
                         "configured_concurrency": int(configured_cv_generation_concurrency),
@@ -5169,6 +5247,7 @@ def run_pipeline(
             job_cv_generation_model_value = cast(str | None, state["job_cv_generation_model_value"])
             job_llm_runtime_observations = cast(list[dict[str, Any]], state["job_llm_runtime_observations"])
             job_cv_generation_trace = cast(dict[str, Any] | None, state["job_cv_generation_trace"])
+            generation_attempt_count = int(state.get("generation_attempt_count") or 1)
 
             logger.error("[run_id=%s] Failed for %s: %s", run_id, job.get("job_url"), exc)
             canonical_result = cast(dict[str, Any] | None, state.get("canonical_result"))
@@ -5183,26 +5262,34 @@ def run_pipeline(
             failure_result = persistence_result or canonical_result
             if not isinstance(failure_result, dict):
                 return
+            failure_diagnostic = _build_cv_generation_failure_diagnostic(
+                generation_result=failure_result,
+                cv_generation_trace=job_cv_generation_trace,
+                llm_runtime_observations=job_llm_runtime_observations,
+            )
             failure_debug_record = _build_cv_generation_debug_record(
                 generation_result=failure_result,
                 enabled_sections=enabled_cv_sections,
                 cv_generation_model=job_cv_generation_model_value,
                 cv_prompt_id=cv_prompt_id_value,
                 cv_prompt_template_path=cv_prompt_template_path_value,
+                attempt_count=generation_attempt_count,
             )
             failure_debug_record["cv_generation_input_fingerprint"] = cv_generation_input_fingerprint
             failure_debug_record["run_job_id"] = str(job.get("run_job_id") or "").strip() or None
             failure_debug_record["raw_job_fingerprint"] = str(job.get("raw_job_fingerprint") or "").strip() or None
+            failure_debug_record["failure_diagnostic"] = dict(failure_diagnostic)
             failure_debug_record.setdefault("llm_runtime_observations", job_llm_runtime_observations)
             _emit_cv_generation_result_event(
                 state=state,
                 status=failure_status,
-                attempt_count=1,
-                retry_count=0,
+                attempt_count=generation_attempt_count,
+                retry_count=max(generation_attempt_count - 1, 0),
                 latency_ms=latency_ms,
                 cv_generation_input_fingerprint=cv_generation_input_fingerprint,
                 review_required_reason_code=str(failure_debug_record.get("review_required_reason_code") or ""),
                 validation_evidence_fingerprint=str(failure_debug_record.get("validation_evidence_fingerprint") or ""),
+                failure_diagnostic=failure_diagnostic,
             )
             cv_generation_debug_records.append(failure_debug_record)
             _emit_cv_generation_item_observation(
@@ -5593,6 +5680,23 @@ def run_pipeline(
                     "deferred_reporter_payload": reporter_payload,
                     "canonical_result": generation_result,
                     "pdf_content": pdf_content,
+                    "fit": fit,
+                    "analysis_input_summary": analysis_input_summary,
+                    "evidence_used": evidence_used,
+                    "evidence_selection_summary": evidence_selection_summary,
+                    "gap": gap,
+                    "structured_cv_initial": structured_cv_initial,
+                    "validation_initial": validation_initial,
+                    "repair_attempt": repair_attempt,
+                    "structured_cv_final": structured_cv_final,
+                    "markdown_final": markdown_final,
+                    "job_llm_runtime_observations": llm_runtime_observations,
+                    "job_cv_generation_model_value": cv_generation_model,
+                    "job_cv_generation_trace": cv_generation_trace,
+                    "generation_attempt_count": attempt_count,
+                    "structured_cv": structured_cv_final,
+                    "cv": str(markdown_final or ""),
+                    "validation": dict(validation_final or {"valid": True, "missing_sections": []}),
                 }
             return {
                 "should_continue": False,
@@ -5754,7 +5858,59 @@ def run_pipeline(
                         dict[str, Any] | None,
                         canonical_outcome.get("deferred_debug_record"),
                     )
-                    if deferred_debug_record is not None:
+                    generation_state["canonical_result"] = canonical_outcome.get("canonical_result")
+                    generation_state["pdf_content"] = canonical_outcome.get("pdf_content")
+                    for state_key in (
+                        "fit",
+                        "analysis_input_summary",
+                        "evidence_used",
+                        "evidence_selection_summary",
+                        "gap",
+                        "structured_cv_initial",
+                        "validation_initial",
+                        "repair_attempt",
+                        "structured_cv_final",
+                        "markdown_final",
+                        "job_llm_runtime_observations",
+                        "job_cv_generation_model_value",
+                        "job_cv_generation_trace",
+                        "generation_attempt_count",
+                    ):
+                        if state_key in canonical_outcome:
+                            generation_state[state_key] = canonical_outcome[state_key]
+                    canonical_result = canonical_outcome.get("canonical_result")
+                    canonical_status = (
+                        str(canonical_result.get("status") or "")
+                        if isinstance(canonical_result, dict)
+                        else ""
+                    )
+                    if canonical_status in {
+                        "validation_failed",
+                        "generation_failed",
+                        "pdf_failed",
+                        "persistence_failed",
+                    }:
+                        failure_note = _build_operator_note(
+                            status=canonical_status,
+                            error=cast(dict[str, str] | None, (canonical_result or {}).get("error"))
+                            if isinstance(canonical_result, dict)
+                            else None,
+                            validation_initial=cast(dict[str, Any] | None, generation_state.get("validation_initial")),
+                        ) or "CV generation result was not persistable."
+                        _handle_cv_generation_failure(
+                            state=generation_state,
+                            analysis_record=analysis_record,
+                            structured_cv_final=cast(dict[str, Any] | None, canonical_outcome.get("structured_cv_final")),
+                            markdown_final=cast(str | None, canonical_outcome.get("markdown_final")),
+                            cv_prompt_id_value=cv_prompt_id_value,
+                            cv_prompt_template_path_value=cv_prompt_template_path_value,
+                            enabled_cv_sections=enabled_cv_sections,
+                            latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+                            run_id=run_id,
+                            exc=RuntimeError(str(failure_note)[:500]),
+                            cv_generation_input_fingerprint=reuse_fingerprint or None,
+                        )
+                    elif deferred_debug_record is not None:
                         cv_generation_debug_records.append(deferred_debug_record)
                         if cast(bool, canonical_outcome.get("deferred_observation")):
                             _emit_cv_generation_item_observation(

@@ -16142,6 +16142,7 @@ def persist_pipeline_snapshot(
                     )
                     or cv_analysis.get("experience_evidence_summary")
                     or {},
+                    "failure_diagnostic": result_row.get("failure_diagnostic"),
                 }
                 conn.execute(
                     """INSERT INTO run_job_stage_results (

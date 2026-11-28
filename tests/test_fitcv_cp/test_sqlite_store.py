@@ -7428,6 +7428,51 @@ def test_debug_bundle_availability_uses_persisted_run_evidence() -> None:
     assert available["status"] == "available"
 
 
+def test_persist_pipeline_snapshot_preserves_bounded_failure_diagnostic() -> None:
+    run_id = "run-generation-failure-diagnostic"
+    run_job_id = _create_normalized_run_with_jobs(
+        run_id,
+        [{"title": "Analyst", "job_url": "https://example.com/failure"}],
+    )[0]
+
+    sqlite_store.persist_pipeline_snapshot(
+        run_id,
+        {
+            "total_jobs": 1,
+            "passed_filter": 1,
+            "ranked": 1,
+            "cvs_generated": 0,
+            "export_results": [
+                {
+                    "job_url": "https://example.com/failure",
+                    "failure_diagnostic": {
+                        "stage": "generation",
+                        "code": "adapter_http_error",
+                        "diagnostic_ref": "a1b2c3d4e5f60708",
+                        "provider": {"status": 400, "request_id": "trace-http"},
+                    },
+                    "job_outcome": {
+                        "job_key": "input:0",
+                        "stage": "cv-generation",
+                        "outcome": "failed",
+                        "reason_code": "generation_failed",
+                    },
+                }
+            ],
+        },
+        run_status=RunStatus.RUNNING,
+        snapshot_at=datetime.datetime(2026, 7, 20, 12, tzinfo=datetime.timezone.utc),
+    )
+
+    hydrated = sqlite_store.get_run_job(run_id, run_job_id)
+    assert hydrated is not None
+    assert hydrated["evidence"]["failure_diagnostic"] == {
+        "stage": "generation",
+        "code": "adapter_http_error",
+        "diagnostic_ref": "a1b2c3d4e5f60708",
+        "provider": {"status": 400, "request_id": "trace-http"},
+    }
+
 def test_insert_run_with_snapshot_creates_atomic_normalized_bundle() -> None:
     run = _make_run("run-trigger-bundle")
     run.jobs_input_json = json.dumps(

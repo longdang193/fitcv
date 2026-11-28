@@ -1031,7 +1031,7 @@ def build_cv_generation_stage_block(
         str(record.get("status") or "").strip().lower() in generation_failure_statuses
         for record in cv_generation_debug_records
     )
-    return stage_block_builder(
+    stage_block = stage_block_builder(
         stage_id="cv_generation",
         status="failed" if has_generation_failure else "completed",
         input_counts={
@@ -1091,3 +1091,22 @@ def build_cv_generation_stage_block(
         ],
         llm_runtime_observations=runtime_observations,
     )
+    failure_diagnostic = next(
+        (
+            dict(record["failure_diagnostic"])
+            for record in cv_generation_debug_records
+            if isinstance(record.get("failure_diagnostic"), dict)
+        ),
+        None,
+    )
+    if failure_diagnostic:
+        stage = str(failure_diagnostic.get("stage") or "generation")[:64]
+        code = str(failure_diagnostic.get("code") or "generation_failed")[:64]
+        diagnostic_ref = str(failure_diagnostic.get("diagnostic_ref") or "")[:16]
+        stage_block["error_code"] = code
+        stage_block["error_message"] = f"{stage}:{code}"[:128]
+        stage_block["evidence_ref"] = {
+            "stage": stage,
+            "diagnostic_ref": diagnostic_ref,
+        }
+    return stage_block
