@@ -4325,6 +4325,9 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
             )
         )
         stack.enter_context(patch("fitcv.pipeline.analyze_ranked_job", return_value=_agentic_analysis_ready(job)))
+        mock_store_cv_version = stack.enter_context(
+            patch("fitcv.pipeline.PipelineStore.store_cv_version")
+        )
         stack.enter_context(
             patch(
                 "fitcv.cv_generator._execute_cv_generation_runtime",
@@ -4337,6 +4340,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
             reporter=_Reporter(),
         )
 
+    mock_store_cv_version.assert_not_called()
     cv_error_events = [event for event in reporter_events if event[0] == "layer4_cv_error"]
     assert len(cv_error_events) == 1
     assert cv_error_events[0][3]["output_snapshot"]["error_stage"] == "generation_failed"
